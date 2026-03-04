@@ -40,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      if (typeof window.gtag === 'function') {
+        if (firebaseUser) {
+          window.gtag('config', 'G-D0668PRSDQ', { user_id: firebaseUser.uid });
+        } else {
+          window.gtag('config', 'G-D0668PRSDQ', { user_id: undefined });
+        }
+      }
     });
     return unsubscribe;
   }, []);

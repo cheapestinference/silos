@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useDashboardStore } from './store/dashboard-store';
 import { useAuth } from './hooks/useAuth';
 import { LoginPage } from './components/views/LoginPage';
@@ -12,6 +12,19 @@ import { TasksPage } from './components/views/TasksPage';
 import { SettingsPage } from './components/views/SettingsPage';
 import { UnifiedDashboard } from './components/views/UnifiedDashboard';
 import { CronPage } from './components/views/CronPage';
+
+function PageTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', {
+        page_path: location.pathname,
+        page_location: window.location.href,
+      });
+    }
+  }, [location.pathname]);
+  return null;
+}
 
 function App() {
   const { connected, token, autoConnect, setToken, setGatewayUrl } = useDashboardStore();
@@ -185,6 +198,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PageTracker />
       <Routes>
         <Route path="/connect" element={connected && token ? <Navigate to="/" replace /> : <ConnectPage />} />
 
