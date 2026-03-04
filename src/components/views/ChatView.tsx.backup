@@ -1,0 +1,1067 @@
+import * as React from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { useDashboardStore } from '../../store/dashboard-store';
+import { useTranslation } from '../../i18n';
+import {
+  Hash,
+  Clock,
+  Zap,
+  Bot,
+  Send,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Sparkles,
+  User,
+  Paperclip,
+  Terminal,
+  Code2,
+  Layers,
+} from 'lucide-react';
+import { formatTimestamp, cn, truncateText, formatNumber } from '../../lib/utils';
+import { Button } from '../ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import type { ChatMessage, AgentSummary } from '../../types/openclaw';
+import { SessionIntelligenceHeader } from '../sessions/SessionIntelligenceHeader';
+import { SessionTasksKanban } from '../sessions/SessionTasksKanban';
+
+// ============== Message Text Extraction ==============
+
+/**
+ * Extract text content from various message formats.
+ * Handles: string content, array of content items, and text property fallback.
+ */
+function extractMessageText(message: unknown): string | null {
+  if (!message || typeof message !== 'object') return null;
+  const m = message as Record<string, unknown>;
+
+  // Handle string content
+  if (typeof m.content === 'string') {
+    return m.content;
+  }
+
+  // Handle array of content items (OpenAI format, etc.)
+  if (Array.isArray(m.content)) {
+    const parts = m.content
+      .map((item: unknown) => {
+        if (!item || typeof item !== 'object') return null;
+        const i = item as Record<string, unknown>;
+        if (i.type === 'text' && typeof i.text === 'string') {
+          return i.text;
+        }
+        return null;
+      })
+      .filter((v): v is string => v !== null);
+
+    if (parts.length > 0) {
+      return parts.join('\n');
+    }
+  }
+
+  // Handle text property fallback
+  if (typeof m.text === 'string') {
+    return m.text;
+  }
+
+  return null;
+}
+
+// ============== Message Markdown Renderer ==============
+
+function renderMarkdown(text: string | undefined | null): React.ReactNode {
+  if (!text) return null;
+  const textStr = String(text);
+
+  // Split by code blocks first
+  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = codeBlockRegex.exec(textStr)) !== null) {
+    // Add text before code block
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={key++}>
+          {renderInlineMarkdown(textStr.slice(lastIndex, match.index))}
+        </span>
+      );
+    }
+
+    // Add code block
+    const language = match[1] || 'text';
+    const code = match[2];
+    parts.push(
+      <CodeBlock key={key++} language={language} code={code} />
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < textStr.length) {
+    parts.push(
+      <span key={key++}>
+        {renderInlineMarkdown(textStr.slice(lastIndex))}
+      </span>
+    );
+  }
+
+  return parts.length > 0 ? parts : renderInlineMarkdown(textStr);
+}
+
+function renderInlineMarkdown(text: string | undefined | null): React.ReactNode {
+  // Ensure text is a string (defensive against type mismatches)
+  const textStr = String(text || '');
+
+  // Handle inline code, bold, italic, and links
+  const parts: React.ReactNode[] = [];
+  let remaining = textStr;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    // Inline code
+    const inlineCodeMatch = remaining.match(/^`([^`]+)`/);
+    if (inlineCodeMatch) {
+      parts.push(
+        <code key={key++} className="px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-400 text-xs font-mono">
+          {inlineCodeMatch[1]}
+        </code>
+      );
+      remaining = remaining.slice(inlineCodeMatch[0].length);
+      continue;
+    }
+
+    // Bold
+    const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
+    if (boldMatch) {
+      parts.push(<strong key={key++} className="font-semibold">{boldMatch[1]}</strong>);
+      remaining = remaining.slice(boldMatch[0].length);
+      continue;
+    }
+
+    // Italic
+    const italicMatch = remaining.match(/^\*([^*]+)\*/);
+    if (italicMatch) {
+      parts.push(<em key={key++}>{italicMatch[1]}</em>);
+      remaining = remaining.slice(italicMatch[0].length);
+      continue;
+    }
+
+    // Link
+    const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
+    if (linkMatch) {
+      parts.push(
+        <a
+          key={key++}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+        >
+          {linkMatch[1]}
+        </a>
+      );
+      remaining = remaining.slice(linkMatch[0].length);
+      continue;
+    }
+
+    // Regular character
+    parts.push(remaining[0]);
+    remaining = remaining.slice(1);
+  }
+
+  return parts;
+}
+
+// ============== Code Block Component (Premium) ==============
+
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Get language icon and color
+  const getLangStyle = (lang: string) => {
+    const styles: Record<string, { color: string; icon: React.ReactNode }> = {
+      typescript: { color: 'text-blue-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      javascript: { color: 'text-yellow-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      python: { color: 'text-green-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      bash: { color: 'text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
+      shell: { color: 'text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
+      json: { color: 'text-orange-400', icon: <Layers className="w-3.5 h-3.5" /> },
+    };
+    return styles[lang.toLowerCase()] || { color: 'text-zinc-400', icon: <Code2 className="w-3.5 h-3.5" /> };
+  };
+
+  const langStyle = getLangStyle(language);
+
+  return (
+    <div className="my-3 rounded-xl overflow-hidden border border-zinc-700/30 bg-gradient-to-b from-zinc-900 to-zinc-900/80 shadow-xl shadow-black/20 group">
+      {/* Premium Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-700/30 bg-zinc-800/40 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          {/* macOS-style window buttons */}
+          <div className="flex items-center gap-1.5 mr-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 group-hover:bg-red-500 transition-colors" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 group-hover:bg-yellow-500 transition-colors" />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 group-hover:bg-green-500 transition-colors" />
+          </div>
+          <span className={cn("flex items-center gap-1.5 text-xs font-medium", langStyle.color)}>
+            {langStyle.icon}
+            {language}
+          </span>
+        </div>
+        <button
+          onClick={handleCopy}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all",
+            copied
+              ? "bg-green-500/20 text-green-400"
+              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50"
+          )}
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5" />
+              <span>{t('chat.copied')}</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              <span>{t('chat.copyCode')}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Code Content with line numbers */}
+      <div className="relative">
+        <pre className="p-4 overflow-x-auto text-[13px] leading-relaxed">
+          <code className="text-zinc-300 font-mono">{code}</code>
+        </pre>
+        {/* Gradient fade at bottom for long code */}
+        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-zinc-900/80 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </div>
+  );
+}
+
+// ============== Tool Call Expander (Premium) ==============
+
+interface ToolCallExpanderProps {
+  toolName?: string;
+  toolCall?: unknown;
+  result?: unknown;
+  content?: string;
+}
+
+function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpanderProps) {
+  const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
+
+  const displayContent = content || (result ? JSON.stringify(result, null, 2) : JSON.stringify(toolCall, null, 2));
+  const truncatedContent = truncateText(displayContent, 200);
+  const needsExpansion = displayContent.length > 200;
+
+  // Get tool icon based on name
+  const getToolIcon = (name?: string) => {
+    if (!name) return <Cpu className="w-4 h-4" />;
+    const lower = name.toLowerCase();
+    if (lower.includes('code') || lower.includes('write')) return <Code2 className="w-4 h-4" />;
+    if (lower.includes('terminal') || lower.includes('bash')) return <Terminal className="w-4 h-4" />;
+    return <Cpu className="w-4 h-4" />;
+  };
+
+  return (
+    <div className={cn(
+      "rounded-xl overflow-hidden transition-all duration-300",
+      "border border-cyan-500/20 bg-gradient-to-br from-cyan-950/30 via-zinc-900/50 to-zinc-900/30",
+      "shadow-lg shadow-cyan-500/5",
+      expanded && "ring-1 ring-cyan-500/20"
+    )}>
+      {/* Header */}
+      <div
+        className={cn(
+          "flex items-center justify-between px-4 py-3",
+          "bg-gradient-to-r from-cyan-500/10 to-transparent",
+          "border-b border-cyan-500/10",
+          needsExpansion && "cursor-pointer hover:from-cyan-500/15 transition-all"
+        )}
+        onClick={() => needsExpansion && setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
+            {getToolIcon(toolName)}
+          </div>
+          <div>
+            <span className="font-semibold text-xs text-cyan-300 uppercase tracking-wider">
+              {t('chat.toolOutput')}
+            </span>
+            <p className="text-sm font-mono text-zinc-300">{toolName || 'unknown'}</p>
+          </div>
+        </div>
+        {needsExpansion && (
+          <button className={cn(
+            "p-2 rounded-lg transition-all",
+            "text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+          )}>
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className={cn(
+        "overflow-hidden transition-all duration-300",
+        expanded ? "max-h-96" : needsExpansion ? "max-h-24" : "max-h-96"
+      )}>
+        <div className="p-4 text-xs font-mono text-zinc-300 overflow-x-auto overflow-y-auto custom-scrollbar whitespace-pre-wrap">
+          {expanded || !needsExpansion ? displayContent : truncatedContent}
+        </div>
+      </div>
+
+      {/* Footer - expand button */}
+      {needsExpansion && !expanded && (
+        <button
+          onClick={() => setExpanded(true)}
+          className={cn(
+            "w-full py-2.5 text-xs font-medium text-center transition-all",
+            "text-cyan-400 hover:text-cyan-300",
+            "bg-gradient-to-t from-cyan-500/5 to-transparent",
+            "border-t border-cyan-500/10 hover:border-cyan-500/20",
+            "flex items-center justify-center gap-1.5"
+          )}
+        >
+          {t('chat.showMore')}
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============== Message Avatar (Premium) ==============
+
+interface MessageAvatarProps {
+  isUser: boolean;
+  agentId?: string;
+  agents: AgentSummary[];
+  showAvatar: boolean;
+  isStreaming?: boolean;
+}
+
+function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming }: MessageAvatarProps) {
+  if (!showAvatar) {
+    return <div className="w-11 h-11 flex-shrink-0 invisible" />;
+  }
+
+  if (isUser) {
+    return (
+      <div className="relative group">
+        {/* Outer glow ring */}
+        <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 opacity-50 blur-sm group-hover:opacity-75 transition-opacity" />
+        <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 transition-all group-hover:scale-105 group-hover:shadow-indigo-500/40">
+          <User className="w-5 h-5" />
+        </div>
+      </div>
+    );
+  }
+
+  // Find agent for this message
+  const agent = agentId ? agents.find(a => a.id === agentId) : null;
+  const emoji = agent?.identity?.emoji;
+
+  return (
+    <div className="relative group">
+      {/* Animated outer ring for AI */}
+      <div className={cn(
+        "absolute -inset-0.5 rounded-xl bg-gradient-to-br from-purple-400 via-violet-500 to-fuchsia-500 opacity-50 blur-sm transition-opacity",
+        isStreaming ? "animate-pulse opacity-75" : "group-hover:opacity-75"
+      )} />
+      {/* Inner rotating gradient (subtle) */}
+      {isStreaming && (
+        <div className="absolute -inset-1 rounded-xl bg-gradient-conic from-purple-500 via-violet-500 to-purple-500 opacity-30 animate-spin-slow" />
+      )}
+      <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-600 flex items-center justify-center text-white shadow-xl shadow-purple-500/25 transition-all group-hover:scale-105 group-hover:shadow-purple-500/40">
+        {emoji ? (
+          <span className="text-xl">{emoji}</span>
+        ) : (
+          <Bot className="w-5 h-5" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============== Message Bubble (Premium) ==============
+
+interface MessageBubbleProps {
+  message: ChatMessage;
+  showAvatar: boolean;
+  agents: AgentSummary[];
+}
+
+const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, agents }: MessageBubbleProps) {
+  const { t } = useTranslation();
+  const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
+  const isTool = message.role === 'tool';
+
+  // Get agent name for display
+  const getAgentName = () => {
+    if (isUser) return t('chat.operator');
+    if (isSystem) return t('chat.system');
+    return 'OpenClaw AI';
+  };
+
+  // Format timestamp for tooltip
+  const fullTimestamp = message.timestamp
+    ? new Date(message.timestamp).toLocaleString()
+    : '';
+
+  return (
+    <div className={cn(
+      "flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300",
+      isUser && "flex-row-reverse"
+    )}>
+      <MessageAvatar
+        isUser={isUser}
+        agentId={undefined}
+        agents={agents}
+        showAvatar={showAvatar}
+      />
+
+      <div className={cn("flex flex-col max-w-[70%]", isUser ? "items-end" : "items-start")}>
+        {showAvatar && (
+          <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
+            <span className={cn(
+              "font-semibold text-xs tracking-wide",
+              isUser ? "text-indigo-400" : "text-purple-400"
+            )}>
+              {getAgentName()}
+            </span>
+            <span className="text-zinc-600">•</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[10px] text-zinc-500 cursor-help hover:text-zinc-400 transition-colors">
+                  {formatTimestamp(message.timestamp)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side={isUser ? "left" : "right"}>
+                {fullTimestamp}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        <div className="text-sm">
+          {isTool ? (
+            <ToolCallExpander
+              toolName={message.toolName}
+              toolCall={message.toolCall}
+              result={message.result}
+              content={message.content}
+            />
+          ) : (() => {
+            const extractedText = extractMessageText(message);
+            return extractedText ? (
+              <div className={cn(
+                "relative px-4 py-3.5 rounded-2xl leading-relaxed whitespace-pre-wrap transition-all duration-200",
+                isUser
+                  ? [
+                      "bg-gradient-to-br from-indigo-500 via-indigo-500 to-indigo-600",
+                      "text-white rounded-br-md",
+                      "shadow-xl shadow-indigo-500/15",
+                      "hover:shadow-indigo-500/25 hover:translate-y-[-1px]"
+                    ]
+                  : [
+                      "bg-gradient-to-br from-zinc-800/90 to-zinc-800/70",
+                      "border border-zinc-700/40",
+                      "text-zinc-100 rounded-bl-md",
+                      "shadow-xl shadow-black/10",
+                      "hover:border-zinc-600/50 hover:translate-y-[-1px]"
+                    ]
+              )}>
+                {/* Subtle inner highlight for AI messages */}
+                {!isUser && (
+                  <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+                )}
+                <div className="relative">
+                  {renderMarkdown(extractedText)}
+                </div>
+              </div>
+            ) : null;
+          })()}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ============== Typing Indicator (Premium) ==============
+
+function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+      {/* Animated Avatar */}
+      <div className="relative">
+        {/* Pulsing outer rings */}
+        <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-500 opacity-20 animate-ping" />
+        <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-500 opacity-40 blur-sm animate-pulse" />
+        <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-600 flex items-center justify-center shadow-xl shadow-purple-500/30">
+          <Zap className="w-5 h-5 text-white animate-pulse" />
+        </div>
+      </div>
+
+      <div className="flex flex-col max-w-[70%]">
+        <div className="flex items-center gap-2 mb-1.5 px-1">
+          <span className="font-semibold text-xs text-purple-400 tracking-wide flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+            </span>
+            {t('chat.processing')}
+          </span>
+        </div>
+
+        <div className={cn(
+          "relative px-5 py-4 rounded-2xl rounded-bl-md overflow-hidden",
+          "bg-gradient-to-br from-zinc-800/90 to-zinc-800/70",
+          "border border-purple-500/20",
+          "shadow-xl shadow-purple-500/5"
+        )}>
+          {/* Animated gradient border effect */}
+          <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-r from-purple-500/10 via-fuchsia-500/10 to-purple-500/10 animate-gradient-x" />
+
+          <div className="relative text-zinc-100">
+            {streamingContent ? (() => {
+              const text = typeof streamingContent === 'string' ? streamingContent : extractMessageText(streamingContent) || '';
+              return (
+                <div className="flex items-end gap-1">
+                  <span className="text-sm leading-relaxed">{renderMarkdown(text)}</span>
+                  <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full ml-0.5" />
+                </div>
+              );
+            })() : (
+              <div className="flex items-center gap-2 py-1">
+                {/* Premium wave animation */}
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1 bg-gradient-to-t from-purple-400 to-fuchsia-400 rounded-full animate-wave"
+                      style={{
+                        height: '12px',
+                        animationDelay: `${i * 100}ms`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-zinc-400 ml-2">{t('chat.thinkingDeeply')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============== Main ChatView Component (Premium) ==============
+
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-zinc-700/30 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50">
+      {/* Decorative background */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-2xl" />
+
+      <div className="relative p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/20">
+              <BarChart2 className="w-4 h-4 text-indigo-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-zinc-200">{t('chat.tokenUsage')}</h4>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">This session</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold font-mono text-zinc-200">{formatNumber(total)}</p>
+            <p className="text-[10px] text-zinc-500">tokens</p>
+          </div>
+        </div>
+
+        {/* Premium dual progress bar */}
+        <div className="relative h-3 bg-zinc-700/50 rounded-full overflow-hidden mb-4">
+          <div className="absolute inset-0 flex">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-700 ease-out"
+              style={{ width: `${inputPercent}%` }}
+            />
+            <div
+              className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 transition-all duration-700 ease-out"
+              style={{ width: `${outputPercent}%` }}
+            />
+          </div>
+          {/* Shine effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-indigo-500" />
+              <p className="text-[10px] text-zinc-400 uppercase tracking-wider">{t('chat.inputTokens')}</p>
+            </div>
+            <p className="text-lg font-bold font-mono text-indigo-400">{formatNumber(inputTokens)}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/10">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              <p className="text-[10px] text-zinc-400 uppercase tracking-wider">{t('chat.outputTokens')}</p>
+            </div>
+            <p className="text-lg font-bold font-mono text-purple-400">{formatNumber(outputTokens)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============== Quick Actions (Premium) ==============
+
+interface QuickActionsProps {
+  onConfigure?: () => void;
+  onViewSessions?: () => void;
+  onClearHistory?: () => void;
+}
+
+interface QuickActionButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  variant?: 'default' | 'danger';
+}
+
+function QuickActionButton({ icon, label, onClick, variant = 'default' }: QuickActionButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-left group",
+        "border bg-gradient-to-r",
+        variant === 'danger'
+          ? "border-red-500/10 from-red-500/5 to-transparent hover:border-red-500/20 hover:from-red-500/10"
+          : "border-zinc-700/30 from-zinc-800/30 to-transparent hover:border-zinc-600/40 hover:from-zinc-700/40"
+      )}
+    >
+      <div className={cn(
+        "w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200",
+        "border",
+        variant === 'danger'
+          ? "bg-red-500/10 border-red-500/20 group-hover:bg-red-500/20 group-hover:border-red-500/30"
+          : "bg-zinc-800/50 border-zinc-700/30 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/20"
+      )}>
+        <span className={cn(
+          "transition-colors duration-200",
+          variant === 'danger'
+            ? "text-red-400/70 group-hover:text-red-400"
+            : "text-zinc-400 group-hover:text-indigo-400"
+        )}>
+          {icon}
+        </span>
+      </div>
+      <div className="flex-1">
+        <span className="text-sm font-medium text-zinc-300 group-hover:text-zinc-200 transition-colors">
+          {label}
+        </span>
+      </div>
+      <ArrowRight className={cn(
+        "w-4 h-4 transition-all duration-200 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0",
+        variant === 'danger' ? "text-red-400" : "text-zinc-400"
+      )} />
+    </button>
+  );
+}
+
+function QuickActions({ onConfigure, onViewSessions, onClearHistory }: QuickActionsProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <Zap className="w-3.5 h-3.5" />
+        {t('chat.quickActions')}
+      </h4>
+
+      <QuickActionButton
+        icon={<Settings className="w-4 h-4" />}
+        label={t('chat.configureAgent')}
+        onClick={onConfigure}
+      />
+
+      <QuickActionButton
+        icon={<MessageSquare className="w-4 h-4" />}
+        label={t('chat.viewSessions')}
+        onClick={onViewSessions}
+      />
+
+      <QuickActionButton
+        icon={<Trash2 className="w-4 h-4" />}
+        label={t('chat.clearHistory')}
+        onClick={onClearHistory}
+        variant="danger"
+      />
+    </div>
+  );
+}
+
+// ============== Agent Card in Sidebar (Premium) ==============
+
+interface AgentSidebarCardProps {
+  agent: AgentSummary;
+  isActive: boolean;
+}
+
+function AgentSidebarCard({ agent, isActive }: AgentSidebarCardProps) {
+  const { t } = useTranslation();
+  const displayName = agent.identity?.name || agent.name || agent.id;
+  const emoji = agent.identity?.emoji;
+
+  return (
+    <div
+      className={cn(
+        "relative p-3 rounded-xl transition-all duration-300 flex items-center gap-3 group overflow-hidden",
+        isActive
+          ? "bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 shadow-lg shadow-indigo-500/5"
+          : "bg-zinc-800/20 border border-zinc-700/20 hover:border-zinc-600/30 hover:bg-zinc-800/40"
+      )}
+    >
+      {/* Active glow effect */}
+      {isActive && (
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 animate-pulse" />
+      )}
+
+      <div className="relative">
+        {/* Avatar glow */}
+        {isActive && (
+          <div className="absolute -inset-1 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl opacity-30 blur-sm animate-pulse" />
+        )}
+        <div className={cn(
+          "relative w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-300",
+          isActive
+            ? "bg-gradient-to-br from-indigo-500 via-purple-500 to-fuchsia-500 text-white shadow-lg"
+            : "bg-zinc-700/30 text-zinc-400 group-hover:bg-zinc-700/50"
+        )}>
+          {emoji || <Bot className="w-5 h-5" />}
+        </div>
+        {/* Status indicator */}
+        <div className={cn(
+          "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-zinc-900 transition-colors",
+          isActive ? "bg-green-500" : "bg-zinc-600"
+        )}>
+          {isActive && (
+            <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
+          )}
+        </div>
+      </div>
+
+      <div className="relative flex-1 min-w-0">
+        <p className={cn(
+          "font-semibold text-sm truncate transition-colors",
+          isActive ? "text-zinc-100" : "text-zinc-300 group-hover:text-zinc-200"
+        )}>
+          {displayName}
+        </p>
+        <p className="text-xs truncate flex items-center gap-1.5 mt-0.5">
+          {isActive ? (
+            <span className="text-indigo-400 flex items-center gap-1.5 font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+              </span>
+              {t('chat.processing')}
+            </span>
+          ) : (
+            <span className="text-zinc-500">{t('chat.standingBy')}</span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============== Main ChatView Component (Premium) ==============
+
+export function ChatView({ sessionKey }: { sessionKey: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { t } = useTranslation();
+
+  const {
+    chatMessages,
+    sendMessage,
+    chatLoading,
+    chatSending,
+    streamingContent,
+    sessions,
+    selectSession,
+    agents,
+    loadAgents,
+    loadSessions,
+    connected
+  } = useDashboardStore();
+
+  const [inputFocused, setInputFocused] = useState(false);
+
+  // Translate sessionKey to effective key for backend matching
+  const effectiveKey = sessionKey.startsWith('dm-')
+    ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
+    : sessionKey;
+
+  // Find session details
+  const session = sessions?.sessions.find(s => s.key === sessionKey || s.key === effectiveKey);
+  const agentList = agents?.agents || [];
+
+  // Load data when component mounts or connection changes
+  useEffect(() => {
+    if (connected) {
+      loadAgents();
+      loadSessions();
+    }
+  }, [connected, loadAgents, loadSessions]);
+
+  useEffect(() => {
+    selectSession(sessionKey);
+  }, [sessionKey, selectSession]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, streamingContent, chatSending]);
+
+  // Auto-resize textarea
+  const handleInputChange = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 150) + 'px';
+    }
+  }, []);
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputRef.current?.value.trim()) {
+      sendMessage(inputRef.current.value);
+      inputRef.current.value = '';
+      inputRef.current.style.height = 'auto';
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(e);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Session Intelligence Header (Horizontal) */}
+      <SessionIntelligenceHeader session={session} defaultExpanded={false} />
+
+      {/* Main Content: Two Columns (Chat + Tasks) */}
+      <div className="flex flex-1 min-h-0">
+        {/* LEFT: Chat Column */}
+        <div className="flex-1 flex flex-col min-w-0 relative border-r border-border/50">
+          {/* Chat Header */}
+          <header className="relative h-16 px-6 border-b border-border/50 flex items-center justify-between flex-shrink-0 bg-card/50 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <Hash className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-sm text-foreground">
+                  {session?.displayName || session?.label || sessionKey || 'New Session'}
+                </h2>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {session?.updatedAt ? formatTimestamp(session.updatedAt) : 'Just now'}
+                </div>
+              </div>
+            </div>
+          </header>
+
+        {/* Messages Area */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          {/* Premium Empty State */}
+          {chatMessages.length === 0 && !chatLoading && (
+            <div className="flex flex-col items-center justify-center h-full text-center py-16">
+              {/* Animated icon container */}
+              <div className="relative mb-8">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
+                <div className="relative w-28 h-28 rounded-3xl bg-gradient-to-br from-zinc-800/80 to-zinc-900/80 border border-zinc-700/30 flex items-center justify-center shadow-2xl">
+                  <Sparkles className="w-14 h-14 text-indigo-400/70 animate-float" />
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold text-foreground mb-3">{t('chat.sessionInitialized')}</h3>
+              <p className="text-sm text-muted-foreground max-w-md mb-8 leading-relaxed">
+                {t('chat.sessionInitializedDesc')}
+              </p>
+
+              {/* Quick start suggestions */}
+              <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+                {['Tell me about OpenClaw', 'What can you do?', 'Help me get started'].map((suggestion, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (inputRef.current) {
+                        inputRef.current.value = suggestion;
+                        inputRef.current.focus();
+                      }
+                    }}
+                    className="px-4 py-2 rounded-full bg-zinc-800/50 border border-zinc-700/30 text-sm text-zinc-300 hover:bg-zinc-700/50 hover:border-zinc-600/50 hover:text-zinc-100 transition-all duration-200 flex items-center gap-2"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {chatMessages.map((msg, i) => {
+            const showAvatar = i === 0 ||
+              chatMessages[i-1].role !== msg.role ||
+              Boolean(chatMessages[i-1].timestamp && msg.timestamp - chatMessages[i-1].timestamp > 60000);
+
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                showAvatar={showAvatar}
+                agents={agentList}
+              />
+            );
+          })}
+
+          {/* Streaming / Typing Indicator */}
+          {(streamingContent || chatSending) && (
+            <TypingIndicator streamingContent={streamingContent} />
+          )}
+
+          <div className="h-4" />
+        </div>
+
+        {/* Premium Input Area */}
+        <div className="relative p-4 bg-gradient-to-t from-background via-background to-transparent">
+          {/* Gradient fade above input */}
+          <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent -translate-y-full pointer-events-none" />
+
+          <div className={cn(
+            "relative rounded-2xl transition-all duration-300",
+            "bg-gradient-to-br from-zinc-800/80 to-zinc-900/80",
+            "border shadow-2xl",
+            inputFocused
+              ? "border-indigo-500/40 shadow-indigo-500/10 ring-2 ring-indigo-500/10"
+              : "border-zinc-700/30 shadow-black/20"
+          )}>
+            {/* Inner highlight */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+
+            <form onSubmit={handleSend} className="relative flex flex-col">
+              <textarea
+                ref={inputRef}
+                className="w-full bg-transparent px-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/50 font-medium resize-none min-h-[56px] max-h-[150px]"
+                placeholder={t('chat.placeholder')}
+                disabled={chatSending}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                onChange={handleInputChange}
+                rows={1}
+                autoFocus
+              />
+
+              <div className="flex items-center justify-between px-4 pb-3">
+                {/* Left side - status and tools */}
+                <div className="flex items-center gap-3">
+                  {/* Status indicator */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="relative flex h-2 w-2">
+                      {connected && (
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                      )}
+                      <span className={cn(
+                        "relative inline-flex rounded-full h-2 w-2",
+                        connected ? "bg-green-500" : "bg-zinc-500"
+                      )} />
+                    </span>
+                    <span className="font-medium">
+                      {connected ? t('chat.systemReady') : 'Disconnected'}
+                    </span>
+                  </div>
+
+                  {/* Tool buttons */}
+                  <div className="flex items-center gap-1 pl-2 border-l border-zinc-700/30">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/30 transition-all"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Attach file</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                {/* Send button */}
+                <Button
+                  type="submit"
+                  disabled={chatSending}
+                  size="sm"
+                  className={cn(
+                    "gap-2 px-4 transition-all duration-200",
+                    "bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400",
+                    "shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40",
+                    "border border-indigo-400/20"
+                  )}
+                >
+                  {t('chat.send')}
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* Keyboard hint */}
+          <p className="text-[10px] text-zinc-600 text-center mt-2">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono text-[9px]">Shift+Enter</kbd> for new line
+          </p>
+        </div>
+        </div>
+        {/* End Chat Column */}
+
+        {/* RIGHT: Tasks Kanban Column */}
+        <div className="w-96 flex flex-col">
+          <SessionTasksKanban sessionKey={effectiveKey} />
+        </div>
+      </div>
+    </div>
+  );
+}
