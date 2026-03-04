@@ -27,7 +27,7 @@ function PageTracker() {
 }
 
 function App() {
-  const { connected, token, autoConnect, setToken, setGatewayUrl } = useDashboardStore();
+  const { connected, token, autoConnect, setToken, setGatewayUrl, disconnect } = useDashboardStore();
   const { user, loading: authLoading, getIdToken, signOut } = useAuth();
   const [verifying, setVerifying] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -35,9 +35,9 @@ function App() {
   const [verificationSent, setVerificationSent] = useState(false);
 
   // After Firebase auth, verify ownership and get gateway token
+  // Always verify on load to get a fresh token (handles VPS resets with new GATEWAY_TOKEN)
   useEffect(() => {
     if (authLoading || !user) return;
-    if (token) return; // Already have a gateway token
 
     let cancelled = false;
 
@@ -57,6 +57,11 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           if (data.authorized && data.gatewayToken) {
+            // If token changed (e.g. VPS reset), disconnect existing client so autoConnect
+            // creates a new one with the fresh token instead of staying stuck in reconnect loop
+            if (data.gatewayToken !== token) {
+              disconnect();
+            }
             setToken(data.gatewayToken);
             if (data.gatewayUrl) {
               setGatewayUrl(data.gatewayUrl);
