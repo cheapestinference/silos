@@ -229,8 +229,8 @@ export function AgentDetailView() {
                 className={cn(
                   "p-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800/50 transition-all group",
                   isMainAgent
-                    ? "hover:border-amber-500/30 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-400"
-                    : "hover:border-red-500/30 hover:bg-red-500/10 text-zinc-500 hover:text-red-400"
+                    ? "hover:border-amber-500/30 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-600 dark:text-amber-400"
+                    : "hover:border-red-500/30 hover:bg-red-500/10 text-zinc-500 hover:text-red-600 dark:text-red-400"
                 )}
                 title={isMainAgent ? "Reset Agent" : "Delete Agent"}
               >
@@ -339,8 +339,8 @@ export function AgentDetailView() {
                     : "bg-gradient-to-br from-red-500/20 to-orange-500/20 border-red-500/30"
                 )}>
                   {isMainAgent
-                    ? <RefreshCw className="w-4 h-4 text-amber-400" />
-                    : <Trash2 className="w-4 h-4 text-red-400" />
+                    ? <RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    : <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                   }
                 </div>
                 <div>
@@ -367,7 +367,7 @@ export function AgentDetailView() {
                 "p-3 border rounded-lg",
                 isMainAgent ? "bg-amber-500/10 border-amber-500/20" : "bg-red-500/10 border-red-500/20"
               )}>
-                <p className={cn("text-xs font-mono", isMainAgent ? "text-amber-400" : "text-red-400")}>
+                <p className={cn("text-xs font-mono", isMainAgent ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400")}>
                   {isMainAgent
                     ? 'This will clear the main session conversation history. The agent configuration will remain unchanged.'
                     : 'This will remove the agent from your configuration. The gateway will restart after deletion.'
@@ -443,8 +443,8 @@ function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
     emerald: {
       bg: 'bg-emerald-500/10',
       border: 'border-emerald-500/20',
-      icon: 'text-emerald-400',
-      value: 'text-emerald-300',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      value: 'text-emerald-700 dark:text-emerald-300',
     },
   };
 
@@ -568,10 +568,10 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-emerald-300">{completedTasks}</p>
+                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{completedTasks}</p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Completed</p>
               </div>
             </div>
@@ -592,10 +592,10 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Gauge className="w-5 h-5 text-amber-400" />
+                <Gauge className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-amber-300">{successRate}%</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-300">{successRate}%</p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Success Rate</p>
               </div>
             </div>
@@ -669,7 +669,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
         <div className="space-y-4">
           <div className="rounded-xl border border-zinc-800/40 bg-zinc-900/30 p-4">
             <div className="flex items-center gap-2 mb-4">
-              <Database className="w-4 h-4 text-blue-400" />
+              <Database className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               <h3 className="text-sm font-semibold text-zinc-100">Token Usage</h3>
             </div>
             <div className="space-y-3">
@@ -692,7 +692,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
 
           <div className="rounded-xl border border-zinc-800/40 bg-zinc-900/30 p-4">
             <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-4 h-4 text-emerald-400" />
+              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <h3 className="text-sm font-semibold text-zinc-100">Task Performance</h3>
             </div>
             <div className="space-y-3">
@@ -702,7 +702,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-zinc-500">Failed</span>
-                <span className="text-sm font-mono text-red-400">{failedTasksList.length}</span>
+                <span className="text-sm font-mono text-red-600 dark:text-red-400">{failedTasksList.length}</span>
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden flex">
                 <div
@@ -766,7 +766,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {/* Completed Tasks */}
           {completedTasksList.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider px-1">Completed</p>
+              <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider px-1">Completed</p>
               {completedTasksList.map((task) => (
                 <div
                   key={task.id}
@@ -774,7 +774,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                 >
                   <div className="flex items-start gap-2">
                     <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-zinc-300 truncate">
@@ -793,7 +793,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {/* Failed Tasks */}
           {failedTasksList.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider px-1">Failed</p>
+              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider px-1">Failed</p>
               {failedTasksList.map((task) => (
                 <div
                   key={task.id}
@@ -801,7 +801,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                 >
                   <div className="flex items-start gap-2">
                     <div className="w-6 h-6 rounded bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-zinc-300 truncate">
@@ -1244,20 +1244,20 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                 )}
                 {saveStatus === 'saved' && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs text-emerald-400">Guardado</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">Guardado</span>
                   </div>
                 )}
                 {saveStatus === 'error' && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                    <span className="text-xs text-red-400">Error</span>
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                    <span className="text-xs text-red-600 dark:text-red-400">Error</span>
                   </div>
                 )}
                 {saveStatus === 'idle' && hasChanges && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-xs text-amber-400">Editando...</span>
+                    <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span className="text-xs text-amber-600 dark:text-amber-400">Editando...</span>
                   </div>
                 )}
               </div>
@@ -1465,16 +1465,16 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
         <div className="p-4 border-b border-zinc-800/40 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-amber-400" />
+              <Wrench className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <h3 className="text-xs font-bold text-zinc-100 uppercase tracking-wider">
                 Skills Catalog
               </h3>
             </div>
             <div className="flex items-center gap-2">
               {saveStatus === 'saving' && <RefreshCw className="w-3.5 h-3.5 text-zinc-400 animate-spin" />}
-              {saveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-              {saveStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
-              <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-semibold">
+              {saveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+              {saveStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
+              <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 font-semibold">
                 {enabledCount} activos
               </span>
             </div>
@@ -1525,7 +1525,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               className={cn(
                 "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all",
                 showOnlyEnabled
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                   : "bg-zinc-800/50 text-zinc-500 border border-transparent hover:border-zinc-700/50"
               )}
             >
@@ -1625,7 +1625,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 className={cn(
                   "w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2",
                   enabledSkills.includes(selectedSkill.id)
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
                     : "bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30"
                 )}
               >
@@ -1711,19 +1711,19 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-4 space-y-3">
                 <div>
                   <p className="text-[10px] text-zinc-500 mb-1.5">Buscar skills disponibles:</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub search ethereum
                   </code>
                 </div>
                 <div>
                   <p className="text-[10px] text-zinc-500 mb-1.5">Instalar un skill:</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub install nombre-skill
                   </code>
                 </div>
                 <div>
                   <p className="text-[10px] text-zinc-500 mb-1.5">Ver skills instalados:</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub list
                   </code>
                 </div>
@@ -1903,12 +1903,12 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
               {settingsSaving ? 'Saving...' : 'Save Settings'}
             </button>
             {settingsSaved && (
-              <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <Check className="w-3.5 h-3.5" /> Saved
               </span>
             )}
             {settingsError && (
-              <span className="text-xs text-red-400">{settingsError}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">{settingsError}</span>
             )}
           </div>
         </div>
@@ -1944,7 +1944,7 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
           <div className="px-5 py-4 border-b border-blue-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Users className="w-4.5 h-4.5 text-blue-400" />
+                <Users className="w-4.5 h-4.5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-zinc-100">Agent-to-Agent Communication</h4>
@@ -2014,16 +2014,16 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-emerald-400 font-bold text-sm">1</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">1</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-emerald-300 mb-1">Edit AGENTS.md directly</p>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Edit AGENTS.md directly</p>
                     <p className="text-[11px] text-zinc-400 mb-3">
                       Go to the <span className="text-zinc-200">Memory</span> tab and edit <span className="text-zinc-200 font-mono">AGENTS.md</span> to add your delegation rules.
                     </p>
                     <button
                       onClick={onNavigateToMemory}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-lg transition-all"
                     >
                       <Brain className="w-3.5 h-3.5" />
                       Go to Memory Tab
@@ -2036,10 +2036,10 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-blue-400 font-bold text-sm">2</span>
+                    <span className="text-blue-500 dark:text-blue-400 font-bold text-sm">2</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-blue-300 mb-1">Ask the agent to update itself</p>
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1">Ask the agent to update itself</p>
                     <p className="text-[11px] text-zinc-400 mb-3">
                       Copy this message and send it to your agent. It will update its own AGENTS.md:
                     </p>
@@ -2078,8 +2078,8 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                       className={cn(
                         "flex items-center gap-2 px-3 py-1.5 text-xs font-medium border rounded-lg transition-all",
                         copiedPrompt
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                          : "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/30"
+                          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                          : "bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-300 border-blue-500/30"
                       )}
                     >
                       {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -2094,7 +2094,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                 <p className="text-xs font-semibold text-zinc-300 mb-3">Available Tools Reference</p>
                 <div className="space-y-2 text-[11px] font-mono text-zinc-400">
                   <div className="bg-zinc-950/50 rounded-lg p-2">
-                    <span className="text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-zinc-600">// Send to another agent</span>
+                    <span className="text-blue-500 dark:text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-zinc-600">// Send to another agent</span>
                   </div>
                   <div className="bg-zinc-950/50 rounded-lg p-2">
                     <span className="text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-zinc-600">// Spawn background subagent</span>
@@ -2141,8 +2141,8 @@ function ConfigCard({ title, icon, color, children }: ConfigCardProps) {
   const colorClasses = {
     cyan: { bg: 'from-cyan-500/10', border: 'border-cyan-500/20', icon: 'text-cyan-400' },
     violet: { bg: 'from-violet-500/10', border: 'border-violet-500/20', icon: 'text-violet-400' },
-    amber: { bg: 'from-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-400' },
-    emerald: { bg: 'from-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400' },
+    amber: { bg: 'from-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-600 dark:text-amber-400' },
+    emerald: { bg: 'from-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400' },
   };
 
   const styles = colorClasses[color];
@@ -2259,7 +2259,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-blue-400" />
+              <BookOpen className="w-5 h-5 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-zinc-100" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -2270,7 +2270,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
           </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-300 border border-blue-500/30 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             New File
@@ -2281,7 +2281,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
         {isCreating && (
           <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-blue-300 uppercase tracking-wider">Create New File</h4>
+              <h4 className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wider">Create New File</h4>
               <button
                 onClick={() => setIsCreating(false)}
                 className="p-1.5 hover:bg-zinc-800/50 rounded-lg transition-colors text-zinc-500 hover:text-zinc-300"
@@ -2336,7 +2336,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
               <button
                 onClick={handleCreate}
                 disabled={!newFileName.trim() || !newFileContent.trim()}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-3.5 h-3.5" />
                 Create
@@ -2349,7 +2349,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
         {editingFile && (
           <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">Edit File</h4>
+              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-300 uppercase tracking-wider">Edit File</h4>
               <button
                 onClick={() => setEditingFile(null)}
                 className="p-1.5 hover:bg-zinc-800/50 rounded-lg transition-colors text-zinc-500 hover:text-zinc-300"
@@ -2387,7 +2387,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
               </button>
               <button
                 onClick={handleEdit}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all"
               >
                 <Save className="w-3.5 h-3.5" />
                 Save Changes
@@ -2415,7 +2415,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-400" />
+                      <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                     </div>
                     <div>
                       <h5 className="text-sm font-semibold text-zinc-200">{file.name}</h5>
@@ -2433,7 +2433,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => setEditingFile(file)}
-                      className="p-2 rounded-lg hover:bg-zinc-800/50 text-zinc-500 hover:text-blue-400 transition-colors"
+                      className="p-2 rounded-lg hover:bg-zinc-800/50 text-zinc-500 hover:text-blue-500 dark:text-blue-400 transition-colors"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
@@ -2468,7 +2468,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
             <div className="px-6 py-4 border-b border-zinc-800/60 bg-zinc-900/40">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-lg">
-                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>

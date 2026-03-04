@@ -192,7 +192,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
           <div className="flex items-center justify-between w-full">
             <div className="text-sm text-zinc-500">
               {hasChanges && !saveSuccess && (
-                <span className="text-amber-400">Unsaved changes</span>
+                <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
               )}
               {saveSuccess && (
                 <span className="text-green-400 flex items-center gap-1">

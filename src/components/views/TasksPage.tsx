@@ -183,7 +183,7 @@ function TaskCard({
           {/* Duration */}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Timer className="w-4 h-4 flex-shrink-0" />
-            <span className={cn('text-xs', isRunning && 'text-blue-400')}>
+            <span className={cn('text-xs', isRunning && 'text-blue-600 dark:text-blue-400')}>
               {formatDuration(duration)}
               {isRunning && <span className="animate-pulse ml-0.5">...</span>}
             </span>
@@ -192,7 +192,7 @@ function TaskCard({
           {/* Error message */}
           {isError && task.error && (
             <div className="mt-2 p-2.5 bg-red-500/10 rounded-lg border border-red-500/20">
-              <p className="text-xs text-red-400 line-clamp-2">{task.error}</p>
+              <p className="text-xs text-red-600 dark:text-red-400 line-clamp-2">{task.error}</p>
             </div>
           )}
 
@@ -203,7 +203,7 @@ function TaskCard({
               <span className="text-xs text-muted-foreground">
                 <span className="text-indigo-400">{(task.inputTokens || 0).toLocaleString()}</span> in
                 {' / '}
-                <span className="text-emerald-400">{(task.outputTokens || 0).toLocaleString()}</span> out
+                <span className="text-emerald-600 dark:text-emerald-400">{(task.outputTokens || 0).toLocaleString()}</span> out
               </span>
             </div>
           )}

@@ -57,8 +57,8 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
 
         {/* Active */}
         <div className="flex items-center gap-1.5">
-          <Play className="w-3 h-3 text-emerald-400" />
-          <span className="text-sm font-medium text-emerald-400">{activeJobs}</span>
+          <Play className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{activeJobs}</span>
           <span className="text-xs text-zinc-500">active</span>
         </div>
 
@@ -80,7 +80,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
             <span className="w-px h-4 bg-zinc-700" />
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-sm font-medium text-blue-400">{runningCount}</span>
+              <span className="text-sm font-medium text-blue-500 dark:text-blue-400">{runningCount}</span>
               <span className="text-xs text-zinc-500">running</span>
             </div>
           </>

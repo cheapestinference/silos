@@ -248,7 +248,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
           {/* Agent Name */}
           <div>
             <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-              {t('modals.createAgent.agentName')} <span className="text-red-400">*</span>
+              {t('modals.createAgent.agentName')} <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -394,8 +394,8 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
           {/* Error Message */}
           {error && !waitingReconnect && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-red-400 font-mono">{error}</p>
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-600 dark:text-red-400 font-mono">{error}</p>
             </div>
           )}
         </div>

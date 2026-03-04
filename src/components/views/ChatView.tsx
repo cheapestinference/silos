@@ -229,11 +229,11 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   // Get language icon and color
   const getLangStyle = (lang: string) => {
     const styles: Record<string, { color: string; icon: React.ReactNode }> = {
-      typescript: { color: 'text-blue-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      typescript: { color: 'text-blue-500 dark:text-blue-400', icon: <Code2 className="w-3.5 h-3.5" /> },
       javascript: { color: 'text-yellow-400', icon: <Code2 className="w-3.5 h-3.5" /> },
       python: { color: 'text-green-400', icon: <Code2 className="w-3.5 h-3.5" /> },
-      bash: { color: 'text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
-      shell: { color: 'text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
+      bash: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
+      shell: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
       json: { color: 'text-orange-400', icon: <Layers className="w-3.5 h-3.5" /> },
     };
     return styles[lang.toLowerCase()] || { color: 'text-zinc-400', icon: <Code2 className="w-3.5 h-3.5" /> };
@@ -784,11 +784,11 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
         <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 px-2">
           <div className="w-full max-w-2xl mx-auto">
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm p-4 space-y-2">
-              <div className="flex items-center gap-2 text-amber-400">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <Clock className="w-5 h-5 flex-shrink-0" />
                 <span className="font-semibold text-sm">{t('chat.rateLimitError')}</span>
               </div>
-              <p className="text-xs text-amber-300/80 leading-relaxed pl-7">
+              <p className="text-xs text-amber-600/80 dark:text-amber-300/80 leading-relaxed pl-7">
                 {rateLimitResetTime
                   ? t('chat.rateLimitResetsAt', { time: rateLimitResetTime })
                   : t('chat.rateLimitHint')}
@@ -922,7 +922,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                 {isUser && (isQueued || isSending || hasError) && (
                   <div className={cn(
                     "flex items-center justify-end gap-1.5 px-2 text-[10px] font-medium",
-                    isQueued && "text-amber-400",
+                    isQueued && "text-amber-600 dark:text-amber-400",
                     isSending && "text-indigo-400",
                     hasError && "text-rose-400"
                   )}>
@@ -1226,7 +1226,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                   {/* Queue indicator */}
                   {(queuedCount > 0 || (chatSending && sendingCount > 0)) && (
                     <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                      <div className="flex items-center gap-1.5 text-amber-400">
+                      <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                         {sendingCount > 0 && (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         )}
@@ -1268,7 +1268,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                       }}
                       size="sm"
                       variant="ghost"
-                      className="gap-1.5 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="gap-1.5 px-3 text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-500/10"
                     >
                       <X className="w-3.5 h-3.5" />
                       Stop

@@ -78,7 +78,7 @@ export function ConnectPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-4 rounded-2xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400 animate-message-in">
+              <div className="flex items-center gap-4 rounded-2xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-600 dark:text-red-400 animate-message-in">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <span className="font-medium">{error}</span>
               </div>

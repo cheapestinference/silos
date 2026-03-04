@@ -96,7 +96,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
         <div className="px-6 py-4 border-b border bg-card flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 rounded-lg">
-              <Hash className="w-4 h-4 text-blue-400" />
+              <Hash className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
@@ -119,7 +119,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
           {/* Channel Name */}
           <div>
             <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-              {t('modals.createChannel.channelName')} <span className="text-red-400">*</span>
+              {t('modals.createChannel.channelName')} <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <div className="relative">
               <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -138,7 +138,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
           {/* Agent Selection */}
           <div>
             <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wide" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-              {t('modals.createChannel.selectAgents')} <span className="text-red-400">*</span>
+              {t('modals.createChannel.selectAgents')} <span className="text-red-600 dark:text-red-400">*</span>
             </label>
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar bg-background border border rounded-lg p-3">
               {agentList.length === 0 ? (
@@ -185,7 +185,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
               )}
             </div>
             {selectedAgents.size > 0 && (
-              <p className="mt-2 text-xs text-blue-400 font-mono">
+              <p className="mt-2 text-xs text-blue-500 dark:text-blue-400 font-mono">
                 {t('modals.createChannel.agentsSelected', { count: String(selectedAgents.size) })}
               </p>
             )}
@@ -194,8 +194,8 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
           {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-red-400 font-mono">{error}</p>
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-600 dark:text-red-400 font-mono">{error}</p>
             </div>
           )}
         </div>

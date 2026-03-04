@@ -137,7 +137,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
       return { icon: Brain, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
     }
     if (path.includes('long') || path.includes('memory')) {
-      return { icon: Brain, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
+      return { icon: Brain, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
     }
     return { icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20' };
   };
@@ -384,7 +384,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             {(selectedFile ? editedContent : value).length.toLocaleString()} characters
           </div>
           {!selectedFile && (
-            <div className="text-amber-400 flex items-center gap-1">
+            <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5" />
               Changes saved automatically with config
             </div>

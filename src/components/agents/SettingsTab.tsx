@@ -140,7 +140,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
   }, [currentModels, parsedModel.modelId]);
 
   const DefaultBadge = () => (
-    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded">
+    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded">
       Gateway Default
     </span>
   );
@@ -149,7 +149,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Sliders className="w-5 h-5 text-amber-400" />
+        <Sliders className="w-5 h-5 text-amber-600 dark:text-amber-400" />
         <h3 className="text-lg font-semibold">{t('agents.config.modelSettings')}</h3>
       </div>
 

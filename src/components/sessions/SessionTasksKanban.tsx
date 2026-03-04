@@ -315,8 +315,8 @@ function TaskCard({ task, color, formatDuration, onAbort, onNavigate }: TaskCard
   // Get badge style based on task type
   const getBadgeStyle = () => {
     if (isAgentSpawn) return 'bg-violet-500/20 text-violet-400 border-violet-500/30';
-    if (isToolTask) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    if (isToolTask) return 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    return 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30';
   };
 
   // Get task type label
@@ -445,7 +445,7 @@ function TaskCard({ task, color, formatDuration, onAbort, onNavigate }: TaskCard
       {task.status === 'completed' && task.completedAt && (
         <div className="mt-2 pt-2 border-t flex items-center gap-1.5">
           <ArrowRight className="w-2.5 h-2.5 text-emerald-500/60" />
-          <p className="text-[9px] text-emerald-400/60 font-mono">
+          <p className="text-[9px] text-emerald-600/60 dark:text-emerald-400/60 font-mono">
             {formatDistanceToNow(task.completedAt, { addSuffix: true })}
           </p>
         </div>

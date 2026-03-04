@@ -28,7 +28,7 @@ export function AgentAvatar({ name, isBusy, activeTask, imageUrl, className }: A
             )}
             {isBusy && (
               <div className="absolute inset-0 bg-blue-500/20 animate-pulse-soft flex items-center justify-center">
-                <Zap className="w-8 h-8 text-blue-400 drop-shadow-[0_0_8px_rgba(37,99,235,0.8)]" />
+                <Zap className="w-8 h-8 text-blue-500 dark:text-blue-400 drop-shadow-[0_0_8px_rgba(37,99,235,0.8)]" />
               </div>
             )}
           </div>
@@ -49,8 +49,8 @@ export function AgentAvatar({ name, isBusy, activeTask, imageUrl, className }: A
           {isBusy && activeTask && (
             <div className="w-full mt-2 p-3 rounded-lg bg-white/5 border border-white/5 animate-message-in">
               <div className="flex items-center gap-2 mb-1">
-                <Activity className="w-3 h-3 text-blue-400" />
-                <span className="text-[10px] font-bold uppercase text-blue-400 tracking-tighter">Current Task</span>
+                <Activity className="w-3 h-3 text-blue-500 dark:text-blue-400" />
+                <span className="text-[10px] font-bold uppercase text-blue-500 dark:text-blue-400 tracking-tighter">Current Task</span>
               </div>
               <p className="text-xs text-white/80 line-clamp-2 leading-relaxed">
                 {activeTask}

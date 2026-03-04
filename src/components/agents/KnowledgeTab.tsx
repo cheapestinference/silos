@@ -83,7 +83,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-emerald-400" />
+          <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           <h3 className="text-lg font-semibold">{t('agents.config.knowledgeFiles')}</h3>
           <Tooltip>
             <TooltipTrigger>
@@ -115,7 +115,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
       {isAdding && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-emerald-400">{t('agents.config.addFile')}</h4>
+            <h4 className="font-medium text-emerald-600 dark:text-emerald-400">{t('agents.config.addFile')}</h4>
             <Button
               variant="ghost"
               size="sm"
@@ -220,7 +220,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-emerald-400" />
+                        <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span className="font-medium">{file.name}</span>
                       </div>
                       <Button
@@ -264,7 +264,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-5 h-5 text-emerald-400" />
+                        <Icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{file.name}</h4>
@@ -288,7 +288,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        className="h-8 w-8 text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 hover:bg-red-500/10"
                         onClick={() => handleDelete(file.id)}
                       >
                         <Trash2 className="w-4 h-4" />

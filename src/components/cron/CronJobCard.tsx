@@ -399,7 +399,7 @@ export function CronJobCard({
                         )}
                       </div>
                       {run.error && (
-                        <span className="text-red-400 truncate max-w-[100px]">{run.error}</span>
+                        <span className="text-red-600 dark:text-red-400 truncate max-w-[100px]">{run.error}</span>
                       )}
                     </div>
                   ))}

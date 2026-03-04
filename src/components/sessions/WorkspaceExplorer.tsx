@@ -158,7 +158,7 @@ function TreeItem({
         )}
         <Icon className={cn(
           'h-3.5 w-3.5 shrink-0',
-          isDir ? 'text-amber-400' : 'text-muted-foreground'
+          isDir ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
         )} />
         <span className="truncate flex-1">{node.name}</span>
         {!isDir && node.size != null && (

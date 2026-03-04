@@ -307,7 +307,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               <span className="text-sm font-medium text-foreground">{label}</span>
               <div className={cn(
                 "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold",
-                isConnected ? "bg-emerald-500/20 text-emerald-400" : "bg-muted text-muted-foreground"
+                isConnected ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
               )}>
                 <span className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-400" : "bg-muted-foreground")} />
                 {isConnected ? 'Online' : 'Offline'}
@@ -319,7 +319,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 onClick={() => { navigator.clipboard.writeText(channelId); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
                 className="p-0.5 hover:bg-muted rounded"
               >
-                {copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5 text-muted-foreground" />}
+                {copied ? <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-2.5 h-2.5 text-muted-foreground" />}
               </button>
               {lastActivity > 0 && (
                 <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(lastActivity, { addSuffix: true })}</span>
@@ -336,7 +336,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
             <button
               disabled={actionLoading !== null}
               onClick={handleDisconnect}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-400 hover:bg-amber-500/10 border border-amber-500/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/20"
             >
               {actionLoading === 'disconnect' ? (
                 <><div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Disconnecting...</>
@@ -348,7 +348,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
             <button
               disabled={actionLoading !== null || waitingForScan}
               onClick={handleConnect}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20"
             >
               {actionLoading === 'connect' ? (
                 <><div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> Connecting...</>
@@ -377,7 +377,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
           <button
             disabled={actionLoading !== null}
             onClick={handleRemove}
-            className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold rounded-lg text-red-400 hover:bg-red-500/10"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10"
           >
             {actionLoading === 'remove' ? (
               <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
@@ -415,7 +415,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                       className={cn(
                         "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                         editConfig[field.key] === opt.value
-                          ? "bg-teal-500/20 text-teal-300 border-teal-500/40"
+                          ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
                           : "bg-muted text-muted-foreground border hover:border"
                       )}
                     >
@@ -440,7 +440,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-1.5">
                     {((editConfig[field.key] as string[]) || []).map((phone, i) => (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-300 text-xs font-mono">
+                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-xs font-mono">
                         {phone}
                         <button
                           onClick={() => {
@@ -448,7 +448,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                             list.splice(i, 1);
                             setEditConfig({ ...editConfig, [field.key]: list });
                           }}
-                          className="ml-0.5 text-teal-500 hover:text-red-400"
+                          className="ml-0.5 text-teal-600 dark:text-teal-500 hover:text-red-600 dark:text-red-400"
                         >×</button>
                       </span>
                     ))}
@@ -536,7 +536,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
-                !editSaving ? "bg-teal-500/30 text-teal-300 hover:bg-teal-500/40" : "bg-muted text-muted-foreground cursor-not-allowed"
+                !editSaving ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 hover:bg-teal-500/40" : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
               {editSaving && <div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" />}
@@ -558,7 +558,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 <img src={qrDataUrl} alt="WhatsApp QR Code" className="w-48 h-48" />
               </div>
               {waitingForScan && (
-                <div className="flex items-center gap-2 text-xs text-teal-400">
+                <div className="flex items-center gap-2 text-xs text-teal-600 dark:text-teal-400">
                   <div className="w-3 h-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
                   Waiting for scan...
                 </div>
@@ -572,16 +572,16 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
             </div>
           )}
           {!qrDataUrl && qrMessage && !qrError && (
-            <div className="flex items-center gap-2 text-xs text-emerald-400">
+            <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
               <Check className="w-4 h-4" /> {qrMessage}
             </div>
           )}
           {qrError && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-red-400">{qrError}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">{qrError}</span>
               <button
                 onClick={() => { setQrError(null); handleConnect(); }}
-                className="text-xs text-teal-400 hover:text-teal-300 font-semibold"
+                className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-600 dark:text-teal-300 font-semibold"
               >
                 Try Again
               </button>
@@ -800,7 +800,7 @@ function ModelsSection() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                 newProvider.baseUrl && !testing
-                  ? "bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                  ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
@@ -811,7 +811,7 @@ function ModelsSection() {
               )}
             </button>
             {testResult && !testResult.ok && (
-              <span className="text-xs text-red-400">{testResult.error}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">{testResult.error}</span>
             )}
           </div>
 
@@ -819,8 +819,8 @@ function ModelsSection() {
           {testResult?.ok && (
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold text-emerald-300">
+                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                   Connection OK — {testResult.models?.length || 0} models found
                 </span>
               </div>
@@ -837,7 +837,7 @@ function ModelsSection() {
           )}
 
           {saveError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
               {saveError}
             </div>
           )}
@@ -898,9 +898,9 @@ function ModelsSection() {
       {/* Success Message */}
       {saveSuccess && (
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
-          <Check className="w-5 h-5 text-emerald-400" />
+          <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           <div>
-            <p className="text-sm font-medium text-emerald-300">Provider added successfully!</p>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Provider added successfully!</p>
             <p className="text-xs text-muted-foreground">Gateway will restart to apply changes. Models may take a moment to appear.</p>
           </div>
         </div>
@@ -935,7 +935,7 @@ function ModelsSection() {
                         {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                       </span>
                     )}
-                    <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-400">Active</span>
+                    <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Active</span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${silosExpanded ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
@@ -992,7 +992,7 @@ function ModelsSection() {
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-300">
                           {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                         </span>
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-400">Active</span>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Active</span>
                         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${silosExpanded ? 'rotate-180' : ''}`} />
                       </div>
                     </button>
@@ -1039,7 +1039,7 @@ function ModelsSection() {
                       </span>
                       <span className={cn(
                         "px-2 py-0.5 text-xs font-medium rounded",
-                        provider.apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+                        provider.apiKey ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
                       )}>
                         {provider.apiKey ? 'Configured' : 'No Key'}
                       </span>
@@ -1148,7 +1148,7 @@ function ModelsSection() {
                               className={cn(
                                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                                 editProvider.baseUrl && !editTesting
-                                  ? "bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                                  ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
@@ -1159,10 +1159,10 @@ function ModelsSection() {
                               )}
                             </button>
                             {editTestResult && !editTestResult.ok && (
-                              <span className="text-xs text-red-400">{editTestResult.error}</span>
+                              <span className="text-xs text-red-600 dark:text-red-400">{editTestResult.error}</span>
                             )}
                             {editTestResult?.ok && (
-                              <span className="text-xs text-emerald-400 flex items-center gap-1">
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                 <Check className="w-3 h-3" /> {editTestResult.models?.length || 0} models found
                               </span>
                             )}
@@ -1244,7 +1244,7 @@ function ModelsSection() {
                                     <div className="flex items-center gap-2">
                                       <div className="flex gap-1">
                                         {model.input?.includes('image') && <Image className="w-3 h-3 text-muted-foreground" />}
-                                        {model.reasoning && <Sparkles className="w-3 h-3 text-amber-400" />}
+                                        {model.reasoning && <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
                                       </div>
                                       <span className="text-sm text-foreground">{model.name || model.id}</span>
                                     </div>
@@ -1286,7 +1286,7 @@ function ModelsSection() {
                                 setDeletingProvider(null);
                                 setExpandedProvider(null);
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-400 hover:bg-red-500/10"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10"
                             >
                               {deletingProvider === providerId ? (
                                 <><div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> Deleting...</>
@@ -1435,7 +1435,7 @@ function ChannelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddChannel
                 ? "bg-muted text-foreground"
-                : "bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                : "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
             )}
           >
             <Plus className="w-3.5 h-3.5" /> {showAddChannel ? 'Cancel' : 'Add'}
@@ -1466,7 +1466,7 @@ function ChannelsSection() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                     selectedChannelType === type
-                      ? "bg-teal-500/30 text-teal-300 border-teal-500/50"
+                      ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 border-teal-500/50"
                       : "bg-muted text-muted-foreground border hover:border"
                   )}
                 >
@@ -1503,7 +1503,7 @@ function ChannelsSection() {
                             className={cn(
                               "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                               channelConfig[field.key] === opt.value
-                                ? "bg-teal-500/20 text-teal-300 border-teal-500/40"
+                                ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
                                 : "bg-muted text-muted-foreground border hover:border"
                             )}
                           >
@@ -1529,7 +1529,7 @@ function ChannelsSection() {
                         {/* Existing numbers */}
                         <div className="flex flex-wrap gap-1.5">
                           {((channelConfig[field.key] as string[]) || []).map((phone, i) => (
-                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-300 text-xs font-mono">
+                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-xs font-mono">
                               {phone}
                               <button
                                 onClick={() => {
@@ -1537,7 +1537,7 @@ function ChannelsSection() {
                                   list.splice(i, 1);
                                   setChannelConfig({ ...channelConfig, [field.key]: list });
                                 }}
-                                className="ml-0.5 text-teal-500 hover:text-red-400"
+                                className="ml-0.5 text-teal-600 dark:text-teal-500 hover:text-red-600 dark:text-red-400"
                               >×</button>
                             </span>
                           ))}
@@ -1592,7 +1592,7 @@ function ChannelsSection() {
                 ))}
 
                 {saveChannelError && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
                     {saveChannelError}
                   </div>
                 )}
@@ -1655,7 +1655,7 @@ function ChannelsSection() {
                         className={cn(
                           "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                           !isDisabled
-                            ? "bg-teal-500/30 text-teal-300 hover:bg-teal-500/40"
+                            ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 hover:bg-teal-500/40"
                             : "bg-muted text-muted-foreground cursor-not-allowed"
                         )}
                       >
@@ -1898,7 +1898,7 @@ function AgentsSection() {
                             )}
                           >
                             <span className="w-3.5 shrink-0">
-                              {parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-teal-400" />}
+                              {parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />}
                             </span>
                             <span className="truncate">{model.name || model.id}</span>
                             {model.contextWindow && (
@@ -1922,7 +1922,7 @@ function AgentsSection() {
         {currentModel && (
           <div className="flex items-center gap-2 pt-3 border-t border">
             <span className="text-xs text-muted-foreground">Current default:</span>
-            <code className="text-xs text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
+            <code className="text-xs text-teal-600 dark:text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
           </div>
         )}
       </div>
@@ -2003,9 +2003,9 @@ function GatewaySection() {
         connected ? "bg-emerald-500/5 border-emerald-500/20" : connecting ? "bg-amber-500/5 border-amber-500/20" : "bg-card border"
       )}>
         <div className="flex items-center gap-3">
-          {connected ? <Wifi className="w-5 h-5 text-emerald-400" /> : connecting ? <Wifi className="w-5 h-5 text-amber-400 animate-pulse" /> : <WifiOff className="w-5 h-5 text-muted-foreground" />}
+          {connected ? <Wifi className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> : connecting ? <Wifi className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" /> : <WifiOff className="w-5 h-5 text-muted-foreground" />}
           <div>
-            <p className={cn("font-semibold", connected ? "text-emerald-300" : connecting ? "text-amber-300" : "text-muted-foreground")}>
+            <p className={cn("font-semibold", connected ? "text-emerald-700 dark:text-emerald-300" : connecting ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground")}>
               {connected ? 'Connected' : connecting ? 'Connecting...' : 'Disconnected'}
             </p>
             <p className="text-xs text-muted-foreground">{connected ? gatewayUrl : 'Not connected'}</p>
@@ -2016,7 +2016,7 @@ function GatewaySection() {
           disabled={connecting}
           className={cn(
             "px-4 py-2 text-sm font-semibold rounded-xl",
-            connected ? "bg-red-500/20 text-red-300 border border-red-500/30" : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+            connected ? "bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30" : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
           )}
         >
           {connected ? 'Disconnect' : connecting ? 'Connecting...' : 'Connect'}
@@ -2053,7 +2053,7 @@ function GatewaySection() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={handleSave} disabled={!hasChanges} className={cn("flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg", hasChanges ? "bg-blue-500/20 text-blue-300" : "bg-muted text-muted-foreground")}>
+        <button onClick={handleSave} disabled={!hasChanges} className={cn("flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg", hasChanges ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground")}>
           <Save className="w-4 h-4" /> Save
         </button>
         <button onClick={handleReconnect} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted">
@@ -2080,7 +2080,7 @@ function AppearanceSection() {
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
           <button
             onClick={() => setDarkMode(false)}
-            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", !darkMode ? "bg-amber-500/20 text-amber-300" : "text-muted-foreground")}
+            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", !darkMode ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "text-muted-foreground")}
           >
             <Sun className="w-4 h-4" /> {t('settings.appearance.lightMode')}
           </button>
@@ -2177,7 +2177,7 @@ export function SettingsPage() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <span className={activeSection === section.id ? "text-teal-400" : ""}>{section.icon}</span>
+                <span className={activeSection === section.id ? "text-teal-600 dark:text-teal-400" : ""}>{section.icon}</span>
                 <div>
                   <p className="text-sm font-medium">{section.label}</p>
                   <p className="text-xs text-muted-foreground">{section.description}</p>
@@ -2190,7 +2190,7 @@ export function SettingsPage() {
         {/* Content */}
         <div className="flex-1 p-6 max-w-4xl overflow-y-auto">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400">
               {currentSection?.icon}
             </div>
             <div>

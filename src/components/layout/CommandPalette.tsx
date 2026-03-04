@@ -254,7 +254,7 @@ export function CommandPalette() {
                           'w-8 h-8 rounded-lg flex items-center justify-center',
                           item.type === 'page' && 'bg-zinc-800',
                           item.type === 'agent' && 'bg-purple-500/20 text-purple-400',
-                          item.type === 'session' && 'bg-blue-500/20 text-blue-400'
+                          item.type === 'session' && 'bg-blue-500/20 text-blue-500 dark:text-blue-400'
                         )}>
                           <Icon className="w-4 h-4" />
                         </div>

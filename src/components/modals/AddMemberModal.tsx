@@ -162,8 +162,8 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
           {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-red-400 font-mono">{error}</p>
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-600 dark:text-red-400 font-mono">{error}</p>
             </div>
           )}
         </div>

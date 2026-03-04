@@ -73,6 +73,8 @@ export function UnifiedDashboard() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [waitingForScan, setWaitingForScan] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [askingPhone, setAskingPhone] = useState(false);
 
   useEffect(() => {
     if (connected) {
@@ -100,13 +102,15 @@ export function UnifiedDashboard() {
       setQrError(null);
       setWaitingForScan(false);
       setConnecting(false);
+      setAskingPhone(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [waConnected]);
 
-  const handleWaConnect = async () => {
+  const startQrFlow = async (phone?: string) => {
     if (!client) return;
     setConnecting(true);
+    setAskingPhone(false);
     setQrDataUrl(null);
     setQrMessage(null);
     setQrError(null);
@@ -120,10 +124,39 @@ export function UnifiedDashboard() {
         return client.connected;
       };
 
+      // Ensure WhatsApp channel is configured in gateway config (same as SettingsPage add-channel flow)
+      const rawConfig = gatewayConfig?.config as Record<string, unknown> | undefined;
+      const channelsConfig = rawConfig?.channels as Record<string, unknown> | undefined;
+      const waConfigured = channelsConfig?.whatsapp != null;
+
+      if (!waConfigured) {
+        setQrMessage('Configurando canal WhatsApp...');
+        const waConfig: Record<string, unknown> = {
+          dmPolicy: 'allowlist',
+          groupPolicy: 'allowlist',
+          selfChatMode: true,
+          sendReadReceipts: true,
+        };
+        if (phone?.trim()) waConfig.allowFrom = [phone.trim()];
+        await patchGatewayConfig({ channels: { whatsapp: waConfig } });
+        // Wait for gateway to restart after config change
+        setQrMessage('Reiniciando gateway...');
+        await new Promise(r => setTimeout(r, 3000));
+        for (let poll = 0; poll < 20; poll++) {
+          await new Promise(r => setTimeout(r, 1000));
+          if (client.connected) break;
+        }
+      }
+
       const attemptLogin = async () => {
         if (!client.connected) {
           setQrMessage('Esperando gateway...');
           if (!await waitForGateway()) throw new Error('Gateway no disponible');
+        }
+        // Clear stale session before starting (same as SettingsPage)
+        if (!waConnected) {
+          setQrMessage('Limpiando sesión previa...');
+          await client.logoutChannel('whatsapp').catch(() => {});
         }
         setQrMessage(null);
         return await client.webLoginStart(undefined, true);
@@ -227,6 +260,19 @@ export function UnifiedDashboard() {
     }
   };
 
+  const handleWaConnect = () => {
+    const rawConfig = gatewayConfig?.config as Record<string, unknown> | undefined;
+    const channelsConfig = rawConfig?.channels as Record<string, unknown> | undefined;
+    const waConfigured = channelsConfig?.whatsapp != null;
+    if (!waConfigured) {
+      // Need to configure first — ask for phone number
+      setAskingPhone(true);
+      setQrError(null);
+    } else {
+      startQrFlow();
+    }
+  };
+
   // Derive OpenClaw UI URL from gatewayUrl
   const openClawUiUrl = gatewayUrl ? `${gatewayUrl}/openclaw` : null;
 
@@ -296,6 +342,36 @@ export function UnifiedDashboard() {
             )}
 
 
+            {/* Phone number input step */}
+            {askingPhone && !connecting && (
+              <div className="space-y-3 rounded-lg bg-muted/40 p-4 border">
+                <p className="text-sm font-medium">Tu número de WhatsApp</p>
+                <p className="text-xs text-muted-foreground">Formato E.164, p.ej. +34612345678. Solo tú podrás usar el bot.</p>
+                <input
+                  type="tel"
+                  placeholder="+34612345678"
+                  value={phoneInput}
+                  onChange={e => setPhoneInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && phoneInput.trim() && startQrFlow(phoneInput)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-[#25D366] hover:bg-[#1fb356] text-white"
+                    disabled={!phoneInput.trim()}
+                    onClick={() => startQrFlow(phoneInput)}
+                  >
+                    Continuar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAskingPhone(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* QR flow */}
             {qrMessage && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -308,13 +384,15 @@ export function UnifiedDashboard() {
             )}
             {qrDataUrl && (
               <div className="flex flex-col items-center gap-2 py-2">
-                <img src={qrDataUrl} alt="WhatsApp QR" className="w-48 h-48 rounded-lg border" />
+                <div className="bg-white p-3 rounded-xl">
+                  <img src={qrDataUrl} alt="WhatsApp QR" className="w-48 h-48" />
+                </div>
                 <p className="text-xs text-muted-foreground">Escanea con WhatsApp → Dispositivos vinculados</p>
               </div>
             )}
 
-            {/* Connect button (only when not connected) */}
-            {!waConnected && (
+            {/* Connect button (only when not connected and not in phone-ask/qr flow) */}
+            {!waConnected && !askingPhone && (
               <Button
                 className="w-full bg-[#25D366] hover:bg-[#1fb356] text-white"
                 disabled={connecting || waitingForScan}
