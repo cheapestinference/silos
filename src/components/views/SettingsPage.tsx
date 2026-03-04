@@ -2136,11 +2136,11 @@ function AppearanceSection() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-xs text-muted-foreground">Silos Version</span>
+            <span className="text-xs text-muted-foreground">Dashboard Version</span>
             <span className="text-xs font-mono text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
           </div>
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-xs text-muted-foreground">Openclaw Version</span>
+            <span className="text-xs text-muted-foreground">OpenClaw Version</span>
             <span className="text-xs font-mono text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
           </div>
         </div>
