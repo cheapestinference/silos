@@ -9,11 +9,15 @@ import jwt from 'jsonwebtoken';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const pkg = JSON.parse(await fs.readFile(path.join(__dirname, 'package.json'), 'utf8'));
+const APP_VERSION = pkg.version || '0.0.0';
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const OPENCLAW_BASE = process.env.OPENCLAW_BASE || '/home/openclaw/.openclaw';
 const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || '';
+const OPENCLAW_PORT = process.env.OPENCLAW_PORT || '18789';
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 
@@ -173,10 +177,24 @@ function isAllowedProxyUrl(urlString) {
 }
 
 // Config endpoint - no longer exposes gateway token (auth goes through verify-owner)
-app.get('/api/config', (req, res) => {
+app.get('/api/config', async (req, res) => {
+  let openclawVersion = null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
+    const r = await fetch(`http://127.0.0.1:${OPENCLAW_PORT}/health`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (r.ok) {
+      const body = await r.json().catch(() => ({}));
+      openclawVersion = body.version || body.gatewayVersion || null;
+    }
+  } catch { /* gateway not ready */ }
+
   res.json({
-    gatewayUrl: process.env.GATEWAY_URL || 'http://127.0.0.1:18789',
+    gatewayUrl: process.env.GATEWAY_URL || `http://127.0.0.1:${OPENCLAW_PORT}`,
     authRequired: !!OWNER_EMAIL,
+    version: APP_VERSION,
+    openclawVersion,
   });
 });
 
