@@ -12,6 +12,13 @@ const __dirname = path.dirname(__filename);
 const pkg = JSON.parse(await fs.readFile(path.join(__dirname, 'package.json'), 'utf8'));
 const APP_VERSION = pkg.version || '0.0.0';
 
+// Read OpenClaw version from its package.json at startup
+let OPENCLAW_VERSION = null;
+try {
+  const ocPkg = JSON.parse(await fs.readFile('/home/openclaw/openclaw/package.json', 'utf8'));
+  OPENCLAW_VERSION = ocPkg.version || null;
+} catch { /* not available */ }
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const OPENCLAW_BASE = process.env.OPENCLAW_BASE || '/home/openclaw/.openclaw';
@@ -178,23 +185,11 @@ function isAllowedProxyUrl(urlString) {
 
 // Config endpoint - no longer exposes gateway token (auth goes through verify-owner)
 app.get('/api/config', async (req, res) => {
-  let openclawVersion = null;
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 1500);
-    const r = await fetch(`http://127.0.0.1:${OPENCLAW_PORT}/health`, { signal: ctrl.signal });
-    clearTimeout(t);
-    if (r.ok) {
-      const body = await r.json().catch(() => ({}));
-      openclawVersion = body.version || body.gatewayVersion || null;
-    }
-  } catch { /* gateway not ready */ }
-
   res.json({
     gatewayUrl: process.env.GATEWAY_URL || `http://127.0.0.1:${OPENCLAW_PORT}`,
     authRequired: !!OWNER_EMAIL,
     version: APP_VERSION,
-    openclawVersion,
+    openclawVersion: OPENCLAW_VERSION,
   });
 });
 
@@ -517,6 +512,33 @@ app.post('/api/proxy-test', async (req, res) => {
     } else {
       res.json({ ok: false, status: 0, body: '', error: error.message });
     }
+  }
+});
+
+// Admin: self-update (protected by gateway token)
+app.post('/admin/update', async (req, res) => {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+
+  // GATEWAY_TOKEN is set in the systemd env (written by setup.sh to /etc/openclaw-dashboard/env)
+  const expectedToken = process.env.GATEWAY_TOKEN || '';
+  if (!expectedToken || token !== expectedToken) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { execFile } = await import('child_process');
+  const { promisify } = await import('util');
+  const execFileAsync = promisify(execFile);
+
+  try {
+    const { stdout } = await execFileAsync('/opt/silos/self-update.sh', [], {
+      timeout: 15 * 60 * 1000, // 15 min max
+    });
+    // stdout is clean JSON (logs go to stderr)
+    const result = JSON.parse(stdout.trim());
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

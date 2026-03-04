@@ -2067,6 +2067,18 @@ function GatewaySection() {
 function AppearanceSection() {
   const { darkMode, setDarkMode } = useDashboardStore();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
+  const [silosVersion, setSilosVersion] = useState<string | null>(null);
+  const [openclawVersion, setOpenclawVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(data => {
+        if (data.version) setSilosVersion(data.version);
+        if (data.openclawVersion) setOpenclawVersion(data.openclawVersion);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -2117,16 +2129,20 @@ function AppearanceSection() {
       </div>
 
       {/* About */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border border">
+      <div className="p-4 rounded-xl bg-card border border space-y-3">
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-violet-400" />
-          <div>
-            <p className="font-semibold text-foreground">Silos Dashboard</p>
-            <p className="text-xs text-muted-foreground">AI Agent Management Platform</p>
-          </div>
+          <p className="font-semibold text-foreground">Silos Dashboard</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-1 text-xs font-mono rounded bg-violet-500/20 text-violet-300">v1.0.0</span>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+            <span className="text-xs text-muted-foreground">Silos Version</span>
+            <span className="text-xs font-mono text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+            <span className="text-xs text-muted-foreground">Openclaw Version</span>
+            <span className="text-xs font-mono text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
+          </div>
         </div>
       </div>
     </div>
