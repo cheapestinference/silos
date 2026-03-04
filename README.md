@@ -1,73 +1,164 @@
-# React + TypeScript + Vite
+# Silos Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Open source dashboard for [OpenClaw](https://openclaw.ai) — connect, monitor and control your AI agents across all your channels.
 
-Currently, two official plugins are available:
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/cheapestinference/silos)](https://github.com/cheapestinference/silos/releases)
+[![Docker Image](https://img.shields.io/badge/ghcr.io-silos-blue)](https://github.com/cheapestinference/silos/pkgs/container/silos)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## What is Silos Dashboard?
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Silos Dashboard is a modern, multilingual web UI that connects to an **OpenClaw gateway** and gives you a complete interface to manage your AI agent deployments. It is designed to be self-hosted, lightweight and easy to extend.
 
-## Expanding the ESLint configuration
+[OpenClaw](https://openclaw.ai) is an open-source AI agent framework. The gateway is the local service that Silos Dashboard communicates with over WebSocket and HTTP to read state, trigger actions and receive real-time updates.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**Key capabilities:**
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- 🤖 **Agent management** — create, configure and monitor OpenClaw agents
+- 💬 **Multi-channel sessions** — WhatsApp, Telegram, Discord and more
+- 📋 **Task & session tracking** — Kanban view, session detail, activity log
+- ⏱ **Cron jobs** — schedule automated agent tasks
+- 🌐 **i18n** — English, Spanish, French and German out of the box
+- 🌗 **Theme** — respects your OS dark/light preference, fully toggleable
+- 🔌 **Gateway-first** — talks to any OpenClaw gateway instance via configurable URL
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Architecture
+
+```
+┌─────────────────────────────┐
+│       Silos Dashboard       │  ← this repo (React / TypeScript / Vite)
+│        (browser SPA)        │
+└────────────┬────────────────┘
+             │  WebSocket + REST
+             ▼
+┌─────────────────────────────┐
+│      OpenClaw Gateway       │  ← runs locally or on your server
+│  (default: localhost:18789) │
+└─────────────────────────────┘
+             │
+             ▼
+     OpenClaw AI Agents
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dashboard is a pure frontend — it has no backend of its own. All state lives in the OpenClaw gateway.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- A running [OpenClaw](https://openclaw.ai) instance with its gateway exposed
+
+### Development
+
+```bash
+git clone https://github.com/cheapestinference/silos.git
+cd silos
+npm install
+npm run dev
 ```
+
+The dev server starts at `http://localhost:5173`. By default it connects to the gateway at `http://localhost:18789`. You can override this in the Settings panel inside the dashboard.
+
+### Production build
+
+```bash
+npm run build
+# Output in ./dist
+```
+
+---
+
+## Docker
+
+Every release is published as a Docker image to the GitHub Container Registry.
+
+```bash
+docker pull ghcr.io/cheapestinference/silos:latest
+```
+
+Run it:
+
+```bash
+docker run -p 8080:80 ghcr.io/cheapestinference/silos:latest
+```
+
+Available tags:
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest stable release |
+| `v1.2.3` | Specific version |
+| `main` | Built from the tip of main (may be unstable) |
+
+---
+
+## Releases
+
+Releases follow [Semantic Versioning](https://semver.org/). Each release is:
+
+- Published on [GitHub Releases](https://github.com/cheapestinference/silos/releases) with a changelog entry
+- Built and pushed as a Docker image to [ghcr.io/cheapestinference/silos](https://github.com/cheapestinference/silos/pkgs/container/silos)
+
+---
+
+## Configuration
+
+The gateway URL is configurable at runtime from the Settings panel — no rebuild required. You can also set it during development via a `.env` file:
+
+```env
+VITE_GATEWAY_URL=http://localhost:18789
+```
+
+---
+
+## Project Structure
+
+```
+silos/
+├── src/
+│   ├── components/        # UI components (agents, sessions, cron, layout…)
+│   ├── store/             # Zustand global store
+│   ├── hooks/             # React hooks
+│   ├── types/             # TypeScript types
+│   ├── i18n/              # Translations (en, es, fr, de)
+│   └── lib/               # Utilities and gateway client
+├── public/
+├── index.html
+└── vite.config.ts
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+**Quick start:**
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Make your changes and make sure `npm run build` passes
+4. Open a PR against `main`
+
+---
+
+## Related projects
+
+| Project | Description |
+|---------|-------------|
+| [OpenClaw](https://openclaw.ai) | The open-source AI agent framework this dashboard connects to |
+| [Silos Platform](https://github.com/cheapestinference/silosplatform) | Managed hosting platform for OpenClaw |
+
+---
+
+## License
+
+[MIT](LICENSE) © [cheapestinference](https://github.com/cheapestinference)
