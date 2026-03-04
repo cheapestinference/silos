@@ -66,7 +66,6 @@ export function UnifiedDashboard() {
   const waConnected = waAccounts.some(a => a.connected);
   const waRunning = waAccounts.some(a => a.running);
   const waError = waAccounts.find(a => a.lastError);
-  const waConfigured = waAccounts.length > 0;
 
   // WhatsApp QR flow state
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
