@@ -2154,7 +2154,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Initialize dark mode on load
+// Initialize dark mode on load — default is always light unless user explicitly enabled dark
 if (typeof window !== 'undefined') {
   const stored = localStorage.getItem('silos-dashboard');
   let isDark = false;
@@ -2163,10 +2163,8 @@ if (typeof window !== 'undefined') {
       const { state } = JSON.parse(stored);
       isDark = state?.darkMode === true;
     } catch {
-      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      isDark = false;
     }
-  } else {
-    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
   if (isDark) {
     document.documentElement.classList.add('dark');
