@@ -156,6 +156,7 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 |---------|-------------|
 | [OpenClaw](https://openclaw.ai) | The open-source AI agent framework this dashboard connects to |
 | [Silos Platform](https://github.com/cheapestinference/silosplatform) | Managed hosting platform for OpenClaw |
+| [CheapestInference](https://cheapestinference.com) | AI subscription provider — flat-rate inference powering Silos |
 
 ---
 
