@@ -2112,20 +2112,11 @@ export const useDashboardStore = create<DashboardStore>()(
     }),
     {
       name: 'silos-dashboard',
-      version: 1,
       partialize: (state) => ({
         gatewayUrl: state.gatewayUrl,
         token: state.token,
         darkMode: state.darkMode,
       }),
-      migrate: (persisted: unknown, version: number) => {
-        const state = persisted as Record<string, unknown>;
-        if (version === 0) {
-          // v0 → v1: force light mode for users who had dark mode from old default
-          state.darkMode = false;
-        }
-        return state;
-      },
     }
   )
 );
