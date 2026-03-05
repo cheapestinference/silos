@@ -129,7 +129,7 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContent
         ref={contentRef}
         className={cn(
           'absolute z-50 min-w-[8rem] overflow-hidden rounded-lg',
-          'border border-zinc-800 bg-zinc-900 p-1 shadow-xl',
+          'border border-border bg-popover p-1 shadow-xl',
           'animate-in fade-in-0 zoom-in-95 duration-100',
           sideStyles[side],
           alignStyles[align],
@@ -169,10 +169,10 @@ const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>
         className={cn(
           'relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5',
           'text-sm outline-none transition-colors',
-          'hover:bg-zinc-800 focus:bg-zinc-800',
+          'hover:bg-accent focus:bg-accent',
           disabled && 'pointer-events-none opacity-50',
           destructive && 'text-red-500 hover:bg-red-500/10 focus:bg-red-500/10',
-          !destructive && 'text-zinc-300 hover:text-zinc-50',
+          !destructive && 'text-muted-foreground hover:text-accent-foreground',
           className
         )}
         {...props}
@@ -233,7 +233,7 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('px-2 py-1.5 text-xs font-semibold text-zinc-400', className)}
+    className={cn('px-2 py-1.5 text-xs font-semibold text-muted-foreground', className)}
     {...props}
   />
 ));
@@ -245,7 +245,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('my-1 h-px bg-zinc-800', className)}
+    className={cn('my-1 h-px bg-muted', className)}
     {...props}
   />
 ));
@@ -257,7 +257,7 @@ const DropdownMenuShortcut = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <span
     ref={ref}
-    className={cn('ml-auto text-xs tracking-widest text-zinc-500', className)}
+    className={cn('ml-auto text-xs tracking-widest text-muted-foreground', className)}
     {...props}
   />
 ));

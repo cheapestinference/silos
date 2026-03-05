@@ -61,7 +61,7 @@ export function AgentCard({
           {/* Status indicator */}
           <div className={cn(
             'absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card',
-            isOnline ? 'bg-green-500' : 'bg-zinc-500'
+            isOnline ? 'bg-green-500' : 'bg-muted-foreground'
           )} />
         </div>
 
@@ -109,7 +109,7 @@ export function AgentCard({
         <div className="flex items-center gap-1.5">
           <div className={cn(
             'w-2 h-2 rounded-full',
-            isOnline ? 'bg-green-500' : 'bg-zinc-500'
+            isOnline ? 'bg-green-500' : 'bg-muted-foreground'
           )} />
           <span>{isOnline ? t('agents.online') : t('agents.offline')}</span>
         </div>

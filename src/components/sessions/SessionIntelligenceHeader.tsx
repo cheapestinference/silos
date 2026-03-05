@@ -40,7 +40,7 @@ export function SessionIntelligenceHeader({
             {displayName}
           </span>
           {session.kind && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 uppercase tracking-wide font-semibold border border-zinc-700/50">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wide font-semibold border border-border">
               {session.kind}
             </span>
           )}
@@ -78,7 +78,7 @@ export function SessionIntelligenceHeader({
               {session.contextTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Context:</span>
-                  <span className="font-mono font-semibold text-zinc-400">{formatNumber(session.contextTokens)}</span>
+                  <span className="font-mono font-semibold text-muted-foreground">{formatNumber(session.contextTokens)}</span>
                 </div>
               )}
               {session.inputTokens !== undefined && (

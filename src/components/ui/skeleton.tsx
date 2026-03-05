@@ -17,7 +17,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
       <div
         ref={ref}
         className={cn(
-          'animate-pulse bg-zinc-800',
+          'animate-pulse bg-muted',
           variants[variant],
           className
         )}
@@ -33,7 +33,7 @@ const SkeletonCard = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('rounded-lg border border-zinc-800 p-4 space-y-3', className)}
+      className={cn('rounded-lg border border-border p-4 space-y-3', className)}
       {...props}
     >
       <Skeleton className="h-4 w-3/4" />

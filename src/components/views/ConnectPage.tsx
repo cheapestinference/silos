@@ -12,7 +12,7 @@ export function ConnectPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050508]">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
       {/* Animated Background Elements */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-soft" />
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full animate-float" />
@@ -24,7 +24,7 @@ export function ConnectPage() {
             <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-indigo-600 to-purple-600 border border-white/20 shadow-2xl ai-glow">
               <Shield className="h-12 w-12 text-white" />
             </div>
-            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-[#050508] animate-pulse" />
+            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-background animate-pulse" />
           </div>
           <h1 className="mt-8 text-5xl font-extrabold tracking-tighter ai-gradient-text">
             OPENCLAW <span className="text-white opacity-90">OS</span>

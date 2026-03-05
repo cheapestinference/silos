@@ -124,7 +124,7 @@ export function CronJobCard({
         className={cn(
           'p-3 rounded-lg border transition-all',
           !job.enabled && 'opacity-60',
-          isRunning ? 'border-blue-500/50 bg-blue-500/5' : 'border-zinc-800/40 bg-zinc-900/30'
+          isRunning ? 'border-blue-500/50 bg-blue-500/5' : 'border-border bg-card/30'
         )}
       >
         <div className="flex items-center gap-3">
@@ -138,8 +138,8 @@ export function CronJobCard({
             )} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200 truncate">{job.name}</p>
-            <p className="text-xs text-zinc-500">{getScheduleDescription(job.schedule)}</p>
+            <p className="text-sm font-medium text-foreground truncate">{job.name}</p>
+            <p className="text-xs text-muted-foreground">{getScheduleDescription(job.schedule)}</p>
           </div>
           {isRunning && (
             <Badge variant="default" className="bg-blue-500 animate-pulse text-[10px]">
@@ -385,7 +385,7 @@ export function CronJobCard({
                   {runs.slice(0, 5).map((run, idx) => (
                     <div
                       key={`${run.ts}-${idx}`}
-                      className="flex items-center justify-between text-xs py-1 px-2 rounded bg-zinc-800/30"
+                      className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/30"
                     >
                       <div className="flex items-center gap-2">
                         {run.status === 'ok' && <CheckCircle className="h-3 w-3 text-green-500" />}
@@ -395,7 +395,7 @@ export function CronJobCard({
                           {new Date(run.ts).toLocaleString()}
                         </span>
                         {run.summary && (
-                          <span className="text-zinc-500 truncate max-w-[150px]">· {run.summary}</span>
+                          <span className="text-muted-foreground truncate max-w-[150px]">· {run.summary}</span>
                         )}
                       </div>
                       {run.error && (

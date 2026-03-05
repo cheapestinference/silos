@@ -126,7 +126,7 @@ const DialogContent = React.forwardRef<
         className={cn(
           'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
           'w-full max-w-lg max-h-[90vh] overflow-auto',
-          'bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl',
+          'bg-card border border-border rounded-xl shadow-2xl',
           'animate-in fade-in-0 zoom-in-95 duration-200',
           className
         )}
@@ -171,7 +171,7 @@ const DialogFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4 border-t border-zinc-800',
+      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4 border-t border-border',
       className
     )}
     {...props}
@@ -186,7 +186,7 @@ const DialogTitle = React.forwardRef<
   <h2
     ref={ref}
     className={cn(
-      'text-lg font-semibold leading-none tracking-tight text-zinc-50',
+      'text-lg font-semibold leading-none tracking-tight text-foreground',
       className
     )}
     {...props}
@@ -200,7 +200,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-sm text-zinc-400', className)}
+    className={cn('text-sm text-muted-foreground', className)}
     {...props}
   />
 ));

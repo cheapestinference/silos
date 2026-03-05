@@ -90,7 +90,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   };
 
   const variants: Record<ToastVariant, string> = {
-    default: 'border-zinc-800 bg-zinc-900',
+    default: 'border-border bg-card',
     success: 'border-green-500/20 bg-green-500/10',
     error: 'border-red-500/20 bg-red-500/10',
     warning: 'border-amber-500/20 bg-amber-500/10',
@@ -110,10 +110,10 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
       {icons[variant]}
       <div className="flex-1 space-y-1">
         {toast.title && (
-          <p className="text-sm font-semibold text-zinc-50">{toast.title}</p>
+          <p className="text-sm font-semibold text-foreground">{toast.title}</p>
         )}
         {toast.description && (
-          <p className="text-sm text-zinc-400">{toast.description}</p>
+          <p className="text-sm text-muted-foreground">{toast.description}</p>
         )}
       </div>
       <button

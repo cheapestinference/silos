@@ -106,10 +106,10 @@ function App() {
   // Show loading while Firebase auth is initializing
   if (authLoading || verifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050508]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/40 text-sm">
+          <p className="text-muted-foreground text-sm">
             {verifying ? 'Verifying access...' : 'Loading...'}
           </p>
         </div>
@@ -133,7 +133,7 @@ function App() {
     };
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050508]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md px-6">
           <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl text-center">
             <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -192,10 +192,10 @@ function App() {
   // Authenticated but no token yet (shouldn't happen normally, but handle it)
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050508]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/40 text-sm">Connecting...</p>
+          <p className="text-muted-foreground text-sm">Connecting...</p>
         </div>
       </div>
     );

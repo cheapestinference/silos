@@ -38,24 +38,24 @@ function ConnectionOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-700/50 bg-zinc-900/95 px-8 py-6 shadow-2xl">
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card/95 px-8 py-6 shadow-2xl">
         {connecting ? (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-            <p className="text-sm font-medium text-zinc-200">
+            <p className="text-sm font-medium text-foreground">
               {reconnectAttempt > 0
                 ? `Reconnecting... (attempt ${reconnectAttempt})`
                 : 'Connecting...'}
             </p>
-            <p className="text-xs text-zinc-500">Your session will resume automatically</p>
+            <p className="text-xs text-muted-foreground">Your session will resume automatically</p>
           </>
         ) : (
           <>
-            <WifiOff className="h-8 w-8 text-zinc-400" />
-            <p className="text-sm font-medium text-zinc-200">Connection lost</p>
+            <WifiOff className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">Connection lost</p>
             <button
               onClick={() => connect()}
-              className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 transition-colors hover:bg-zinc-700"
+              className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted"
             >
               <RefreshCw className="h-4 w-4" />
               Reconnect

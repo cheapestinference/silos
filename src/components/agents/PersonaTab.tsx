@@ -19,7 +19,7 @@ export function PersonaTab({ value, onChange }: PersonaTabProps) {
         <h3 className="text-lg font-semibold">{t('agents.config.systemPrompt')}</h3>
         <Tooltip>
           <TooltipTrigger>
-            <HelpCircle className="w-4 h-4 text-zinc-500 cursor-help" />
+            <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
           </TooltipTrigger>
           <TooltipContent side="right" className="max-w-xs">
             {t('agents.config.systemPromptDesc')}
@@ -43,7 +43,7 @@ export function PersonaTab({ value, onChange }: PersonaTabProps) {
       {/* Tips */}
       <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-4">
         <h4 className="text-sm font-medium text-indigo-400 mb-2">Tips</h4>
-        <ul className="text-sm text-zinc-400 space-y-1 list-disc list-inside">
+        <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
           <li>Define the agent's role and expertise clearly</li>
           <li>Specify the tone and communication style</li>
           <li>Include any constraints or guidelines</li>
@@ -52,7 +52,7 @@ export function PersonaTab({ value, onChange }: PersonaTabProps) {
       </div>
 
       {/* Character count */}
-      <div className="text-xs text-zinc-500 text-right">
+      <div className="text-xs text-muted-foreground text-right">
         {value.length.toLocaleString()} characters
       </div>
     </div>

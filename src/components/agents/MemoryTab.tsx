@@ -139,7 +139,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
     if (path.includes('long') || path.includes('memory')) {
       return { icon: Brain, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
     }
-    return { icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20' };
+    return { icon: FileText, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border' };
   };
 
   return (
@@ -174,14 +174,14 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               "w-full p-3 rounded-lg border transition-all text-left",
               selectedFile === null
                 ? "bg-purple-500/10 border-purple-500/30"
-                : "bg-zinc-800/50 border-zinc-700/30 hover:bg-zinc-800/80"
+                : "bg-muted border-border hover:bg-muted"
             )}
           >
             <div className="flex items-center gap-2 mb-1">
               <Brain className="w-4 h-4 text-purple-400" />
               <span className="font-medium text-sm">Context Memory</span>
             </div>
-            <p className="text-xs text-zinc-500">Agent's working memory</p>
+            <p className="text-xs text-muted-foreground">Agent's working memory</p>
           </button>
         </div>
 
@@ -214,12 +214,12 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         {/* File List */}
         <div className="flex-1 overflow-y-auto space-y-2">
           {memoryLoading && memoryFiles.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-zinc-500">
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           ) : memoryFiles.length === 0 ? (
             <div className="space-y-3">
-              <div className="text-center py-4 text-zinc-500 text-sm">
+              <div className="text-center py-4 text-muted-foreground text-sm">
                 <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="font-medium">No memory files yet</p>
                 <p className="text-xs mt-1">Create recommended files below</p>
@@ -227,7 +227,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
 
               {/* Recommended Files */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-zinc-400 px-1">Quick Start:</p>
+                <p className="text-xs font-medium text-muted-foreground px-1">Quick Start:</p>
                 {[
                   { name: 'personality.md', desc: 'Agent personality & tone', icon: Brain, color: 'purple' },
                   { name: 'long-term-memory.md', desc: 'Persistent knowledge', icon: Brain, color: 'blue' },
@@ -239,14 +239,14 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
                       setNewFileName(file.name);
                       handleCreateFile();
                     }}
-                    className="w-full p-2.5 rounded-lg border border-zinc-700/30 bg-zinc-800/30 hover:bg-zinc-800/60 transition-all text-left group"
+                    className="w-full p-2.5 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-all text-left group"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <file.icon className={cn("w-3.5 h-3.5", `text-${file.color}-400`)} />
                       <span className="font-medium text-xs">{file.name}</span>
                       <Plus className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <p className="text-[10px] text-zinc-500">{file.desc}</p>
+                    <p className="text-[10px] text-muted-foreground">{file.desc}</p>
                   </button>
                 ))}
               </div>
@@ -262,14 +262,14 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
                     "w-full p-3 rounded-lg border transition-all text-left",
                     selectedFile === file.path
                       ? `${bg} ${border}`
-                      : "bg-zinc-800/50 border-zinc-700/30 hover:bg-zinc-800/80"
+                      : "bg-muted border-border hover:bg-muted"
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Icon className={cn("w-4 h-4", color)} />
                     <span className="font-medium text-sm truncate">{file.path}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{formatFileSize(file.size)}</span>
                     <span>•</span>
                     <span>{new Date(file.mtime).toLocaleDateString()}</span>
@@ -284,7 +284,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-3">
           <div className="flex items-start gap-2">
             <HelpCircle className="w-4 h-4 text-purple-400 mt-0.5" />
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-muted-foreground">
               <p className="font-medium text-purple-400 mb-1">Memory Files</p>
               <p>Store personality, preferences, and long-term context for the agent.</p>
             </div>
@@ -299,7 +299,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
           <div className="flex items-center gap-2">
             {selectedFile ? (
               <>
-                <FileText className="w-5 h-5 text-zinc-400" />
+                <FileText className="w-5 h-5 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">{selectedFile}</h3>
               </>
             ) : (
@@ -318,7 +318,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               </div>
             )}
             {lastUpdated && !selectedFile && (
-              <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" />
                 {formatDate(lastUpdated)}
               </div>
@@ -355,7 +355,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         <div className="flex-1 min-h-0">
           {memoryLoading && selectedFile ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <Textarea
@@ -379,7 +379,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between text-xs text-zinc-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div>
             {(selectedFile ? editedContent : value).length.toLocaleString()} characters
           </div>

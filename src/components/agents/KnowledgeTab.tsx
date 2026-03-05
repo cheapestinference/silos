@@ -87,7 +87,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
           <h3 className="text-lg font-semibold">{t('agents.config.knowledgeFiles')}</h3>
           <Tooltip>
             <TooltipTrigger>
-              <HelpCircle className="w-4 h-4 text-zinc-500 cursor-help" />
+              <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
             </TooltipTrigger>
             <TooltipContent side="right" className="max-w-xs">
               {t('agents.config.knowledgeFilesDesc')}
@@ -130,7 +130,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">{t('agents.config.fileName')}</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('agents.config.fileName')}</label>
               <Input
                 value={newFile.name}
                 onChange={(e) => setNewFile({ ...newFile, name: e.target.value })}
@@ -138,7 +138,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">{t('agents.config.fileType')}</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('agents.config.fileType')}</label>
               <Select
                 value={newFile.type}
                 onValueChange={(value) => setNewFile({ ...newFile, type: value as KnowledgeFileType })}
@@ -156,7 +156,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
           </div>
 
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">{t('agents.config.fileContent')}</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{t('agents.config.fileContent')}</label>
             <Textarea
               value={newFile.content}
               onChange={(e) => setNewFile({ ...newFile, content: e.target.value })}
@@ -190,9 +190,9 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
       {/* Files List */}
       <div className="space-y-2">
         {files.length === 0 && !isAdding ? (
-          <div className="rounded-lg border border-dashed border-zinc-700 p-8 text-center">
-            <FileText className="w-10 h-10 mx-auto mb-3 text-zinc-600" />
-            <p className="text-sm text-zinc-500">{t('agents.config.noFiles')}</p>
+          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground/70" />
+            <p className="text-sm text-muted-foreground">{t('agents.config.noFiles')}</p>
             <Button
               variant="outline"
               size="sm"
@@ -268,10 +268,10 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{file.name}</h4>
-                        <p className="text-xs text-zinc-500 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {file.type} • {file.content.length.toLocaleString()} chars
                         </p>
-                        <p className="text-sm text-zinc-400 mt-2 line-clamp-2">
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                           {file.content}
                         </p>
                       </div>

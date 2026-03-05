@@ -198,21 +198,21 @@ export function CommandPalette() {
       {/* Palette */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
         <div
-          className="w-full max-w-xl bg-zinc-900 rounded-xl border border-zinc-800 shadow-2xl overflow-hidden animate-zoom-in"
+          className="w-full max-w-xl bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-zoom-in"
           onClick={e => e.stopPropagation()}
         >
           {/* Search Input */}
-          <div className="flex items-center gap-3 px-4 border-b border-zinc-800">
-            <Search className="w-5 h-5 text-zinc-500" />
+          <div className="flex items-center gap-3 px-4 border-b border-border">
+            <Search className="w-5 h-5 text-muted-foreground" />
             <input
               ref={inputRef}
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('common.search')}
-              className="flex-1 h-14 bg-transparent text-zinc-100 placeholder:text-zinc-500 outline-none text-base"
+              className="flex-1 h-14 bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none text-base"
             />
-            <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-zinc-800 text-zinc-400 text-xs font-mono">
+            <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-muted text-muted-foreground text-xs font-mono">
               <Command className="w-3 h-3" />K
             </kbd>
           </div>
@@ -220,13 +220,13 @@ export function CommandPalette() {
           {/* Results */}
           <div className="max-h-[400px] overflow-y-auto p-2">
             {groupedItems.length === 0 ? (
-              <div className="py-12 text-center text-zinc-500">
+              <div className="py-12 text-center text-muted-foreground">
                 {t('common.noResults')}
               </div>
             ) : (
               groupedItems.map((group, groupIndex) => (
                 <div key={group.type} className={groupIndex > 0 ? 'mt-4' : ''}>
-                  <div className="px-2 py-1 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     {group.label}
                   </div>
                   {group.items.map(item => {
@@ -246,13 +246,13 @@ export function CommandPalette() {
                         className={cn(
                           'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
                           isSelected
-                            ? 'bg-indigo-500/20 text-zinc-100'
-                            : 'text-zinc-300 hover:bg-zinc-800'
+                            ? 'bg-indigo-500/20 text-foreground'
+                            : 'text-foreground hover:bg-muted'
                         )}
                       >
                         <div className={cn(
                           'w-8 h-8 rounded-lg flex items-center justify-center',
-                          item.type === 'page' && 'bg-zinc-800',
+                          item.type === 'page' && 'bg-muted',
                           item.type === 'agent' && 'bg-purple-500/20 text-purple-400',
                           item.type === 'session' && 'bg-blue-500/20 text-blue-500 dark:text-blue-400'
                         )}>
@@ -261,13 +261,13 @@ export function CommandPalette() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{item.title}</div>
                           {item.subtitle && (
-                            <div className="text-xs text-zinc-500 truncate">{item.subtitle}</div>
+                            <div className="text-xs text-muted-foreground truncate">{item.subtitle}</div>
                           )}
                         </div>
                         {item.shortcut && (
                           <div className="hidden sm:flex items-center gap-1">
                             {item.shortcut.split(' ').map((key, i) => (
-                              <kbd key={i} className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-xs font-mono">
+                              <kbd key={i} className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-xs font-mono">
                                 {key}
                               </kbd>
                             ))}
@@ -285,18 +285,18 @@ export function CommandPalette() {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-border text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">↑↓</kbd>
+                <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">↑↓</kbd>
                 navigate
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">↵</kbd>
+                <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">↵</kbd>
                 select
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">esc</kbd>
+                <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">esc</kbd>
                 close
               </span>
             </div>

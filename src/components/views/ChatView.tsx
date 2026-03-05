@@ -236,7 +236,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       shell: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
       json: { color: 'text-orange-400', icon: <Layers className="w-3.5 h-3.5" /> },
     };
-    return styles[lang.toLowerCase()] || { color: 'text-zinc-400', icon: <Code2 className="w-3.5 h-3.5" /> };
+    return styles[lang.toLowerCase()] || { color: 'text-muted-foreground', icon: <Code2 className="w-3.5 h-3.5" /> };
   };
 
   const langStyle = getLangStyle(language);

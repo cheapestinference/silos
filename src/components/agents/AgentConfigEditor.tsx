@@ -114,7 +114,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
             </div>
             <div>
               <span>{t('agents.config.title')}: {displayName}</span>
-              <p className="text-sm font-normal text-zinc-400 mt-0.5">{agent.id}</p>
+              <p className="text-sm font-normal text-muted-foreground mt-0.5">{agent.id}</p>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -183,14 +183,14 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
             </Tabs>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-zinc-500">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Failed to load configuration
           </div>
         )}
 
-        <DialogFooter className="border-t border-zinc-800 pt-4 px-6">
+        <DialogFooter className="border-t border-border pt-4 px-6">
           <div className="flex items-center justify-between w-full">
-            <div className="text-sm text-zinc-500">
+            <div className="text-sm text-muted-foreground">
               {hasChanges && !saveSuccess && (
                 <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
               )}

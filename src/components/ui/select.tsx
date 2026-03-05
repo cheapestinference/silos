@@ -66,21 +66,21 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex h-10 w-full items-center justify-between rounded-lg border border-zinc-800',
-          'bg-zinc-900/50 px-3 py-2 text-sm text-zinc-50',
+          'flex h-10 w-full items-center justify-between rounded-lg border border-border',
+          'bg-muted px-3 py-2 text-sm text-foreground',
           'ring-offset-background transition-colors',
-          'placeholder:text-zinc-500',
+          'placeholder:text-muted-foreground',
           'focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
         {...props}
       >
-        <span className={cn(!value && 'text-zinc-500')}>
+        <span className={cn(!value && 'text-muted-foreground')}>
           {children || placeholder || 'Select...'}
         </span>
         <ChevronDown className={cn(
-          'h-4 w-4 text-zinc-400 transition-transform duration-200',
+          'h-4 w-4 text-muted-foreground transition-transform duration-200',
           open && 'rotate-180'
         )} />
       </button>
@@ -96,7 +96,7 @@ const SelectValue = React.forwardRef<
   const { value } = useSelect();
 
   return (
-    <span ref={ref} className={cn(!value && 'text-zinc-500', className)} {...props}>
+    <span ref={ref} className={cn(!value && 'text-muted-foreground', className)} {...props}>
       {value || placeholder}
     </span>
   );
@@ -131,7 +131,7 @@ const SelectContent = React.forwardRef<
       ref={contentRef}
       className={cn(
         'absolute z-50 mt-1 w-full min-w-[8rem] overflow-hidden rounded-lg',
-        'border border-zinc-800 bg-zinc-900 shadow-xl',
+        'border border-border bg-popover shadow-xl',
         'animate-in fade-in-0 zoom-in-95 duration-100',
         className
       )}
@@ -164,11 +164,11 @@ const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
         onClick={() => !disabled && onValueChange(value)}
         className={cn(
           'relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2',
-          'text-sm text-zinc-300 outline-none transition-colors',
-          'hover:bg-zinc-800 hover:text-zinc-50',
-          'focus:bg-zinc-800 focus:text-zinc-50',
+          'text-sm text-muted-foreground outline-none transition-colors',
+          'hover:bg-accent hover:text-accent-foreground',
+          'focus:bg-accent focus:text-accent-foreground',
           disabled && 'pointer-events-none opacity-50',
-          isSelected && 'bg-zinc-800/50',
+          isSelected && 'bg-muted',
           className
         )}
         {...props}
@@ -191,7 +191,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('my-1 h-px bg-zinc-800', className)}
+    className={cn('my-1 h-px bg-muted', className)}
     {...props}
   />
 ));
