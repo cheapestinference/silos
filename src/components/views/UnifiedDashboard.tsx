@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
+import useTranslation from '../../i18n';
 
 // ─── OpenClaw Lobster Logo ───────────────────────────────────────────────────
 function OpenClawLogo({ className }: { className?: string }) {
@@ -58,6 +59,7 @@ export function UnifiedDashboard() {
     patchGatewayConfig,
   } = useDashboardStore();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [dataLoaded, setDataLoaded] = useState(false);
   const redirected = useRef(false);
 
@@ -130,7 +132,7 @@ export function UnifiedDashboard() {
       const waConfigured = channelsConfig?.whatsapp != null;
 
       if (!waConfigured) {
-        setQrMessage('Configurando canal WhatsApp...');
+        setQrMessage(t('unifiedDashboard.configuringWhatsApp'));
         const waConfig: Record<string, unknown> = {
           dmPolicy: 'allowlist',
           groupPolicy: 'allowlist',
@@ -140,7 +142,7 @@ export function UnifiedDashboard() {
         if (phone?.trim()) waConfig.allowFrom = [phone.trim()];
         await patchGatewayConfig({ channels: { whatsapp: waConfig } });
         // Wait for gateway to restart after config change
-        setQrMessage('Reiniciando gateway...');
+        setQrMessage(t('unifiedDashboard.restartingGateway'));
         await new Promise(r => setTimeout(r, 3000));
         for (let poll = 0; poll < 20; poll++) {
           await new Promise(r => setTimeout(r, 1000));
@@ -150,12 +152,12 @@ export function UnifiedDashboard() {
 
       const attemptLogin = async () => {
         if (!client.connected) {
-          setQrMessage('Esperando gateway...');
-          if (!await waitForGateway()) throw new Error('Gateway no disponible');
+          setQrMessage(t('unifiedDashboard.waitingGateway'));
+          if (!await waitForGateway()) throw new Error('Gateway unavailable');
         }
         // Clear stale session before starting (same as SettingsPage)
         if (!waConnected) {
-          setQrMessage('Limpiando sesión previa...');
+          setQrMessage(t('unifiedDashboard.clearingSession'));
           await client.logoutChannel('whatsapp').catch(() => {});
         }
         setQrMessage(null);
@@ -168,9 +170,9 @@ export function UnifiedDashboard() {
       } catch (firstErr) {
         const msg = String(firstErr instanceof Error ? firstErr.message : firstErr);
         if (msg.includes('not connected') || msg.includes('unavailable') || msg.includes('1012')) {
-          setQrMessage('Reconectando gateway...');
+          setQrMessage(t('unifiedDashboard.reconnectingGateway'));
           await new Promise(r => setTimeout(r, 2000));
-          if (!await waitForGateway()) throw new Error('Gateway no reconectó');
+          if (!await waitForGateway()) throw new Error('Gateway did not reconnect');
           result = await attemptLogin();
         } else {
           throw firstErr;
@@ -194,7 +196,7 @@ export function UnifiedDashboard() {
             } else if (waitResult.message?.includes('515')) {
               paired = true;
               setQrDataUrl(null);
-              setQrMessage('Emparejado. Reiniciando gateway...');
+              setQrMessage(t('unifiedDashboard.pairedRestarting'));
               await patchGatewayConfig({ channels: { whatsapp: {} } }).catch(() => {});
               await new Promise(r => setTimeout(r, 3000));
               for (let poll = 0; poll < 15; poll++) {
@@ -208,7 +210,7 @@ export function UnifiedDashboard() {
               }
               setQrMessage(null);
             } else {
-              setQrMessage('Actualizando QR...');
+              setQrMessage(t('unifiedDashboard.updatingQR'));
               try {
                 const refresh = await client.webLoginStart(undefined, true);
                 if (refresh.qrDataUrl) { setQrDataUrl(refresh.qrDataUrl); setQrMessage(null); }
@@ -220,7 +222,7 @@ export function UnifiedDashboard() {
             setQrDataUrl(null);
             if (msg.includes('515')) {
               paired = true;
-              setQrMessage('Emparejado. Reiniciando gateway...');
+              setQrMessage(t('unifiedDashboard.pairedRestarting'));
               await patchGatewayConfig({ channels: { whatsapp: {} } }).catch(() => {});
               await new Promise(r => setTimeout(r, 3000));
               for (let poll = 0; poll < 15; poll++) {
@@ -234,14 +236,14 @@ export function UnifiedDashboard() {
               }
               setQrMessage(null);
             } else {
-              setQrError('Error de conexión. Intenta de nuevo.');
+              setQrError(t('unifiedDashboard.connectionError'));
               hadError = true;
             }
           }
         }
 
         if (!paired && !hadError) {
-          setQrError('QR expirado. Intenta de nuevo.');
+          setQrError(t('unifiedDashboard.qrExpired'));
           setQrDataUrl(null);
         }
         setWaitingForScan(false);
@@ -250,12 +252,12 @@ export function UnifiedDashboard() {
         await loadChannels();
         const fresh = useDashboardStore.getState().channels;
         if (!fresh?.channelAccounts?.['whatsapp']?.some(a => a.connected)) {
-          setQrError('No se pudo generar el QR. Intenta de nuevo.');
+          setQrError(t('unifiedDashboard.qrGenerationFailed'));
         }
       }
     } catch (err) {
       const msg = String(err instanceof Error ? err.message : err);
-      setQrError(msg.includes('515') ? 'Conflicto de sesión. Intenta de nuevo.' : `Error: ${msg}`);
+      setQrError(msg.includes('515') ? t('unifiedDashboard.sessionConflict') : `Error: ${msg}`);
       setConnecting(false);
     }
   };
@@ -283,10 +285,10 @@ export function UnifiedDashboard() {
     'not-configured';
 
   const waStatusConfig = {
-    connected: { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Conectado' },
-    running: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Conectando...' },
-    error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'No conectado' },
-    'not-configured': { icon: AlertCircle, color: 'text-muted-foreground', bg: 'bg-muted/50', label: 'No conectado' },
+    connected: { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', label: t('unifiedDashboard.connected') },
+    running: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: t('unifiedDashboard.connecting') },
+    error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: t('unifiedDashboard.notConnected') },
+    'not-configured': { icon: AlertCircle, color: 'text-muted-foreground', bg: 'bg-muted/50', label: t('unifiedDashboard.notConnected') },
   };
 
   const WaStatus = waStatusConfig[waStatus];
@@ -296,8 +298,8 @@ export function UnifiedDashboard() {
     <div className="flex flex-col h-full bg-background overflow-y-auto">
       {/* Header */}
       <div className="px-6 py-5 border-b bg-card shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">Panel principal</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Gestiona tu agente IA</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t('unifiedDashboard.mainPanel')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('unifiedDashboard.manageAI')}</p>
       </div>
 
       <div className="p-6 max-w-3xl space-y-8">
@@ -322,7 +324,7 @@ export function UnifiedDashboard() {
               </div>
               <Button variant="outline" size="sm" onClick={() => loadChannels()} disabled={channelsLoading}>
                 <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${channelsLoading ? 'animate-spin' : ''}`} />
-                Actualizar
+                {t('unifiedDashboard.refresh')}
               </Button>
             </div>
 
@@ -335,7 +337,7 @@ export function UnifiedDashboard() {
                       <span className={`w-2 h-2 rounded-full ${acc.connected ? 'bg-green-500' : acc.running ? 'bg-blue-500 animate-pulse' : 'bg-muted-foreground'}`} />
                       <span className="font-medium">{acc.name || acc.accountId}</span>
                     </div>
-                    {!acc.connected && !acc.running && <span className="text-xs text-muted-foreground">No conectado</span>}
+                    {!acc.connected && !acc.running && <span className="text-xs text-muted-foreground">{t('unifiedDashboard.notConnected')}</span>}
                   </div>
                 ))}
               </div>
@@ -345,8 +347,8 @@ export function UnifiedDashboard() {
             {/* Phone number input step */}
             {askingPhone && !connecting && (
               <div className="space-y-3 rounded-lg bg-muted/40 p-4 border">
-                <p className="text-sm font-medium">Tu número de WhatsApp</p>
-                <p className="text-xs text-muted-foreground">Formato E.164, p.ej. +34612345678. Solo tú podrás usar el bot.</p>
+                <p className="text-sm font-medium">{t('unifiedDashboard.whatsappNumber')}</p>
+                <p className="text-xs text-muted-foreground">{t('unifiedDashboard.phoneFormat')}</p>
                 <input
                   type="tel"
                   placeholder="+34612345678"
@@ -363,10 +365,10 @@ export function UnifiedDashboard() {
                     disabled={!phoneInput.trim()}
                     onClick={() => startQrFlow(phoneInput)}
                   >
-                    Continuar
+                    {t('unifiedDashboard.continue')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setAskingPhone(false)}>
-                    Cancelar
+                    {t('common.cancel')}
                   </Button>
                 </div>
               </div>
@@ -387,7 +389,7 @@ export function UnifiedDashboard() {
                 <div className="bg-white p-3 rounded-xl">
                   <img src={qrDataUrl} alt="WhatsApp QR" className="w-48 h-48" />
                 </div>
-                <p className="text-xs text-muted-foreground">Escanea con WhatsApp → Dispositivos vinculados</p>
+                <p className="text-xs text-muted-foreground">{t('unifiedDashboard.scanQR')}</p>
               </div>
             )}
 
@@ -399,11 +401,11 @@ export function UnifiedDashboard() {
                 onClick={handleWaConnect}
               >
                 {connecting ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Conectando...</>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('unifiedDashboard.connectingWait')}</>
                 ) : waitingForScan ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Esperando escaneo...</>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('unifiedDashboard.awaitingScan')}</>
                 ) : (
-                  <><Wifi className="w-4 h-4 mr-2" /> Conectar WhatsApp</>
+                  <><Wifi className="w-4 h-4 mr-2" /> {t('unifiedDashboard.connectWhatsApp')}</>
                 )}
               </Button>
             )}
@@ -419,7 +421,7 @@ export function UnifiedDashboard() {
 
           <div className="rounded-xl border bg-card p-5">
             <p className="text-sm text-muted-foreground mb-5">
-              Accede al panel completo de OpenClaw para gestionar agentes, canales, modelos y toda la configuración avanzada.
+              {t('unifiedDashboard.openclawDescription')}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -431,8 +433,8 @@ export function UnifiedDashboard() {
               >
                 <OpenClawLogo className="w-12 h-12 group-hover:scale-110 transition-transform" />
                 <div className="text-center">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Abrir OpenClaw UI</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Panel completo del agente</p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('unifiedDashboard.openClawUI')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('unifiedDashboard.fullPanel')}</p>
                 </div>
                 <ExternalLink className="w-4 h-4 text-red-400" />
               </button>
@@ -446,8 +448,8 @@ export function UnifiedDashboard() {
                   <BookOpen className="w-6 h-6 text-gray-600 dark:text-gray-300" />
                 </div>
                 <div className="text-center">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Documentación</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Guías y referencia de API</p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('unifiedDashboard.documentation')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('unifiedDashboard.apiReference')}</p>
                 </div>
                 <ExternalLink className="w-4 h-4 text-gray-400" />
               </button>

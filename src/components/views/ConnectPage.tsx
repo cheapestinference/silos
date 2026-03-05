@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Wifi, Lock, Server, AlertCircle, Shield } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboard-store';
+import useTranslation from '../../i18n';
 
 export function ConnectPage() {
   const { gatewayUrl, token, setGatewayUrl, setToken, connect, connecting, error } = useDashboardStore();
   const [showToken, setShowToken] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -12,7 +14,7 @@ export function ConnectPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
+    <div className="dark min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
       {/* Animated Background Elements */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-soft" />
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full animate-float" />
@@ -27,10 +29,10 @@ export function ConnectPage() {
             <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-background animate-pulse" />
           </div>
           <h1 className="mt-8 text-5xl font-extrabold tracking-tighter ai-gradient-text">
-            OPENCLAW <span className="text-white opacity-90">OS</span>
+            {t('connect.appName')} <span className="text-white opacity-90">{t('connect.appSuffix')}</span>
           </h1>
           <p className="mt-4 text-white/40 text-lg font-medium tracking-tight max-w-sm mx-auto">
-            Authorized access required. Connect to terminal gateway to begin neural orchestration.
+            {t('connect.tagline')}
           </p>
         </div>
 
@@ -40,7 +42,7 @@ export function ConnectPage() {
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
                 <Server className="h-4 w-4 text-indigo-400" />
-                Gateway Interface
+                {t('connect.gatewayInterface')}
               </label>
               <div className="relative group">
                 <input
@@ -57,12 +59,12 @@ export function ConnectPage() {
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
                 <Lock className="h-4 w-4 text-purple-400" />
-                Security Token
+                {t('connect.securityToken')}
               </label>
               <div className="relative group">
                 <input
                   type={showToken ? 'text' : 'password'}
-                  placeholder="Leave empty if not required"
+                  placeholder={t('connect.tokenPlaceholder')}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-all placeholder:text-white/20"
                   value={token || ''}
                   onChange={(e) => setToken(e.target.value || null)}
@@ -72,7 +74,7 @@ export function ConnectPage() {
                   className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors"
                   onClick={() => setShowToken(!showToken)}
                 >
-                  {showToken ? 'Hide' : 'Show'}
+                  {showToken ? t('connect.hide') : t('connect.show')}
                 </button>
               </div>
             </div>
@@ -93,12 +95,12 @@ export function ConnectPage() {
                 {connecting ? (
                   <>
                     <Wifi className="h-5 w-5 animate-pulse" />
-                    Bypassing Security...
+                    {t('connect.connecting')}
                   </>
                 ) : (
                   <>
                     <Wifi className="h-5 w-5" />
-                    Establish Connection
+                    {t('connect.establishConnection')}
                   </>
                 )}
               </div>
@@ -109,7 +111,7 @@ export function ConnectPage() {
 
         {/* Footer Info */}
         <p className="mt-8 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-white/20">
-          Neural-Link Protocol v4.2.0 • Encryption Enabled
+          {t('connect.footer')}
         </p>
       </div>
     </div>

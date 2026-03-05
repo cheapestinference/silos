@@ -12,6 +12,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn, formatTimestamp } from '../../lib/utils';
+import useTranslation from '../../i18n';
 
 const channelIcons: Record<string, string> = {
   whatsapp: '📱',
@@ -46,6 +47,7 @@ function ChannelCard({
     lastConnectedAt?: number | null;
   }>;
 }) {
+  const { t } = useTranslation();
   const hasAccounts = accounts.length > 0;
   const connectedAccounts = accounts.filter((a) => a.connected);
   const runningAccounts = accounts.filter((a) => a.running);
@@ -98,14 +100,14 @@ function ChannelCard({
               )}
             />
             {overallStatus === 'connected'
-              ? 'Connected'
+              ? t('channelsPage.statusConnected')
               : overallStatus === 'running'
-              ? 'Running'
+              ? t('channelsPage.statusRunning')
               : overallStatus === 'error'
-              ? 'Error'
+              ? t('channelsPage.statusError')
               : overallStatus === 'configured'
-              ? 'Configured'
-              : 'Not Configured'}
+              ? t('channelsPage.statusConfigured')
+              : t('channelsPage.statusNotConfigured')}
           </Badge>
         </div>
       </CardHeader>
@@ -113,7 +115,7 @@ function ChannelCard({
       <CardContent>
         {!hasAccounts ? (
           <p className="text-sm text-muted-foreground">
-            No accounts configured for this channel.
+            {t('channelsPage.noAccountsConfigured')}
           </p>
         ) : (
           <div className="space-y-3">
@@ -141,7 +143,7 @@ function ChannelCard({
                     </p>
                     {account.lastConnectedAt && (
                       <p className="text-xs text-muted-foreground">
-                        Last connected: {formatTimestamp(account.lastConnectedAt)}
+                        {t('channelsPage.lastConnected')} {formatTimestamp(account.lastConnectedAt)}
                       </p>
                     )}
                   </div>
@@ -150,12 +152,12 @@ function ChannelCard({
                 <div className="flex items-center gap-2">
                   {account.lastError && (
                     <Badge variant="destructive" className="text-xs">
-                      Error
+                      {t('channelsPage.statusError')}
                     </Badge>
                   )}
                   {account.enabled === false && (
                     <Badge variant="secondary" className="text-xs">
-                      Disabled
+                      {t('channelsPage.disabled')}
                     </Badge>
                   )}
                 </div>
@@ -166,7 +168,7 @@ function ChannelCard({
 
         {hasErrors && (
           <div className="mt-3 p-3 bg-red-500/10 rounded-lg">
-            <p className="text-xs text-red-500 font-medium mb-1">Latest Error</p>
+            <p className="text-xs text-red-500 font-medium mb-1">{t('channelsPage.latestError')}</p>
             <p className="text-sm text-red-500">
               {accounts.find((a) => a.lastError)?.lastError}
             </p>
@@ -178,6 +180,7 @@ function ChannelCard({
 }
 
 export function ChannelsPage() {
+  const { t } = useTranslation();
   const { channels, channelsLoading, loadChannels } = useDashboardStore();
 
   const channelList = channels?.channelOrder || [];
@@ -193,12 +196,12 @@ export function ChannelsPage() {
   return (
     <div className="min-h-screen">
       <Header
-        title="Channels"
-        description="Manage messaging channel connections"
+        title={t('nav.channels')}
+        description={t('channelsPage.description')}
         actions={
           <Button variant="outline" size="sm" onClick={() => loadChannels()}>
             <RefreshCw className={cn('h-4 w-4 mr-2', channelsLoading && 'animate-spin')} />
-            Refresh
+            {t('channelsPage.refresh')}
           </Button>
         }
       />
@@ -209,19 +212,19 @@ export function ChannelsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{totalChannels}</div>
-              <p className="text-xs text-muted-foreground">Available Channels</p>
+              <p className="text-xs text-muted-foreground">{t('channelsPage.availableChannels')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{totalAccounts}</div>
-              <p className="text-xs text-muted-foreground">Configured Accounts</p>
+              <p className="text-xs text-muted-foreground">{t('channelsPage.configuredAccounts')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-green-500">{connectedChannels}</div>
-              <p className="text-xs text-muted-foreground">Connected</p>
+              <p className="text-xs text-muted-foreground">{t('channelsPage.connected')}</p>
             </CardContent>
           </Card>
         </div>
@@ -241,9 +244,9 @@ export function ChannelsPage() {
           <Card className="py-16">
             <div className="text-center">
               <Radio className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-              <h3 className="text-lg font-medium">No Channels Available</h3>
+              <h3 className="text-lg font-medium">{t('channelsPage.noChannels')}</h3>
               <p className="text-muted-foreground mt-1">
-                Channel status will appear here when configured.
+                {t('channelsPage.noChannelsDescription')}
               </p>
             </div>
           </Card>

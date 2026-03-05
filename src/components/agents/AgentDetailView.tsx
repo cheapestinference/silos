@@ -38,9 +38,11 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { CronJobList, CronJobForm, CronStatsWidget } from '../cron';
 import { SettingsTab } from './SettingsTab';
+import useTranslation from '../../i18n';
 import type { KnowledgeFile, AgentSummary, CronJob } from '../../types/openclaw';
 
 export function AgentDetailView() {
+  const { t } = useTranslation();
   console.log('[AgentDetailView] Component mounting...');
   const { id } = useParams<{ id: string }>();
   console.log('[AgentDetailView] id from params:', id);
@@ -111,10 +113,10 @@ export function AgentDetailView() {
       <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center animate-in fade-in zoom-in duration-300">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-600/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
-            <Bot className="w-10 h-10 text-violet-400/50" />
+            <Bot className="w-10 h-10 text-violet-600 dark:text-violet-400/50" />
           </div>
-          <p className="text-sm text-muted-foreground mb-1">Agent not found</p>
-          <p className="text-xs text-muted-foreground/70">The requested agent doesn't exist</p>
+          <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.agentNotFound')}</p>
+          <p className="text-xs text-muted-foreground/70">{t('agentDetail.agentNotFoundDescription')}</p>
         </div>
       </div>
     );
@@ -177,7 +179,7 @@ export function AgentDetailView() {
                     {agentEmoji ? (
                       <span className="text-2xl">{agentEmoji}</span>
                     ) : (
-                      <Bot className="w-7 h-7 text-violet-400" />
+                      <Bot className="w-7 h-7 text-violet-600 dark:text-violet-400" />
                     )}
                   </div>
                   {isOnline && (
@@ -232,7 +234,7 @@ export function AgentDetailView() {
                     ? "hover:border-amber-500/30 hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 dark:text-amber-400"
                     : "hover:border-red-500/30 hover:bg-red-500/10 text-muted-foreground hover:text-red-600 dark:text-red-400"
                 )}
-                title={isMainAgent ? "Reset Agent" : "Delete Agent"}
+                title={isMainAgent ? t('agentDetail.resetAgent') : t('agentDetail.deleteAgent')}
               >
                 {isMainAgent ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
               </button>
@@ -245,32 +247,32 @@ export function AgentDetailView() {
               active={activeTab === 'overview'}
               onClick={() => setActiveTab('overview')}
               icon={<Gauge className="w-3.5 h-3.5" />}
-              label="Overview"
+              label={t('agentDetail.overview')}
             />
             <TabButton
               active={activeTab === 'skills'}
               onClick={() => setActiveTab('skills')}
               icon={<Wrench className="w-3.5 h-3.5" />}
-              label="Skills"
+              label={t('agentDetail.skills')}
             />
             <TabButton
               active={activeTab === 'knowledge'}
               onClick={() => setActiveTab('knowledge')}
               icon={<BookOpen className="w-3.5 h-3.5" />}
-              label="Knowledge"
+              label={t('agentDetail.knowledge')}
             />
             <TabButton
               active={activeTab === 'scheduled'}
               onClick={() => setActiveTab('scheduled')}
               icon={<CalendarClock className="w-3.5 h-3.5" />}
-              label="Scheduled"
+              label={t('agentDetail.scheduled')}
               badge={agentCronJobs.length > 0 ? agentCronJobs.length : undefined}
             />
             <TabButton
               active={activeTab === 'config'}
               onClick={() => setActiveTab('config')}
               icon={<Settings className="w-3.5 h-3.5" />}
-              label="Config"
+              label={t('agentDetail.config')}
             />
           </div>
         </div>
@@ -345,10 +347,10 @@ export function AgentDetailView() {
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-                    {isMainAgent ? 'Reset Agent' : 'Delete Agent'}
+                    {isMainAgent ? t('agentDetail.resetAgent') : t('agentDetail.deleteAgent')}
                   </h2>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {isMainAgent ? 'Clears conversation history' : 'This action cannot be undone'}
+                    {isMainAgent ? t('agentDetail.resetDescription') : t('agentDetail.deleteWarning')}
                   </p>
                 </div>
               </div>
@@ -358,9 +360,9 @@ export function AgentDetailView() {
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-foreground/80">
                 {isMainAgent ? (
-                  <>Are you sure you want to reset <span className="font-semibold text-foreground">{agentName}</span>?</>
+                  <>{t('agentDetail.confirmReset')} <span className="font-semibold text-foreground">{agentName}</span>?</>
                 ) : (
-                  <>Are you sure you want to delete <span className="font-semibold text-foreground">{agentName}</span>?</>
+                  <>{t('agentDetail.confirmDelete')} <span className="font-semibold text-foreground">{agentName}</span>?</>
                 )}
               </p>
               <div className={cn(
@@ -369,8 +371,8 @@ export function AgentDetailView() {
               )}>
                 <p className={cn("text-xs font-mono", isMainAgent ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400")}>
                   {isMainAgent
-                    ? 'This will clear the main session conversation history. The agent configuration will remain unchanged.'
-                    : 'This will remove the agent from your configuration. The gateway will restart after deletion.'
+                    ? t('agentDetail.resetDetails')
+                    : t('agentDetail.deleteDetails')
                   }
                 </p>
               </div>
@@ -384,7 +386,7 @@ export function AgentDetailView() {
                 className="px-4 py-2 text-xs font-bold text-foreground/80 hover:text-foreground uppercase tracking-wider transition-colors disabled:opacity-50"
                 style={{ fontFamily: 'IBM Plex Mono, monospace' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDeleteAgent}
@@ -400,12 +402,12 @@ export function AgentDetailView() {
                 {deleting ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    {isMainAgent ? 'Resetting...' : 'Deleting...'}
+                    {isMainAgent ? t('agentDetail.resetting') : t('agentDetail.deleting')}
                   </>
                 ) : (
                   <>
                     {isMainAgent ? <RefreshCw className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    {isMainAgent ? 'Reset Agent' : 'Delete Agent'}
+                    {isMainAgent ? t('agentDetail.resetAgent') : t('agentDetail.deleteAgent')}
                   </>
                 )}
               </button>
@@ -431,14 +433,14 @@ function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
     cyan: {
       bg: 'bg-cyan-500/10',
       border: 'border-cyan-500/20',
-      icon: 'text-cyan-400',
-      value: 'text-cyan-300',
+      icon: 'text-cyan-600 dark:text-cyan-400',
+      value: 'text-cyan-700 dark:text-cyan-300',
     },
     violet: {
       bg: 'bg-violet-500/10',
       border: 'border-violet-500/20',
-      icon: 'text-violet-400',
-      value: 'text-violet-300',
+      icon: 'text-violet-600 dark:text-violet-400',
+      value: 'text-violet-700 dark:text-violet-300',
     },
     emerald: {
       bg: 'bg-emerald-500/10',
@@ -488,7 +490,7 @@ function TabButton({ active, onClick, icon, label, badge }: TabButtonProps) {
       className={cn(
         "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 relative",
         active
-          ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-300 shadow-lg shadow-violet-500/5"
+          ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-700 dark:text-violet-300 shadow-lg shadow-violet-500/5"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
       )}
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
@@ -556,11 +558,11 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-cyan-400" />
+                <Zap className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-cyan-300">{runningTasks}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active Tasks</p>
+                <p className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">{runningTasks}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('agentDetail.activeTasks')}</p>
               </div>
             </div>
           </div>
@@ -572,7 +574,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
               </div>
               <div>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{completedTasks}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Completed</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('agentDetail.completed')}</p>
               </div>
             </div>
           </div>
@@ -580,11 +582,11 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border border-violet-500/20">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-violet-400" />
+                <MessageSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-violet-300">{sessions.length}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sessions</p>
+                <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">{sessions.length}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('agentDetail.sessions')}</p>
               </div>
             </div>
           </div>
@@ -596,7 +598,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
               </div>
               <div>
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-300">{successRate}%</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Success Rate</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('agentDetail.successRate')}</p>
               </div>
             </div>
           </div>
@@ -606,8 +608,8 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
         <div className="rounded-xl border border-border bg-muted/50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-violet-400" />
-              <h3 className="text-sm font-semibold text-foreground">Recent Sessions</h3>
+              <MessageSquare className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <h3 className="text-sm font-semibold text-foreground">{t('agentDetail.recentSessions')}</h3>
             </div>
             <span className="text-xs text-muted-foreground">{sessions.length} total</span>
           </div>
@@ -615,8 +617,8 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
             {sessions.length === 0 ? (
               <div className="p-8 text-center">
                 <MessageSquare className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No sessions yet</p>
-                <p className="text-xs text-muted-foreground/70 mb-4">Sessions will appear here when created</p>
+                <p className="text-sm text-muted-foreground">{t('agentDetail.noSessions')}</p>
+                <p className="text-xs text-muted-foreground/70 mb-4">{t('agentDetail.sessionsEmptyDescription')}</p>
                 <button
                   onClick={() => {
                     const label = 'chat';
@@ -627,7 +629,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  Start chatting
+                  {t('agentDetail.startChatting')}
                 </button>
               </div>
             ) : (
@@ -640,7 +642,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted transition-colors text-left"
                   >
                     <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                      <MessageSquare className="w-4 h-4 text-violet-400" />
+                      <MessageSquare className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{sessionName}</p>
@@ -670,15 +672,15 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="rounded-xl border border-border bg-muted/50 p-4">
             <div className="flex items-center gap-2 mb-4">
               <Database className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-              <h3 className="text-sm font-semibold text-foreground">Token Usage</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('agentDetail.tokenUsage')}</h3>
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Total Tokens</span>
+                <span className="text-xs text-muted-foreground">{t('agentDetail.totalTokens')}</span>
                 <span className="text-sm font-mono text-foreground">{totalTokens.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Avg per Session</span>
+                <span className="text-xs text-muted-foreground">{t('agentDetail.avgPerSession')}</span>
                 <span className="text-sm font-mono text-foreground">{avgTokensPerSession.toLocaleString()}</span>
               </div>
               <div className="h-2 bg-card rounded-full overflow-hidden">
@@ -693,15 +695,15 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="rounded-xl border border-border bg-muted/50 p-4">
             <div className="flex items-center gap-2 mb-4">
               <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-sm font-semibold text-foreground">Task Performance</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('agentDetail.taskPerformance')}</h3>
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Total Tasks</span>
+                <span className="text-xs text-muted-foreground">{t('agentDetail.totalTasks')}</span>
                 <span className="text-sm font-mono text-foreground">{tasks.length}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Failed</span>
+                <span className="text-xs text-muted-foreground">{t('agentDetail.failed')}</span>
                 <span className="text-sm font-mono text-red-600 dark:text-red-400">{failedTasksList.length}</span>
               </div>
               <div className="h-2 bg-card rounded-full overflow-hidden flex">
@@ -724,12 +726,12 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-semibold text-foreground">Task Pipeline</h3>
+              <Zap className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+              <h3 className="text-sm font-semibold text-foreground">{t('agentDetail.taskPipeline')}</h3>
             </div>
             {runningTasks > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold animate-pulse">
-                {runningTasks} active
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-[10px] font-bold animate-pulse">
+                {t('agentDetail.activeCount', { count: runningTasks })}
               </span>
             )}
           </div>
@@ -739,7 +741,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {/* Running Tasks */}
           {runningTasksList.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-cyan-400 uppercase tracking-wider px-1">Running</p>
+              <p className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider px-1">{t('agentDetail.running')}</p>
               {runningTasksList.map((task) => (
                 <div
                   key={task.id}
@@ -747,7 +749,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                 >
                   <div className="flex items-start gap-2">
                     <div className="w-6 h-6 rounded bg-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                      <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">
@@ -766,7 +768,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {/* Completed Tasks */}
           {completedTasksList.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider px-1">Completed</p>
+              <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider px-1">{t('agentDetail.completed')}</p>
               {completedTasksList.map((task) => (
                 <div
                   key={task.id}
@@ -793,7 +795,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {/* Failed Tasks */}
           {failedTasksList.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider px-1">Failed</p>
+              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider px-1">{t('agentDetail.failed')}</p>
               {failedTasksList.map((task) => (
                 <div
                   key={task.id}
@@ -820,8 +822,8 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
                 <Zap className="w-6 h-6 text-muted-foreground/70" />
               </div>
-              <p className="text-sm text-muted-foreground">No tasks yet</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Tasks will appear here when running</p>
+              <p className="text-sm text-muted-foreground">{t('agentDetail.noTasks')}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t('agentDetail.tasksEmptyDescription')}</p>
             </div>
           )}
         </div>
@@ -839,60 +841,61 @@ interface MemoryPanelProps {
 const FILE_CATEGORIES = [
   {
     id: 'instructions',
-    label: 'Instrucciones',
+    labelKey: 'agentDetail.instructions' as const,
     icon: FileText,
     color: 'blue',
-    description: 'Manual de operaciones y contexto inicial',
+    descriptionKey: 'agentDetail.instructionsDescription' as const,
     files: [
-      { name: 'AGENTS.md', description: 'Manual de operaciones del agente' },
-      { name: 'BOOTSTRAP.md', description: 'Instrucciones de primer inicio' },
+      { name: 'AGENTS.md', descriptionKey: 'agentDetail.agentsFileDescription' as const },
+      { name: 'BOOTSTRAP.md', descriptionKey: 'agentDetail.bootstrapFileDescription' as const },
     ],
   },
   {
     id: 'identity',
-    label: 'Identidad',
+    labelKey: 'agentDetail.identity' as const,
     icon: Sparkles,
     color: 'violet',
-    description: 'Personalidad y contexto del usuario',
+    descriptionKey: 'agentDetail.identityDescription' as const,
     files: [
-      { name: 'IDENTITY.md', description: 'Nombre, avatar, emoji, tema' },
-      { name: 'SOUL.md', description: 'Personalidad y valores' },
-      { name: 'USER.md', description: 'Perfil del usuario' },
+      { name: 'IDENTITY.md', descriptionKey: 'agentDetail.identityFileDescription' as const },
+      { name: 'SOUL.md', descriptionKey: 'agentDetail.soulFileDescription' as const },
+      { name: 'USER.md', descriptionKey: 'agentDetail.userFileDescription' as const },
     ],
   },
   {
     id: 'memory',
-    label: 'Memoria',
+    labelKey: 'agentDetail.memory' as const,
     icon: Brain,
     color: 'emerald',
-    description: 'Memoria de largo plazo',
+    descriptionKey: 'agentDetail.memoryDescription' as const,
     files: [
-      { name: 'MEMORY.md', description: 'Notas persistentes y recuerdos' },
+      { name: 'MEMORY.md', descriptionKey: 'agentDetail.memoryFileDescription' as const },
     ],
   },
   {
     id: 'tools',
-    label: 'Herramientas',
+    labelKey: 'agentDetail.tools' as const,
     icon: Wrench,
     color: 'amber',
-    description: 'Herramientas custom documentadas',
+    descriptionKey: 'agentDetail.toolsDescription' as const,
     files: [
-      { name: 'TOOLS.md', description: 'Documentación de herramientas' },
+      { name: 'TOOLS.md', descriptionKey: 'agentDetail.toolsFileDescription' as const },
     ],
   },
   {
     id: 'automation',
-    label: 'Automatización',
+    labelKey: 'agentDetail.automation' as const,
     icon: Clock,
     color: 'cyan',
-    description: 'Comportamiento automático periódico',
+    descriptionKey: 'agentDetail.automationDescription' as const,
     files: [
-      { name: 'HEARTBEAT.md', description: 'Checklist para heartbeats' },
+      { name: 'HEARTBEAT.md', descriptionKey: 'agentDetail.heartbeatFileDescription' as const },
     ],
   },
 ];
 
 function MemoryPanel({ agentId }: MemoryPanelProps) {
+  const { t } = useTranslation();
   const { memoryFiles, memoryContent, memoryLoading, listMemoryFiles, readMemoryFile, writeMemoryFile } = useDashboardStore();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['instructions', 'identity', 'memory']);
@@ -997,7 +1000,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
   const handleCreateFile = async (fileName: string) => {
     // Create file with default template
     const fileInfo = getFileInfo(fileName);
-    const defaultContent = `# ${fileName}\n\n${fileInfo?.description || 'Add your content here...'}\n`;
+    const defaultContent = `# ${fileName}\n\n${fileInfo?.descriptionKey ? t(fileInfo.descriptionKey) : 'Add your content here...'}\n`;
 
     setSaveStatus('saving');
     try {
@@ -1048,20 +1051,20 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-violet-400" />
+              <Database className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Workspace
+                {t('agentDetail.workspace')}
               </h3>
             </div>
             <button
               onClick={() => listMemoryFiles(agentId)}
               className="p-1 hover:bg-muted rounded transition-colors"
-              title="Refresh"
+              title={t('agentDetail.refresh')}
             >
               <RefreshCw className={cn("w-3.5 h-3.5 text-muted-foreground", memoryLoading && "animate-spin")} />
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground">Archivos de configuración del agente</p>
+          <p className="text-[10px] text-muted-foreground">{t('agentDetail.workspaceDescription')}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -1086,7 +1089,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                   >
                     <CategoryIcon className={cn("w-4 h-4", `text-${category.color}-400`)} />
                     <span className="text-xs font-semibold text-foreground/80 flex-1">
-                      {category.label}
+                      {t(category.labelKey)}
                     </span>
                     <span className={cn(
                       "text-[10px] text-muted-foreground/70 transition-transform",
@@ -1136,7 +1139,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                               "text-[10px] mt-0.5 pl-5",
                               isSelected ? "text-muted-foreground" : "text-muted-foreground/70"
                             )}>
-                              {file.description}
+                              {t(file.descriptionKey)}
                             </p>
                           </button>
                         );
@@ -1158,7 +1161,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
             <div className="space-y-1 pt-2 border-t border-border">
               <div className="px-3 py-2">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Otros archivos
+                  {t('agentDetail.otherFiles')}
                 </span>
               </div>
               {memoryFiles.filter(f => {
@@ -1201,7 +1204,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
         {/* Info */}
         <div className="p-3 border-t border-border">
           <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-            Haz clic en un archivo para editarlo. Los archivos grises aún no existen - haz clic para crearlos.
+            {t('agentDetail.fileEditingHint')}
           </p>
         </div>
       </div>
@@ -1230,7 +1233,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                     {selectedFile.split('/').pop() || selectedFile}
                   </h3>
                   <p className="text-[10px] text-muted-foreground">
-                    {selectedFileInfo?.description || selectedFileInfo?.category?.description || 'Archivo de workspace'}
+                    {selectedFileInfo?.descriptionKey ? t(selectedFileInfo.descriptionKey) : selectedFileInfo?.category?.descriptionKey ? t(selectedFileInfo.category.descriptionKey) : t('agentDetail.workspaceFile')}
                   </p>
                 </div>
               </div>
@@ -1239,25 +1242,25 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                 {saveStatus === 'saving' && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted">
                     <RefreshCw className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-                    <span className="text-xs text-muted-foreground">Guardando...</span>
+                    <span className="text-xs text-muted-foreground">{t('agentDetail.saving')}</span>
                   </div>
                 )}
                 {saveStatus === 'saved' && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400">Guardado</span>
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">{t('agentDetail.saved')}</span>
                   </div>
                 )}
                 {saveStatus === 'error' && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
                     <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                    <span className="text-xs text-red-600 dark:text-red-400">Error</span>
+                    <span className="text-xs text-red-600 dark:text-red-400">{t('common.error')}</span>
                   </div>
                 )}
                 {saveStatus === 'idle' && hasChanges && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span className="text-xs text-amber-600 dark:text-amber-400">Editando...</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">{t('agentDetail.editing')}</span>
                   </div>
                 )}
               </div>
@@ -1274,7 +1277,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                   value={editedContent}
                   onChange={(e) => handleContentChange(e.target.value)}
                   className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none transition-all"
-                  placeholder="Escribe el contenido del archivo..."
+                  placeholder={t('agentDetail.fileContentPlaceholder')}
                   spellCheck={false}
                 />
               )}
@@ -1284,9 +1287,9 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-sm">
               <Database className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground mb-2">Selecciona un archivo para editar</p>
+              <p className="text-sm text-muted-foreground mb-2">{t('agentDetail.selectFileToEdit')}</p>
               <p className="text-xs text-muted-foreground/70">
-                Los archivos del workspace definen la personalidad, instrucciones y memoria del agente.
+                {t('agentDetail.workspaceExplanation')}
               </p>
             </div>
           </div>
@@ -1374,6 +1377,7 @@ const SKILL_CATEGORIES = [
 const DEFAULT_ENABLED_SKILLS = ['file_read', 'file_write', 'bash_execute', 'web_search', 'web_fetch', 'spawn_agent'];
 
 function SkillsPanel({ agent }: SkillsPanelProps) {
+  const { t } = useTranslation();
   const { selectedAgentConfig, loadAgentConfig, saveAgentConfig } = useDashboardStore();
   const [enabledSkills, setEnabledSkills] = useState<string[]>(DEFAULT_ENABLED_SKILLS);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -1467,7 +1471,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Skills Catalog
+                {t('agentDetail.skillsCatalog')}
               </h3>
             </div>
             <div className="flex items-center gap-2">
@@ -1475,7 +1479,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               {saveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
               {saveStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
               <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 font-semibold">
-                {enabledCount} activos
+                {t('agentDetail.activeCount', { count: enabledCount })}
               </span>
             </div>
           </div>
@@ -1486,7 +1490,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar skills..."
+              placeholder={t('agentDetail.searchSkills')}
               className="w-full px-3 py-2 pl-9 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/50"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
@@ -1499,11 +1503,11 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               className={cn(
                 "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all",
                 !filterCategory
-                  ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  ? "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30"
                   : "bg-muted text-muted-foreground border border-transparent hover:border-border"
               )}
             >
-              Todos
+              {t('agentDetail.all')}
             </button>
             {SKILL_CATEGORIES.slice(0, 5).map(cat => (
               <button
@@ -1512,7 +1516,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 className={cn(
                   "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all flex items-center gap-1",
                   filterCategory === cat.id
-                    ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                    ? "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30"
                     : "bg-muted text-muted-foreground border border-transparent hover:border-border"
                 )}
               >
@@ -1588,8 +1592,8 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
           {filteredSkills.length === 0 && (
             <div className="text-center py-12">
               <span className="text-4xl mb-3 block">🔍</span>
-              <p className="text-sm text-muted-foreground">No se encontraron skills</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Intenta con otra búsqueda</p>
+              <p className="text-sm text-muted-foreground">{t('agentDetail.noSkillsFound')}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t('agentDetail.tryAnotherSearch')}</p>
             </div>
           )}
         </div>
@@ -1626,18 +1630,18 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                   "w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2",
                   enabledSkills.includes(selectedSkill.id)
                     ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
-                    : "bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30"
+                    : "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/30"
                 )}
               >
                 {enabledSkills.includes(selectedSkill.id) ? (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Habilitado</span>
+                    <span>{t('agentDetail.enabled')}</span>
                   </>
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    <span>Habilitar Skill</span>
+                    <span>{t('agentDetail.enableSkill')}</span>
                   </>
                 )}
               </button>
@@ -1646,7 +1650,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             {/* Requirements */}
             {selectedSkill.requires && selectedSkill.requires.length > 0 && (
               <div className="px-5 py-3 border-b border-border">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Requisitos</h4>
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{t('agentDetail.requirements')}</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedSkill.requires.map(req => (
                     <span key={req} className="px-2 py-1 text-xs bg-muted rounded-lg text-muted-foreground font-mono">
@@ -1656,7 +1660,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 </div>
                 {selectedSkill.install && (
                   <div className="mt-2 p-2 bg-muted rounded-lg">
-                    <code className="text-[10px] text-cyan-400 font-mono">{selectedSkill.install}</code>
+                    <code className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">{selectedSkill.install}</code>
                   </div>
                 )}
               </div>
@@ -1664,7 +1668,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
 
             {/* Documentation */}
             <div className="flex-1 overflow-y-auto p-5">
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Documentación</h4>
+              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">{t('agentDetail.documentation')}</h4>
               {selectedSkill.docs ? (
                 <div className="prose prose-invert prose-sm max-w-none">
                   <pre className="text-xs text-foreground/80 whitespace-pre-wrap font-mono leading-relaxed bg-muted p-3 rounded-lg">
@@ -1672,7 +1676,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                   </pre>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground/70 italic">Sin documentación adicional</p>
+                <p className="text-sm text-muted-foreground/70 italic">{t('agentDetail.noDocumentation')}</p>
               )}
             </div>
           </>
@@ -1682,7 +1686,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div className="mb-6">
               <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Link className="w-3 h-3" />
-                Importar desde URL
+                {t('agentDetail.importFromUrl')}
               </h4>
               <div className="space-y-3">
                 <div className="flex gap-2">
@@ -1691,13 +1695,13 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                     placeholder="https://clawhub.ai/skills/nombre-skill"
                     className="flex-1 px-3 py-2 bg-muted border border-border rounded-lg text-xs text-foreground/80 placeholder:text-muted-foreground/50 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 font-mono"
                   />
-                  <button className="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-lg text-xs text-cyan-400 font-medium transition-colors flex items-center gap-1.5">
+                  <button className="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-lg text-xs text-cyan-600 dark:text-cyan-400 font-medium transition-colors flex items-center gap-1.5">
                     <Download className="w-3 h-3" />
-                    Importar
+                    {t('agentDetail.import')}
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Pega la URL de un skill de ClawHub o cualquier repositorio con SKILL.md
+                  {t('agentDetail.importUrlHint')}
                 </p>
               </div>
             </div>
@@ -1706,23 +1710,23 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div className="mb-6">
               <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Terminal className="w-3 h-3" />
-                Instalar via CLI
+                {t('agentDetail.installViaCli')}
               </h4>
               <div className="bg-muted border border-border rounded-xl p-4 space-y-3">
                 <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">Buscar skills disponibles:</p>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.searchAvailableSkills')}</p>
                   <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub search ethereum
                   </code>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">Instalar un skill:</p>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.installSkill')}</p>
                   <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub install nombre-skill
                   </code>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">Ver skills instalados:</p>
+                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.viewInstalledSkills')}</p>
                   <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub list
                   </code>
@@ -1734,7 +1738,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                   className="flex items-center gap-1.5 text-[10px] text-cyan-500 hover:text-cyan-400 transition-colors mt-2"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Explorar ClawHub Marketplace
+                  {t('agentDetail.exploreClawHub')}
                 </a>
               </div>
             </div>
@@ -1743,11 +1747,11 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div>
               <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <FileText className="w-3 h-3" />
-                Crear Skill Personalizado
+                {t('agentDetail.createCustomSkill')}
               </h4>
               <div className="bg-muted border border-border rounded-xl p-4">
                 <p className="text-[10px] text-muted-foreground mb-3">
-                  Crea un archivo SKILL.md en <code className="text-cyan-400">~/.openclaw/skills/tu-skill/</code>
+                  {t('agentDetail.createSkillFileHint')} <code className="text-cyan-600 dark:text-cyan-400">~/.openclaw/skills/tu-skill/</code>
                 </p>
                 <div className="bg-black/30 rounded-lg p-3 mb-3">
                   <pre className="text-[10px] text-muted-foreground font-mono leading-relaxed whitespace-pre">{`---
@@ -1765,7 +1769,7 @@ metadata:
 Instrucciones y comandos...`}</pre>
                 </div>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Después de crear el archivo, el skill aparecerá automáticamente en la lista.
+                  {t('agentDetail.skillAutoAppears')}
                 </p>
               </div>
             </div>
@@ -1784,6 +1788,7 @@ interface ConfigPanelProps {
 }
 
 function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
+  const { t } = useTranslation();
   const settings = config?.settings || {};
   const { agents, saveAgentConfig, patchGatewayConfig, gatewayConfig } = useDashboardStore();
 
@@ -1882,9 +1887,9 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-              Agent Configuration
+              {t('agentDetail.agentConfiguration')}
             </h3>
-            <p className="text-xs text-muted-foreground">Settings and parameters for this agent</p>
+            <p className="text-xs text-muted-foreground">{t('agentDetail.configDescription')}</p>
           </div>
         </div>
 
@@ -1900,11 +1905,11 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
               className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
             >
               {settingsSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              {settingsSaving ? 'Saving...' : 'Save Settings'}
+              {settingsSaving ? t('agentDetail.saving') : t('agentDetail.saveSettings')}
             </button>
             {settingsSaved && (
               <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Saved
+                <Check className="w-3.5 h-3.5" /> {t('agentDetail.settingsSaved')}
               </span>
             )}
             {settingsError && (
@@ -1917,25 +1922,25 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           {/* Identity */}
           <ConfigCard
-            title="Agent Identity"
+            title={t('agentDetail.agentIdentity')}
             icon={<Bot className="w-4 h-4" />}
             color="violet"
           >
-            <ConfigRow label="ID" value={agent.id} mono />
-            <ConfigRow label="Name" value={agent.identity?.name || agent.name || 'Not set'} />
-            <ConfigRow label="Emoji" value={agent.identity?.emoji || '🤖'} />
+            <ConfigRow label={t('agentDetail.id')} value={agent.id} mono />
+            <ConfigRow label={t('agentDetail.name')} value={agent.identity?.name || agent.name || t('agentDetail.notSet')} />
+            <ConfigRow label={t('agentDetail.emoji')} value={agent.identity?.emoji || '🤖'} />
           </ConfigCard>
 
           {/* Paths */}
           <ConfigCard
-            title="File Paths"
+            title={t('agentDetail.filePaths')}
             icon={<Database className="w-4 h-4" />}
             color="amber"
           >
-            <ConfigRow label="Workspace" value={`~/.openclaw/workspace/${agent.id}`} mono small />
-            <ConfigRow label="State Dir" value="~/.openclaw/state" mono small />
-            <ConfigRow label="Memory DB" value={`~/.openclaw/state/memory/${agent.id}.sqlite`} mono small />
-            <ConfigRow label="Skills" value="~/.openclaw/skills" mono small />
+            <ConfigRow label={t('agentDetail.workspacePath')} value={`~/.openclaw/workspace/${agent.id}`} mono small />
+            <ConfigRow label={t('agentDetail.stateDir')} value="~/.openclaw/state" mono small />
+            <ConfigRow label={t('agentDetail.memoryDb')} value={`~/.openclaw/state/memory/${agent.id}.sqlite`} mono small />
+            <ConfigRow label={t('agentDetail.skillsPath')} value="~/.openclaw/skills" mono small />
           </ConfigCard>
         </div>
 
@@ -1947,8 +1952,8 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
                 <Users className="w-4.5 h-4.5 text-blue-500 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-foreground">Agent-to-Agent Communication</h4>
-                <p className="text-[11px] text-muted-foreground">Allow this agent to send messages to other agents</p>
+                <h4 className="text-sm font-bold text-foreground">{t('agentDetail.a2aCommunication')}</h4>
+                <p className="text-[11px] text-muted-foreground">{t('agentDetail.a2aDescription')}</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -1966,9 +1971,9 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
             {/* Allowed Agents */}
             <div>
               <label className="block text-xs font-semibold text-foreground/80 mb-2">
-                Allowed Agents
+                {t('agentDetail.allowedAgents')}
                 <span className="ml-2 text-muted-foreground font-normal">
-                  (comma-separated, use * for all)
+                  {t('agentDetail.agentsSeparatorHint')}
                 </span>
               </label>
               <input
@@ -1980,7 +1985,7 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
               />
               {otherAgents.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="text-[10px] text-muted-foreground mr-1">Available:</span>
+                  <span className="text-[10px] text-muted-foreground mr-1">{t('agentDetail.available')}</span>
                   {otherAgents.map(a => (
                     <button
                       key={a.id}
@@ -2003,10 +2008,10 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-foreground/80 mb-3">
-                  How to set delegation rules
+                  {t('agentDetail.delegationRulesTitle')}
                 </p>
                 <p className="text-[11px] text-muted-foreground mb-4">
-                  The agent needs instructions in its <span className="text-foreground/80 font-medium">AGENTS.md</span> file to know when and how to delegate tasks.
+                  {t('agentDetail.delegationRulesExplanation')}
                 </p>
               </div>
 
@@ -2017,7 +2022,7 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">1</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Edit AGENTS.md directly</p>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">{t('agentDetail.editAgentsDirectly')}</p>
                     <p className="text-[11px] text-muted-foreground mb-3">
                       Go to the <span className="text-foreground">Memory</span> tab and edit <span className="text-foreground font-mono">AGENTS.md</span> to add your delegation rules.
                     </p>
@@ -2026,7 +2031,7 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-lg transition-all"
                     >
                       <Brain className="w-3.5 h-3.5" />
-                      Go to Memory Tab
+                      {t('agentDetail.goToMemoryTab')}
                     </button>
                   </div>
                 </div>
@@ -2039,9 +2044,9 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
                     <span className="text-blue-500 dark:text-blue-400 font-bold text-sm">2</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1">Ask the agent to update itself</p>
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1">{t('agentDetail.askAgentToUpdate')}</p>
                     <p className="text-[11px] text-muted-foreground mb-3">
-                      Copy this message and send it to your agent. It will update its own AGENTS.md:
+                      {t('agentDetail.copyMessageHint')}
                     </p>
                     <div className="bg-muted rounded-lg p-3 mb-3">
                       <pre className="text-[10px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed">
@@ -2083,7 +2088,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                       )}
                     >
                       {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      {copiedPrompt ? 'Copied!' : 'Copy Message'}
+                      {copiedPrompt ? t('agentDetail.copied') : t('agentDetail.copyMessage')}
                     </button>
                   </div>
                 </div>
@@ -2091,13 +2096,13 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
 
               {/* Available tools reference */}
               <div className="bg-muted/50 rounded-xl p-4 border border-border">
-                <p className="text-xs font-semibold text-foreground/80 mb-3">Available Tools Reference</p>
+                <p className="text-xs font-semibold text-foreground/80 mb-3">{t('agentDetail.availableToolsReference')}</p>
                 <div className="space-y-2 text-[11px] font-mono text-muted-foreground">
                   <div className="bg-muted rounded-lg p-2">
                     <span className="text-blue-500 dark:text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-muted-foreground/70">// Send to another agent</span>
                   </div>
                   <div className="bg-muted rounded-lg p-2">
-                    <span className="text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground/70">// Spawn background subagent</span>
+                    <span className="text-purple-600 dark:text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground/70">// Spawn background subagent</span>
                   </div>
                 </div>
               </div>
@@ -2111,11 +2116,11 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Terminal className="w-4 h-4 text-muted-foreground" />
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Raw Configuration</h4>
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('agentDetail.rawConfiguration')}</h4>
             </div>
             <button className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <ExternalLink className="w-3 h-3" />
-              Export
+              {t('agentDetail.export')}
             </button>
           </div>
           <div className="p-4 max-h-64 overflow-y-auto">
@@ -2139,8 +2144,8 @@ interface ConfigCardProps {
 
 function ConfigCard({ title, icon, color, children }: ConfigCardProps) {
   const colorClasses = {
-    cyan: { bg: 'from-cyan-500/10', border: 'border-cyan-500/20', icon: 'text-cyan-400' },
-    violet: { bg: 'from-violet-500/10', border: 'border-violet-500/20', icon: 'text-violet-400' },
+    cyan: { bg: 'from-cyan-500/10', border: 'border-cyan-500/20', icon: 'text-cyan-600 dark:text-cyan-400' },
+    violet: { bg: 'from-violet-500/10', border: 'border-violet-500/20', icon: 'text-violet-600 dark:text-violet-400' },
     amber: { bg: 'from-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-600 dark:text-amber-400' },
     emerald: { bg: 'from-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400' },
   };
@@ -2197,6 +2202,7 @@ interface KnowledgePanelProps {
 }
 
 function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate }: KnowledgePanelProps) {
+  const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const [editingFile, setEditingFile] = useState<KnowledgeFile | null>(null);
   const [newFileName, setNewFileName] = useState('');
@@ -2263,9 +2269,9 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
             </div>
             <div>
               <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-                Knowledge Base
+                {t('agentDetail.knowledgeBase')}
               </h3>
-              <p className="text-xs text-muted-foreground">{knowledgeFiles.length} files available</p>
+              <p className="text-xs text-muted-foreground">{knowledgeFiles.length} {t('agentDetail.filesAvailable')}</p>
             </div>
           </div>
           <button
@@ -2273,7 +2279,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
-            New File
+            {t('agentDetail.newFile')}
           </button>
         </div>
 
@@ -2281,7 +2287,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
         {isCreating && (
           <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wider">Create New File</h4>
+              <h4 className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wider">{t('agentDetail.createNewFile')}</h4>
               <button
                 onClick={() => setIsCreating(false)}
                 className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
@@ -2292,7 +2298,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1.5">File Name</label>
+                <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileName')}</label>
                 <input
                   type="text"
                   value={newFileName}
@@ -2302,21 +2308,21 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1.5">File Type</label>
+                <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileType')}</label>
                 <select
                   value={newFileType}
                   onChange={(e) => setNewFileType(e.target.value as any)}
                   className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground focus:outline-none focus:border-blue-500/50"
                 >
-                  <option value="markdown">Markdown</option>
-                  <option value="text">Plain Text</option>
-                  <option value="json">JSON</option>
+                  <option value="markdown">{t('agentDetail.markdown')}</option>
+                  <option value="text">{t('agentDetail.plainText')}</option>
+                  <option value="json">{t('agentDetail.json')}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Content</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.content')}</label>
               <textarea
                 value={newFileContent}
                 onChange={(e) => setNewFileContent(e.target.value)}
@@ -2331,7 +2337,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 onClick={() => setIsCreating(false)}
                 className="px-4 py-2 text-xs font-semibold rounded-xl bg-muted text-muted-foreground hover:bg-muted transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleCreate}
@@ -2339,7 +2345,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-3.5 h-3.5" />
-                Create
+                {t('common.create')}
               </button>
             </div>
           </div>
@@ -2349,7 +2355,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
         {editingFile && (
           <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-300 uppercase tracking-wider">Edit File</h4>
+              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-300 uppercase tracking-wider">{t('agentDetail.editFile')}</h4>
               <button
                 onClick={() => setEditingFile(null)}
                 className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
@@ -2359,7 +2365,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">File Name</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileName')}</label>
               <input
                 type="text"
                 value={editingFile.name}
@@ -2369,7 +2375,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Content</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.content')}</label>
               <textarea
                 value={editingFile.content}
                 onChange={(e) => setEditingFile({ ...editingFile, content: e.target.value })}
@@ -2383,14 +2389,14 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 onClick={() => setEditingFile(null)}
                 className="px-4 py-2 text-xs font-semibold rounded-xl bg-muted text-muted-foreground hover:bg-muted transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleEdit}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all"
               >
                 <Save className="w-3.5 h-3.5" />
-                Save Changes
+                {t('agentDetail.saveChanges')}
               </button>
             </div>
           </div>
@@ -2403,8 +2409,8 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-muted-foreground/50" />
               </div>
-              <p className="text-sm text-muted-foreground mb-1">No knowledge files yet</p>
-              <p className="text-xs text-muted-foreground/70">Create your first file to get started</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.noKnowledgeFiles')}</p>
+              <p className="text-xs text-muted-foreground/70">{t('agentDetail.noKnowledgeFilesHint')}</p>
             </div>
           ) : (
             knowledgeFiles.map((file) => (
@@ -2472,15 +2478,15 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-                    Delete Knowledge File
+                    {t('agentDetail.deleteKnowledgeFile')}
                   </h2>
-                  <p className="text-xs text-muted-foreground font-mono">This action cannot be undone</p>
+                  <p className="text-xs text-muted-foreground font-mono">{t('agentDetail.deleteWarning')}</p>
                 </div>
               </div>
             </div>
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-foreground/80">
-                Are you sure you want to delete <span className="font-semibold text-foreground">{fileToDelete?.name}</span>?
+                {t('agentDetail.confirmDeleteFile')} <span className="font-semibold text-foreground">{fileToDelete?.name}</span>?
               </p>
             </div>
             <div className="px-6 py-4 border-t border-border bg-muted flex items-center justify-end gap-3">
@@ -2490,7 +2496,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 className="px-4 py-2 text-xs font-bold text-foreground/80 hover:text-foreground uppercase tracking-wider transition-colors disabled:opacity-50"
                 style={{ fontFamily: 'IBM Plex Mono, monospace' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmDelete}
@@ -2501,12 +2507,12 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 {deleting ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Deleting...
+                    {t('agentDetail.deleting')}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-3.5 h-3.5" />
-                    Delete File
+                    {t('agentDetail.deleteFileButton')}
                   </>
                 )}
               </button>
@@ -2538,6 +2544,7 @@ function ScheduledPanel({
   onAdd,
   onUpdate,
 }: ScheduledPanelProps) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | null>(null);
   const [formSaving, setFormSaving] = useState(false);
@@ -2574,14 +2581,14 @@ function ScheduledPanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-              <CalendarClock className="w-5 h-5 text-cyan-400" />
+              <CalendarClock className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-                Scheduled Tasks
+                {t('agentDetail.scheduledTasks')}
               </h3>
               <p className="text-xs text-muted-foreground">
-                {cronJobs.length} job{cronJobs.length !== 1 ? 's' : ''} • {enabledCount} active
+                {cronJobs.length} {cronJobs.length !== 1 ? t('agentDetail.jobsPlural') : t('agentDetail.jobSingular')} • {t('agentDetail.activeCount', { count: enabledCount })}
               </p>
             </div>
           </div>
@@ -2590,10 +2597,10 @@ function ScheduledPanel({
               setEditingJob(null);
               setShowForm(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/30 hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
-            New Task
+            {t('agentDetail.newTask')}
           </button>
         </div>
 
@@ -2605,7 +2612,7 @@ function ScheduledPanel({
           onEdit={handleEdit}
           onDelete={onDelete}
           showAgentInfo={false}
-          emptyMessage="No scheduled tasks for this agent yet"
+          emptyMessage={t('agentDetail.noScheduledTasks')}
         />
 
         {/* Form Modal */}

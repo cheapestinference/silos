@@ -23,6 +23,8 @@ import { Badge } from '../ui/badge';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn, formatTimestamp, formatDuration } from '../../lib/utils';
 import type { CronJob, CronSchedule } from '../../types/openclaw';
+import useTranslation from '../../i18n';
+import type { TranslationKey } from '../../i18n';
 
 function getScheduleIcon(schedule: CronSchedule) {
   switch (schedule.kind) {
@@ -37,16 +39,16 @@ function getScheduleIcon(schedule: CronSchedule) {
   }
 }
 
-function getScheduleDescription(schedule: CronSchedule): string {
+function getScheduleDescription(schedule: CronSchedule, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string {
   switch (schedule.kind) {
     case 'at':
-      return `One-time at ${new Date(schedule.atMs).toLocaleString()}`;
+      return t('cron.oneTimeAt', { time: new Date(schedule.atMs).toLocaleString() });
     case 'every':
-      return `Every ${formatDuration(schedule.everyMs)}`;
+      return t('cron.every', { interval: formatDuration(schedule.everyMs) });
     case 'cron':
-      return `Cron: ${schedule.expr}${schedule.tz ? ` (${schedule.tz})` : ''}`;
+      return t('cron.cronSchedule', { expression: `${schedule.expr}${schedule.tz ? ` (${schedule.tz})` : ''}` });
     default:
-      return 'Unknown schedule';
+      return t('cron.unknownSchedule');
   }
 }
 
@@ -62,6 +64,7 @@ function CronJobCard({
   onRun: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -107,12 +110,12 @@ function CronJobCard({
                 {job.name}
                 {isRunning && (
                   <Badge variant="default" className="bg-blue-500 animate-pulse">
-                    Running
+                    {t('cron.running')}
                   </Badge>
                 )}
               </CardTitle>
               <CardDescription className="mt-1">
-                {getScheduleDescription(job.schedule)}
+                {getScheduleDescription(job.schedule, t)}
               </CardDescription>
             </div>
           </div>
@@ -154,7 +157,7 @@ function CronJobCard({
                       }}
                     >
                       <Play className="h-4 w-4" />
-                      Run Now
+                      {t('cron.runNow')}
                     </button>
                     <button
                       className="w-full px-3 py-2 text-sm text-left hover:bg-muted flex items-center gap-2 text-destructive"
@@ -164,7 +167,7 @@ function CronJobCard({
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </>
@@ -180,7 +183,7 @@ function CronJobCard({
           {job.state?.lastRunAtMs && (
             <div className="flex items-center gap-1.5">
               <StatusIcon className={cn('h-4 w-4', statusColor)} />
-              <span className="text-muted-foreground">Last run:</span>
+              <span className="text-muted-foreground">{t('cron.lastRun')}</span>
               <span>{formatTimestamp(job.state.lastRunAtMs)}</span>
             </div>
           )}
@@ -188,7 +191,7 @@ function CronJobCard({
           {job.state?.nextRunAtMs && job.enabled && (
             <div className="flex items-center gap-1.5">
               <Timer className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Next:</span>
+              <span className="text-muted-foreground">{t('cron.next')}</span>
               <span>{formatTimestamp(job.state.nextRunAtMs)}</span>
             </div>
           )}
@@ -211,12 +214,12 @@ function CronJobCard({
           {expanded ? (
             <>
               <ChevronUp className="h-3 w-3 mr-1" />
-              Less
+              {t('cron.less')}
             </>
           ) : (
             <>
               <ChevronDown className="h-3 w-3 mr-1" />
-              More
+              {t('cron.more')}
             </>
           )}
         </Button>
@@ -227,25 +230,25 @@ function CronJobCard({
             {/* Description */}
             {job.description && (
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Description</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.description')}</p>
                 <p className="text-sm">{job.description}</p>
               </div>
             )}
 
             {/* Payload */}
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">Payload</p>
+              <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.payload')}</p>
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-sm font-mono">
                   {job.payload.kind === 'systemEvent' ? (
                     <>
-                      <Badge variant="secondary" className="mb-2">System Event</Badge>
+                      <Badge variant="secondary" className="mb-2">{t('cron.systemEvent')}</Badge>
                       <br />
                       {job.payload.text}
                     </>
                   ) : (
                     <>
-                      <Badge variant="secondary" className="mb-2">Agent Turn</Badge>
+                      <Badge variant="secondary" className="mb-2">{t('cron.agentTurn')}</Badge>
                       <br />
                       {job.payload.message}
                     </>
@@ -257,11 +260,11 @@ function CronJobCard({
             {/* Configuration */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Session Target</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.sessionTarget')}</p>
                 <Badge variant="outline">{job.sessionTarget}</Badge>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Wake Mode</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.wakeMode')}</p>
                 <Badge variant="outline">{job.wakeMode}</Badge>
               </div>
             </div>
@@ -269,15 +272,15 @@ function CronJobCard({
             {/* Error */}
             {job.state?.lastError && (
               <div className="bg-red-500/10 p-3 rounded-lg">
-                <p className="text-xs text-red-500 font-medium mb-1">Last Error</p>
+                <p className="text-xs text-red-500 font-medium mb-1">{t('cron.lastError')}</p>
                 <p className="text-sm text-red-500">{job.state.lastError}</p>
               </div>
             )}
 
             {/* Metadata */}
             <div className="text-xs text-muted-foreground">
-              <p>Created: {new Date(job.createdAtMs).toLocaleString()}</p>
-              <p>Updated: {new Date(job.updatedAtMs).toLocaleString()}</p>
+              <p>{t('cron.created')} {new Date(job.createdAtMs).toLocaleString()}</p>
+              <p>{t('cron.updated')} {new Date(job.updatedAtMs).toLocaleString()}</p>
               <p>ID: {job.id}</p>
             </div>
           </div>
@@ -297,6 +300,7 @@ export function CronPage() {
     deleteCronJob,
   } = useDashboardStore();
 
+  const { t } = useTranslation();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
 
@@ -317,18 +321,18 @@ export function CronPage() {
   return (
     <div className="min-h-screen">
       <Header
-        title="Cron Jobs"
-        description={`${cronJobs.length} jobs configured`}
+        title={t('cron.title')}
+        description={t('cron.jobsConfigured', { count: cronJobs.length })}
         actions={
           <div className="flex items-center gap-2">
             {runningCount > 0 && (
               <Badge variant="default" className="bg-blue-500 animate-pulse">
                 <Play className="h-3 w-3 mr-1" />
-                {runningCount} running
+                {t('cron.runningCount', { count: runningCount })}
               </Badge>
             )}
             <Badge variant={cronStatus?.enabled ? 'success' : 'secondary'}>
-              {cronStatus?.enabled ? 'Scheduler Active' : 'Scheduler Paused'}
+              {cronStatus?.enabled ? t('cron.schedulerActive') : t('cron.schedulerPaused')}
             </Badge>
           </div>
         }
@@ -340,13 +344,13 @@ export function CronPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{cronJobs.length}</div>
-              <p className="text-xs text-muted-foreground">Total Jobs</p>
+              <p className="text-xs text-muted-foreground">{t('cron.totalJobs')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-green-500">{enabledCount}</div>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xs text-muted-foreground">{t('cron.active')}</p>
             </CardContent>
           </Card>
           <Card>
@@ -354,7 +358,7 @@ export function CronPage() {
               <div className="text-2xl font-bold text-muted-foreground">
                 {cronJobs.length - enabledCount}
               </div>
-              <p className="text-xs text-muted-foreground">Paused</p>
+              <p className="text-xs text-muted-foreground">{t('cron.paused')}</p>
             </CardContent>
           </Card>
           <Card>
@@ -364,14 +368,14 @@ export function CronPage() {
                   ? formatTimestamp(cronStatus.nextWakeAtMs)
                   : 'N/A'}
               </div>
-              <p className="text-xs text-muted-foreground">Next Wake</p>
+              <p className="text-xs text-muted-foreground">{t('cron.nextWake')}</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-sm text-muted-foreground">Filter:</span>
+          <span className="text-sm text-muted-foreground">{t('cron.filter')}</span>
           {(['all', 'enabled', 'disabled'] as const).map((f) => (
             <Button
               key={f}
@@ -402,11 +406,11 @@ export function CronPage() {
           <Card className="py-16">
             <div className="text-center">
               <Clock className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-              <h3 className="text-lg font-medium">No Cron Jobs</h3>
+              <h3 className="text-lg font-medium">{t('cron.noCronJobs')}</h3>
               <p className="text-muted-foreground mt-1">
                 {filter !== 'all'
                   ? `No ${filter} jobs found`
-                  : 'Configure cron jobs to automate agent tasks'}
+                  : t('cron.noCronJobsDescription')}
               </p>
             </div>
           </Card>
@@ -436,22 +440,22 @@ export function CronPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <Trash2 className="h-5 w-5" />
-                Delete Cron Job
+                {t('cron.deleteTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Are you sure you want to delete this cron job? This action cannot be undone.
+                {t('cron.deleteConfirm')}
               </p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant="destructive"
                   onClick={() => handleDelete(deleteConfirm)}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </div>
             </CardContent>

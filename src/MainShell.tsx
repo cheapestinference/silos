@@ -5,10 +5,12 @@ import { AppSidebar } from './components/layout/AppSidebar';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { ToastProvider, useToast } from './components/ui/toast';
 import { useDashboardStore } from './store/dashboard-store';
+import useTranslation from './i18n';
 
 function ReconnectToast() {
   const { connected } = useDashboardStore();
   const { addToast } = useToast();
+  const { t } = useTranslation();
   const wasConnectedRef = useRef(false);
   const initialRef = useRef(true);
 
@@ -16,7 +18,7 @@ function ReconnectToast() {
     if (connected) {
       if (!initialRef.current && wasConnectedRef.current === false) {
         // Was disconnected, now reconnected (not initial load)
-        addToast({ title: 'Reconnected', variant: 'success', duration: 3000 });
+        addToast({ title: t('mainShell.reconnected'), variant: 'success', duration: 3000 });
       }
       wasConnectedRef.current = true;
       initialRef.current = false;
@@ -33,6 +35,7 @@ function ReconnectToast() {
 
 function ConnectionOverlay() {
   const { connected, connecting, reconnectAttempt, connect } = useDashboardStore();
+  const { t } = useTranslation();
 
   if (connected) return null;
 
@@ -44,21 +47,21 @@ function ConnectionOverlay() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
             <p className="text-sm font-medium text-foreground">
               {reconnectAttempt > 0
-                ? `Reconnecting... (attempt ${reconnectAttempt})`
-                : 'Connecting...'}
+                ? t('mainShell.reconnecting', { count: reconnectAttempt })
+                : t('mainShell.connecting')}
             </p>
-            <p className="text-xs text-muted-foreground">Your session will resume automatically</p>
+            <p className="text-xs text-muted-foreground">{t('mainShell.sessionResume')}</p>
           </>
         ) : (
           <>
             <WifiOff className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">Connection lost</p>
+            <p className="text-sm font-medium text-foreground">{t('mainShell.connectionLost')}</p>
             <button
               onClick={() => connect()}
               className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted"
             >
               <RefreshCw className="h-4 w-4" />
-              Reconnect
+              {t('mainShell.reconnect')}
             </button>
           </>
         )}

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
+import useTranslation from '../../i18n';
 import {
   ArrowLeft,
   Bot,
@@ -93,6 +94,7 @@ function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
 }
 
 export function SessionDetailView() {
+  const { t } = useTranslation();
   const { key: sessionKey } = useParams<{ key: string }>();
   const navigate = useNavigate();
   const {
@@ -141,7 +143,7 @@ export function SessionDetailView() {
   const sessionAgentOverride = sessionAgentEntry?.model
     ? (typeof sessionAgentEntry.model === 'string' ? sessionAgentEntry.model : sessionAgentEntry.model.primary || '')
     : '';
-  const model = session?.model || sessionAgentOverride || agentsCfg?.defaults?.model?.primary || 'Not configured';
+  const model = session?.model || sessionAgentOverride || agentsCfg?.defaults?.model?.primary || t('sessionDetail.notConfigured');
   const isOnline = true;
 
   // Format last activity
@@ -228,20 +230,20 @@ export function SessionDetailView() {
               <StatCard
                 icon={<Activity className="w-3.5 h-3.5" />}
                 value={runningTasks}
-                label="Active"
+                label={t('sessionDetail.active')}
                 color="cyan"
                 pulse={runningTasks > 0}
               />
               <StatCard
                 icon={<MessageSquare className="w-3.5 h-3.5" />}
                 value={session?.totalTokens?.toLocaleString() || 0}
-                label="Tokens"
+                label={t('sessionDetail.tokens')}
                 color="violet"
               />
               <StatCard
                 icon={<Sparkles className="w-3.5 h-3.5" />}
                 value={completedTasks}
-                label="Done"
+                label={t('sessionDetail.done')}
                 color="emerald"
               />
             </div>

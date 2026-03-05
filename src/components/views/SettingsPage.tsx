@@ -33,8 +33,8 @@ import {
 import { Header } from '../layout/Header';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
-import useTranslation from '../../i18n';
-import type { Locale } from '../../i18n';
+import useTranslation, { t as tStatic } from '../../i18n';
+import type { Locale, TranslationKey } from '../../i18n';
 import type { ChannelsStatusSnapshot } from '../../types/openclaw';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -43,16 +43,16 @@ type SettingsSection = 'models' | 'channels' | 'agents' | 'tools' | 'gateway' | 
 
 const settingsSections: Array<{
   id: SettingsSection;
-  label: string;
+  labelKey: TranslationKey;
   icon: React.ReactNode;
-  description: string;
+  descriptionKey: TranslationKey;
 }> = [
-  { id: 'models', label: 'Model Providers', icon: <Cpu className="w-4 h-4" />, description: 'LLM providers and API keys' },
-  { id: 'channels', label: 'Channels', icon: <Globe className="w-4 h-4" />, description: 'Messaging platforms' },
-  { id: 'agents', label: 'Agents', icon: <Bot className="w-4 h-4" />, description: 'Agent configuration' },
-  { id: 'tools', label: 'Tools', icon: <Wrench className="w-4 h-4" />, description: 'Available tools' },
-  { id: 'gateway', label: 'Gateway', icon: <Server className="w-4 h-4" />, description: 'Connection settings' },
-  { id: 'appearance', label: 'Appearance', icon: <Settings2 className="w-4 h-4" />, description: 'Theme and display' },
+  { id: 'models', labelKey: 'settings.providers.title', icon: <Cpu className="w-4 h-4" />, descriptionKey: 'settings.providers.description' },
+  { id: 'channels', labelKey: 'settings.channelsConfig.title', icon: <Globe className="w-4 h-4" />, descriptionKey: 'settings.channelsConfig.description' },
+  { id: 'agents', labelKey: 'settings.agentsConfig.title', icon: <Bot className="w-4 h-4" />, descriptionKey: 'settings.agentsConfig.description' },
+  { id: 'tools', labelKey: 'settings.toolsConfig.title', icon: <Wrench className="w-4 h-4" />, descriptionKey: 'settings.toolsConfig.description' },
+  { id: 'gateway', labelKey: 'settings.gatewayConfig.title', icon: <Server className="w-4 h-4" />, descriptionKey: 'settings.gatewayConfig.description' },
+  { id: 'appearance', labelKey: 'settings.appearanceConfig.title', icon: <Settings2 className="w-4 h-4" />, descriptionKey: 'settings.appearanceConfig.description' },
 ];
 
 // Channel Row Component
@@ -238,14 +238,14 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 }
                 setQrMessage(null);
               } else {
-                setQrError('Connection error. Click Connect to try again.');
+                setQrError(t('settings.connectionError'));
                 hadError = true;
               }
             }
           }
 
           if (!paired && !hadError) {
-            setQrError('QR expired. Click Connect to try again.');
+            setQrError(t('settings.qrExpired'));
             setQrDataUrl(null);
           }
           setWaitingForScan(false);
@@ -594,6 +594,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
 // ==================== SECTION COMPONENTS ====================
 
 function ModelsSection() {
+  const { t } = useTranslation();
   const { gatewayConfig, gatewayConfigLoading, loadGatewayConfig, addModelProvider, deleteModelProvider, token: gatewayToken, models: dynamicModels, availableModels } = useDashboardStore();
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});
@@ -618,9 +619,9 @@ function ModelsSection() {
   // Silos subscription provider
   const defaultProvider = {
     id: 'silos',
-    name: 'Silos Subscription',
+    name: tStatic('settings.providers.subscription'),
     isDefault: true,
-    description: 'Included with your Silos plan',
+    description: tStatic('settings.providers.subscriptionDesc'),
   };
 
   type ModelDef = { id: string; name: string; contextWindow: number; reasoning?: boolean };
@@ -724,7 +725,7 @@ function ModelsSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Configure LLM providers and their API keys</p>
+        <p className="text-sm text-muted-foreground">{t('settings.providers.configure')}</p>
         <button
           onClick={() => setShowAddProvider(!showAddProvider)}
           className={cn(
@@ -734,14 +735,14 @@ function ModelsSection() {
               : "bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
           )}
         >
-          <Plus className="w-3.5 h-3.5" /> Add Provider
+          <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
         </button>
       </div>
 
       {/* Add Provider Form */}
       {showAddProvider && (
         <div className="p-4 rounded-xl bg-card border border-purple-500/30 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Add New Provider</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t('settings.providers.addNewProvider')}</h3>
           <div className="flex flex-wrap gap-2">
             {Object.keys(providerPresets).map((preset) => (
               <button
@@ -770,14 +771,14 @@ function ModelsSection() {
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              placeholder="Provider ID"
+              placeholder={t('settings.providers.providerId')}
               value={newProvider.id}
               onChange={(e) => setNewProvider({ ...newProvider, id: e.target.value })}
               className="px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm focus:outline-none focus:border-purple-500/50"
             />
             <input
               type="text"
-              placeholder="Base URL"
+              placeholder={t('settings.providers.baseUrl')}
               value={newProvider.baseUrl}
               onChange={(e) => { setNewProvider({ ...newProvider, baseUrl: e.target.value }); setTestResult(null); }}
               className="px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
@@ -785,7 +786,7 @@ function ModelsSection() {
           </div>
           <input
             type="password"
-            placeholder="API Key"
+            placeholder={t('settings.providers.apiKey')}
             value={newProvider.apiKey}
             onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
             className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
@@ -803,9 +804,9 @@ function ModelsSection() {
               )}
             >
               {testing ? (
-                <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> Testing...</>
+                <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
               ) : (
-                <><Zap className="w-3.5 h-3.5" /> Test Connection</>
+                <><Zap className="w-3.5 h-3.5" /> {t('settings.providers.testConnection')}</>
               )}
             </button>
             {testResult && !testResult.ok && (
@@ -849,7 +850,7 @@ function ModelsSection() {
               }}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               disabled={!newProvider.id || !newProvider.baseUrl || savingProvider || !testResult?.ok}
@@ -871,7 +872,7 @@ function ModelsSection() {
                     // Clear success message after 5 seconds
                     setTimeout(() => setSaveSuccess(false), 5000);
                   } else {
-                    setSaveError('Failed to add provider. Check console for details.');
+                    setSaveError(t('settings.providers.addFailed'));
                   }
                 } catch (err) {
                   setSaveError(String(err));
@@ -887,7 +888,7 @@ function ModelsSection() {
               )}
             >
               {savingProvider && <div className="w-3 h-3 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />}
-              {savingProvider ? 'Saving...' : 'Add Provider'}
+              {savingProvider ? t('settings.providers.saving') : t('settings.providers.addProvider')}
             </button>
           </div>
         </div>
@@ -899,7 +900,7 @@ function ModelsSection() {
           <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           <div>
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Provider added successfully!</p>
-            <p className="text-xs text-muted-foreground">Gateway will restart to apply changes. Models may take a moment to appear.</p>
+            <p className="text-xs text-muted-foreground">{t('settings.providers.gatewayRestart')}</p>
           </div>
         </div>
       )}
@@ -1080,7 +1081,7 @@ function ModelsSection() {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Base URL</label>
                               <input
                                 type="text"
-                                placeholder="Base URL"
+                                placeholder={t('settings.providers.baseUrl')}
                                 value={editProvider.baseUrl}
                                 onChange={(e) => { setEditProvider({ ...editProvider, baseUrl: e.target.value }); setEditTestResult(null); }}
                                 className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
@@ -1090,7 +1091,7 @@ function ModelsSection() {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">API Key</label>
                               <input
                                 type="password"
-                                placeholder="API Key"
+                                placeholder={t('settings.providers.apiKey')}
                                 value={editProvider.apiKey}
                                 onChange={(e) => { setEditProvider({ ...editProvider, apiKey: e.target.value }); setEditTestResult(null); }}
                                 className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
@@ -1872,7 +1873,7 @@ function AgentsSection() {
                         type="text"
                         value={modelSearch}
                         onChange={(e) => setModelSearch(e.target.value)}
-                        placeholder="Search models..."
+                        placeholder={t('settings.agentsConfig.searchModels')}
                         className="flex-1 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
                       />
                       {modelSearch && (
@@ -1975,6 +1976,7 @@ function ToolsSection() {
 }
 
 function GatewaySection() {
+  const { t } = useTranslation();
   const { gatewayUrl, token, connected, connecting, setGatewayUrl, setToken, connect, disconnect } = useDashboardStore();
   const [localUrl, setLocalUrl] = useState(gatewayUrl);
   const [localToken, setLocalToken] = useState(token || '');
@@ -1995,7 +1997,7 @@ function GatewaySection() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Configure gateway connection settings</p>
+      <p className="text-sm text-muted-foreground">{t('settings.gatewayConfig.configure')}</p>
 
       {/* Connection Status */}
       <div className={cn(
@@ -2006,9 +2008,9 @@ function GatewaySection() {
           {connected ? <Wifi className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> : connecting ? <Wifi className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" /> : <WifiOff className="w-5 h-5 text-muted-foreground" />}
           <div>
             <p className={cn("font-semibold", connected ? "text-emerald-700 dark:text-emerald-300" : connecting ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground")}>
-              {connected ? 'Connected' : connecting ? 'Connecting...' : 'Disconnected'}
+              {connected ? t('settings.connection.connected') : connecting ? t('common.loading') : t('settings.connection.disconnected')}
             </p>
-            <p className="text-xs text-muted-foreground">{connected ? gatewayUrl : 'Not connected'}</p>
+            <p className="text-xs text-muted-foreground">{connected ? gatewayUrl : t('settings.connection.disconnected')}</p>
           </div>
         </div>
         <button
@@ -2019,14 +2021,14 @@ function GatewaySection() {
             connected ? "bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30" : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
           )}
         >
-          {connected ? 'Disconnect' : connecting ? 'Connecting...' : 'Connect'}
+          {connected ? t('settings.connection.disconnect') : connecting ? t('common.loading') : t('settings.connection.reconnect')}
         </button>
       </div>
 
       {/* URL & Token */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Gateway URL</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">{t('settings.gatewayConfig.gatewayUrl')}</label>
           <input
             type="url"
             placeholder="ws://localhost:18789"
@@ -2036,17 +2038,17 @@ function GatewaySection() {
           />
         </div>
         <div>
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Auth Token</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">{t('settings.gatewayConfig.authToken')}</label>
           <div className="relative">
             <input
               type={showToken ? 'text' : 'password'}
-              placeholder="Optional"
+              placeholder={t('settings.gatewayConfig.optional')}
               value={localToken}
               onChange={(e) => setLocalToken(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-card border border text-foreground text-sm focus:outline-none focus:border-blue-500/50 pr-12"
             />
             <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-              {showToken ? 'Hide' : 'Show'}
+              {showToken ? t('connect.hide') : t('connect.show')}
             </button>
           </div>
         </div>
@@ -2054,10 +2056,10 @@ function GatewaySection() {
 
       <div className="flex items-center gap-3">
         <button onClick={handleSave} disabled={!hasChanges} className={cn("flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg", hasChanges ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground")}>
-          <Save className="w-4 h-4" /> Save
+          <Save className="w-4 h-4" /> {t('common.save')}
         </button>
         <button onClick={handleReconnect} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted">
-          <RefreshCw className="w-4 h-4" /> Reconnect
+          <RefreshCw className="w-4 h-4" /> {t('settings.connection.reconnect')}
         </button>
       </div>
     </div>
@@ -2087,7 +2089,7 @@ function AppearanceSection() {
       <div className="flex items-center justify-between p-4 rounded-xl bg-card border border">
         <div>
           <p className="font-semibold text-foreground">{t('settings.appearance.theme')}</p>
-          <p className="text-xs text-muted-foreground">Choose light or dark mode</p>
+          <p className="text-xs text-muted-foreground">{t('settings.appearanceConfig.themeDesc')}</p>
         </div>
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
           <button
@@ -2132,15 +2134,15 @@ function AppearanceSection() {
       <div className="p-4 rounded-xl bg-card border border space-y-3">
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-violet-400" />
-          <p className="font-semibold text-foreground">Silos Dashboard</p>
+          <p className="font-semibold text-foreground">{t('settings.aboutConfig.silosDashboard')}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-xs text-muted-foreground">Dashboard Version</span>
+            <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.dashboardVersion')}</span>
             <span className="text-xs font-mono text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
           </div>
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-xs text-muted-foreground">OpenClaw Version</span>
+            <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.openclawVersion')}</span>
             <span className="text-xs font-mono text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
           </div>
         </div>
@@ -2152,6 +2154,7 @@ function AppearanceSection() {
 // ==================== MAIN SETTINGS PAGE ====================
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const valid: SettingsSection[] = ['models', 'channels', 'agents', 'tools', 'gateway', 'appearance'];
@@ -2176,7 +2179,7 @@ export function SettingsPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <Header title="Settings" description="Configure dashboard and system preferences" />
+      <Header title={t('settings.title')} description={t('settings.subtitle')} />
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
@@ -2195,8 +2198,8 @@ export function SettingsPage() {
               >
                 <span className={activeSection === section.id ? "text-teal-600 dark:text-teal-400" : ""}>{section.icon}</span>
                 <div>
-                  <p className="text-sm font-medium">{section.label}</p>
-                  <p className="text-xs text-muted-foreground">{section.description}</p>
+                  <p className="text-sm font-medium">{t(section.labelKey)}</p>
+                  <p className="text-xs text-muted-foreground">{t(section.descriptionKey)}</p>
                 </div>
               </button>
             ))}
@@ -2210,8 +2213,8 @@ export function SettingsPage() {
               {currentSection?.icon}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground">{currentSection?.label}</h2>
-              <p className="text-sm text-muted-foreground">{currentSection?.description}</p>
+              <h2 className="text-lg font-bold text-foreground">{currentSection ? t(currentSection.labelKey) : ''}</h2>
+              <p className="text-sm text-muted-foreground">{currentSection ? t(currentSection.descriptionKey) : ''}</p>
             </div>
           </div>
 
