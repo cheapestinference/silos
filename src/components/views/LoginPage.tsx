@@ -49,7 +49,7 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
   };
 
   return (
-    <div className="dark min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
+    <div className="dark min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: 'hsl(222, 47%, 11%)' }}>
       {/* Background */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-soft" />
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full" />
@@ -77,7 +77,7 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
           </p>
 
           {displayError && (
-            <div className="flex items-center gap-3 rounded-2xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400 mb-6">
+            <div className="flex items-center gap-3 rounded-2xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-600 dark:text-red-400 mb-6">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <span className="font-medium">{displayError}</span>
             </div>

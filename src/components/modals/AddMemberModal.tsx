@@ -83,7 +83,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
         <div className="px-6 py-4 border-b border bg-card flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg">
-              <UserPlus className="w-4 h-4 text-green-400" />
+              <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
@@ -153,7 +153,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
               )}
             </div>
             {selectedAgents.size > 0 && (
-              <p className="mt-2 text-xs text-green-400 font-mono">
+              <p className="mt-2 text-xs text-green-600 dark:text-green-400 font-mono">
                 {t('modals.addMember.agentsSelected', { count: String(selectedAgents.size) })}
               </p>
             )}

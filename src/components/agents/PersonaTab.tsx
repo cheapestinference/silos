@@ -15,7 +15,7 @@ export function PersonaTab({ value, onChange }: PersonaTabProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Sparkles className="w-5 h-5 text-indigo-400" />
+        <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
         <h3 className="text-lg font-semibold">{t('agents.config.systemPrompt')}</h3>
         <Tooltip>
           <TooltipTrigger>
@@ -42,7 +42,7 @@ export function PersonaTab({ value, onChange }: PersonaTabProps) {
 
       {/* Tips */}
       <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-4">
-        <h4 className="text-sm font-medium text-indigo-400 mb-2">Tips</h4>
+        <h4 className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-2">Tips</h4>
         <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
           <li>Define the agent's role and expertise clearly</li>
           <li>Specify the tone and communication style</li>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import {
   CheckCircle2,
@@ -10,7 +10,6 @@ import {
   XCircle,
   Wifi,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import useTranslation from '../../i18n';
 
@@ -58,10 +57,8 @@ export function UnifiedDashboard() {
     client,
     patchGatewayConfig,
   } = useDashboardStore();
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [dataLoaded, setDataLoaded] = useState(false);
-  const redirected = useRef(false);
 
   // WhatsApp data (derived early so useEffect can reference waConnected)
   const waAccounts = channels?.channelAccounts?.['whatsapp'] || [];
@@ -84,17 +81,6 @@ export function UnifiedDashboard() {
     }
   }, [connected, loadAll]);
 
-  // Onboarding redirect: guide users to configure providers first
-  useEffect(() => {
-    if (!dataLoaded || redirected.current) return;
-    const config = gatewayConfig?.config as Record<string, unknown> | undefined;
-    const modelsConfig = config?.models as { providers?: Record<string, unknown> } | undefined;
-    const hasProviders = modelsConfig?.providers && Object.keys(modelsConfig.providers).length > 0;
-    if (!hasProviders) {
-      redirected.current = true;
-      navigate('/settings/models', { replace: true });
-    }
-  }, [dataLoaded, gatewayConfig, navigate]);
 
   // Clear QR when WhatsApp connects
   useEffect(() => {
@@ -436,7 +422,7 @@ export function UnifiedDashboard() {
                   <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('unifiedDashboard.openClawUI')}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{t('unifiedDashboard.fullPanel')}</p>
                 </div>
-                <ExternalLink className="w-4 h-4 text-red-400" />
+                <ExternalLink className="w-4 h-4 text-red-600 dark:text-red-400" />
               </button>
 
               {/* Big button: OpenClaw Docs */}

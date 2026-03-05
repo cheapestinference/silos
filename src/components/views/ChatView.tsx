@@ -197,7 +197,7 @@ function renderInlineMarkdown(text: string | undefined | null): React.ReactNode 
           href={linkMatch[2]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
         >
           {linkMatch[1]}
         </a>
@@ -230,11 +230,11 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   const getLangStyle = (lang: string) => {
     const styles: Record<string, { color: string; icon: React.ReactNode }> = {
       typescript: { color: 'text-blue-500 dark:text-blue-400', icon: <Code2 className="w-3.5 h-3.5" /> },
-      javascript: { color: 'text-yellow-400', icon: <Code2 className="w-3.5 h-3.5" /> },
-      python: { color: 'text-green-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      javascript: { color: 'text-yellow-600 dark:text-yellow-400', icon: <Code2 className="w-3.5 h-3.5" /> },
+      python: { color: 'text-green-600 dark:text-green-400', icon: <Code2 className="w-3.5 h-3.5" /> },
       bash: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
       shell: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Terminal className="w-3.5 h-3.5" /> },
-      json: { color: 'text-orange-400', icon: <Layers className="w-3.5 h-3.5" /> },
+      json: { color: 'text-orange-600 dark:text-orange-400', icon: <Layers className="w-3.5 h-3.5" /> },
     };
     return styles[lang.toLowerCase()] || { color: 'text-muted-foreground', icon: <Code2 className="w-3.5 h-3.5" /> };
   };
@@ -262,7 +262,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all",
             copied
-              ? "bg-green-500/20 text-green-400"
+              ? "bg-green-500/20 text-green-600 dark:text-green-400"
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
@@ -440,7 +440,7 @@ function CompactSystemMessage({ content }: CompactSystemMessageProps) {
                 className={cn(
                   "absolute top-2 right-2 p-1.5 rounded text-xs transition-all",
                   copied
-                    ? "bg-green-500/20 text-green-400"
+                    ? "bg-green-500/20 text-green-600 dark:text-green-400"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -802,7 +802,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
       <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 px-2">
         <div className="w-full max-w-2xl mx-auto">
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 backdrop-blur-sm p-4 space-y-2">
-            <div className="flex items-center gap-2 text-rose-400">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               <span className="font-semibold text-sm">{t('chat.providerError')}</span>
             </div>
@@ -837,8 +837,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
           <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
             <span className={cn(
               "font-semibold text-xs tracking-wide",
-              isUser && !isSubagentSession ? "text-indigo-400" :
-              isUser && isSubagentSession ? "text-cyan-400" : "text-purple-400"
+              isUser && !isSubagentSession ? "text-indigo-600 dark:text-indigo-400" :
+              isUser && isSubagentSession ? "text-cyan-600 dark:text-cyan-400" : "text-purple-600 dark:text-purple-400"
             )}>
               {getAgentName()}
             </span>
@@ -923,8 +923,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   <div className={cn(
                     "flex items-center justify-end gap-1.5 px-2 text-[10px] font-medium",
                     isQueued && "text-amber-600 dark:text-amber-400",
-                    isSending && "text-indigo-400",
-                    hasError && "text-rose-400"
+                    isSending && "text-indigo-600 dark:text-indigo-400",
+                    hasError && "text-rose-600 dark:text-rose-400"
                   )}>
                     {isQueued && (
                       <>
@@ -1120,7 +1120,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
               <div className="relative mb-8">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
                 <div className="relative w-28 h-28 rounded-3xl bg-card border flex items-center justify-center shadow-sm">
-                  <Sparkles className="w-14 h-14 text-indigo-400/70 animate-float" />
+                  <Sparkles className="w-14 h-14 text-indigo-600 dark:text-indigo-400/70 animate-float" />
                 </div>
               </div>
 
@@ -1142,7 +1142,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                     }}
                     className="px-4 py-2 rounded-full bg-muted border text-sm text-foreground/80 hover:bg-muted/80 hover:text-foreground transition-all duration-200 flex items-center gap-2"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                     {suggestion}
                   </button>
                 ))}

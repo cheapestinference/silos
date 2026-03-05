@@ -283,7 +283,7 @@ function SessionItem({
       )} />
       <span className="truncate flex-1">{displayName}</span>
       {parsed.type === 'subagent' && (
-        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-400">
+        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
           sub
         </Badge>
       )}

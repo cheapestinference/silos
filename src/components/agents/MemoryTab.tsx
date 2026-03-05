@@ -134,7 +134,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
 
   const getFileIcon = (path: string) => {
     if (path.includes('personality') || path.includes('persona')) {
-      return { icon: Brain, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
+      return { icon: Brain, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
     }
     if (path.includes('long') || path.includes('memory')) {
       return { icon: Brain, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
@@ -149,7 +149,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-purple-400" />
+            <FolderOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             <h3 className="text-lg font-semibold">Memory Files</h3>
           </div>
           <Button
@@ -178,7 +178,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             )}
           >
             <div className="flex items-center gap-2 mb-1">
-              <Brain className="w-4 h-4 text-purple-400" />
+              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               <span className="font-medium text-sm">Context Memory</span>
             </div>
             <p className="text-xs text-muted-foreground">Agent's working memory</p>
@@ -229,9 +229,9 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground px-1">Quick Start:</p>
                 {[
-                  { name: 'personality.md', desc: 'Agent personality & tone', icon: Brain, color: 'purple' },
-                  { name: 'long-term-memory.md', desc: 'Persistent knowledge', icon: Brain, color: 'blue' },
-                  { name: 'preferences.md', desc: 'User preferences', icon: FileText, color: 'green' },
+                  { name: 'personality.md', desc: 'Agent personality & tone', icon: Brain, iconClass: 'text-purple-600 dark:text-purple-400' },
+                  { name: 'long-term-memory.md', desc: 'Persistent knowledge', icon: Brain, iconClass: 'text-blue-600 dark:text-blue-400' },
+                  { name: 'preferences.md', desc: 'User preferences', icon: FileText, iconClass: 'text-green-600 dark:text-green-400' },
                 ].map((file) => (
                   <button
                     key={file.name}
@@ -242,7 +242,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
                     className="w-full p-2.5 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-all text-left group"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <file.icon className={cn("w-3.5 h-3.5", `text-${file.color}-400`)} />
+                      <file.icon className={cn("w-3.5 h-3.5", file.iconClass)} />
                       <span className="font-medium text-xs">{file.name}</span>
                       <Plus className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -283,9 +283,9 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         {/* Info Card */}
         <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-3">
           <div className="flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 text-purple-400 mt-0.5" />
+            <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5" />
             <div className="text-xs text-muted-foreground">
-              <p className="font-medium text-purple-400 mb-1">Memory Files</p>
+              <p className="font-medium text-purple-600 dark:text-purple-400 mb-1">Memory Files</p>
               <p>Store personality, preferences, and long-term context for the agent.</p>
             </div>
           </div>
@@ -304,7 +304,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               </>
             ) : (
               <>
-                <Brain className="w-5 h-5 text-purple-400" />
+                <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 <h3 className="text-lg font-semibold">{t('agents.config.contextMemory')}</h3>
               </>
             )}
@@ -312,7 +312,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
 
           <div className="flex items-center gap-2">
             {saved && (
-              <div className="flex items-center gap-1.5 text-sm text-green-400">
+              <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
                 <Check className="w-4 h-4" />
                 Saved
               </div>

@@ -732,7 +732,7 @@ function ModelsSection() {
             "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
             showAddProvider
               ? "bg-muted text-foreground"
-              : "bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
+              : "bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
           )}
         >
           <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
@@ -760,7 +760,7 @@ function ModelsSection() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                   newProvider.id === preset
-                    ? "bg-purple-500/30 text-purple-300 border-purple-500/50"
+                    ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 border-purple-500/50"
                     : "bg-muted text-muted-foreground border hover:border"
                 )}
               >
@@ -771,6 +771,7 @@ function ModelsSection() {
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              autoComplete="off"
               placeholder={t('settings.providers.providerId')}
               value={newProvider.id}
               onChange={(e) => setNewProvider({ ...newProvider, id: e.target.value })}
@@ -778,6 +779,7 @@ function ModelsSection() {
             />
             <input
               type="text"
+              autoComplete="off"
               placeholder={t('settings.providers.baseUrl')}
               value={newProvider.baseUrl}
               onChange={(e) => { setNewProvider({ ...newProvider, baseUrl: e.target.value }); setTestResult(null); }}
@@ -786,6 +788,7 @@ function ModelsSection() {
           </div>
           <input
             type="password"
+            autoComplete="new-password"
             placeholder={t('settings.providers.apiKey')}
             value={newProvider.apiKey}
             onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
@@ -883,7 +886,7 @@ function ModelsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                 newProvider.id && newProvider.baseUrl && !savingProvider && testResult?.ok
-                  ? "bg-purple-500/30 text-purple-300 hover:bg-purple-500/40"
+                  ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/40"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
@@ -930,7 +933,7 @@ function ModelsSection() {
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     {silosModels.length > 0 && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-300">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
                         {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                       </span>
                     )}
@@ -944,7 +947,7 @@ function ModelsSection() {
                       {silosModels.map((model) => (
                         <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
                           <div className="flex items-center gap-2">
-                            <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                            <Cpu className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                             <span className="text-sm text-foreground">{model.name || model.id}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -989,7 +992,7 @@ function ModelsSection() {
                         <p className="text-xs text-muted-foreground">Included with your Silos plan</p>
                       </div>
                       <div className="ml-auto flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-300">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
                           {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                         </span>
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Active</span>
@@ -1002,7 +1005,7 @@ function ModelsSection() {
                           {silosModels.map((model) => (
                             <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
                               <div className="flex items-center gap-2">
-                                <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                                <Cpu className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                                 <span className="text-sm text-foreground">{model.name || model.id}</span>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1034,7 +1037,7 @@ function ModelsSection() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-300">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
                         {modelCount} model{modelCount !== 1 ? 's' : ''}
                       </span>
                       <span className={cn(
@@ -1067,7 +1070,7 @@ function ModelsSection() {
                                   className={cn(
                                     "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                                     editProvider.api === opt.value
-                                      ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                      ? "bg-purple-500/20 text-purple-600 dark:text-purple-300 border-purple-500/40"
                                       : "bg-muted text-muted-foreground border hover:border"
                                   )}
                                 >
@@ -1081,6 +1084,7 @@ function ModelsSection() {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Base URL</label>
                               <input
                                 type="text"
+                                autoComplete="off"
                                 placeholder={t('settings.providers.baseUrl')}
                                 value={editProvider.baseUrl}
                                 onChange={(e) => { setEditProvider({ ...editProvider, baseUrl: e.target.value }); setEditTestResult(null); }}
@@ -1091,6 +1095,7 @@ function ModelsSection() {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">API Key</label>
                               <input
                                 type="password"
+                                autoComplete="new-password"
                                 placeholder={t('settings.providers.apiKey')}
                                 value={editProvider.apiKey}
                                 onChange={(e) => { setEditProvider({ ...editProvider, apiKey: e.target.value }); setEditTestResult(null); }}
@@ -1203,7 +1208,7 @@ function ModelsSection() {
                               className={cn(
                                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                                 !editSaving && editTestResult?.ok
-                                  ? "bg-purple-500/30 text-purple-300 hover:bg-purple-500/40"
+                                  ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/40"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
@@ -2100,7 +2105,7 @@ function AppearanceSection() {
           </button>
           <button
             onClick={() => setDarkMode(true)}
-            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", darkMode ? "bg-violet-500/20 text-violet-300" : "text-muted-foreground")}
+            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", darkMode ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" : "text-muted-foreground")}
           >
             <Moon className="w-4 h-4" /> {t('settings.appearance.darkMode')}
           </button>
@@ -2120,7 +2125,7 @@ function AppearanceSection() {
               onClick={() => setLocale(loc)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
-                locale === loc ? "bg-violet-500/20 text-violet-300" : "text-muted-foreground hover:text-foreground"
+                locale === loc ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <span>{availableLocales[loc].flag}</span>
@@ -2133,17 +2138,17 @@ function AppearanceSection() {
       {/* About */}
       <div className="p-4 rounded-xl bg-card border border space-y-3">
         <div className="flex items-center gap-3">
-          <Zap className="w-6 h-6 text-violet-400" />
+          <Zap className="w-6 h-6 text-violet-600 dark:text-violet-400" />
           <p className="font-semibold text-foreground">{t('settings.aboutConfig.silosDashboard')}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.dashboardVersion')}</span>
-            <span className="text-xs font-mono text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
+            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
           </div>
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.openclawVersion')}</span>
-            <span className="text-xs font-mono text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
+            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
           </div>
         </div>
       </div>

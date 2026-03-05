@@ -15,8 +15,8 @@ function Badge({ className, variant = 'default', ...props }: BadgeProps) {
           'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80': variant === 'secondary',
           'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80': variant === 'destructive',
           'text-foreground': variant === 'outline',
-          'border-transparent bg-green-500/10 text-green-500': variant === 'success',
-          'border-transparent bg-yellow-500/10 text-yellow-500': variant === 'warning',
+          'border-transparent bg-green-500/10 text-green-600 dark:text-green-400': variant === 'success',
+          'border-transparent bg-yellow-500/10 text-yellow-600 dark:text-yellow-400': variant === 'warning',
         },
         className
       )}

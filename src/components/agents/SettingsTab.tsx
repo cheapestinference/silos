@@ -170,7 +170,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
 
       {/* Active Model Display */}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted border border-border">
-        <Cpu className="w-5 h-5 text-indigo-400 shrink-0" />
+        <Cpu className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="text-[11px] text-muted-foreground mb-0.5">Active Model</div>
           <div className="text-sm font-mono text-foreground truncate">
@@ -178,7 +178,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
           </div>
         </div>
         {settings.model && settings.model !== defaultGatewayModel ? (
-          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 rounded shrink-0">
+          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded shrink-0">
             Agent Override
           </span>
         ) : settings.model || defaultGatewayModel ? (
@@ -268,7 +268,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                             parsedModel.modelId === model.id ? 'bg-muted text-foreground' : 'text-foreground/80'
                           }`}
                         >
-                          <span className="w-3.5 shrink-0">{parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-indigo-400" />}</span>
+                          <span className="w-3.5 shrink-0">{parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}</span>
                           <span>{model.name || model.id}</span>
                         </button>
                       ))
@@ -306,7 +306,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
               </Tooltip>
               {isDefaultTemp && <DefaultBadge />}
             </div>
-            <span className="text-sm font-mono text-indigo-400">
+            <span className="text-sm font-mono text-indigo-600 dark:text-indigo-400">
               {(settings.temperature ?? 0.7).toFixed(2)}
             </span>
           </div>

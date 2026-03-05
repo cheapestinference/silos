@@ -41,7 +41,7 @@ export function ConnectPage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
-                <Server className="h-4 w-4 text-indigo-400" />
+                <Server className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 {t('connect.gatewayInterface')}
               </label>
               <div className="relative group">
@@ -58,7 +58,7 @@ export function ConnectPage() {
 
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
-                <Lock className="h-4 w-4 text-purple-400" />
+                <Lock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 {t('connect.securityToken')}
               </label>
               <div className="relative group">

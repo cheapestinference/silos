@@ -44,7 +44,7 @@ function ConnectionOverlay() {
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card/95 px-8 py-6 shadow-2xl">
         {connecting ? (
           <>
-            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
             <p className="text-sm font-medium text-foreground">
               {reconnectAttempt > 0
                 ? t('mainShell.reconnecting', { count: reconnectAttempt })

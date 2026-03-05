@@ -199,9 +199,9 @@ function TaskCard({
           {/* Tokens */}
           {(task.inputTokens || task.outputTokens) && (
             <div className="flex items-center gap-2 pt-2 border-t border-border">
-              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+              <Zap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span className="text-xs text-muted-foreground">
-                <span className="text-indigo-400">{(task.inputTokens || 0).toLocaleString()}</span> in
+                <span className="text-indigo-600 dark:text-indigo-400">{(task.inputTokens || 0).toLocaleString()}</span> in
                 {' / '}
                 <span className="text-emerald-600 dark:text-emerald-400">{(task.outputTokens || 0).toLocaleString()}</span> out
               </span>

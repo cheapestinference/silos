@@ -195,7 +195,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
                 <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
               )}
               {saveSuccess && (
-                <span className="text-green-400 flex items-center gap-1">
+                <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
                   <Check className="w-4 h-4" />
                   {t('agents.config.saved')}
                 </span>

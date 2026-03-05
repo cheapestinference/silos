@@ -303,7 +303,7 @@ function SessionItem({
             <span className="h-2 w-2 rounded-full bg-red-500" />
           )}
           {isSubagentKey && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-400">
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
               {t('sessions.subagent')}
             </Badge>
           )}
@@ -759,7 +759,7 @@ export function SessionsPage() {
                     </h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {isSubagentSession(selectedSession.key) ? (
-                        <Badge variant="outline" className="text-xs bg-cyan-500/10 border-cyan-500/30 text-cyan-400">
+                        <Badge variant="outline" className="text-xs bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
                           {t('sessions.subagent')}
                         </Badge>
                       ) : (

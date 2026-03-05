@@ -225,7 +225,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
         <div className="px-6 py-4 border-b border bg-muted/40 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-lg">
-              <Zap className="w-4 h-4 text-cyan-400" />
+              <Zap className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
@@ -260,7 +260,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
               autoFocus
             />
             {agentId && (
-              <p className="mt-1.5 text-xs text-cyan-400/60 font-mono">
+              <p className="mt-1.5 text-xs text-cyan-600 dark:text-cyan-400/60 font-mono">
                 ID: {agentId}
               </p>
             )}
@@ -383,10 +383,10 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
           {/* Waiting for reconnect message */}
           {waitingReconnect && (
             <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg flex items-start gap-2">
-              <Loader2 className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0 animate-spin" />
+              <Loader2 className="w-4 h-4 text-cyan-600 dark:text-cyan-400 mt-0.5 shrink-0 animate-spin" />
               <div>
-                <p className="text-xs text-cyan-400 font-mono font-bold">{t('modals.createAgent.success')}</p>
-                <p className="text-xs text-cyan-400/70 font-mono mt-1">{t('modals.createAgent.waitingRestart')}</p>
+                <p className="text-xs text-cyan-600 dark:text-cyan-400 font-mono font-bold">{t('modals.createAgent.success')}</p>
+                <p className="text-xs text-cyan-600 dark:text-cyan-400/70 font-mono mt-1">{t('modals.createAgent.waitingRestart')}</p>
               </div>
             </div>
           )}

@@ -253,7 +253,7 @@ export function CommandPalette() {
                         <div className={cn(
                           'w-8 h-8 rounded-lg flex items-center justify-center',
                           item.type === 'page' && 'bg-muted',
-                          item.type === 'agent' && 'bg-purple-500/20 text-purple-400',
+                          item.type === 'agent' && 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
                           item.type === 'session' && 'bg-blue-500/20 text-blue-500 dark:text-blue-400'
                         )}>
                           <Icon className="w-4 h-4" />
@@ -274,7 +274,7 @@ export function CommandPalette() {
                           </div>
                         )}
                         {isSelected && (
-                          <ArrowRight className="w-4 h-4 text-indigo-400" />
+                          <ArrowRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         )}
                       </button>
                     );

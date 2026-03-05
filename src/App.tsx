@@ -115,6 +115,31 @@ function App() {
     }
   }, [autoConnect, token]);
 
+  // Email not verified — auto-send verification email
+  useEffect(() => {
+    if (emailNotVerified && user && !verificationSent && auth?.currentUser && !user.emailVerified) {
+      sendEmailVerification(auth.currentUser)
+        .then(() => setVerificationSent(true))
+        .catch(() => {});
+    }
+  }, [emailNotVerified, user, verificationSent]);
+
+  // Auto-poll email verification status every 5s
+  useEffect(() => {
+    if (!emailNotVerified || !user || !auth?.currentUser) return;
+    const interval = setInterval(async () => {
+      try {
+        await auth.currentUser!.reload();
+        if (auth.currentUser!.emailVerified) {
+          await auth.currentUser!.getIdToken(true);
+          setEmailNotVerified(false);
+          setVerificationSent(false);
+        }
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [emailNotVerified, user]);
+
   // Show loading while Firebase auth is initializing
   if (authLoading || verifying) {
     return (
@@ -129,18 +154,8 @@ function App() {
     );
   }
 
-  // Email not verified — show a dedicated screen (user is still signed in)
-  // Auto-send verification email on first render of this screen
-  useEffect(() => {
-    if (emailNotVerified && user && !verificationSent && auth?.currentUser && !user.emailVerified) {
-      sendEmailVerification(auth.currentUser)
-        .then(() => setVerificationSent(true))
-        .catch(() => {});
-    }
-  }, [emailNotVerified, user, verificationSent]);
-
   if (emailNotVerified && user) {
-    const handleSendVerification = async () => {
+    const handleResend = async () => {
       if (!auth?.currentUser) return;
       try {
         await sendEmailVerification(auth.currentUser);
@@ -148,52 +163,41 @@ function App() {
       } catch { /* ignore */ }
     };
 
-    const handleRetry = async () => {
-      // Reload user to get fresh emailVerified status
-      if (auth?.currentUser) {
-        await auth.currentUser.reload();
-      }
-      setEmailNotVerified(false);
-      setVerificationSent(false);
-    };
-
     return (
-      <div className="dark min-h-screen flex items-center justify-center bg-background">
+      <div className="dark min-h-screen flex items-center justify-center" style={{ background: 'hsl(222, 47%, 11%)' }}>
         <div className="w-full max-w-md px-6">
           <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl text-center">
             <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
             <h2 className="text-xl font-bold text-white mb-2">{t('app.verifyEmail')}</h2>
             <p className="text-white/50 text-sm mb-1">{t('app.verificationNeeded')}</p>
-            <p className="text-white font-medium mb-6">{user.email}</p>
+            <p className="text-white font-medium mb-4">{user.email}</p>
 
-            {verificationSent ? (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-4 mb-4">
-                <p className="text-green-400 text-sm">{t('app.emailSent')}</p>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              <p className="text-white/40 text-sm">{t('app.waitingVerification')}</p>
+            </div>
+
+            {verificationSent && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-3 mb-4">
+                <p className="text-green-600 dark:text-green-400 text-sm">{t('app.emailSent')}</p>
               </div>
-            ) : null}
+            )}
 
-            <div className="space-y-3">
-              {!verificationSent && (
-                <button
-                  onClick={handleSendVerification}
-                  className="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 transition-all hover:scale-[1.02]"
-                >
-                  {t('app.sendVerification')}
-                </button>
-              )}
+            <div className="space-y-2">
               <button
-                onClick={handleRetry}
-                className="w-full rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium py-3 transition-all"
+                onClick={handleResend}
+                className="text-white/30 hover:text-white/60 text-sm transition-colors"
               >
-                {t('app.verifiedTryAgain')}
+                {t('app.resendEmail')}
               </button>
+              <span className="text-white/10 mx-2">·</span>
               <button
                 onClick={async () => { await signOut(); setEmailNotVerified(false); }}
-                className="w-full text-white/30 hover:text-white/60 text-sm py-2 transition-colors"
+                className="text-white/30 hover:text-white/60 text-sm transition-colors"
               >
                 {t('app.signOut')}
               </button>

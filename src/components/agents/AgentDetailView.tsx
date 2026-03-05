@@ -116,7 +116,7 @@ export function AgentDetailView() {
             <Bot className="w-10 h-10 text-violet-600 dark:text-violet-400/50" />
           </div>
           <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.agentNotFound')}</p>
-          <p className="text-xs text-muted-foreground/70">{t('agentDetail.agentNotFoundDescription')}</p>
+          <p className="text-xs text-muted-foreground">{t('agentDetail.agentNotFoundDescription')}</p>
         </div>
       </div>
     );
@@ -198,7 +198,7 @@ export function AgentDetailView() {
                       {model}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                    <span className="text-xs text-muted-foreground/70 font-mono">{id}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{id}</span>
                   </div>
                 </div>
               </div>
@@ -520,6 +520,7 @@ interface OverviewPanelProps {
 
 function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks, cronJobs, onViewScheduled }: OverviewPanelProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { selectSession, addSessionOptimistic } = useDashboardStore();
 
   // Group tasks by status
@@ -616,9 +617,9 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           <div className="divide-y divide-border">
             {sessions.length === 0 ? (
               <div className="p-8 text-center">
-                <MessageSquare className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">{t('agentDetail.noSessions')}</p>
-                <p className="text-xs text-muted-foreground/70 mb-4">{t('agentDetail.sessionsEmptyDescription')}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t('agentDetail.sessionsEmptyDescription')}</p>
                 <button
                   onClick={() => {
                     const label = 'chat';
@@ -651,7 +652,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                         {session.totalTokens ? ` • ${session.totalTokens.toLocaleString()} tokens` : ''}
                       </p>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/70" />
+                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                 );
               })
@@ -782,7 +783,7 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
                       <p className="text-xs font-medium text-foreground/80 truncate">
                         {task.runId || task.id}
                       </p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
                         {task.startedAt && task.completedAt && formatDuration(task.startedAt, task.completedAt)}
                       </p>
                     </div>
@@ -820,10 +821,10 @@ function OverviewPanel({ agentId, tasks, sessions, runningTasks, completedTasks,
           {tasks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-                <Zap className="w-6 h-6 text-muted-foreground/70" />
+                <Zap className="w-6 h-6 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">{t('agentDetail.noTasks')}</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">{t('agentDetail.tasksEmptyDescription')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.tasksEmptyDescription')}</p>
             </div>
           )}
         </div>
@@ -1092,7 +1093,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                       {t(category.labelKey)}
                     </span>
                     <span className={cn(
-                      "text-[10px] text-muted-foreground/70 transition-transform",
+                      "text-[10px] text-muted-foreground transition-transform",
                       isExpanded ? "rotate-90" : ""
                     )}>
                       ▶
@@ -1121,23 +1122,23 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                             <div className="flex items-center gap-2">
                               <FileText className={cn(
                                 "w-3.5 h-3.5",
-                                isSelected ? `text-${category.color}-400` : exists ? "text-muted-foreground" : "text-muted-foreground/50"
+                                isSelected ? `text-${category.color}-400` : exists ? "text-muted-foreground" : "text-muted-foreground"
                               )} />
                               <span className={cn(
                                 "text-xs font-medium",
-                                isSelected ? "text-foreground" : exists ? "text-foreground/80" : "text-muted-foreground/70"
+                                isSelected ? "text-foreground" : exists ? "text-foreground/80" : "text-muted-foreground"
                               )}>
                                 {file.name}
                               </span>
                               {exists ? (
                                 <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
                               ) : (
-                                <Plus className="ml-auto w-3 h-3 text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Plus className="ml-auto w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                               )}
                             </div>
                             <p className={cn(
                               "text-[10px] mt-0.5 pl-5",
-                              isSelected ? "text-muted-foreground" : "text-muted-foreground/70"
+                              isSelected ? "text-muted-foreground" : "text-muted-foreground"
                             )}>
                               {t(file.descriptionKey)}
                             </p>
@@ -1191,7 +1192,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                       </span>
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground/70 mt-0.5 pl-5">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 pl-5">
                       {(file.size / 1024).toFixed(1)} KB
                     </p>
                   </button>
@@ -1203,7 +1204,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
 
         {/* Info */}
         <div className="p-3 border-t border-border">
-          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
             {t('agentDetail.fileEditingHint')}
           </p>
         </div>
@@ -1288,7 +1289,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
             <div className="text-center max-w-sm">
               <Database className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground mb-2">{t('agentDetail.selectFileToEdit')}</p>
-              <p className="text-xs text-muted-foreground/70">
+              <p className="text-xs text-muted-foreground">
                 {t('agentDetail.workspaceExplanation')}
               </p>
             </div>
@@ -1491,7 +1492,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('agentDetail.searchSkills')}
-              className="w-full px-3 py-2 pl-9 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/50"
+              className="w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
           </div>
@@ -1545,7 +1546,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
               <div className="flex items-center gap-2 mb-2 px-1">
                 <span className="text-sm">{category.icon}</span>
                 <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{category.id}</h4>
-                <span className="text-[9px] text-muted-foreground/70">({category.skills.length})</span>
+                <span className="text-[9px] text-muted-foreground">({category.skills.length})</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {category.skills.map(skill => {
@@ -1561,8 +1562,8 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                         isSelected
                           ? "bg-violet-500/20 border-violet-500/40"
                           : isEnabled
-                            ? "bg-muted border-border hover:border-violet-500/30"
-                            : "bg-muted border-border hover:border-border"
+                            ? "bg-card border-border hover:border-violet-500/30"
+                            : "bg-card border-border hover:border-border"
                       )}
                     >
                       <div className="flex items-start gap-2">
@@ -1579,7 +1580,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground/70 line-clamp-2">{skill.description}</p>
+                          <p className="text-[10px] text-muted-foreground line-clamp-2">{skill.description}</p>
                         </div>
                       </div>
                     </button>
@@ -1593,14 +1594,14 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div className="text-center py-12">
               <span className="text-4xl mb-3 block">🔍</span>
               <p className="text-sm text-muted-foreground">{t('agentDetail.noSkillsFound')}</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">{t('agentDetail.tryAnotherSearch')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.tryAnotherSearch')}</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Right: Detail Panel */}
-      <div className="w-96 flex flex-col overflow-hidden bg-muted/50">
+      <div className="w-96 flex flex-col overflow-hidden bg-card">
         {selectedSkill ? (
           <>
             {/* Skill Header */}
@@ -1653,13 +1654,13 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{t('agentDetail.requirements')}</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedSkill.requires.map(req => (
-                    <span key={req} className="px-2 py-1 text-xs bg-muted rounded-lg text-muted-foreground font-mono">
+                    <span key={req} className="px-2 py-1 text-xs bg-background border border-border rounded-lg text-muted-foreground font-mono">
                       {req}
                     </span>
                   ))}
                 </div>
                 {selectedSkill.install && (
-                  <div className="mt-2 p-2 bg-muted rounded-lg">
+                  <div className="mt-2 p-2 bg-background border border-border rounded-lg">
                     <code className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">{selectedSkill.install}</code>
                   </div>
                 )}
@@ -1670,13 +1671,13 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
             <div className="flex-1 overflow-y-auto p-5">
               <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">{t('agentDetail.documentation')}</h4>
               {selectedSkill.docs ? (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <pre className="text-xs text-foreground/80 whitespace-pre-wrap font-mono leading-relaxed bg-muted p-3 rounded-lg">
+                <div className="prose dark:prose-invert prose-sm max-w-none">
+                  <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-background border border-border p-3 rounded-lg">
                     {selectedSkill.docs}
                   </pre>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground/70 italic">{t('agentDetail.noDocumentation')}</p>
+                <p className="text-sm text-muted-foreground italic">{t('agentDetail.noDocumentation')}</p>
               )}
             </div>
           </>
@@ -1693,14 +1694,14 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                   <input
                     type="text"
                     placeholder="https://clawhub.ai/skills/nombre-skill"
-                    className="flex-1 px-3 py-2 bg-muted border border-border rounded-lg text-xs text-foreground/80 placeholder:text-muted-foreground/50 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 font-mono"
+                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 font-mono"
                   />
                   <button className="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-lg text-xs text-cyan-600 dark:text-cyan-400 font-medium transition-colors flex items-center gap-1.5">
                     <Download className="w-3 h-3" />
                     {t('agentDetail.import')}
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground/70">
+                <p className="text-[10px] text-muted-foreground">
                   {t('agentDetail.importUrlHint')}
                 </p>
               </div>
@@ -1712,22 +1713,22 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 <Terminal className="w-3 h-3" />
                 {t('agentDetail.installViaCli')}
               </h4>
-              <div className="bg-muted border border-border rounded-xl p-4 space-y-3">
+              <div className="bg-background border border-border rounded-xl p-4 space-y-3">
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.searchAvailableSkills')}</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub search ethereum
                   </code>
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.installSkill')}</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub install nombre-skill
                   </code>
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.viewInstalledSkills')}</p>
-                  <code className="block px-3 py-2 bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
                     clawhub list
                   </code>
                 </div>
@@ -1735,7 +1736,7 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                   href="https://clawhub.ai/skills"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] text-cyan-500 hover:text-cyan-400 transition-colors mt-2"
+                  className="flex items-center gap-1.5 text-[10px] text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors mt-2"
                 >
                   <ExternalLink className="w-3 h-3" />
                   {t('agentDetail.exploreClawHub')}
@@ -1749,11 +1750,11 @@ function SkillsPanel({ agent }: SkillsPanelProps) {
                 <FileText className="w-3 h-3" />
                 {t('agentDetail.createCustomSkill')}
               </h4>
-              <div className="bg-muted border border-border rounded-xl p-4">
+              <div className="bg-background border border-border rounded-xl p-4">
                 <p className="text-[10px] text-muted-foreground mb-3">
                   {t('agentDetail.createSkillFileHint')} <code className="text-cyan-600 dark:text-cyan-400">~/.openclaw/skills/tu-skill/</code>
                 </p>
-                <div className="bg-black/30 rounded-lg p-3 mb-3">
+                <div className="bg-foreground/5 dark:bg-black/30 rounded-lg p-3 mb-3">
                   <pre className="text-[10px] text-muted-foreground font-mono leading-relaxed whitespace-pre">{`---
 name: mi-skill
 description: Descripción del skill
@@ -1768,7 +1769,7 @@ metadata:
 
 Instrucciones y comandos...`}</pre>
                 </div>
-                <p className="text-[10px] text-muted-foreground/70">
+                <p className="text-[10px] text-muted-foreground">
                   {t('agentDetail.skillAutoAppears')}
                 </p>
               </div>
@@ -1981,7 +1982,7 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
                 value={a2aAllowedAgents}
                 onChange={(e) => setA2aAllowedAgents(e.target.value)}
                 placeholder={otherAgents.length > 0 ? otherAgents.map(a => a.id).join(', ') : 'agent2, agent3, *'}
-                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 font-mono"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 font-mono"
               />
               {otherAgents.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -2099,10 +2100,10 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                 <p className="text-xs font-semibold text-foreground/80 mb-3">{t('agentDetail.availableToolsReference')}</p>
                 <div className="space-y-2 text-[11px] font-mono text-muted-foreground">
                   <div className="bg-muted rounded-lg p-2">
-                    <span className="text-blue-500 dark:text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-muted-foreground/70">// Send to another agent</span>
+                    <span className="text-blue-500 dark:text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-muted-foreground">// Send to another agent</span>
                   </div>
                   <div className="bg-muted rounded-lg p-2">
-                    <span className="text-purple-600 dark:text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground/70">// Spawn background subagent</span>
+                    <span className="text-purple-600 dark:text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground">// Spawn background subagent</span>
                   </div>
                 </div>
               </div>
@@ -2304,7 +2305,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
                   placeholder="my-knowledge.md"
-                  className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
+                  className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
                 />
               </div>
               <div>
@@ -2328,7 +2329,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                 onChange={(e) => setNewFileContent(e.target.value)}
                 placeholder="# My Knowledge\n\nWrite your knowledge here..."
                 rows={8}
-                className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-blue-500/50 font-mono resize-none"
+                className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 font-mono resize-none"
               />
             </div>
 
@@ -2407,10 +2408,10 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
           {knowledgeFiles.length === 0 ? (
             <div className="col-span-2 p-12 text-center rounded-2xl bg-muted/50 border border-border">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+                <BookOpen className="w-8 h-8 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.noKnowledgeFiles')}</p>
-              <p className="text-xs text-muted-foreground/70">{t('agentDetail.noKnowledgeFilesHint')}</p>
+              <p className="text-xs text-muted-foreground">{t('agentDetail.noKnowledgeFilesHint')}</p>
             </div>
           ) : (
             knowledgeFiles.map((file) => (
@@ -2429,7 +2430,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                         <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-card text-muted-foreground font-mono uppercase">
                           {file.type}
                         </span>
-                        <span className="text-[9px] text-muted-foreground/70 font-mono">
+                        <span className="text-[9px] text-muted-foreground font-mono">
                           {formatDistanceToNow(file.createdAt, { addSuffix: true })}
                         </span>
                       </div>
@@ -2445,7 +2446,7 @@ function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate 
                     </button>
                     <button
                       onClick={() => handleDelete(file.id)}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-rose-400 transition-colors"
+                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-rose-600 dark:text-rose-400 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

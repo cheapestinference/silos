@@ -36,7 +36,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-cyan-400" />
+          <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
           <h4 className="text-sm font-semibold text-foreground">Scheduled Jobs</h4>
         </div>
         {onViewAll && (

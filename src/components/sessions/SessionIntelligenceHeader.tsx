@@ -45,7 +45,7 @@ export function SessionIntelligenceHeader({
             </span>
           )}
           {session.surface && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 uppercase tracking-wide font-semibold border border-indigo-500/20">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase tracking-wide font-semibold border border-indigo-500/20">
               {session.surface}
             </span>
           )}
@@ -84,19 +84,19 @@ export function SessionIntelligenceHeader({
               {session.inputTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Input:</span>
-                  <span className="font-mono font-semibold text-cyan-400">{formatNumber(session.inputTokens)}↓</span>
+                  <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{formatNumber(session.inputTokens)}↓</span>
                 </div>
               )}
               {session.outputTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Output:</span>
-                  <span className="font-mono font-semibold text-purple-400">{formatNumber(session.outputTokens)}↑</span>
+                  <span className="font-mono font-semibold text-purple-600 dark:text-purple-400">{formatNumber(session.outputTokens)}↑</span>
                 </div>
               )}
               {session.totalTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Total:</span>
-                  <span className="font-mono font-semibold text-indigo-400">{formatNumber(session.totalTokens)}</span>
+                  <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{formatNumber(session.totalTokens)}</span>
                 </div>
               )}
             </div>

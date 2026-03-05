@@ -28,7 +28,7 @@ export function SessionSelector() {
             <div className="flex items-start gap-4">
               <div className={cn(
                 "p-2 rounded-lg transition-colors",
-                selectedSessionKey === session.key ? "bg-indigo-500/20 text-indigo-400" : "bg-white/5 text-white/40 group-hover:text-indigo-400/60"
+                selectedSessionKey === session.key ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400" : "bg-white/5 text-white/40 group-hover:text-indigo-600 dark:text-indigo-400/60"
               )}>
                 <MessageSquare className="w-5 h-5" />
               </div>
