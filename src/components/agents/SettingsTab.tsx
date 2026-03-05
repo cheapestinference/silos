@@ -20,7 +20,7 @@ interface SettingsTabProps {
 
 export function SettingsTab({ settings, onChange }: SettingsTabProps) {
   const { t } = useTranslation();
-  const { gatewayConfig } = useDashboardStore();
+  const { gatewayConfig, availableModels } = useDashboardStore();
 
   // Extract gateway default model
   const defaultGatewayModel = useMemo(() => {
@@ -63,23 +63,38 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
         return name;
       }
     }
+    // Also check availableModels (dynamically fetched)
+    if (availableModels) {
+      for (const [name] of Object.entries(availableModels)) {
+        if (availableModels[name]?.some((m) => m.id === parsedModel.modelId)) {
+          return name;
+        }
+      }
+    }
     return providerNames[0] ?? '';
-  }, [settings.model, parsedModel, providers, providerNames]);
+  }, [settings.model, parsedModel, providers, providerNames, availableModels]);
 
   const [selectedProvider, setSelectedProvider] = useState(detectedProvider);
 
   // Keep selectedProvider in sync if detectedProvider changes (e.g. config reload)
   if (detectedProvider && selectedProvider !== detectedProvider && settings.model) {
     // Only sync if the current model actually belongs to a provider
-    const currentProviderHasModel = providers[selectedProvider]?.models?.some((m) => m.id === parsedModel.modelId);
+    const currentProviderHasModel =
+      providers[selectedProvider]?.models?.some((m) => m.id === parsedModel.modelId) ||
+      availableModels?.[selectedProvider]?.some((m) => m.id === parsedModel.modelId);
     if (!currentProviderHasModel) {
       setSelectedProvider(detectedProvider);
     }
   }
 
   const currentModels = useMemo(() => {
+    // Prefer dynamically fetched models from the provider's /v1/models endpoint
+    if (availableModels?.[selectedProvider]?.length) {
+      return availableModels[selectedProvider];
+    }
+    // Fallback to models defined in the OpenClaw config
     return providers[selectedProvider]?.models ?? [];
-  }, [providers, selectedProvider]);
+  }, [providers, selectedProvider, availableModels]);
 
   const updateSetting = <K extends keyof AgentSettings>(key: K, value: AgentSettings[K]) => {
     onChange({ ...settings, [key]: value });

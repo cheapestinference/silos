@@ -296,6 +296,53 @@ async function resolveAgentDir(agentId) {
 // All memory and proxy endpoints require gateway token auth
 app.use('/api/memory', requireGatewayAuth);
 app.use('/api/proxy-test', requireGatewayAuth);
+app.use('/api/provider-models', requireGatewayAuth);
+
+// Fetch available models from all configured providers by calling their /models endpoint
+app.get('/api/provider-models', async (req, res) => {
+  try {
+    const configPath = path.join(OPENCLAW_BASE, 'openclaw.json');
+    const raw = await fs.readFile(configPath, 'utf8');
+    const config = JSON.parse(raw);
+    const providers = config?.models?.providers || {};
+
+    const results = {};
+
+    await Promise.all(Object.entries(providers).map(async ([name, provider]) => {
+      try {
+        const baseUrl = (provider.baseUrl || '').replace(/\/+$/, '');
+        if (!baseUrl) return;
+
+        const headers = {};
+        if (provider.apiKey) {
+          headers['Authorization'] = `Bearer ${provider.apiKey}`;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(`${baseUrl}/models`, { headers, signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const models = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        results[name] = models.map(m => ({
+          id: m.id,
+          name: m.id,
+          contextWindow: m.context_window || 128000,
+        }));
+      } catch {
+        // Skip providers that fail
+      }
+    }));
+
+    res.json(results);
+  } catch (error) {
+    console.error('[Provider Models] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // List memory files for an agent
 app.get('/api/memory/:agentId', async (req, res) => {

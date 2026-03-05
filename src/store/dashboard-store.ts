@@ -42,6 +42,7 @@ interface DashboardStore {
   channels: ChannelsStatusSnapshot | null;
   presence: PresenceEntry[];
   models: ModelsListResult | null;
+  availableModels: Record<string, Array<{ id: string; name: string; contextWindow?: number }>> | null;
   gatewayConfig: ConfigSnapshot | null;
 
   // UI State
@@ -62,6 +63,7 @@ interface DashboardStore {
   cronLoading: boolean;
   channelsLoading: boolean;
   modelsLoading: boolean;
+  availableModelsLoading: boolean;
   gatewayConfigLoading: boolean;
 
   // Agent configuration state
@@ -86,6 +88,7 @@ interface DashboardStore {
   loadCronJobs: () => Promise<void>;
   loadChannels: () => Promise<void>;
   loadModels: () => Promise<void>;
+  loadAvailableModels: () => Promise<void>;
   loadGatewayConfig: () => Promise<void>;
   loadAll: () => Promise<void>;
 
@@ -215,6 +218,7 @@ export const useDashboardStore = create<DashboardStore>()(
       channels: null,
       presence: [],
       models: null,
+      availableModels: null,
       gatewayConfig: null,
 
       selectedSessionKey: null,
@@ -233,6 +237,7 @@ export const useDashboardStore = create<DashboardStore>()(
       cronLoading: false,
       channelsLoading: false,
       modelsLoading: false,
+      availableModelsLoading: false,
       gatewayConfigLoading: false,
 
       // Agent configuration
@@ -452,6 +457,24 @@ export const useDashboardStore = create<DashboardStore>()(
         }
       },
 
+      loadAvailableModels: async () => {
+        const { token } = get();
+        set({ availableModelsLoading: true });
+        try {
+          const headers: Record<string, string> = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const res = await fetch('/api/provider-models', { headers });
+          if (res.ok) {
+            const data = await res.json();
+            set({ availableModels: data, availableModelsLoading: false });
+          } else {
+            set({ availableModelsLoading: false });
+          }
+        } catch {
+          set({ availableModelsLoading: false });
+        }
+      },
+
       loadGatewayConfig: async () => {
         const { client } = get();
         if (!client) return;
@@ -590,8 +613,8 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       loadAll: async () => {
-        const { loadAgents, loadSessions, loadCronJobs, loadChannels, loadModels, loadGatewayConfig } = get();
-        await Promise.all([loadAgents(), loadSessions(), loadCronJobs(), loadChannels(), loadModels(), loadGatewayConfig()]);
+        const { loadAgents, loadSessions, loadCronJobs, loadChannels, loadModels, loadAvailableModels, loadGatewayConfig } = get();
+        await Promise.all([loadAgents(), loadSessions(), loadCronJobs(), loadChannels(), loadModels(), loadAvailableModels(), loadGatewayConfig()]);
       },
 
       // Agent actions

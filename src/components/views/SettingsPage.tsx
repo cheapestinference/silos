@@ -596,7 +596,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
 // ==================== SECTION COMPONENTS ====================
 
 function ModelsSection() {
-  const { gatewayConfig, gatewayConfigLoading, loadGatewayConfig, addModelProvider, deleteModelProvider, token: gatewayToken, models: dynamicModels } = useDashboardStore();
+  const { gatewayConfig, gatewayConfigLoading, loadGatewayConfig, addModelProvider, deleteModelProvider, token: gatewayToken, models: dynamicModels, availableModels } = useDashboardStore();
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});
   const [showAddProvider, setShowAddProvider] = useState(false);
@@ -968,14 +968,15 @@ function ModelsSection() {
             Object.entries(providers).map(([providerId, providerData]) => {
               const provider = providerData as { baseUrl?: string; apiKey?: string; api?: string; models?: Array<{ id: string; name?: string; contextWindow?: number; reasoning?: boolean; input?: string[] }> };
               const isExpanded = expandedProvider === providerId;
-              const modelCount = provider.models?.length || 0;
+              const modelCount = availableModels?.[providerId]?.length || provider.models?.length || 0;
               const isSilos = providerId.toLowerCase() === 'silos';
 
               // Silos from backend: show subscription card with collapsible model list
               if (isSilos) {
+                const fetchedModels = availableModels?.['silos'] ?? [];
                 const dynamicSilosModels = dynamicModels?.models?.filter(m => m.provider === 'silos') ?? [];
                 const staticModels = provider.models?.map(m => ({ id: m.id, name: m.name || m.id, contextWindow: m.contextWindow })) ?? [];
-                const silosModels = dynamicSilosModels.length > 0 ? dynamicSilosModels : staticModels;
+                const silosModels = fetchedModels.length > 0 ? fetchedModels : dynamicSilosModels.length > 0 ? dynamicSilosModels : staticModels;
                 const silosExpanded = expandedProvider === 'silos';
                 return (
                   <div key={providerId} className="rounded-xl border border-purple-500/30 overflow-hidden bg-gradient-to-r from-purple-500/5 to-pink-500/5">
@@ -1235,17 +1236,17 @@ function ModelsSection() {
                             </div>
                           </div>
 
-                          {provider.models && provider.models.length > 0 && (
+                          {(() => {
+                            const displayModels = availableModels?.[providerId]?.length
+                              ? availableModels[providerId]
+                              : provider.models ?? [];
+                            return displayModels.length > 0 ? (
                             <div>
-                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Models ({provider.models.length})</label>
+                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Models ({displayModels.length})</label>
                               <div className="grid gap-1 max-h-60 overflow-y-auto">
-                                {provider.models.map((model) => (
+                                {displayModels.map((model) => (
                                   <div key={model.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted">
                                     <div className="flex items-center gap-2">
-                                      <div className="flex gap-1">
-                                        {model.input?.includes('image') && <Image className="w-3 h-3 text-muted-foreground" />}
-                                        {model.reasoning && <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
-                                      </div>
                                       <span className="text-sm text-foreground">{model.name || model.id}</span>
                                     </div>
                                     <span className="text-xs text-muted-foreground">{model.contextWindow ? `${Math.round(model.contextWindow / 1000)}K` : ''}</span>
@@ -1253,7 +1254,8 @@ function ModelsSection() {
                                 ))}
                               </div>
                             </div>
-                          )}
+                            ) : null;
+                          })()}
 
                           {/* Edit / Delete actions */}
                           <div className="flex items-center gap-2 pt-2 border-t border">
