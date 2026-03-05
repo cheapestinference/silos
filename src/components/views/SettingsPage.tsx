@@ -23,8 +23,6 @@ import {
   Cpu,
   Eye,
   EyeOff,
-  Sparkles,
-  Image,
   Bot,
   Wrench,
   Settings2,
