@@ -12,19 +12,21 @@ const __dirname = path.dirname(__filename);
 const pkg = JSON.parse(await fs.readFile(path.join(__dirname, 'package.json'), 'utf8'));
 const APP_VERSION = pkg.version || '0.0.0';
 
-// Read OpenClaw version from its package.json at startup
-let OPENCLAW_VERSION = null;
-const ocPaths = [
-  '/usr/lib/node_modules/openclaw/package.json',   // npm install -g (nodesource)
-  '/usr/local/lib/node_modules/openclaw/package.json', // npm install -g (other)
-  '/home/openclaw/openclaw/package.json',           // legacy git clone
-];
-for (const p of ocPaths) {
-  try {
-    const ocPkg = JSON.parse(await fs.readFile(p, 'utf8'));
-    OPENCLAW_VERSION = ocPkg.version || null;
-    if (OPENCLAW_VERSION) break;
-  } catch { /* try next */ }
+// Read OpenClaw version: prefer env var (set by setup.sh), fall back to package.json paths
+let OPENCLAW_VERSION = process.env.OPENCLAW_VERSION || null;
+if (!OPENCLAW_VERSION) {
+  const ocPaths = [
+    '/usr/lib/node_modules/openclaw/package.json',
+    '/usr/local/lib/node_modules/openclaw/package.json',
+    '/home/openclaw/openclaw/package.json',
+  ];
+  for (const p of ocPaths) {
+    try {
+      const ocPkg = JSON.parse(await fs.readFile(p, 'utf8'));
+      OPENCLAW_VERSION = ocPkg.version || null;
+      if (OPENCLAW_VERSION) break;
+    } catch { /* try next */ }
+  }
 }
 
 const app = express();
