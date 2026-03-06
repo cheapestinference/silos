@@ -62,7 +62,7 @@ export function UnifiedDashboard() {
   } = useDashboardStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [, setDataLoaded] = useState(false);
 
   // WhatsApp data (derived early so useEffect can reference waConnected)
   const waAccounts = channels?.channelAccounts?.['whatsapp'] || [];

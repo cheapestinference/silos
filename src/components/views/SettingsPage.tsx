@@ -238,14 +238,14 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 }
                 setQrMessage(null);
               } else {
-                setQrError(t('settings.connectionError'));
+                setQrError(tStatic('settings.connectionError'));
                 hadError = true;
               }
             }
           }
 
           if (!paired && !hadError) {
-            setQrError(t('settings.qrExpired'));
+            setQrError(tStatic('settings.qrExpired'));
             setQrDataUrl(null);
           }
           setWaitingForScan(false);

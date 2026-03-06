@@ -1222,7 +1222,7 @@ export const useDashboardStore = create<DashboardStore>()(
         set({ selectedAgentConfig: null, configError: null });
       },
 
-      uploadKnowledgeFile: async (agentId, file) => {
+      uploadKnowledgeFile: async (agentId: string, file: { name: string; content: string; type?: string }) => {
         const { client, selectedAgentConfig } = get();
         if (!client) return null;
 
@@ -1249,7 +1249,7 @@ export const useDashboardStore = create<DashboardStore>()(
         }
       },
 
-      deleteKnowledgeFile: async (agentId, fileId) => {
+      deleteKnowledgeFile: async (agentId: string, fileId: string) => {
         const { client, selectedAgentConfig } = get();
         if (!client) return false;
 
@@ -1270,7 +1270,7 @@ export const useDashboardStore = create<DashboardStore>()(
         }
       },
 
-      updateKnowledgeFile: async (agentId, fileId, updates) => {
+      updateKnowledgeFile: async (agentId: string, fileId: string, updates: Record<string, unknown>) => {
         const { client, selectedAgentConfig } = get();
         if (!client) return false;
 
