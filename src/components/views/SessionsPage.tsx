@@ -96,17 +96,14 @@ function groupSessionsHierarchically(
 
   for (const subagent of subagents) {
     let parentKey: string | null = null;
-    let source = 'none';
 
     // 1. Check local tracking map (most reliable)
     if (subagentParents.has(subagent.key)) {
       parentKey = subagentParents.get(subagent.key)!;
-      source = 'local-map';
     }
     // 2. Check spawnedBy field from gateway
     else if (subagent.spawnedBy) {
       parentKey = subagent.spawnedBy;
-      source = 'spawnedBy';
     }
     // 3. Fallback: find first session for same agent
     else {
@@ -117,7 +114,6 @@ function groupSessionsHierarchically(
         );
         if (firstSession) {
           parentKey = firstSession.key;
-          source = 'fallback-first';
         }
       }
     }

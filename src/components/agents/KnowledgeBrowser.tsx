@@ -18,7 +18,6 @@ import {
   AlertTriangle,
   HardDrive,
   ArrowLeft,
-  FolderPlus,
 } from 'lucide-react';
 
 interface KnowledgeBrowserProps {

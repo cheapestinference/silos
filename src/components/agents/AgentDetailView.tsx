@@ -35,14 +35,6 @@ import {
   Check,
   CalendarClock,
   FolderOpen,
-  FolderPlus,
-  FilePlus,
-  ChevronRight,
-  ChevronDown,
-  MoreHorizontal,
-  Pencil,
-  FolderInput,
-  Search,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CronJobList, CronJobForm, CronStatsWidget } from '../cron';
@@ -50,7 +42,7 @@ import { SettingsTab } from './SettingsTab';
 import { WorkspacePanel } from './WorkspacePanel';
 import { KnowledgeBrowser } from './KnowledgeBrowser';
 import useTranslation from '../../i18n';
-import type { KnowledgeFile, AgentSummary, CronJob } from '../../types/openclaw';
+import type { AgentSummary, CronJob } from '../../types/openclaw';
 
 export function AgentDetailView() {
   const { t } = useTranslation();
@@ -65,9 +57,6 @@ export function AgentDetailView() {
     connected,
     selectedAgentConfig,
     loadAgentConfig,
-    uploadKnowledgeFile,
-    deleteKnowledgeFile,
-    updateKnowledgeFile,
     cronJobs,
     toggleCronJob,
     runCronJob,
@@ -1039,6 +1028,8 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
   };
 
   const selectedFileInfo = selectedFile ? getFileInfo(selectedFile.split('/').pop() || selectedFile) : null;
+  const selectedFileCategoryDesc = selectedFileInfo?.category?.descriptionKey;
+  const selectedFileDescription = selectedFileInfo?.descriptionKey ?? selectedFileCategoryDesc ?? ('agentDetail.workspaceFile' as const);
 
   return (
     <div className="h-full flex animate-in fade-in duration-300">
@@ -1181,7 +1172,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
                     {selectedFile.split('/').pop() || selectedFile}
                   </h3>
                   <p className="text-[10px] text-muted-foreground">
-                    {selectedFileInfo?.descriptionKey ? t(selectedFileInfo.descriptionKey) : selectedFileInfo?.category?.descriptionKey ? t(selectedFileInfo.category.descriptionKey) : t('agentDetail.workspaceFile')}
+                    {t(selectedFileDescription)}
                   </p>
                 </div>
               </div>
@@ -2132,338 +2123,6 @@ function ConfigRow({ label, value, mono, small }: ConfigRowProps) {
       )} title={value}>
         {value}
       </span>
-    </div>
-  );
-}
-
-// Knowledge Panel Component
-interface KnowledgePanelProps {
-  agentId: string;
-  knowledgeFiles: KnowledgeFile[];
-  onUpload: (agentId: string, file: Omit<KnowledgeFile, 'id' | 'createdAt'>) => Promise<string | null>;
-  onDelete: (agentId: string, fileId: string) => Promise<boolean>;
-  onUpdate: (agentId: string, fileId: string, updates: Partial<KnowledgeFile>) => Promise<boolean>;
-}
-
-function KnowledgePanel({ agentId, knowledgeFiles, onUpload, onDelete, onUpdate }: KnowledgePanelProps) {
-  const { t } = useTranslation();
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingFile, setEditingFile] = useState<KnowledgeFile | null>(null);
-  const [newFileName, setNewFileName] = useState('');
-  const [newFileContent, setNewFileContent] = useState('');
-  const [newFileType, setNewFileType] = useState<'markdown' | 'text' | 'json'>('markdown');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleCreate = async () => {
-    if (!newFileName.trim() || !newFileContent.trim()) return;
-
-    const fileId = await onUpload(agentId, {
-      name: newFileName,
-      content: newFileContent,
-      type: newFileType,
-      updatedAt: Date.now(),
-    });
-
-    if (fileId) {
-      setIsCreating(false);
-      setNewFileName('');
-      setNewFileContent('');
-      setNewFileType('markdown');
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!editingFile) return;
-
-    const success = await onUpdate(agentId, editingFile.id, {
-      name: editingFile.name,
-      content: editingFile.content,
-      type: editingFile.type,
-      updatedAt: Date.now(),
-    });
-
-    if (success) {
-      setEditingFile(null);
-    }
-  };
-
-  const handleDelete = (fileId: string) => {
-    setDeleteConfirmId(fileId);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteConfirmId) return;
-    setDeleting(true);
-    await onDelete(agentId, deleteConfirmId);
-    setDeleting(false);
-    setDeleteConfirmId(null);
-  };
-
-  const fileToDelete = deleteConfirmId ? knowledgeFiles.find(f => f.id === deleteConfirmId) : null;
-
-  return (
-    <div className="h-full overflow-y-auto p-6 animate-in fade-in duration-300">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-                {t('agentDetail.knowledgeBase')}
-              </h3>
-              <p className="text-xs text-muted-foreground">{knowledgeFiles.length} {t('agentDetail.filesAvailable')}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {t('agentDetail.newFile')}
-          </button>
-        </div>
-
-        {/* Create Form */}
-        {isCreating && (
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wider">{t('agentDetail.createNewFile')}</h4>
-              <button
-                onClick={() => setIsCreating(false)}
-                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-              >
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileName')}</label>
-                <input
-                  type="text"
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  placeholder="my-knowledge.md"
-                  className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileType')}</label>
-                <select
-                  value={newFileType}
-                  onChange={(e) => setNewFileType(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="markdown">{t('agentDetail.markdown')}</option>
-                  <option value="text">{t('agentDetail.plainText')}</option>
-                  <option value="json">{t('agentDetail.json')}</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.content')}</label>
-              <textarea
-                value={newFileContent}
-                onChange={(e) => setNewFileContent(e.target.value)}
-                placeholder="# My Knowledge\n\nWrite your knowledge here..."
-                rows={8}
-                className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 font-mono resize-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                onClick={() => setIsCreating(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-muted text-muted-foreground hover:bg-muted transition-colors"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newFileName.trim() || !newFileContent.trim()}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="w-3.5 h-3.5" />
-                {t('common.create')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Form */}
-        {editingFile && (
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-300 uppercase tracking-wider">{t('agentDetail.editFile')}</h4>
-              <button
-                onClick={() => setEditingFile(null)}
-                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-              >
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.fileName')}</label>
-              <input
-                type="text"
-                value={editingFile.name}
-                onChange={(e) => setEditingFile({ ...editingFile, name: e.target.value })}
-                className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground focus:outline-none focus:border-amber-500/50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">{t('agentDetail.content')}</label>
-              <textarea
-                value={editingFile.content}
-                onChange={(e) => setEditingFile({ ...editingFile, content: e.target.value })}
-                rows={10}
-                className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-xl text-foreground focus:outline-none focus:border-amber-500/50 font-mono resize-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                onClick={() => setEditingFile(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-muted text-muted-foreground hover:bg-muted transition-colors"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleEdit}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all"
-              >
-                <Save className="w-3.5 h-3.5" />
-                {t('agentDetail.saveChanges')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Files Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {knowledgeFiles.length === 0 ? (
-            <div className="col-span-2 p-12 text-center rounded-2xl bg-muted/50 border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.noKnowledgeFiles')}</p>
-              <p className="text-xs text-muted-foreground">{t('agentDetail.noKnowledgeFilesHint')}</p>
-            </div>
-          ) : (
-            knowledgeFiles.map((file) => (
-              <div
-                key={file.id}
-                className="group p-4 rounded-2xl bg-muted border border-border hover:border-blue-500/30 transition-all duration-200"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <h5 className="text-sm font-semibold text-foreground">{file.name}</h5>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-card text-muted-foreground font-mono uppercase">
-                          {file.type}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground font-mono">
-                          {formatDistanceToNow(file.createdAt, { addSuffix: true })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setEditingFile(file)}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-blue-500 dark:text-blue-400 transition-colors"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(file.id)}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-rose-600 dark:text-rose-400 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 p-3 rounded-xl bg-muted border border-border">
-                  <pre className="text-[10px] text-muted-foreground leading-relaxed font-mono whitespace-pre-wrap overflow-hidden max-h-24 line-clamp-4">
-                    {file.content}
-                  </pre>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => !deleting && setDeleteConfirmId(null)}
-          />
-          <div className="relative w-full max-w-md mx-4 bg-gradient-to-br from-card via-card to-muted border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-border bg-muted">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-lg">
-                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-foreground uppercase tracking-wider" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-                    {t('agentDetail.deleteKnowledgeFile')}
-                  </h2>
-                  <p className="text-xs text-muted-foreground font-mono">{t('agentDetail.deleteWarning')}</p>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-foreground/80">
-                {t('agentDetail.confirmDeleteFile')} <span className="font-semibold text-foreground">{fileToDelete?.name}</span>?
-              </p>
-            </div>
-            <div className="px-6 py-4 border-t border-border bg-muted flex items-center justify-end gap-3">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                disabled={deleting}
-                className="px-4 py-2 text-xs font-bold text-foreground/80 hover:text-foreground uppercase tracking-wider transition-colors disabled:opacity-50"
-                style={{ fontFamily: 'IBM Plex Mono, monospace' }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                style={{ fontFamily: 'IBM Plex Mono, monospace' }}
-              >
-                {deleting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    {t('agentDetail.deleting')}
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t('agentDetail.deleteFileButton')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

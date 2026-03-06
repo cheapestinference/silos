@@ -465,8 +465,6 @@ interface ToolCallExpanderProps {
 
 function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpanderProps) {
   const [expanded, setExpanded] = useState(false);
-  const { t } = useTranslation();
-
   // Format input (tool call args)
   const inputStr = toolCall
     ? (typeof toolCall === 'string' ? toolCall : JSON.stringify(toolCall, null, 2))

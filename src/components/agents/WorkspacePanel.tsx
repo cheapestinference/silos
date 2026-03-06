@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
 import {
@@ -11,11 +11,9 @@ import {
   Trash2,
   Pencil,
   RefreshCw,
-  Save,
   X,
   Check,
   AlertTriangle,
-  FolderInput,
   MoreHorizontal,
   Upload,
 } from 'lucide-react';

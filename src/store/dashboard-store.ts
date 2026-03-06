@@ -16,6 +16,7 @@ import type {
   HelloOk,
   AgentConfiguration,
   KnowledgeFile,
+  KnowledgeFileType,
   ModelsListResult,
   ConfigSnapshot,
 } from '../types/openclaw';
@@ -140,6 +141,9 @@ interface DashboardStore {
   readMemoryFile: (agentId: string, filePath: string) => Promise<void>;
   writeMemoryFile: (agentId: string, filePath: string, content: string) => Promise<boolean>;
   clearAgentConfig: () => void;
+  uploadKnowledgeFile: (agentId: string, file: { name: string; content: string; type?: KnowledgeFileType }) => Promise<string | null>;
+  deleteKnowledgeFile: (agentId: string, fileId: string) => Promise<boolean>;
+  updateKnowledgeFile: (agentId: string, fileId: string, updates: Record<string, unknown>) => Promise<boolean>;
 
   // Workspace file actions (HTTP API - full file/folder CRUD)
   workspaceFiles: Array<{ path: string; size: number; mtime: number; type: 'file' | 'directory' }>;
@@ -1203,15 +1207,17 @@ export const useDashboardStore = create<DashboardStore>()(
         set({ selectedAgentConfig: null, configError: null });
       },
 
-      uploadKnowledgeFile: async (agentId: string, file: { name: string; content: string; type?: string }) => {
+      uploadKnowledgeFile: async (agentId: string, file: { name: string; content: string; type?: KnowledgeFileType }) => {
         const { client, selectedAgentConfig } = get();
         if (!client) return null;
 
+        const fileWithType = { ...file, type: file.type ?? 'text' as KnowledgeFileType };
+
         try {
-          const result = await client.uploadKnowledgeFile(agentId, file);
+          const result = await client.uploadKnowledgeFile(agentId, fileWithType);
           if (result.ok && selectedAgentConfig) {
             const newFile: KnowledgeFile = {
-              ...file,
+              ...fileWithType,
               id: result.id,
               createdAt: result.createdAt,
             };

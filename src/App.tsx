@@ -129,9 +129,9 @@ function App() {
     if (!emailNotVerified || !user || !auth?.currentUser) return;
     const interval = setInterval(async () => {
       try {
-        await auth.currentUser!.reload();
-        if (auth.currentUser!.emailVerified) {
-          await auth.currentUser!.getIdToken(true);
+        await auth!.currentUser!.reload();
+        if (auth!.currentUser!.emailVerified) {
+          await auth!.currentUser!.getIdToken(true);
           setEmailNotVerified(false);
           setVerificationSent(false);
         }

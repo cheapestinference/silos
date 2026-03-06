@@ -14,7 +14,7 @@ interface CreateAgentModalProps {
 
 export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModalProps) {
   const { t, locale } = useTranslation();
-  const { models, loadModels, gatewayConfig, token, writeWorkspaceFile } = useDashboardStore();
+  const { models, loadModels, gatewayConfig, writeWorkspaceFile } = useDashboardStore();
 
   const generateDefaultName = () => {
     const adjectives = ['Smart', 'Quick', 'Wise', 'Clever', 'Swift', 'Bright', 'Sharp'];
