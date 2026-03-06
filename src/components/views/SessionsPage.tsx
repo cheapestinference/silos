@@ -94,11 +94,6 @@ function groupSessionsHierarchically(
   const childrenMap = new Map<string, GatewaySessionRow[]>();
   const orphanedSubagents: GatewaySessionRow[] = [];
 
-  // Log all regular session keys for debugging
-  console.log('[GroupSessions] Regular session keys:', regularSessions.map(s => s.key));
-  console.log('[GroupSessions] Grouping', subagents.length, 'subagents, tracking map size:', subagentParents.size);
-  console.log('[GroupSessions] Tracked parent mappings:', Array.from(subagentParents.entries()));
-
   for (const subagent of subagents) {
     let parentKey: string | null = null;
     let source = 'none';
@@ -127,16 +122,12 @@ function groupSessionsHierarchically(
       }
     }
 
-    console.log('[GroupSessions] Subagent:', subagent.key, '-> parent:', parentKey, 'source:', source);
-
     // Verify parent exists in our session list
     let parentExists = parentKey && regularSessions.some(s => s.key === parentKey);
     let matchedParentKey = parentKey;
 
     // If exact match fails, try fuzzy matching
     if (parentKey && !parentExists) {
-      console.log('[GroupSessions] Exact match failed, trying fuzzy match for:', parentKey);
-
       // Extract the bucket/suffix part (e.g., "fer" from "agent:smart-agent:fer")
       const parentParts = parentKey.split(':');
       const parentAgentId = parentParts.length >= 2 ? parentParts[1] : null;
@@ -161,13 +152,10 @@ function groupSessionsHierarchically(
       });
 
       if (fuzzyMatch) {
-        console.log('[GroupSessions] Found fuzzy match:', fuzzyMatch.key);
         matchedParentKey = fuzzyMatch.key;
         parentExists = true;
       }
     }
-
-    console.log('[GroupSessions] Parent exists in regularSessions?', parentExists, 'matchedKey:', matchedParentKey);
 
     if (matchedParentKey && parentExists) {
       if (!childrenMap.has(matchedParentKey)) {
@@ -175,7 +163,6 @@ function groupSessionsHierarchically(
       }
       childrenMap.get(matchedParentKey)!.push(subagent);
     } else {
-      console.log('[GroupSessions] Orphaned - parent not found in regular sessions. Looking for:', parentKey);
       orphanedSubagents.push(subagent);
     }
   }

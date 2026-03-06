@@ -37,14 +37,6 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
     writeMemoryFile,
   } = useDashboardStore();
 
-  // Debug logging
-  console.log('[MemoryTab] RENDER', {
-    agentId,
-    filesCount: memoryFiles?.length ?? 0,
-    loading: memoryLoading,
-    files: memoryFiles?.map((f: {path: string}) => f.path)
-  });
-
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -54,12 +46,8 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
 
   // Load memory files on mount and when agent changes
   useEffect(() => {
-    console.log('[MemoryTab] Effect triggered - agentId:', agentId);
     if (agentId) {
-      console.log('[MemoryTab] Calling listMemoryFiles for:', agentId);
-      listMemoryFiles(agentId).then(() => {
-        console.log('[MemoryTab] listMemoryFiles completed');
-      }).catch((err) => {
+      listMemoryFiles(agentId).catch((err) => {
         console.error('[MemoryTab] listMemoryFiles error:', err);
       });
     }

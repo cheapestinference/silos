@@ -299,8 +299,6 @@ export const useDashboardStore = create<DashboardStore>()(
           gatewayUrl = gatewayUrl.replace('localhost', '127.0.0.1');
         }
 
-        console.log('🔗 URL WebSocket final:', gatewayUrl);
-
         set({ connecting: true, error: null });
         // No actualizamos gatewayUrl en el store para mantener la URL original
 
@@ -427,18 +425,15 @@ export const useDashboardStore = create<DashboardStore>()(
       loadCronJobs: async () => {
         const { client } = get();
         if (!client) {
-          console.log('[loadCronJobs] No client available');
           return;
         }
 
-        console.log('[loadCronJobs] Starting to load cron jobs...');
         set({ cronLoading: true });
         try {
           const [jobsResult, status] = await Promise.all([
             client.listCronJobs(),
             client.getCronStatus(),
           ]);
-          console.log('[loadCronJobs] Loaded:', { jobsCount: jobsResult?.jobs?.length, status, jobsResult });
           set({ cronJobs: jobsResult.jobs || [], cronStatus: status, cronLoading: false });
         } catch (error) {
           console.error('[loadCronJobs] Error:', error);
@@ -671,10 +666,8 @@ export const useDashboardStore = create<DashboardStore>()(
         const { selectedSessionKey, markSessionRead } = get();
         // Skip if already on this session to avoid clearing messages unnecessarily
         if (key === selectedSessionKey) {
-          console.log('[selectSession] Already on session, skipping:', key);
           return;
         }
-        console.log('[selectSession] Switching to session:', key, 'from:', selectedSessionKey);
         set({ selectedSessionKey: key, chatMessages: [], streamingContent: '' });
         if (key) {
           get().loadChatHistory(key);
@@ -887,7 +880,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
         const runId = activeRunId.get(selectedSessionKey);
         if (!runId) {
-          console.log('[Abort] No active runId found for session:', selectedSessionKey);
           return;
         }
 
@@ -897,8 +889,6 @@ export const useDashboardStore = create<DashboardStore>()(
           const agentId = selectedSessionKey.replace(/^dm-/, '');
           effectiveSessionKey = `agent:${agentId}:dm-operator`;
         }
-
-        console.log('[Abort] Aborting chat:', { effectiveSessionKey, runId });
 
         try {
           await client.abortChat(effectiveSessionKey, runId);
@@ -919,7 +909,6 @@ export const useDashboardStore = create<DashboardStore>()(
             streamingContent: '', // Clear any streaming content
           });
 
-          console.log('[Abort] Successfully aborted');
         } catch (error) {
           console.error('[Abort] Failed:', error);
           set({ error: String(error) });
@@ -929,9 +918,7 @@ export const useDashboardStore = create<DashboardStore>()(
       // Cron actions
       toggleCronJob: async (id, enabled) => {
         const { client } = get();
-        console.log('[Cron] toggleCronJob called:', { id, enabled });
         if (!client) {
-          console.log('[Cron] No client, aborting');
           return;
         }
 
@@ -943,9 +930,7 @@ export const useDashboardStore = create<DashboardStore>()(
         }));
 
         try {
-          console.log('[Cron] Sending update to server...');
-          const result = await client.updateCronJob(id, { enabled });
-          console.log('[Cron] Server response:', result);
+          await client.updateCronJob(id, { enabled });
           // State already updated optimistically
         } catch (error) {
           console.error('[Cron] Toggle failed:', error);
@@ -1104,8 +1089,6 @@ export const useDashboardStore = create<DashboardStore>()(
             (s) => s.key?.includes(':subagent:') || s.key?.includes('-subagent-')
           );
 
-          console.log('[TaskHistory] Found subagent sessions:', subagentSessions.length);
-
           // Convert sessions to tasks
           const historyTasks: Task[] = subagentSessions.map((session) => {
             // Extract agent ID from sessionKey: agent:{agentId}:subagent:{uuid}
@@ -1139,8 +1122,6 @@ export const useDashboardStore = create<DashboardStore>()(
           // Merge with existing tasks (avoid duplicates by sessionKey)
           const existingKeys = new Set(tasks.map((t) => t.sessionKey));
           const newTasks = historyTasks.filter((t) => !existingKeys.has(t.sessionKey));
-
-          console.log('[TaskHistory] Adding tasks from history:', newTasks.length);
 
           set({
             tasks: [...tasks, ...newTasks],
@@ -1295,7 +1276,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
       // Memory file actions - uses gateway WebSocket methods (agents.files.*)
       listMemoryFiles: async (agentId) => {
-        console.log('[Memory] listMemoryFiles - agentId:', agentId);
         const { client } = get();
         if (!client) { set({ memoryFiles: [], memoryLoading: false }); return; }
         set({ memoryLoading: true });
@@ -1307,7 +1287,6 @@ export const useDashboardStore = create<DashboardStore>()(
             size: f.size || 0,
             mtime: f.updatedAtMs || 0,
           }));
-          console.log('[Memory] Files found:', files.length, files.map(f => f.path));
           set({ memoryFiles: files, memoryLoading: false });
         } catch (error) {
           console.error('[Memory] Error listing files:', error);
@@ -1318,7 +1297,6 @@ export const useDashboardStore = create<DashboardStore>()(
       readMemoryFile: async (agentId, filePath) => {
         // filePath is the file name (e.g. 'MEMORY.md')
         const fileName = filePath.split('/').pop() || filePath;
-        console.log('[Memory] readMemoryFile - agentId:', agentId, 'file:', fileName);
         const { client } = get();
         if (!client) { set({ memoryContent: '', memoryLoading: false }); return; }
         set({ memoryLoading: true });
@@ -1326,7 +1304,6 @@ export const useDashboardStore = create<DashboardStore>()(
         try {
           const result = await client.getAgentFile(agentId, fileName);
           const content = result?.file?.content || '';
-          console.log('[Memory] File content length:', content.length);
           set({ memoryContent: content, memoryLoading: false });
         } catch (error) {
           console.error('[Memory] Error reading file:', error);
@@ -1336,13 +1313,11 @@ export const useDashboardStore = create<DashboardStore>()(
 
       writeMemoryFile: async (agentId, filePath, content) => {
         const fileName = filePath.split('/').pop() || filePath;
-        console.log('[Memory] writeMemoryFile - agentId:', agentId, 'file:', fileName);
         const { client } = get();
         if (!client) return false;
 
         try {
           const result = await client.setAgentFile(agentId, fileName, content);
-          console.log('[Memory] Write result:', result);
           return result?.ok || false;
         } catch (error) {
           console.error('[Memory] Error writing file:', error);
@@ -1499,25 +1474,6 @@ export const useDashboardStore = create<DashboardStore>()(
       handleEvent: (event) => {
         const { selectedSessionKey } = get();
 
-        // Debug: Log all events with full payload
-        console.log('[Event Debug] Received event:', {
-          type: event.event,
-          hasPayload: !!event.payload,
-          payloadKeys: event.payload ? Object.keys(event.payload) : [],
-          fullPayload: event.payload
-        });
-
-        // Special log for chat events
-        if (event.event === 'chat') {
-          console.log('[Chat Event Debug]', {
-            stream: (event.payload as any)?.stream,
-            status: (event.payload as any)?.status,
-            sessionKey: (event.payload as any)?.sessionKey,
-            toolName: (event.payload as any)?.toolName,
-            runId: (event.payload as any)?.runId
-          });
-        }
-
         // Calculate effective session key for comparison
         const currentEffectiveKey = selectedSessionKey?.startsWith('dm-')
           ? `agent:${selectedSessionKey.replace(/^dm-/, '')}:dm-operator`
@@ -1586,8 +1542,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
             // Handle tool call start - show what tool is being called
             if ((phase === 'call' || phase === 'input' || phase === 'start') && toolName) {
-              console.log('[Agent Tool Call]', { toolName, phase, input: payload?.data?.input });
-
               // First, save any accumulated streaming content as an assistant message
               set((state) => {
                 const messages = [...state.chatMessages];
@@ -1628,7 +1582,6 @@ export const useDashboardStore = create<DashboardStore>()(
             if (phase === 'result' && toolName) {
               const toolResult = payload?.data?.result;
               const toolArgs = payload?.data?.args || payload?.data?.input;
-              console.log('[Agent Tool Result]', { toolName, hasResult: !!toolResult, hasArgs: !!toolArgs });
 
               set((state) => {
                 // Find the pending tool message — try strict runId match first, then relaxed
@@ -1680,8 +1633,6 @@ export const useDashboardStore = create<DashboardStore>()(
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
-
-              console.log('[Agent Error]', { runId, errorDetail, phase: payload?.data?.phase });
 
               // Deduplicate rate limit errors: if we already have one in the last 60s, skip
               const isRateLimit = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
@@ -1750,16 +1701,8 @@ export const useDashboardStore = create<DashboardStore>()(
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
 
-              console.log('[Agent Complete]', {
-                runId,
-                phase: payload?.data?.phase,
-                hasStreamingContent: !!state.streamingContent,
-                streamingContentLength: state.streamingContent?.length,
-              });
-
               // Even if no streaming content, still clear chatSending and activeRunId
               if (!state.streamingContent || !state.streamingContent.trim()) {
-                console.log('[Agent Complete] No streaming content to save, clearing send state');
                 const newActiveRunId = new Map(state.activeRunId);
                 const newChatSending = new Map(state.chatSending);
                 if (state.selectedSessionKey) {
@@ -1812,13 +1755,6 @@ export const useDashboardStore = create<DashboardStore>()(
                     t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
                   )
                 : state.tasks;
-
-              console.log('[Agent Complete] Adding assistant message', {
-                messageId: assistantMessage.id,
-                contentLength: state.streamingContent.length,
-                prevMessagesCount: state.chatMessages.length,
-                updatedUserMessage: updatedChatMessages.some(m => m.runId === runId && m.status === 'delivered'),
-              });
 
               return {
                 chatMessages: [...updatedChatMessages, assistantMessage],
@@ -1906,15 +1842,6 @@ export const useDashboardStore = create<DashboardStore>()(
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
 
-              console.log('%c[Chat Complete]', 'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px;', {
-                runId,
-                payloadRunId: payload?.runId,
-                hasStreamingContent: !!state.streamingContent,
-                streamingContentLength: state.streamingContent?.length,
-                currentMessagesCount: state.chatMessages.length,
-                messageRoles: state.chatMessages.map(m => m.role)
-              });
-
               const newActiveRunId = new Map(state.activeRunId);
               const newChatSending = new Map(state.chatSending);
               if (state.selectedSessionKey) {
@@ -1939,13 +1866,6 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
 
                 const newMessages = [...state.chatMessages, assistantMessage];
-                console.log('%c[Chat Complete] Adding assistant message', 'background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px;', {
-                  messageId: assistantMessage.id,
-                  contentPreview: state.streamingContent.substring(0, 100),
-                  prevMessagesCount: state.chatMessages.length,
-                  newMessagesCount: newMessages.length,
-                  newMessageRoles: newMessages.map(m => m.role)
-                });
 
                 return {
                   chatMessages: newMessages,
@@ -1955,7 +1875,6 @@ export const useDashboardStore = create<DashboardStore>()(
                   tasks: updatedTasks,
                 };
               } else {
-                console.log('%c[Chat Complete] No streaming content to save', 'background: #FF9800; color: white; padding: 2px 6px; border-radius: 3px;');
                 return {
                   chatSending: newChatSending,
                   activeRunId: newActiveRunId,
@@ -1980,19 +1899,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // Detect sub-agent by sessionKey pattern: agent:{id}:subagent:{uuid} or webchat:g-agent-{id}-subagent-{uuid}
           const isSubAgent = taskSessionKey.includes(':subagent:') || taskSessionKey.includes('-subagent-');
-
-          // Log ALL lifecycle events for debugging
-          if (stream === 'lifecycle') {
-            console.log('[Agent Lifecycle Event]', {
-              runId,
-              phase,
-              isSubAgent,
-              payloadSessionKey: payload?.sessionKey,
-              selectedSessionKey,
-              finalSessionKey: taskSessionKey,
-              fullPayload: JSON.stringify(payload).slice(0, 200),
-            });
-          }
 
           // Check for background process (result contains "still running" or similar)
           const resultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult || '');
@@ -2029,13 +1935,6 @@ export const useDashboardStore = create<DashboardStore>()(
             // 2. Background processes (detected from tool result)
             // Regular chat conversations are NOT tasks — only subagents and background processes.
             if (!existingTask && ((isLifecycleStart && isSubAgent) || isBackgroundProcess)) {
-              console.log('[Task] Creating:', {
-                type: isSubAgent ? 'sub-agent' : 'background-process',
-                runId: runId?.slice(0, 8),
-                agentId,
-                sessionKey: taskSessionKey?.slice(0, 40),
-              });
-
               const newTask: Task = {
                 id: generateId(),
                 runId: runId,
@@ -2058,17 +1957,10 @@ export const useDashboardStore = create<DashboardStore>()(
                                   toolName.toLowerCase().includes('task') ||
                                   toolName === 'sessions_spawn';
               if (isSpawnTool && selectedSessionKey) {
-                console.log('[Sessions] Spawn tool detected, saving parent:', selectedSessionKey);
                 set({ pendingSpawnParent: selectedSessionKey });
               }
 
               if (!existingToolTask) {
-                console.log('[Task] Creating tool task:', {
-                  toolName,
-                  runId: runId?.slice(0, 8),
-                  agentId,
-                });
-
                 const newTask: Task = {
                   id: toolTaskId,
                   runId: runId,
@@ -2089,7 +1981,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
               if (existingToolTask) {
                 const isError = payload?.data?.isError;
-                console.log('[Task] Completing tool task:', toolName, isError ? 'with error' : 'success');
 
                 set((state) => ({
                   tasks: state.tasks.map((t: Task) =>
@@ -2116,10 +2007,8 @@ export const useDashboardStore = create<DashboardStore>()(
 
                 if (pendingSpawnParent && pendingSpawnParent !== taskSessionKey) {
                   parentKey = pendingSpawnParent;
-                  console.log('[Sessions] Subagent detected, using pendingSpawnParent:', parentKey);
                 } else if (selectedSessionKey && selectedSessionKey !== taskSessionKey) {
                   parentKey = selectedSessionKey;
-                  console.log('[Sessions] Subagent detected, using selectedSessionKey:', parentKey);
                 }
 
                 // Try to find the actual session key in the sessions list
@@ -2144,9 +2033,6 @@ export const useDashboardStore = create<DashboardStore>()(
                     const parentAgentId = extractAgentId(parentKey);
                     const parentSuffix = parentParts.length >= 3 ? parentParts.slice(2).join(':') : null;
 
-                    console.log('[Sessions] Looking for parent match:', { parentKey, parentAgentId, parentSuffix });
-                    console.log('[Sessions] Available sessions:', sessions.sessions.map(s => ({ key: s.key, agentId: extractAgentId(s.key) })));
-
                     const matchedSession = sessions.sessions.find(s => {
                       // Skip subagent sessions
                       if (s.key.includes(':subagent:') || s.key.includes('-subagent-')) return false;
@@ -2163,19 +2049,12 @@ export const useDashboardStore = create<DashboardStore>()(
                     });
 
                     if (matchedSession) {
-                      console.log('[Sessions] Remapped parent key:', parentKey, '->', matchedSession.key);
                       parentKey = matchedSession.key;
-                    } else {
-                      console.log('[Sessions] No match found for parent key');
                     }
                   }
                 }
 
                 if (parentKey) {
-                  console.log('[Sessions] Tracking subagent parent:', {
-                    subagent: taskSessionKey,
-                    parent: parentKey,
-                  });
                   // Store the parent relationship and clear pendingSpawnParent
                   set((state) => {
                     const newParents = new Map(state.subagentParents);
@@ -2184,12 +2063,6 @@ export const useDashboardStore = create<DashboardStore>()(
                   });
                   // Refresh sessions list so subagent appears in sidebar
                   setTimeout(() => get().loadSessions(), 500);
-                } else {
-                  console.log('[Sessions] Subagent event but cannot determine parent:', {
-                    subagent: taskSessionKey,
-                    selectedSessionKey,
-                    pendingSpawnParent,
-                  });
                 }
               }
             }
@@ -2197,7 +2070,6 @@ export const useDashboardStore = create<DashboardStore>()(
             // COMPLETE TASK on lifecycle end or tool result with background process
             if (existingTask && (isLifecycleEnd || (isToolEnd && existingTask))) {
               const isError = phase === 'error' || payload?.data?.isError;
-              console.log('[Task] Completing:', runId?.slice(0, 8), isError ? 'with error' : 'success');
 
               set((state) => ({
                 tasks: state.tasks.map((t: Task) =>
@@ -2221,8 +2093,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
               // If this lifecycle end matches the active runId, or if it's for a subagent task that was spawned from here
               if (currentActiveRunId === runId || (isSubAgent && existingTask)) {
-                console.log('[Chat] Clearing sending state after lifecycle end', { runId: runId?.slice(0, 8), selectedSessionKey });
-
                 // Single atomic update to avoid race conditions
                 set((state) => {
                   // Find messages that need status updates
@@ -2243,7 +2113,6 @@ export const useDashboardStore = create<DashboardStore>()(
 
                   if (nextQueuedMessage) {
                     // There's a queued message - update it to 'sending' and mark current user msg as delivered
-                    console.log('[Chat] Next queued message:', nextQueuedMessage.id?.slice(0, 8));
                     result.chatMessages = state.chatMessages.map(m => {
                       if (m.id === nextQueuedMessage.id) {
                         return { ...m, status: 'sending' as const };
@@ -2274,12 +2143,6 @@ export const useDashboardStore = create<DashboardStore>()(
                     result.activeRunId = newActiveRunId;
                   }
 
-                  console.log('[Chat] Lifecycle end state update', {
-                    updatingMessages: !!result.chatMessages,
-                    clearingSending: !!result.chatSending,
-                    currentMessagesCount: state.chatMessages.length
-                  });
-
                   return result;
                 });
               }
@@ -2298,10 +2161,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
       handleHello: (_hello) => {
         // Load initial data after connection
-        console.log('[Store] handleHello: loading all data...');
-        get().loadAll().then(() => {
-          console.log('[Store] handleHello: loadAll complete, gatewayConfig:', get().gatewayConfig ? 'loaded' : 'null');
-        });
+        get().loadAll();
       },
     }),
     {
@@ -2314,39 +2174,6 @@ export const useDashboardStore = create<DashboardStore>()(
     }
   )
 );
-
-// Debug: Subscribe to chatMessages changes to track what's happening
-if (typeof window !== 'undefined') {
-  let prevMessages: unknown[] = [];
-  useDashboardStore.subscribe((state) => {
-    if (state.chatMessages !== prevMessages) {
-      const prevCount = prevMessages.length;
-      const newCount = state.chatMessages.length;
-      const diff = newCount - prevCount;
-
-      if (diff !== 0) {
-        console.log(
-          `%c[ChatMessages Changed] ${diff > 0 ? '+' : ''}${diff} messages`,
-          diff > 0 ? 'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px;' :
-                     'background: #f44336; color: white; padding: 2px 6px; border-radius: 3px;',
-          {
-            prevCount,
-            newCount,
-            roles: state.chatMessages.map(m => m.role),
-            lastMessage: state.chatMessages[state.chatMessages.length - 1]
-          }
-        );
-
-        // Log stack trace if messages were REMOVED
-        if (diff < 0) {
-          console.trace('Messages were removed! Stack trace:');
-        }
-      }
-
-      prevMessages = state.chatMessages;
-    }
-  });
-}
 
 // Initialize dark mode on load — default is always light unless user explicitly enabled dark
 if (typeof window !== 'undefined') {

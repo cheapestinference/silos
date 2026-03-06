@@ -54,9 +54,7 @@ import type { KnowledgeFile, AgentSummary, CronJob } from '../../types/openclaw'
 
 export function AgentDetailView() {
   const { t } = useTranslation();
-  console.log('[AgentDetailView] Component mounting...');
   const { id } = useParams<{ id: string }>();
-  console.log('[AgentDetailView] id from params:', id);
   const navigate = useNavigate();
   const {
     agents,
@@ -85,12 +83,10 @@ export function AgentDetailView() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    console.log('[AgentDetailView] useEffect - connected:', connected, 'id:', id);
     if (connected) {
       loadAgents();
       loadSessions();
       if (id) {
-        console.log('[AgentDetailView] Loading agent config for:', id);
         loadAgentConfig(id);
       }
     }

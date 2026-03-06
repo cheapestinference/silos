@@ -772,13 +772,11 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
   })();
 
   if (!isTool && !hasValidContent && !isProviderError) {
-    console.log('[ChatView] Skipping empty message:', { role: message.role, content: message.content, extractedText });
     return null;
   }
 
   // Extra check: if it's a tool-like message but without actual tool content to show, skip it
   if (isTool && !message.toolName && !message.content && !message.result) {
-    console.log('[ChatView] Skipping empty tool message:', { role: message.role, toolName: message.toolName });
     return null;
   }
 

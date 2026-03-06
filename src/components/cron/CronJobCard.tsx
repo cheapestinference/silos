@@ -150,7 +150,6 @@ export function CronJobCard({
             variant="ghost"
             size="icon"
             onClick={() => {
-              console.log('[CronJobCard] Toggle clicked, job:', job.id, 'current enabled:', job.enabled);
               onToggle();
             }}
             className={cn(
@@ -209,7 +208,6 @@ export function CronJobCard({
               variant="ghost"
               size="icon"
               onClick={() => {
-                console.log('[CronJobCard] Toggle clicked (full), job:', job.id, 'current enabled:', job.enabled);
                 onToggle();
               }}
               className={cn(
