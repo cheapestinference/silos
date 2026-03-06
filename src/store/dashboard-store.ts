@@ -1331,7 +1331,7 @@ export const useDashboardStore = create<DashboardStore>()(
         }
       },
 
-      // Workspace file actions (HTTP API via memory-server.js)
+      // Workspace file actions (HTTP API via server.js)
       listWorkspaceFiles: async (agentId) => {
         const { token: authToken } = get();
         set({ workspaceLoading: true });
