@@ -26,7 +26,7 @@ import {
   Kanban,
   Wrench,
 } from 'lucide-react';
-import { formatTimestamp, cn, truncateText } from '../../lib/utils';
+import { formatTimestamp, cn, truncateText, formatNumber } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import type { ChatMessage, AgentSummary } from '../../types/openclaw';
@@ -467,34 +467,29 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
 
-  // Ensure content is always a string
-  let displayContent: string;
-  if (content) {
-    if (typeof content === 'string') {
-      displayContent = content;
-    } else {
-      // If content is an object or array, stringify it
-      try {
-        displayContent = JSON.stringify(content, null, 2);
-      } catch {
-        displayContent = String(content);
-      }
-    }
+  // Format input (tool call args)
+  const inputStr = toolCall
+    ? (typeof toolCall === 'string' ? toolCall : JSON.stringify(toolCall, null, 2))
+    : null;
+
+  // Format output (tool result)
+  let outputStr: string | null = null;
+  if (content && typeof content === 'string' && content.trim()) {
+    outputStr = content;
   } else if (result) {
-    displayContent = JSON.stringify(result, null, 2);
-  } else {
-    displayContent = JSON.stringify(toolCall, null, 2);
+    outputStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
   }
 
-  const truncatedContent = truncateText(displayContent, 200);
-  const needsExpansion = displayContent.length > 200;
+  const hasOutput = !!outputStr;
+  const outputTruncated = outputStr ? truncateText(outputStr, 300) : '';
+  const needsExpansion = (outputStr?.length || 0) > 300;
 
   // Get tool icon based on name
   const getToolIcon = (name?: string) => {
     if (!name) return <Cpu className="w-4 h-4" />;
     const lower = name.toLowerCase();
     if (lower.includes('code') || lower.includes('write')) return <Code2 className="w-4 h-4" />;
-    if (lower.includes('terminal') || lower.includes('bash')) return <Terminal className="w-4 h-4" />;
+    if (lower.includes('terminal') || lower.includes('bash') || lower.includes('exec')) return <Terminal className="w-4 h-4" />;
     return <Cpu className="w-4 h-4" />;
   };
 
@@ -508,57 +503,67 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
       {/* Header */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3",
+          "flex items-center justify-between px-4 py-2.5",
           "bg-cyan-500/5",
-          "border-b border-cyan-500/10",
-          needsExpansion && "cursor-pointer hover:bg-cyan-500/10 transition-all"
+          hasOutput ? "cursor-pointer hover:bg-cyan-500/10 transition-all" : ""
         )}
-        onClick={() => needsExpansion && setExpanded(!expanded)}
+        onClick={() => hasOutput && setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 border border-cyan-500/20">
+          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 border border-cyan-500/20">
             {getToolIcon(toolName)}
           </div>
-          <div>
-            <span className="font-semibold text-xs text-cyan-600 dark:text-cyan-300 uppercase tracking-wider">
-              {t('chat.toolOutput')}
-            </span>
-            <p className="text-sm font-mono text-foreground">{toolName || 'unknown'}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold font-mono text-foreground">{toolName || 'unknown'}</p>
           </div>
         </div>
-        {needsExpansion && (
-          <button className={cn(
-            "p-2 rounded-lg transition-all",
-            "text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10"
-          )}>
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className={cn(
-        "overflow-hidden transition-all duration-300",
-        expanded ? "max-h-96" : needsExpansion ? "max-h-24" : "max-h-96"
-      )}>
-        <div className="p-4 text-xs font-mono text-foreground/80 overflow-x-auto overflow-y-auto custom-scrollbar whitespace-pre-wrap">
-          {expanded || !needsExpansion ? displayContent : truncatedContent}
+        <div className="flex items-center gap-2">
+          {!hasOutput && (
+            <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          )}
+          {hasOutput && (
+            <span className={cn(
+              "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            )}>done</span>
+          )}
+          {hasOutput && (
+            <button className="p-1 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Footer - expand button */}
-      {needsExpansion && !expanded && (
+      {/* Input (always visible, compact) */}
+      {inputStr && (
+        <div className="px-4 py-2 border-t border-cyan-500/10 bg-cyan-500/[0.02]">
+          <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all">{inputStr}</pre>
+        </div>
+      )}
+
+      {/* Output (collapsible) */}
+      {hasOutput && expanded && (
+        <div className="border-t border-cyan-500/10">
+          <div className="px-4 py-1.5 bg-emerald-500/5">
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
+          </div>
+          <div className={cn(
+            "px-4 py-2 text-[11px] font-mono text-foreground/80 overflow-x-auto overflow-y-auto custom-scrollbar whitespace-pre-wrap break-all",
+            needsExpansion ? "max-h-64" : ""
+          )}>
+            {outputStr}
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed output preview */}
+      {hasOutput && !expanded && (
         <button
           onClick={() => setExpanded(true)}
-          className={cn(
-            "w-full py-2.5 text-xs font-medium text-center transition-all",
-            "text-cyan-500 dark:text-cyan-400 hover:text-cyan-600 dark:hover:text-cyan-300",
-            "border-t border-cyan-500/10 hover:border-cyan-500/20 hover:bg-cyan-500/5",
-            "flex items-center justify-center gap-1.5"
-          )}
+          className="w-full px-4 py-1.5 text-[10px] text-left font-mono text-muted-foreground/60 border-t border-cyan-500/10 hover:bg-cyan-500/5 transition-colors truncate"
         >
-          {t('chat.showMore')}
-          <ChevronDown className="w-3.5 h-3.5" />
+          {outputTruncated}
         </button>
       )}
     </div>
@@ -1041,6 +1046,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     streamingContent,
     selectSession,
     agents,
+    sessions,
     loadAgents,
     loadSessions,
     connected,
@@ -1054,12 +1060,38 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
     : sessionKey;
 
+  // Find current session for token counts
+  const currentSession = sessions?.sessions?.find(s => s.key === effectiveKey || s.key === sessionKey);
+
   // Get per-session sending state
   const chatSending = chatSendingMap.get(sessionKey) || false;
 
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
   const sendingCount = chatMessages.filter(m => m.role === 'user' && m.status === 'sending').length;
+
+  // Check if rate limited (recent rate limit error in last 30s)
+  const [rateLimitedUntil, setRateLimitedUntil] = useState<number>(0);
+  const isRateLimited = Date.now() < rateLimitedUntil;
+
+  useEffect(() => {
+    const lastRateLimit = [...chatMessages].reverse().find(
+      m => m.role === 'system' && m.content?.startsWith('__provider_error__') &&
+           (m.content.includes('429') || /rate limit/i.test(m.content))
+    );
+    if (lastRateLimit && (Date.now() - lastRateLimit.timestamp) < 30000) {
+      setRateLimitedUntil(lastRateLimit.timestamp + 30000);
+    }
+  }, [chatMessages]);
+
+  // Clear rate limit state after cooldown
+  useEffect(() => {
+    if (!isRateLimited) return;
+    const remaining = rateLimitedUntil - Date.now();
+    if (remaining <= 0) return;
+    const timer = setTimeout(() => setRateLimitedUntil(0), remaining);
+    return () => clearTimeout(timer);
+  }, [rateLimitedUntil, isRateLimited]);
 
   const agentList = agents?.agents || [];
 
@@ -1091,6 +1123,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRateLimited) return;
     if (inputRef.current?.value.trim()) {
       sendMessage(inputRef.current.value);
       inputRef.current.value = '';
@@ -1194,8 +1227,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
               <textarea
                 ref={inputRef}
                 className="w-full bg-transparent px-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/50 font-medium resize-none min-h-[56px] max-h-[150px]"
-                placeholder={chatSending ? 'Agent is processing...' : t('chat.placeholder')}
-                disabled={false}
+                placeholder={isRateLimited ? t('chat.rateLimitWait') : chatSending ? 'Agent is processing...' : t('chat.placeholder')}
+                disabled={isRateLimited}
                 onKeyDown={handleKeyDown}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
@@ -1222,6 +1255,21 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                       {connected ? t('chat.systemReady') : 'Disconnected'}
                     </span>
                   </div>
+
+                  {/* Token counter */}
+                  {currentSession && (currentSession.totalTokens || currentSession.inputTokens || currentSession.outputTokens) && (
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono pl-2 border-l">
+                      {currentSession.inputTokens !== undefined && (
+                        <span className="text-cyan-600 dark:text-cyan-400">{formatNumber(currentSession.inputTokens)}↓</span>
+                      )}
+                      {currentSession.outputTokens !== undefined && (
+                        <span className="text-purple-600 dark:text-purple-400">{formatNumber(currentSession.outputTokens)}↑</span>
+                      )}
+                      {currentSession.totalTokens !== undefined && (
+                        <span className="text-muted-foreground">{formatNumber(currentSession.totalTokens)} tok</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Queue indicator */}
                   {(queuedCount > 0 || (chatSending && sendingCount > 0)) && (
@@ -1276,7 +1324,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                   )}
                   <Button
                     type="submit"
-                    disabled={false}
+                    disabled={isRateLimited}
                     size="sm"
                     className={cn(
                       "gap-2 px-4 transition-all duration-200",

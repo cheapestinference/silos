@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import {
   CheckCircle2,
@@ -9,6 +10,8 @@ import {
   Loader2,
   XCircle,
   Wifi,
+  Globe,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import useTranslation from '../../i18n';
@@ -58,6 +61,7 @@ export function UnifiedDashboard() {
     patchGatewayConfig,
   } = useDashboardStore();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // WhatsApp data (derived early so useEffect can reference waConnected)
@@ -396,6 +400,18 @@ export function UnifiedDashboard() {
               </Button>
             )}
           </div>
+
+          {/* Connect more channels link */}
+          <button
+            onClick={() => navigate('/settings/channels')}
+            className="mt-3 w-full flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-border bg-muted/30 hover:bg-muted/60 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <Globe className="w-4 h-4 text-muted-foreground group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors" />
+              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{t('dashboard.connectMoreChannels')}</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
         </section>
 
         {/* ── OpenClaw ─────────────────────────────────────────────────────── */}

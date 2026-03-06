@@ -132,7 +132,7 @@ interface DashboardStore {
   loadAgentConfig: (agentId: string) => Promise<void>;
   saveAgentConfig: (agentId: string, config: Partial<AgentConfiguration>) => Promise<boolean>;
 
-  // Memory file actions
+  // Memory file actions (gateway WS - restricted to workspace .md files)
   memoryFiles: Array<{ path: string; size: number; mtime: number; type?: 'file' | 'directory' }>;
   memoryContent: string;
   memoryLoading: boolean;
@@ -140,9 +140,19 @@ interface DashboardStore {
   readMemoryFile: (agentId: string, filePath: string) => Promise<void>;
   writeMemoryFile: (agentId: string, filePath: string, content: string) => Promise<boolean>;
   clearAgentConfig: () => void;
-  uploadKnowledgeFile: (agentId: string, file: Omit<KnowledgeFile, 'id' | 'createdAt'>) => Promise<string | null>;
-  deleteKnowledgeFile: (agentId: string, fileId: string) => Promise<boolean>;
-  updateKnowledgeFile: (agentId: string, fileId: string, updates: Partial<KnowledgeFile>) => Promise<boolean>;
+
+  // Workspace file actions (HTTP API - full file/folder CRUD)
+  workspaceFiles: Array<{ path: string; size: number; mtime: number; type: 'file' | 'directory' }>;
+  workspaceContent: string;
+  workspaceLoading: boolean;
+  listWorkspaceFiles: (agentId: string) => Promise<void>;
+  readWorkspaceFile: (agentId: string, filePath: string) => Promise<void>;
+  writeWorkspaceFile: (agentId: string, filePath: string, content: string) => Promise<boolean>;
+  deleteWorkspaceFile: (agentId: string, filePath: string) => Promise<boolean>;
+  mkdirWorkspace: (agentId: string, dirPath: string) => Promise<boolean>;
+  renameWorkspaceFile: (agentId: string, from: string, to: string) => Promise<boolean>;
+  deleteWorkspaceDir: (agentId: string, dirPath: string) => Promise<boolean>;
+  browseFilesystem: (dirPath: string) => Promise<{ path: string; items: Array<{ name: string; path: string; type: 'file' | 'directory' }> } | null>;
 
   // Unread message actions
   markSessionRead: (sessionKey: string) => void;
@@ -250,6 +260,11 @@ export const useDashboardStore = create<DashboardStore>()(
       memoryFiles: [],
       memoryContent: '',
       memoryLoading: false,
+
+      // Workspace files
+      workspaceFiles: [],
+      workspaceContent: '',
+      workspaceLoading: false,
 
       client: null,
 
@@ -760,9 +775,9 @@ export const useDashboardStore = create<DashboardStore>()(
           effectiveKey = `agent:${agentId}:dm-operator`;
         }
 
-        // Ensure verboseLevel is 'on' so the gateway broadcasts tool events
-        // Without this, stream:'tool' events are filtered out by the gateway
-        client.patchSession(effectiveKey, { verboseLevel: 'on' }).catch(() => {
+        // Ensure verboseLevel is 'full' so the gateway broadcasts tool events WITH results
+        // 'on' sends events but strips result/partialResult; 'full' includes them
+        client.patchSession(effectiveKey, { verboseLevel: 'full' }).catch(() => {
           // Ignore errors - session may not exist yet (e.g. new DM sessions)
         });
 
@@ -1278,22 +1293,21 @@ export const useDashboardStore = create<DashboardStore>()(
         }
       },
 
-      // Memory file actions - reads from agent's workspace via HTTP API (proxied through Vite)
-      // Uses the memory-server.js which reads from workspace-{agentId}/ directories
+      // Memory file actions - uses gateway WebSocket methods (agents.files.*)
       listMemoryFiles: async (agentId) => {
         console.log('[Memory] listMemoryFiles - agentId:', agentId);
+        const { client } = get();
+        if (!client) { set({ memoryFiles: [], memoryLoading: false }); return; }
         set({ memoryLoading: true });
 
         try {
-          const { token: authToken } = get();
-          const response = await fetch(`/api/memory/${agentId}`, {
-            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
-          });
-          const result = await response.json();
-          console.log('[Memory] Response:', result);
-
-          const files = result?.files || [];
-          console.log('[Memory] Files found:', files.length, files.map((f: any) => f.path));
+          const result = await client.listAgentFiles(agentId);
+          const files = (result?.files || []).map(f => ({
+            path: f.name,
+            size: f.size || 0,
+            mtime: f.updatedAtMs || 0,
+          }));
+          console.log('[Memory] Files found:', files.length, files.map(f => f.path));
           set({ memoryFiles: files, memoryLoading: false });
         } catch (error) {
           console.error('[Memory] Error listing files:', error);
@@ -1302,17 +1316,16 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       readMemoryFile: async (agentId, filePath) => {
-        console.log('[Memory] readMemoryFile - agentId:', agentId, 'file:', filePath);
+        // filePath is the file name (e.g. 'MEMORY.md')
+        const fileName = filePath.split('/').pop() || filePath;
+        console.log('[Memory] readMemoryFile - agentId:', agentId, 'file:', fileName);
+        const { client } = get();
+        if (!client) { set({ memoryContent: '', memoryLoading: false }); return; }
         set({ memoryLoading: true });
 
         try {
-          const { token: authToken } = get();
-          const response = await fetch(`/api/memory/${agentId}/file?path=${encodeURIComponent(filePath)}`, {
-            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
-          });
-          const result = await response.json();
-          const content = result?.content || '';
-
+          const result = await client.getAgentFile(agentId, fileName);
+          const content = result?.file?.content || '';
           console.log('[Memory] File content length:', content.length);
           set({ memoryContent: content, memoryLoading: false });
         } catch (error) {
@@ -1322,23 +1335,141 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       writeMemoryFile: async (agentId, filePath, content) => {
-        console.log('[Memory] writeMemoryFile - agentId:', agentId, 'file:', filePath);
+        const fileName = filePath.split('/').pop() || filePath;
+        console.log('[Memory] writeMemoryFile - agentId:', agentId, 'file:', fileName);
+        const { client } = get();
+        if (!client) return false;
 
         try {
-          const { token: authToken } = get();
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-          const response = await fetch(`/api/memory/${agentId}/file?path=${encodeURIComponent(filePath)}`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ content }),
-          });
-          const result = await response.json();
+          const result = await client.setAgentFile(agentId, fileName, content);
           console.log('[Memory] Write result:', result);
           return result?.ok || false;
         } catch (error) {
           console.error('[Memory] Error writing file:', error);
           return false;
+        }
+      },
+
+      // Workspace file actions (HTTP API via memory-server.js)
+      listWorkspaceFiles: async (agentId) => {
+        const { token: authToken } = get();
+        set({ workspaceLoading: true });
+        try {
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}`, {
+            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+          });
+          const result = await response.json();
+          set({ workspaceFiles: result?.files || [], workspaceLoading: false });
+        } catch (error) {
+          console.error('[Workspace] Error listing files:', error);
+          set({ workspaceFiles: [], workspaceLoading: false });
+        }
+      },
+
+      readWorkspaceFile: async (agentId, filePath) => {
+        const { token: authToken } = get();
+        set({ workspaceLoading: true });
+        try {
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/file?path=${encodeURIComponent(filePath)}`, {
+            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+          });
+          const result = await response.json();
+          set({ workspaceContent: result?.content || '', workspaceLoading: false });
+        } catch (error) {
+          console.error('[Workspace] Error reading file:', error);
+          set({ workspaceContent: '', workspaceLoading: false });
+        }
+      },
+
+      writeWorkspaceFile: async (agentId, filePath, content) => {
+        const { token: authToken } = get();
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/file?path=${encodeURIComponent(filePath)}`, {
+            method: 'POST', headers, body: JSON.stringify({ content }),
+          });
+          const result = await response.json();
+          return result?.ok || false;
+        } catch (error) {
+          console.error('[Workspace] Error writing file:', error);
+          return false;
+        }
+      },
+
+      deleteWorkspaceFile: async (agentId, filePath) => {
+        const { token: authToken } = get();
+        try {
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/file?path=${encodeURIComponent(filePath)}`, {
+            method: 'DELETE',
+            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+          });
+          const result = await response.json();
+          return result?.ok || false;
+        } catch (error) {
+          console.error('[Workspace] Error deleting file:', error);
+          return false;
+        }
+      },
+
+      mkdirWorkspace: async (agentId, dirPath) => {
+        const { token: authToken } = get();
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/mkdir?path=${encodeURIComponent(dirPath)}`, {
+            method: 'POST', headers,
+          });
+          const result = await response.json();
+          return result?.ok || false;
+        } catch (error) {
+          console.error('[Workspace] Error creating directory:', error);
+          return false;
+        }
+      },
+
+      renameWorkspaceFile: async (agentId, from, to) => {
+        const { token: authToken } = get();
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/rename`, {
+            method: 'POST', headers, body: JSON.stringify({ from, to }),
+          });
+          const result = await response.json();
+          return result?.ok || false;
+        } catch (error) {
+          console.error('[Workspace] Error renaming:', error);
+          return false;
+        }
+      },
+
+      deleteWorkspaceDir: async (agentId, dirPath) => {
+        const { token: authToken } = get();
+        try {
+          const response = await fetch(`/api/memory/${encodeURIComponent(agentId)}/dir?path=${encodeURIComponent(dirPath)}`, {
+            method: 'DELETE',
+            headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+          });
+          const result = await response.json();
+          return result?.ok || false;
+        } catch (error) {
+          console.error('[Workspace] Error deleting directory:', error);
+          return false;
+        }
+      },
+
+      browseFilesystem: async (dirPath) => {
+        const { token: authToken } = get();
+        try {
+          const headers: Record<string, string> = {};
+          if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+          const response = await fetch(`/api/browse?path=${encodeURIComponent(dirPath)}`, { headers });
+          if (!response.ok) return null;
+          return await response.json();
+        } catch (error) {
+          console.error('[Browse] Error:', error);
+          return null;
         }
       },
 
@@ -1496,13 +1627,24 @@ export const useDashboardStore = create<DashboardStore>()(
             // Handle tool results
             if (phase === 'result' && toolName) {
               const toolResult = payload?.data?.result;
-              console.log('[Agent Tool Result]', { toolName, hasResult: !!toolResult });
+              const toolArgs = payload?.data?.args || payload?.data?.input;
+              console.log('[Agent Tool Result]', { toolName, hasResult: !!toolResult, hasArgs: !!toolArgs });
 
               set((state) => {
-                // Find the pending tool message and update it with the result
-                const pendingToolIdx = state.chatMessages.findIndex(
+                // Find the pending tool message — try strict runId match first, then relaxed
+                let pendingToolIdx = state.chatMessages.findIndex(
                   m => m.role === 'tool' && m.toolName === toolName && m.status === 'sending' && m.runId === payload?.runId
                 );
+                if (pendingToolIdx === -1) {
+                  // Relaxed: match by toolName + sending status (last one wins)
+                  for (let i = state.chatMessages.length - 1; i >= 0; i--) {
+                    const m = state.chatMessages[i];
+                    if (m.role === 'tool' && m.toolName === toolName && m.status === 'sending') {
+                      pendingToolIdx = i;
+                      break;
+                    }
+                  }
+                }
 
                 if (pendingToolIdx !== -1) {
                   // Update existing pending tool message
@@ -1511,18 +1653,19 @@ export const useDashboardStore = create<DashboardStore>()(
                     ...messages[pendingToolIdx],
                     content: toolResult ? (typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2)) : '',
                     result: toolResult,
+                    toolCall: messages[pendingToolIdx].toolCall || toolArgs,
                     status: 'delivered',
                   };
                   return { chatMessages: messages };
                 } else {
-                  // No pending message found, create a new one
+                  // No pending message found, create a new one with args from result event
                   const toolMessage: ChatMessage = {
                     id: generateId(),
                     role: 'tool',
                     content: toolResult ? (typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2)) : '',
                     timestamp: Date.now(),
                     toolName: toolName,
-                    toolCall: payload?.data?.input,
+                    toolCall: toolArgs,
                     result: toolResult,
                     runId: payload?.runId,
                   };
@@ -1539,6 +1682,30 @@ export const useDashboardStore = create<DashboardStore>()(
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
 
               console.log('[Agent Error]', { runId, errorDetail, phase: payload?.data?.phase });
+
+              // Deduplicate rate limit errors: if we already have one in the last 60s, skip
+              const isRateLimit = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
+              if (isRateLimit) {
+                const recentRateLimit = state.chatMessages.find(
+                  m => m.role === 'system' && m.content?.startsWith('__provider_error__') &&
+                       (m.content.includes('429') || /rate limit/i.test(m.content)) &&
+                       (Date.now() - m.timestamp) < 60000
+                );
+                if (recentRateLimit) {
+                  // Still clear sending state but don't add another error message
+                  const newActiveRunId = new Map(state.activeRunId);
+                  const newChatSending = new Map(state.chatSending);
+                  if (state.selectedSessionKey) {
+                    newActiveRunId.delete(state.selectedSessionKey);
+                    newChatSending.delete(state.selectedSessionKey);
+                  }
+                  return {
+                    streamingContent: '',
+                    chatSending: newChatSending,
+                    activeRunId: newActiveRunId,
+                  };
+                }
+              }
 
               // Create a system error message visible to the user
               const errorMessage: ChatMessage = {
@@ -1661,6 +1828,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 tasks: updatedTasks,
               };
             });
+            // Refresh sessions to update token counts
+            setTimeout(() => get().loadSessions(), 1000);
           }
         }
 
@@ -1794,6 +1963,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
               }
             });
+            // Refresh sessions to update token counts
+            setTimeout(() => get().loadSessions(), 1000);
           }
         }
 
@@ -1854,10 +2025,10 @@ export const useDashboardStore = create<DashboardStore>()(
             }
 
             // CREATE TASK for:
-            // 1. Any lifecycle start (main session or sub-agent)
+            // 1. Sub-agent lifecycle start (not regular chat sessions)
             // 2. Background processes (detected from tool result)
-            // 3. Tool executions (any tool call)
-            if (!existingTask && (isLifecycleStart || isBackgroundProcess)) {
+            // Regular chat conversations are NOT tasks — only subagents and background processes.
+            if (!existingTask && ((isLifecycleStart && isSubAgent) || isBackgroundProcess)) {
               console.log('[Task] Creating:', {
                 type: isSubAgent ? 'sub-agent' : 'background-process',
                 runId: runId?.slice(0, 8),

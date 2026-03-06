@@ -52,7 +52,14 @@
     "cronJobs": "Cron Jobs",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
-    "disconnect": "Disconnect"
+    "disconnect": "Disconnect",
+    "sessionLimitReached": "Session limit reached (100)",
+    "sessionTypes": {
+      "main": "main",
+      "webchat": "webchat",
+      "subagent": "subagent",
+      "cron": "cron"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -85,6 +92,7 @@
     "atTime": "At {time}",
     "nextRun": "Next: {time}",
     "noSchedule": "No schedule",
+    "connectMoreChannels": "Connect more channels (Telegram, Discord, etc.)",
     "stats": {
       "agents": "Agents",
       "activeAgents": "Active Agents",
@@ -234,6 +242,7 @@
     "providerErrorHint": "Check your API key and selected model in Settings, or contact support@silosplatform.com",
     "rateLimitError": "You have exceeded the token-per-minute limit of your plan.",
     "rateLimitHint": "The limit resets automatically. Try again in a few seconds.",
+    "rateLimitWait": "Rate limit reached. Wait a few seconds...",
     "rateLimitResetsAt": "Limit resets at {{time}}.",
     "retryMessage": "Retry"
   },
@@ -343,7 +352,22 @@
     "toolsConfig": {
       "title": "Tools",
       "description": "Available tools",
-      "configure": "Configure available tools and permissions"
+      "configure": "Configure available tools and permissions",
+      "bash": "Bash Commands",
+      "bashDesc": "Execute shell commands",
+      "web": "Web Browsing",
+      "webDesc": "Browse and fetch web content",
+      "files": "File Operations",
+      "filesDesc": "Read and write files",
+      "agentComm": "Agent Communication",
+      "agentCommDesc": "Send messages between agents",
+      "spawn": "Spawn Subagents",
+      "spawnDesc": "Create task-specific subagents",
+      "skillsMarketplace": "Skills Marketplace",
+      "skillsMarketplaceDesc": "Discover and install skills to extend your agents' capabilities",
+      "exploreClawHub": "Explore ClawHub",
+      "manageAgentSkills": "Manage Agent Skills",
+      "configHint": "Tool permissions are configured in ~/.openclaw/config.yaml under the tools section."
     },
     "gatewayConfig": {
       "title": "Gateway",
@@ -588,7 +612,35 @@
     "markdown": "Markdown",
     "plainText": "Plain Text",
     "json": "JSON",
-    "activeCount": "{count} active"
+    "activeCount": "{count} active",
+    "knowledge": {
+      "title": "Knowledge Base",
+      "browseTitle": "Browse Server Files",
+      "browseServer": "Browse server filesystem",
+      "newFile": "New .md in memory/",
+      "searchPlaceholder": "Search .md files...",
+      "notIndexed": "not indexed",
+      "warningTitle": "Choose knowledge carefully",
+      "warningText": "Each indexed file uses tokens on every agent interaction. Too many or irrelevant files can increase costs and confuse the agent. Add only what truly helps.",
+      "createsInMemory": "Creates in memory/ (auto-indexed)",
+      "externalSources": "External indexed paths",
+      "noFiles": "No .md files found",
+      "autoIndexed": "auto-indexed",
+      "removeFromKb": "Remove from knowledge base",
+      "addToKb": "Add folder to knowledge base",
+      "moveToMemory": "Move to memory/ (will be indexed)",
+      "moveFromMemory": "Move out of memory/ (will stop indexing)",
+      "addToExtraPaths": "Add to extraPaths (will be indexed)",
+      "legend": "Files in memory/ are auto-indexed. Toggle folders or files to add them as extra knowledge sources.",
+      "indexedMemory": "Indexed (memory/)",
+      "indexedExtra": "Indexed (extraPath)",
+      "selectFile": "Select a file to preview",
+      "toggleHint": "Toggle files and folders for RAG indexing",
+      "removeIndex": "Remove",
+      "addIndex": "Add to index",
+      "emptyDir": "Empty directory",
+      "indexedPaths": "Indexed paths"
+    }
   },
   "cron": {
     "title": "Cron Jobs",

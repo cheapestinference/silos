@@ -34,10 +34,21 @@ import {
   Copy,
   Check,
   CalendarClock,
+  FolderOpen,
+  FolderPlus,
+  FilePlus,
+  ChevronRight,
+  ChevronDown,
+  MoreHorizontal,
+  Pencil,
+  FolderInput,
+  Search,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CronJobList, CronJobForm, CronStatsWidget } from '../cron';
 import { SettingsTab } from './SettingsTab';
+import { WorkspacePanel } from './WorkspacePanel';
+import { KnowledgeBrowser } from './KnowledgeBrowser';
 import useTranslation from '../../i18n';
 import type { KnowledgeFile, AgentSummary, CronJob } from '../../types/openclaw';
 
@@ -69,7 +80,7 @@ export function AgentDetailView() {
     resetAgent,
     gatewayConfig,
   } = useDashboardStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'memory' | 'skills' | 'knowledge' | 'scheduled' | 'config'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'memory' | 'workspace' | 'skills' | 'knowledge' | 'scheduled' | 'config'>('overview');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -250,6 +261,18 @@ export function AgentDetailView() {
               label={t('agentDetail.overview')}
             />
             <TabButton
+              active={activeTab === 'memory'}
+              onClick={() => setActiveTab('memory')}
+              icon={<Brain className="w-3.5 h-3.5" />}
+              label={t('agentDetail.memory')}
+            />
+            <TabButton
+              active={activeTab === 'workspace'}
+              onClick={() => setActiveTab('workspace')}
+              icon={<FolderOpen className="w-3.5 h-3.5" />}
+              label="Workspace"
+            />
+            <TabButton
               active={activeTab === 'skills'}
               onClick={() => setActiveTab('skills')}
               icon={<Wrench className="w-3.5 h-3.5" />}
@@ -259,13 +282,13 @@ export function AgentDetailView() {
               active={activeTab === 'knowledge'}
               onClick={() => setActiveTab('knowledge')}
               icon={<BookOpen className="w-3.5 h-3.5" />}
-              label={t('agentDetail.knowledge')}
+              label="Knowledge"
             />
             <TabButton
               active={activeTab === 'scheduled'}
               onClick={() => setActiveTab('scheduled')}
               icon={<CalendarClock className="w-3.5 h-3.5" />}
-              label={t('agentDetail.scheduled')}
+              label={t('agentDetail.automation')}
               badge={agentCronJobs.length > 0 ? agentCronJobs.length : undefined}
             />
             <TabButton
@@ -295,17 +318,14 @@ export function AgentDetailView() {
         {activeTab === 'memory' && (
           <MemoryPanel agentId={id} />
         )}
+        {activeTab === 'workspace' && (
+          <WorkspacePanel agentId={id} />
+        )}
         {activeTab === 'skills' && (
           <SkillsPanel agent={agent} />
         )}
         {activeTab === 'knowledge' && (
-          <KnowledgePanel
-            agentId={id}
-            knowledgeFiles={selectedAgentConfig?.knowledgeFiles || []}
-            onUpload={uploadKnowledgeFile}
-            onDelete={deleteKnowledgeFile}
-            onUpdate={updateKnowledgeFile}
-          />
+          <KnowledgeBrowser agentId={id} />
         )}
         {activeTab === 'scheduled' && (
           <ScheduledPanel
@@ -841,17 +861,6 @@ interface MemoryPanelProps {
 // File categories based on OpenClaw workspace structure
 const FILE_CATEGORIES = [
   {
-    id: 'instructions',
-    labelKey: 'agentDetail.instructions' as const,
-    icon: FileText,
-    color: 'blue',
-    descriptionKey: 'agentDetail.instructionsDescription' as const,
-    files: [
-      { name: 'AGENTS.md', descriptionKey: 'agentDetail.agentsFileDescription' as const },
-      { name: 'BOOTSTRAP.md', descriptionKey: 'agentDetail.bootstrapFileDescription' as const },
-    ],
-  },
-  {
     id: 'identity',
     labelKey: 'agentDetail.identity' as const,
     icon: Sparkles,
@@ -883,23 +892,13 @@ const FILE_CATEGORIES = [
       { name: 'TOOLS.md', descriptionKey: 'agentDetail.toolsFileDescription' as const },
     ],
   },
-  {
-    id: 'automation',
-    labelKey: 'agentDetail.automation' as const,
-    icon: Clock,
-    color: 'cyan',
-    descriptionKey: 'agentDetail.automationDescription' as const,
-    files: [
-      { name: 'HEARTBEAT.md', descriptionKey: 'agentDetail.heartbeatFileDescription' as const },
-    ],
-  },
 ];
 
 function MemoryPanel({ agentId }: MemoryPanelProps) {
   const { t } = useTranslation();
   const { memoryFiles, memoryContent, memoryLoading, listMemoryFiles, readMemoryFile, writeMemoryFile } = useDashboardStore();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(['instructions', 'identity', 'memory']);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [editedContent, setEditedContent] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [hasChanges, setHasChanges] = useState(false);
@@ -1052,9 +1051,9 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                {t('agentDetail.workspace')}
+                {t('agentDetail.memory')}
               </h3>
             </div>
             <button
@@ -1065,7 +1064,7 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
               <RefreshCw className={cn("w-3.5 h-3.5 text-muted-foreground", memoryLoading && "animate-spin")} />
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground">{t('agentDetail.workspaceDescription')}</p>
+          <p className="text-[10px] text-muted-foreground">{t('agentDetail.memoryDescription')}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -1152,54 +1151,6 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
             })
           )}
 
-          {/* Other files not in categories */}
-          {memoryFiles.filter(f => {
-            const fileName = f.path.split('/').pop()?.toLowerCase() || '';
-            return !FILE_CATEGORIES.some(cat =>
-              cat.files.some(cf => cf.name.toLowerCase() === fileName)
-            );
-          }).length > 0 && (
-            <div className="space-y-1 pt-2 border-t border-border">
-              <div className="px-3 py-2">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {t('agentDetail.otherFiles')}
-                </span>
-              </div>
-              {memoryFiles.filter(f => {
-                const fileName = f.path.split('/').pop()?.toLowerCase() || '';
-                return !FILE_CATEGORIES.some(cat =>
-                  cat.files.some(cf => cf.name.toLowerCase() === fileName)
-                );
-              }).map((file) => {
-                const fileName = file.path.split('/').pop() || file.path;
-                const isSelected = selectedFile === file.path;
-
-                return (
-                  <button
-                    key={file.path}
-                    onClick={() => handleSelectFile(file.path)}
-                    className={cn(
-                      "w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200 ml-2",
-                      isSelected
-                        ? "bg-muted border border-border"
-                        : "hover:bg-muted border border-transparent hover:border-border"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className={cn("w-3.5 h-3.5", isSelected ? "text-foreground/80" : "text-muted-foreground")} />
-                      <span className={cn("text-xs font-medium", isSelected ? "text-foreground" : "text-muted-foreground")}>
-                        {fileName}
-                      </span>
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 pl-5">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Info */}
@@ -1883,8 +1834,8 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-muted to-muted/80 border border-border flex items-center justify-center">
-            <Settings className="w-5 h-5 text-muted-foreground" />
+          <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center">
+            <Settings className="w-5 h-5 text-foreground/60" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -1895,15 +1846,15 @@ function ConfigPanel({ agent, config, onNavigateToMemory }: ConfigPanelProps) {
         </div>
 
         {/* Model & Generation Settings */}
-        <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/5 rounded-2xl border border-cyan-500/20 overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5">
             <SettingsTab settings={localSettings} onChange={setLocalSettings} />
           </div>
-          <div className="px-5 pb-4 flex items-center gap-3">
+          <div className="px-5 pb-4 pt-2 border-t border-border flex items-center gap-3">
             <button
               onClick={handleSaveSettings}
               disabled={settingsSaving}
-              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg text-sm font-medium text-primary-foreground transition-colors flex items-center gap-2"
             >
               {settingsSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {settingsSaving ? t('agentDetail.saving') : t('agentDetail.saveSettings')}
@@ -2145,25 +2096,21 @@ interface ConfigCardProps {
 
 function ConfigCard({ title, icon, color, children }: ConfigCardProps) {
   const colorClasses = {
-    cyan: { bg: 'from-cyan-500/10', border: 'border-cyan-500/20', icon: 'text-cyan-600 dark:text-cyan-400' },
-    violet: { bg: 'from-violet-500/10', border: 'border-violet-500/20', icon: 'text-violet-600 dark:text-violet-400' },
-    amber: { bg: 'from-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-600 dark:text-amber-400' },
-    emerald: { bg: 'from-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400' },
+    cyan: { icon: 'text-cyan-600 dark:text-cyan-400' },
+    violet: { icon: 'text-violet-600 dark:text-violet-400' },
+    amber: { icon: 'text-amber-600 dark:text-amber-400' },
+    emerald: { icon: 'text-emerald-600 dark:text-emerald-400' },
   };
 
   const styles = colorClasses[color];
 
   return (
-    <div className={cn(
-      "bg-gradient-to-br to-transparent rounded-2xl border p-4",
-      styles.bg,
-      styles.border
-    )}>
+    <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
         <span className={styles.icon}>{icon}</span>
-        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">{title}</h4>
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">{title}</h4>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {children}
       </div>
     </div>
@@ -2180,10 +2127,10 @@ interface ConfigRowProps {
 
 function ConfigRow({ label, value, mono, small }: ConfigRowProps) {
   return (
-    <div className="flex items-center justify-between text-xs py-1">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between text-xs py-1.5 border-b border-border/50 last:border-0">
+      <span className="text-muted-foreground font-medium">{label}</span>
       <span className={cn(
-        "text-foreground/80 truncate max-w-[60%] text-right",
+        "text-foreground truncate max-w-[60%] text-right",
         mono && "font-mono",
         small && "text-[10px]"
       )} title={value}>
@@ -2546,9 +2493,51 @@ function ScheduledPanel({
   onUpdate,
 }: ScheduledPanelProps) {
   const { t } = useTranslation();
+  const { readMemoryFile, writeMemoryFile, memoryContent, memoryLoading } = useDashboardStore();
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | null>(null);
   const [formSaving, setFormSaving] = useState(false);
+  const [heartbeatContent, setHeartbeatContent] = useState('');
+  const [heartbeatExpanded, setHeartbeatExpanded] = useState(false);
+  const [heartbeatSaveStatus, setHeartbeatSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const heartbeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatLastSavedRef = useRef('');
+
+  // Load HEARTBEAT.md on mount
+  useEffect(() => {
+    if (agentId) readMemoryFile(agentId, 'HEARTBEAT.md');
+  }, [agentId, readMemoryFile]);
+
+  // Sync loaded content
+  useEffect(() => {
+    if (!heartbeatExpanded) return; // Only sync when first opened
+    setHeartbeatContent(memoryContent);
+    heartbeatLastSavedRef.current = memoryContent;
+  }, [memoryContent, heartbeatExpanded]);
+
+  const handleHeartbeatOpen = () => {
+    if (!heartbeatExpanded) {
+      readMemoryFile(agentId, 'HEARTBEAT.md');
+    }
+    setHeartbeatExpanded(!heartbeatExpanded);
+  };
+
+  const handleHeartbeatChange = (value: string) => {
+    setHeartbeatContent(value);
+    if (heartbeatTimeoutRef.current) clearTimeout(heartbeatTimeoutRef.current);
+    heartbeatTimeoutRef.current = setTimeout(async () => {
+      if (value === heartbeatLastSavedRef.current) return;
+      setHeartbeatSaveStatus('saving');
+      const ok = await writeMemoryFile(agentId, 'HEARTBEAT.md', value);
+      if (ok) {
+        heartbeatLastSavedRef.current = value;
+        setHeartbeatSaveStatus('saved');
+        setTimeout(() => setHeartbeatSaveStatus('idle'), 2000);
+      } else {
+        setHeartbeatSaveStatus('error');
+      }
+    }, 1000);
+  };
 
   const handleFormSave = async (jobData: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs' | 'state'>) => {
     setFormSaving(true);
@@ -2603,6 +2592,41 @@ function ScheduledPanel({
             <Plus className="w-3.5 h-3.5" />
             {t('agentDetail.newTask')}
           </button>
+        </div>
+
+        {/* HEARTBEAT.md Editor */}
+        <div className="rounded-xl border border-border overflow-hidden">
+          <button
+            onClick={handleHeartbeatOpen}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-muted/50 hover:bg-muted transition-colors text-left"
+          >
+            <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            <div className="flex-1">
+              <span className="text-xs font-semibold text-foreground">HEARTBEAT.md</span>
+              <p className="text-[10px] text-muted-foreground">{t('agentDetail.heartbeatFileDescription')}</p>
+            </div>
+            {heartbeatSaveStatus === 'saving' && <RefreshCw className="w-3.5 h-3.5 text-muted-foreground animate-spin" />}
+            {heartbeatSaveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+            {heartbeatSaveStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+            <span className={cn("text-[10px] text-muted-foreground transition-transform", heartbeatExpanded ? "rotate-90" : "")}>▶</span>
+          </button>
+          {heartbeatExpanded && (
+            <div className="p-4 border-t border-border animate-in slide-in-from-top-1 duration-150">
+              {memoryLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
+                </div>
+              ) : (
+                <textarea
+                  value={heartbeatContent}
+                  onChange={(e) => handleHeartbeatChange(e.target.value)}
+                  className="w-full h-48 p-3 bg-muted border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-y transition-all"
+                  placeholder={t('agentDetail.fileContentPlaceholder')}
+                  spellCheck={false}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Cron Jobs List */}

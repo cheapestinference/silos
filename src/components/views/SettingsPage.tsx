@@ -296,7 +296,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
   };
 
   return (
-    <div className="rounded-xl border border bg-card overflow-hidden">
+    <div className="rounded-xl border bg-card overflow-hidden">
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
           <span className="text-xl">{icon}</span>
@@ -388,7 +388,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
 
       {/* Edit Panel */}
       {editing && channelPresets[channelId.toLowerCase()] && (
-        <div className="border-t border p-4 space-y-3">
+        <div className="border-t p-4 space-y-3">
           {channelPresets[channelId.toLowerCase()].fields.map((field) => (
             <div key={field.key}>
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
@@ -414,7 +414,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                         "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                         editConfig[field.key] === opt.value
                           ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
-                          : "bg-muted text-muted-foreground border hover:border"
+                          : "bg-muted text-muted-foreground border hover:border-foreground/20"
                       )}
                     >
                       <span className="font-medium">{opt.label}</span>
@@ -430,7 +430,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                   placeholder={field.placeholder}
                   value={(editConfig[field.key] as string) || ''}
                   onChange={(e) => setEditConfig({ ...editConfig, [field.key]: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
                 />
               )}
 
@@ -464,7 +464,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                           setEditPhoneInput('');
                         }
                       }}
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
                     />
                     <button
                       onClick={() => {
@@ -546,7 +546,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
 
       {/* QR Code Panel */}
       {(qrDataUrl || qrMessage || qrError) && (
-        <div className="border-t border p-4">
+        <div className="border-t p-4">
           {qrDataUrl && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-xs text-muted-foreground text-center">
@@ -761,7 +761,7 @@ function ModelsSection() {
                   "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                   newProvider.id === preset
                     ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 border-purple-500/50"
-                    : "bg-muted text-muted-foreground border hover:border"
+                    : "bg-muted text-muted-foreground border hover:border-foreground/20"
                 )}
               >
                 {getProviderIcon(preset)} {preset}
@@ -775,7 +775,7 @@ function ModelsSection() {
               placeholder={t('settings.providers.providerId')}
               value={newProvider.id}
               onChange={(e) => setNewProvider({ ...newProvider, id: e.target.value })}
-              className="px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm focus:outline-none focus:border-purple-500/50"
+              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm focus:outline-none focus:border-purple-500/50"
             />
             <input
               type="text"
@@ -783,7 +783,7 @@ function ModelsSection() {
               placeholder={t('settings.providers.baseUrl')}
               value={newProvider.baseUrl}
               onChange={(e) => { setNewProvider({ ...newProvider, baseUrl: e.target.value }); setTestResult(null); }}
-              className="px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
             />
           </div>
           <input
@@ -792,7 +792,7 @@ function ModelsSection() {
             placeholder={t('settings.providers.apiKey')}
             value={newProvider.apiKey}
             onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
-            className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+            className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
           />
           {/* Test Connection */}
           <div className="flex items-center gap-2">
@@ -910,7 +910,7 @@ function ModelsSection() {
 
       {/* Providers List */}
       {gatewayConfigLoading ? (
-        <div className="p-8 text-center rounded-xl bg-card border border">
+        <div className="p-8 text-center rounded-xl bg-card border">
           <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading providers...</p>
         </div>
@@ -1024,7 +1024,7 @@ function ModelsSection() {
               }
 
               return (
-                <div key={providerId} className="rounded-xl border overflow-hidden border bg-card">
+                <div key={providerId} className="rounded-xl border overflow-hidden bg-card">
                   <button
                     onClick={() => setExpandedProvider(isExpanded ? null : providerId)}
                     className="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
@@ -1051,7 +1051,7 @@ function ModelsSection() {
                   </button>
 
                   {isExpanded && (
-                    <div className="border-t border p-4 space-y-4">
+                    <div className="border-t p-4 space-y-4">
                       {editingProvider === providerId ? (
                         /* Edit Mode */
                         <>
@@ -1071,7 +1071,7 @@ function ModelsSection() {
                                     "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                                     editProvider.api === opt.value
                                       ? "bg-purple-500/20 text-purple-600 dark:text-purple-300 border-purple-500/40"
-                                      : "bg-muted text-muted-foreground border hover:border"
+                                      : "bg-muted text-muted-foreground border hover:border-foreground/20"
                                   )}
                                 >
                                   {opt.label}
@@ -1088,7 +1088,7 @@ function ModelsSection() {
                                 placeholder={t('settings.providers.baseUrl')}
                                 value={editProvider.baseUrl}
                                 onChange={(e) => { setEditProvider({ ...editProvider, baseUrl: e.target.value }); setEditTestResult(null); }}
-                                className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
                               />
                             </div>
                             <div>
@@ -1099,7 +1099,7 @@ function ModelsSection() {
                                 placeholder={t('settings.providers.apiKey')}
                                 value={editProvider.apiKey}
                                 onChange={(e) => { setEditProvider({ ...editProvider, apiKey: e.target.value }); setEditTestResult(null); }}
-                                className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
                               />
                             </div>
                           </div>
@@ -1262,7 +1262,7 @@ function ModelsSection() {
                           })()}
 
                           {/* Edit / Delete actions */}
-                          <div className="flex items-center gap-2 pt-2 border-t border">
+                          <div className="flex items-center justify-end gap-2 pt-3 border-t">
                             <button
                               onClick={() => {
                                 setEditingProvider(providerId);
@@ -1279,7 +1279,7 @@ function ModelsSection() {
                                   })),
                                 });
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-foreground hover:bg-muted"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-foreground hover:bg-accent transition-colors"
                             >
                               <Edit3 className="w-3 h-3" /> Edit
                             </button>
@@ -1292,7 +1292,7 @@ function ModelsSection() {
                                 setDeletingProvider(null);
                                 setExpandedProvider(null);
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
                             >
                               {deletingProvider === providerId ? (
                                 <><div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> Deleting...</>
@@ -1309,7 +1309,7 @@ function ModelsSection() {
               );
             })
           ) : !hasSilosFromBackend ? null : (
-            <div className="p-6 text-center rounded-xl bg-card border border border-dashed">
+            <div className="p-6 text-center rounded-xl bg-card border border-dashed">
               <p className="text-sm text-muted-foreground">No additional providers configured</p>
             </div>
           )}
@@ -1421,7 +1421,7 @@ function ChannelsSection() {
         <select
           value={defaultAgentId}
           onChange={(e) => setDefaultAgentId(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg bg-card border border text-foreground text-sm focus:outline-none focus:border-teal-500/50"
+          className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-teal-500/50"
         >
           {agents?.agents.map(agent => (
             <option key={agent.id} value={agent.id}>
@@ -1473,7 +1473,7 @@ function ChannelsSection() {
                     "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                     selectedChannelType === type
                       ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 border-teal-500/50"
-                      : "bg-muted text-muted-foreground border hover:border"
+                      : "bg-muted text-muted-foreground border hover:border-foreground/20"
                   )}
                 >
                   {preset.icon} {preset.label}
@@ -1510,7 +1510,7 @@ function ChannelsSection() {
                               "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                               channelConfig[field.key] === opt.value
                                 ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
-                                : "bg-muted text-muted-foreground border hover:border"
+                                : "bg-muted text-muted-foreground border hover:border-foreground/20"
                             )}
                           >
                             <span className="font-medium">{opt.label}</span>
@@ -1526,7 +1526,7 @@ function ChannelsSection() {
                         placeholder={field.placeholder}
                         value={(channelConfig[field.key] as string) || ''}
                         onChange={(e) => setChannelConfig({ ...channelConfig, [field.key]: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                        className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
                       />
                     )}
 
@@ -1562,7 +1562,7 @@ function ChannelsSection() {
                                 setPhoneInput('');
                               }
                             }}
-                            className="flex-1 px-3 py-1.5 rounded-lg bg-muted border border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                            className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
                           />
                           <button
                             onClick={() => {
@@ -1677,7 +1677,7 @@ function ChannelsSection() {
         )}
 
         {channelNames.length === 0 && !showAddChannel ? (
-          <div className="p-8 text-center rounded-xl bg-card border border border-dashed">
+          <div className="p-8 text-center rounded-xl bg-card border border-dashed">
             <MessageSquare className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">No channels configured</p>
           </div>
@@ -1694,6 +1694,7 @@ function ChannelsSection() {
 }
 
 function AgentsSection() {
+  const { t } = useTranslation();
   const { gatewayConfig, patchGatewayConfig, loadGatewayConfig } = useDashboardStore();
   const [saving, setSaving] = useState(false);
   const [modelSearchOpen, setModelSearchOpen] = useState(false);
@@ -1809,7 +1810,7 @@ function AgentsSection() {
       <p className="text-sm text-muted-foreground">Default settings applied to all new agents</p>
 
       {/* Default Model */}
-      <div className="rounded-xl border border bg-card p-5 space-y-4">
+      <div className="rounded-xl border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-foreground">Default Model</h3>
@@ -1834,7 +1835,7 @@ function AgentsSection() {
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                 >
                   {providerNames.map((name) => (
                     <option key={name} value={name}>
@@ -1848,7 +1849,7 @@ function AgentsSection() {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5" /> Provider
                 </label>
-                <div className="flex h-10 items-center rounded-md border border bg-background px-3 text-sm text-foreground">
+                <div className="flex h-10 items-center rounded-md border bg-background px-3 text-sm text-foreground">
                   {providerNames[0]}
                 </div>
               </div>
@@ -1864,14 +1865,14 @@ function AgentsSection() {
                 <button
                   type="button"
                   onClick={() => { setModelSearchOpen(!modelSearchOpen); setModelSearch(''); }}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                  className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                 >
                   <span className="truncate">{selectedModelName}</span>
                   <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", modelSearchOpen && "rotate-90")} />
                 </button>
                 {modelSearchOpen && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border border bg-background shadow-lg">
-                    <div className="flex items-center border-b border px-3">
+                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-background shadow-lg">
+                    <div className="flex items-center border-b px-3">
                       <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <input
                         ref={modelSearchInputRef}
@@ -1920,13 +1921,13 @@ function AgentsSection() {
             </div>
           </div>
         ) : (
-          <div className="p-4 text-center rounded-lg bg-muted/50 border border border-dashed">
+          <div className="p-4 text-center rounded-lg bg-muted/50 border border-dashed">
             <p className="text-xs text-muted-foreground">No providers configured. Add a provider in Model Providers first.</p>
           </div>
         )}
 
         {currentModel && (
-          <div className="flex items-center gap-2 pt-3 border-t border">
+          <div className="flex items-center gap-2 pt-3 border-t">
             <span className="text-xs text-muted-foreground">Current default:</span>
             <code className="text-xs text-teal-600 dark:text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
           </div>
@@ -1937,27 +1938,30 @@ function AgentsSection() {
 }
 
 function ToolsSection() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Configure available tools and permissions</p>
+      <p className="text-sm text-muted-foreground">{t('settings.toolsConfig.configure')}</p>
 
       <div className="space-y-3">
         {[
-          { id: 'bash', name: 'Bash Commands', icon: '💻', enabled: true, description: 'Execute shell commands' },
-          { id: 'web', name: 'Web Browsing', icon: '🌐', enabled: true, description: 'Browse and fetch web content' },
-          { id: 'files', name: 'File Operations', icon: '📁', enabled: true, description: 'Read and write files' },
-          { id: 'agent-to-agent', name: 'Agent Communication', icon: '🔗', enabled: false, description: 'Send messages between agents' },
-          { id: 'spawn', name: 'Spawn Subagents', icon: '🚀', enabled: true, description: 'Create task-specific subagents' },
+          { id: 'bash', nameKey: 'settings.toolsConfig.bash' as const, icon: '💻', enabled: true, descKey: 'settings.toolsConfig.bashDesc' as const },
+          { id: 'web', nameKey: 'settings.toolsConfig.web' as const, icon: '🌐', enabled: true, descKey: 'settings.toolsConfig.webDesc' as const },
+          { id: 'files', nameKey: 'settings.toolsConfig.files' as const, icon: '📁', enabled: true, descKey: 'settings.toolsConfig.filesDesc' as const },
+          { id: 'agent-to-agent', nameKey: 'settings.toolsConfig.agentComm' as const, icon: '🔗', enabled: false, descKey: 'settings.toolsConfig.agentCommDesc' as const },
+          { id: 'spawn', nameKey: 'settings.toolsConfig.spawn' as const, icon: '🚀', enabled: true, descKey: 'settings.toolsConfig.spawnDesc' as const },
         ].map((tool) => (
-          <div key={tool.id} className="flex items-center justify-between p-4 rounded-xl bg-card border border">
+          <div key={tool.id} className="flex items-center justify-between p-4 rounded-xl bg-card border">
             <div className="flex items-center gap-3">
               <span className="text-xl">{tool.icon}</span>
               <div>
-                <h3 className="font-semibold text-foreground">{tool.name}</h3>
-                <p className="text-xs text-muted-foreground">{tool.description}</p>
+                <h3 className="font-semibold text-foreground">{t(tool.nameKey)}</h3>
+                <p className="text-xs text-muted-foreground">{t(tool.descKey)}</p>
               </div>
             </div>
-            <button className={cn(
+            <div className={cn(
               "w-12 h-6 rounded-full transition-colors relative",
               tool.enabled ? "bg-emerald-500/30" : "bg-muted"
             )}>
@@ -1965,15 +1969,46 @@ function ToolsSection() {
                 "absolute top-1 w-4 h-4 rounded-full transition-all",
                 tool.enabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground"
               )} />
-            </button>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="p-4 rounded-xl bg-muted/40 border border">
+      {/* Skills Marketplace */}
+      <div className="p-4 rounded-xl bg-card border space-y-3">
+        <div className="flex items-center gap-3">
+          <Search className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+          <div>
+            <h3 className="font-semibold text-foreground">{t('settings.toolsConfig.skillsMarketplace')}</h3>
+            <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.skillsMarketplaceDesc')}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => window.open('https://clawhub.ai', '_blank')}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 hover:bg-teal-500/20 transition-colors"
+          >
+            <Zap className="w-4 h-4" />
+            {t('settings.toolsConfig.exploreClawHub')}
+          </button>
+          <button
+            onClick={() => {
+              const agentList = document.querySelector('[data-agent-id]');
+              if (agentList) navigate('/agents');
+              else navigate('/agents');
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+          >
+            <Bot className="w-4 h-4" />
+            {t('settings.toolsConfig.manageAgentSkills')}
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 rounded-xl bg-muted/40 border">
         <p className="text-xs text-muted-foreground">
           <Info className="w-4 h-4 inline mr-1" />
-          Tool permissions are configured in ~/.openclaw/config.yaml under the <code className="text-muted-foreground">tools</code> section.
+          {t('settings.toolsConfig.configHint')}
         </p>
       </div>
     </div>
@@ -2039,7 +2074,7 @@ function GatewaySection() {
             placeholder="ws://localhost:18789"
             value={localUrl}
             onChange={(e) => setLocalUrl(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-card border border text-foreground text-sm focus:outline-none focus:border-blue-500/50"
+            className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/50"
           />
         </div>
         <div>
@@ -2050,7 +2085,7 @@ function GatewaySection() {
               placeholder={t('settings.gatewayConfig.optional')}
               value={localToken}
               onChange={(e) => setLocalToken(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-card border border text-foreground text-sm focus:outline-none focus:border-blue-500/50 pr-12"
+              className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/50 pr-12"
             />
             <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {showToken ? t('connect.hide') : t('connect.show')}
@@ -2072,7 +2107,7 @@ function GatewaySection() {
 }
 
 function AppearanceSection() {
-  const { darkMode, setDarkMode } = useDashboardStore();
+  const { darkMode, setDarkMode, gatewayConfig } = useDashboardStore();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
   const [silosVersion, setSilosVersion] = useState<string | null>(null);
   const [openclawVersion, setOpenclawVersion] = useState<string | null>(null);
@@ -2087,11 +2122,16 @@ function AppearanceSection() {
       .catch(() => {});
   }, []);
 
+  // Fallback: try to get OpenClaw version from gateway config if /api/config didn't provide it
+  const rawConfig = gatewayConfig?.config as Record<string, unknown> | undefined;
+  const gatewayVersion = rawConfig?.version as string | undefined;
+  const displayOpenclawVersion = openclawVersion || gatewayVersion || null;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t('settings.subtitle')}</p>
 
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border border">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
         <div>
           <p className="font-semibold text-foreground">{t('settings.appearance.theme')}</p>
           <p className="text-xs text-muted-foreground">{t('settings.appearanceConfig.themeDesc')}</p>
@@ -2113,7 +2153,7 @@ function AppearanceSection() {
       </div>
 
       {/* Language */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border border">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
         <div>
           <p className="font-semibold text-foreground">{t('settings.appearance.language')}</p>
           <p className="text-xs text-muted-foreground">{t('settings.appearance.languageDesc')}</p>
@@ -2136,7 +2176,7 @@ function AppearanceSection() {
       </div>
 
       {/* About */}
-      <div className="p-4 rounded-xl bg-card border border space-y-3">
+      <div className="p-4 rounded-xl bg-card border space-y-3">
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-violet-600 dark:text-violet-400" />
           <p className="font-semibold text-foreground">{t('settings.aboutConfig.silosDashboard')}</p>
@@ -2148,7 +2188,7 @@ function AppearanceSection() {
           </div>
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.openclawVersion')}</span>
-            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{openclawVersion ? `v${openclawVersion}` : '—'}</span>
+            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{displayOpenclawVersion ? `v${displayOpenclawVersion}` : '—'}</span>
           </div>
         </div>
       </div>

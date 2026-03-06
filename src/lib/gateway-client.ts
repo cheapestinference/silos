@@ -132,7 +132,7 @@ export class GatewayClient {
 
       role: 'operator',
       scopes: ['operator.read', 'operator.admin', 'operator.approvals', 'operator.pairing'],
-      caps: [],
+      caps: ['tool-events'],
       auth: {
         token: this.opts.token,
         password: this.opts.password,
@@ -362,18 +362,17 @@ export class GatewayClient {
     });
   }
 
-  // Memory files
-  async readMemoryFile(agentId: string, filePath: string) {
-    return this.request<{ content: string }>('memory.read', { agentId, filePath });
+  // Agent workspace files (agents.files.*)
+  async listAgentFiles(agentId: string) {
+    return this.request<{ agentId: string; workspace: string; files: Array<{ name: string; path: string; missing?: boolean; size?: number; updatedAtMs?: number }> }>('agents.files.list', { agentId });
   }
 
-  async writeMemoryFile(agentId: string, filePath: string, content: string) {
-    return this.request<{ ok: boolean }>('memory.write', { agentId, filePath, content });
+  async getAgentFile(agentId: string, name: string) {
+    return this.request<{ agentId: string; file: { name: string; path: string; missing?: boolean; size?: number; updatedAtMs?: number; content?: string } }>('agents.files.get', { agentId, name });
   }
 
-  async listMemoryFiles(agentId: string) {
-    console.log('[GatewayClient] listMemoryFiles called with agentId:', agentId, 'type:', typeof agentId);
-    return this.request<{ files: Array<{ path: string; size: number; mtime: number }> }>('memory.list', { agentId });
+  async setAgentFile(agentId: string, name: string, content: string) {
+    return this.request<{ ok: boolean; agentId: string; file: { name: string; path: string; size?: number; updatedAtMs?: number } }>('agents.files.set', { agentId, name, content });
   }
 
   // Config

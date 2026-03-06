@@ -52,7 +52,14 @@
     "cronJobs": "Tareas Programadas",
     "lightMode": "Modo Claro",
     "darkMode": "Modo Oscuro",
-    "disconnect": "Desconectar"
+    "disconnect": "Desconectar",
+    "sessionLimitReached": "Limite de sesiones alcanzado (100)",
+    "sessionTypes": {
+      "main": "principal",
+      "webchat": "webchat",
+      "subagent": "subagente",
+      "cron": "cron"
+    }
   },
   "dashboard": {
     "title": "Panel",
@@ -85,6 +92,7 @@
     "atTime": "A las {time}",
     "nextRun": "Siguiente: {time}",
     "noSchedule": "Sin programación",
+    "connectMoreChannels": "Conectar más canales (Telegram, Discord, etc.)",
     "stats": {
       "agents": "Agentes",
       "activeAgents": "Agentes Activos",
@@ -234,6 +242,7 @@
     "providerErrorHint": "Revisa tu API key y el modelo seleccionado en Configuración, o contacta con support@silosplatform.com",
     "rateLimitError": "Has superado el límite de tokens por minuto de tu plan.",
     "rateLimitHint": "El límite se reseteará automáticamente. Vuelve a intentarlo en unos segundos.",
+    "rateLimitWait": "Límite de tokens alcanzado. Espera unos segundos...",
     "rateLimitResetsAt": "El límite se resetea a las {{time}}.",
     "retryMessage": "Reintentar"
   },
@@ -343,7 +352,22 @@
     "toolsConfig": {
       "title": "Herramientas",
       "description": "Herramientas disponibles",
-      "configure": "Configura herramientas disponibles y permisos"
+      "configure": "Configura herramientas disponibles y permisos",
+      "bash": "Comandos Bash",
+      "bashDesc": "Ejecutar comandos de shell",
+      "web": "Navegación Web",
+      "webDesc": "Navegar y obtener contenido web",
+      "files": "Operaciones de Archivos",
+      "filesDesc": "Leer y escribir archivos",
+      "agentComm": "Comunicación entre Agentes",
+      "agentCommDesc": "Enviar mensajes entre agentes",
+      "spawn": "Crear Subagentes",
+      "spawnDesc": "Crear subagentes para tareas específicas",
+      "skillsMarketplace": "Marketplace de Skills",
+      "skillsMarketplaceDesc": "Descubre e instala skills para ampliar las capacidades de tus agentes",
+      "exploreClawHub": "Explorar ClawHub",
+      "manageAgentSkills": "Gestionar Skills del Agente",
+      "configHint": "Los permisos de herramientas se configuran en ~/.openclaw/config.yaml en la sección tools."
     },
     "gatewayConfig": {
       "title": "Gateway",
@@ -588,7 +612,35 @@
     "markdown": "Markdown",
     "plainText": "Texto Plano",
     "json": "JSON",
-    "activeCount": "{count} activos"
+    "activeCount": "{count} activos",
+    "knowledge": {
+      "title": "Base de Conocimiento",
+      "browseTitle": "Explorar Archivos del Servidor",
+      "browseServer": "Explorar sistema de archivos",
+      "newFile": "Nuevo .md en memory/",
+      "searchPlaceholder": "Buscar archivos .md...",
+      "notIndexed": "no indexado",
+      "warningTitle": "Elige el conocimiento con cuidado",
+      "warningText": "Cada archivo indexado consume tokens en cada interaccion del agente. Demasiados archivos o archivos irrelevantes pueden aumentar costes y confundir al agente. Anade solo lo que realmente ayude.",
+      "createsInMemory": "Se crea en memory/ (auto-indexado)",
+      "externalSources": "Rutas externas indexadas",
+      "noFiles": "No se encontraron archivos .md",
+      "autoIndexed": "auto-indexado",
+      "removeFromKb": "Quitar de la base de conocimiento",
+      "addToKb": "Anadir carpeta a la base de conocimiento",
+      "moveToMemory": "Mover a memory/ (se indexara)",
+      "moveFromMemory": "Sacar de memory/ (dejara de indexarse)",
+      "addToExtraPaths": "Anadir a extraPaths (se indexara)",
+      "legend": "Los archivos en memory/ se indexan automaticamente. Activa carpetas o archivos para anadirlos como fuentes de conocimiento adicionales.",
+      "indexedMemory": "Indexado (memory/)",
+      "indexedExtra": "Indexado (extraPath)",
+      "selectFile": "Selecciona un archivo para previsualizar",
+      "toggleHint": "Activa archivos y carpetas para indexacion RAG",
+      "removeIndex": "Quitar",
+      "addIndex": "Anadir al indice",
+      "emptyDir": "Directorio vacio",
+      "indexedPaths": "Rutas indexadas"
+    }
   },
   "cron": {
     "title": "Tareas Programadas",

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, Zap, AlertCircle, Search, ChevronDown } from 'lucide-react';
 import { getGatewayClient } from '../../lib/gateway-client';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { getAgentTemplates, TEMPLATE_FILES } from '../../lib/agent-templates';
 import useTranslation from '../../i18n';
 import type { ConfigSnapshot, ModelCatalogEntry } from '../../types/openclaw';
 
@@ -12,8 +13,8 @@ interface CreateAgentModalProps {
 }
 
 export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModalProps) {
-  const { t } = useTranslation();
-  const { models, loadModels, gatewayConfig } = useDashboardStore();
+  const { t, locale } = useTranslation();
+  const { models, loadModels, gatewayConfig, token, writeWorkspaceFile } = useDashboardStore();
 
   const generateDefaultName = () => {
     const adjectives = ['Smart', 'Quick', 'Wise', 'Clever', 'Swift', 'Bright', 'Sharp'];
@@ -191,7 +192,20 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
       setWaitingReconnect(true);
       setError(null);
 
-      setTimeout(() => {
+      // After gateway restart, write localized templates then notify success
+      setTimeout(async () => {
+        try {
+          const templates = getAgentTemplates(locale);
+          await Promise.all(
+            TEMPLATE_FILES.map(file => {
+              const content = templates[file];
+              if (content) return writeWorkspaceFile(finalAgentId, file, content);
+              return Promise.resolve(false);
+            })
+          );
+        } catch (e) {
+          console.warn('[CreateAgent] Failed to write localized templates:', e);
+        }
         onSuccess();
         setWaitingReconnect(false);
         handleClose();

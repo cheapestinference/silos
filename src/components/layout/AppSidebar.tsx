@@ -392,6 +392,8 @@ export function AppSidebar() {
               const subagentSessions = agentSessions.filter(s => s.parsed.sessionType === 'subagent');
               const cronSessions = agentSessions.filter(s => s.parsed.sessionType === 'cron');
 
+              const sessionLimitReached = agentSessions.length >= 100;
+
               return (
                 <div key={agent.id} className="mb-1">
                   {/* Agent header */}
@@ -401,6 +403,7 @@ export function AppSidebar() {
                     emoji={agent.identity?.emoji}
                     onClick={() => navigate(`/agents/${agent.id}`)}
                     onCreateSession={() => setCreatingSessionForAgent(agent.id)}
+                    sessionLimitReached={sessionLimitReached}
                   />
 
                   {/* Sessions always visible */}
@@ -710,9 +713,11 @@ interface AgentItemProps {
   emoji?: string;
   onClick: () => void;
   onCreateSession: () => void;
+  sessionLimitReached?: boolean;
 }
 
-function AgentItem({ agentId, name, emoji, onClick, onCreateSession }: AgentItemProps) {
+function AgentItem({ agentId, name, emoji, onClick, onCreateSession, sessionLimitReached }: AgentItemProps) {
+  const { t } = useTranslation();
   const agentColor = getAgentColor(agentId);
 
   return (
@@ -741,16 +746,25 @@ function AgentItem({ agentId, name, emoji, onClick, onCreateSession }: AgentItem
       </button>
 
       {/* Create session button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onCreateSession();
-        }}
-        className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-sidebar-hover rounded-lg transition-all text-muted-foreground hover:text-foreground"
-        title="Create Session"
-      >
-        <Plus className="w-4 h-4" />
-      </button>
+      {sessionLimitReached ? (
+        <span
+          className="p-1.5 opacity-0 group-hover:opacity-100 text-muted-foreground/50 cursor-not-allowed"
+          title={t('sidebar.sessionLimitReached')}
+        >
+          <Plus className="w-4 h-4" />
+        </span>
+      ) : (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateSession();
+          }}
+          className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-sidebar-hover rounded-lg transition-all text-muted-foreground hover:text-foreground"
+          title={t('sidebar.createSession')}
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -785,12 +799,18 @@ function SessionItem({
   isCompleted,
   unreadCount = 0,
 }: SessionItemProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Display name priority: label > displayName > defaultLabel
-  const displayedName = label || displayName || defaultLabel;
+  // Translate known session type labels
+  const translatedDefault = sessionType === 'main' ? t('sidebar.sessionTypes.main')
+    : sessionType === 'webchat' ? t('sidebar.sessionTypes.webchat')
+    : defaultLabel;
+
+  // Display name priority: label > displayName > translated defaultLabel
+  const displayedName = label || displayName || translatedDefault;
 
   useEffect(() => {
     if (editing && inputRef.current) {

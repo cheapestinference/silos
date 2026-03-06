@@ -52,7 +52,14 @@
     "cronJobs": "Tâches Planifiées",
     "lightMode": "Mode Clair",
     "darkMode": "Mode Sombre",
-    "disconnect": "Déconnecter"
+    "disconnect": "Déconnecter",
+    "sessionLimitReached": "Limite de sessions atteinte (100)",
+    "sessionTypes": {
+      "main": "principale",
+      "webchat": "webchat",
+      "subagent": "sous-agent",
+      "cron": "cron"
+    }
   },
   "dashboard": {
     "title": "Tableau de Bord",
@@ -85,6 +92,7 @@
     "atTime": "À {time}",
     "nextRun": "Suivant : {time}",
     "noSchedule": "Pas de planification",
+    "connectMoreChannels": "Connecter plus de canaux (Telegram, Discord, etc.)",
     "stats": {
       "agents": "Agents",
       "activeAgents": "Agents Actifs",
@@ -234,6 +242,7 @@
     "providerErrorHint": "Vérifiez votre clé API et le modèle sélectionné dans les Paramètres, ou contactez support@silosplatform.com",
     "rateLimitError": "Vous avez dépassé la limite de tokens par minute de votre forfait.",
     "rateLimitHint": "La limite se réinitialise automatiquement. Réessayez dans quelques secondes.",
+    "rateLimitWait": "Limite de tokens atteinte. Patientez quelques secondes...",
     "rateLimitResetsAt": "La limite se réinitialise à {{time}}.",
     "retryMessage": "Réessayer"
   },
@@ -343,7 +352,22 @@
     "toolsConfig": {
       "title": "Outils",
       "description": "Outils disponibles",
-      "configure": "Configurez les outils disponibles et les permissions"
+      "configure": "Configurez les outils disponibles et les permissions",
+      "bash": "Commandes Bash",
+      "bashDesc": "Exécuter des commandes shell",
+      "web": "Navigation Web",
+      "webDesc": "Naviguer et récupérer du contenu web",
+      "files": "Opérations de Fichiers",
+      "filesDesc": "Lire et écrire des fichiers",
+      "agentComm": "Communication entre Agents",
+      "agentCommDesc": "Envoyer des messages entre agents",
+      "spawn": "Créer des Sous-agents",
+      "spawnDesc": "Créer des sous-agents pour des tâches spécifiques",
+      "skillsMarketplace": "Marketplace de Skills",
+      "skillsMarketplaceDesc": "Découvrez et installez des skills pour étendre les capacités de vos agents",
+      "exploreClawHub": "Explorer ClawHub",
+      "manageAgentSkills": "Gérer les Skills de l'Agent",
+      "configHint": "Les permissions des outils sont configurées dans ~/.openclaw/config.yaml dans la section tools."
     },
     "gatewayConfig": {
       "title": "Gateway",
@@ -588,7 +612,35 @@
     "markdown": "Markdown",
     "plainText": "Texte Brut",
     "json": "JSON",
-    "activeCount": "{count} actifs"
+    "activeCount": "{count} actifs",
+    "knowledge": {
+      "title": "Base de Connaissances",
+      "browseTitle": "Explorer les Fichiers du Serveur",
+      "browseServer": "Explorer le systeme de fichiers",
+      "newFile": "Nouveau .md dans memory/",
+      "searchPlaceholder": "Rechercher des fichiers .md...",
+      "notIndexed": "non indexe",
+      "warningTitle": "Choisissez les connaissances avec soin",
+      "warningText": "Chaque fichier indexe consomme des tokens a chaque interaction de l'agent. Trop de fichiers ou des fichiers non pertinents peuvent augmenter les couts et desorienter l'agent. N'ajoutez que ce qui aide vraiment.",
+      "createsInMemory": "Cree dans memory/ (auto-indexe)",
+      "externalSources": "Chemins externes indexes",
+      "noFiles": "Aucun fichier .md trouve",
+      "autoIndexed": "auto-indexe",
+      "removeFromKb": "Retirer de la base de connaissances",
+      "addToKb": "Ajouter le dossier a la base de connaissances",
+      "moveToMemory": "Deplacer vers memory/ (sera indexe)",
+      "moveFromMemory": "Sortir de memory/ (ne sera plus indexe)",
+      "addToExtraPaths": "Ajouter aux extraPaths (sera indexe)",
+      "legend": "Les fichiers dans memory/ sont auto-indexes. Activez des dossiers ou fichiers pour les ajouter comme sources de connaissances supplementaires.",
+      "indexedMemory": "Indexe (memory/)",
+      "indexedExtra": "Indexe (extraPath)",
+      "selectFile": "Selectionnez un fichier pour previsualiser",
+      "toggleHint": "Activez des fichiers et dossiers pour l'indexation RAG",
+      "removeIndex": "Retirer",
+      "addIndex": "Ajouter a l'index",
+      "emptyDir": "Repertoire vide",
+      "indexedPaths": "Chemins indexes"
+    }
   },
   "cron": {
     "title": "Tâches Planifiées",

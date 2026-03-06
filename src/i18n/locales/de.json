@@ -52,7 +52,14 @@
     "cronJobs": "Geplante Aufgaben",
     "lightMode": "Hellmodus",
     "darkMode": "Dunkelmodus",
-    "disconnect": "Trennen"
+    "disconnect": "Trennen",
+    "sessionLimitReached": "Sitzungslimit erreicht (100)",
+    "sessionTypes": {
+      "main": "Haupt",
+      "webchat": "Webchat",
+      "subagent": "Subagent",
+      "cron": "Cron"
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -85,6 +92,7 @@
     "atTime": "Um {time}",
     "nextRun": "Nächster: {time}",
     "noSchedule": "Kein Zeitplan",
+    "connectMoreChannels": "Weitere Kanäle verbinden (Telegram, Discord, etc.)",
     "stats": {
       "agents": "Agenten",
       "activeAgents": "Aktive Agenten",
@@ -234,6 +242,7 @@
     "providerErrorHint": "Überprüfen Sie Ihren API-Schlüssel und das ausgewählte Modell in den Einstellungen oder kontaktieren Sie support@silosplatform.com",
     "rateLimitError": "Sie haben das Token-pro-Minute-Limit Ihres Tarifs überschritten.",
     "rateLimitHint": "Das Limit wird automatisch zurückgesetzt. Versuchen Sie es in einigen Sekunden erneut.",
+    "rateLimitWait": "Token-Limit erreicht. Bitte warten Sie einige Sekunden...",
     "rateLimitResetsAt": "Limit wird um {{time}} zurückgesetzt.",
     "retryMessage": "Erneut versuchen"
   },
@@ -343,7 +352,22 @@
     "toolsConfig": {
       "title": "Werkzeuge",
       "description": "Verfügbare Werkzeuge",
-      "configure": "Verfügbare Werkzeuge und Berechtigungen konfigurieren"
+      "configure": "Verfügbare Werkzeuge und Berechtigungen konfigurieren",
+      "bash": "Bash-Befehle",
+      "bashDesc": "Shell-Befehle ausführen",
+      "web": "Web-Navigation",
+      "webDesc": "Webinhalte durchsuchen und abrufen",
+      "files": "Dateioperationen",
+      "filesDesc": "Dateien lesen und schreiben",
+      "agentComm": "Agenten-Kommunikation",
+      "agentCommDesc": "Nachrichten zwischen Agenten senden",
+      "spawn": "Subagenten erstellen",
+      "spawnDesc": "Aufgabenspezifische Subagenten erstellen",
+      "skillsMarketplace": "Skills-Marketplace",
+      "skillsMarketplaceDesc": "Skills entdecken und installieren, um die Fähigkeiten Ihrer Agenten zu erweitern",
+      "exploreClawHub": "ClawHub erkunden",
+      "manageAgentSkills": "Agenten-Skills verwalten",
+      "configHint": "Werkzeug-Berechtigungen werden in ~/.openclaw/config.yaml im Abschnitt tools konfiguriert."
     },
     "gatewayConfig": {
       "title": "Gateway",
@@ -588,7 +612,35 @@
     "markdown": "Markdown",
     "plainText": "Nur Text",
     "json": "JSON",
-    "activeCount": "{count} aktiv"
+    "activeCount": "{count} aktiv",
+    "knowledge": {
+      "title": "Wissensbasis",
+      "browseTitle": "Server-Dateien durchsuchen",
+      "browseServer": "Dateisystem durchsuchen",
+      "newFile": "Neue .md in memory/",
+      "searchPlaceholder": ".md-Dateien suchen...",
+      "notIndexed": "nicht indexiert",
+      "warningTitle": "Wissen sorgfaeltig waehlen",
+      "warningText": "Jede indexierte Datei verbraucht Tokens bei jeder Interaktion des Agenten. Zu viele oder irrelevante Dateien koennen die Kosten erhoehen und den Agenten verwirren. Fuegen Sie nur hinzu, was wirklich hilft.",
+      "createsInMemory": "Erstellt in memory/ (auto-indexiert)",
+      "externalSources": "Externe indexierte Pfade",
+      "noFiles": "Keine .md-Dateien gefunden",
+      "autoIndexed": "auto-indexiert",
+      "removeFromKb": "Aus Wissensbasis entfernen",
+      "addToKb": "Ordner zur Wissensbasis hinzufuegen",
+      "moveToMemory": "Nach memory/ verschieben (wird indexiert)",
+      "moveFromMemory": "Aus memory/ entfernen (wird nicht mehr indexiert)",
+      "addToExtraPaths": "Zu extraPaths hinzufuegen (wird indexiert)",
+      "legend": "Dateien in memory/ werden automatisch indexiert. Schalten Sie Ordner oder Dateien um, um sie als zusaetzliche Wissensquellen hinzuzufuegen.",
+      "indexedMemory": "Indexiert (memory/)",
+      "indexedExtra": "Indexiert (extraPath)",
+      "selectFile": "Datei zur Vorschau auswaehlen",
+      "toggleHint": "Dateien und Ordner fuer RAG-Indexierung umschalten",
+      "removeIndex": "Entfernen",
+      "addIndex": "Zum Index hinzufuegen",
+      "emptyDir": "Leeres Verzeichnis",
+      "indexedPaths": "Indexierte Pfade"
+    }
   },
   "cron": {
     "title": "Geplante Aufgaben",

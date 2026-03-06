@@ -293,6 +293,15 @@ async function resolveAgentDir(agentId) {
   }
 }
 
+// Ensure agent workspace exists, creating it if needed
+async function ensureAgentDir(agentId) {
+  const existing = await resolveAgentDir(agentId);
+  if (existing) return existing;
+  const { agentWorkspace } = getWorkspaceDir(agentId);
+  await fs.mkdir(agentWorkspace, { recursive: true });
+  return agentWorkspace;
+}
+
 // All memory and proxy endpoints require gateway token auth
 app.use('/api/memory', requireGatewayAuth);
 app.use('/api/proxy-test', requireGatewayAuth);
@@ -466,17 +475,7 @@ app.post('/api/memory/:agentId/file', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
-    const agentDir = await resolveAgentDir(agentId);
-    if (!agentDir) {
-      const { defaultWorkspace } = getWorkspaceDir(agentId);
-      await fs.mkdir(defaultWorkspace, { recursive: true });
-      const fullPath = resolveAndValidatePath(defaultWorkspace, filePath);
-      console.log(`[Memory] Writing: ${fullPath}`);
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, content, 'utf-8');
-      return res.json({ ok: true });
-    }
-
+    const agentDir = await ensureAgentDir(agentId);
     const fullPath = resolveAndValidatePath(agentDir, filePath);
     console.log(`[Memory] Writing: ${fullPath}`);
 
@@ -526,6 +525,147 @@ app.delete('/api/memory/:agentId/file', async (req, res) => {
     } else {
       res.status(500).json({ error: 'Internal server error' });
     }
+  }
+});
+
+// Create a directory in the agent workspace
+app.post('/api/memory/:agentId/mkdir', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const dirPath = req.query.path || req.body?.path;
+
+    if (!validateAgentId(agentId)) {
+      return res.status(400).json({ error: 'Invalid agent ID' });
+    }
+    if (!dirPath) {
+      return res.status(400).json({ error: 'path is required' });
+    }
+
+    const agentDir = await ensureAgentDir(agentId);
+    const fullPath = resolveAndValidatePath(agentDir, dirPath);
+    console.log(`[Memory] Creating directory: ${fullPath}`);
+    await fs.mkdir(fullPath, { recursive: true });
+    res.json({ ok: true });
+  } catch (error) {
+    if (error.message === 'Path traversal detected') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    console.error('Error creating directory:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Rename/move a file or directory in the agent workspace
+app.post('/api/memory/:agentId/rename', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { from, to } = req.body;
+
+    if (!validateAgentId(agentId)) {
+      return res.status(400).json({ error: 'Invalid agent ID' });
+    }
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to are required' });
+    }
+
+    const agentDir = await resolveAgentDir(agentId);
+    if (!agentDir) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
+    const fromPath = resolveAndValidatePath(agentDir, from);
+    const toPath = resolveAndValidatePath(agentDir, to);
+    console.log(`[Memory] Renaming: ${fromPath} -> ${toPath}`);
+
+    // Ensure target directory exists
+    await fs.mkdir(path.dirname(toPath), { recursive: true });
+    await fs.rename(fromPath, toPath);
+    res.json({ ok: true });
+  } catch (error) {
+    if (error.message === 'Path traversal detected') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    console.error('Error renaming:', error);
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'Source not found' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Delete a directory in the agent workspace
+app.delete('/api/memory/:agentId/dir', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const dirPath = req.query.path;
+
+    if (!validateAgentId(agentId)) {
+      return res.status(400).json({ error: 'Invalid agent ID' });
+    }
+    if (!dirPath) {
+      return res.status(400).json({ error: 'path is required' });
+    }
+
+    const agentDir = await resolveAgentDir(agentId);
+    if (!agentDir) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
+    const fullPath = resolveAndValidatePath(agentDir, dirPath);
+    console.log(`[Memory] Deleting directory: ${fullPath}`);
+    await fs.rm(fullPath, { recursive: true });
+    res.json({ ok: true });
+  } catch (error) {
+    if (error.message === 'Path traversal detected') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    console.error('Error deleting directory:', error);
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'Directory not found' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Browse server filesystem directories (for extraPaths selection in Knowledge Base)
+app.get('/api/browse', requireGatewayAuth, async (req, res) => {
+  try {
+    const dirPath = req.query.path || '/';
+
+    // Security: resolve to absolute path and prevent known sensitive directories
+    const resolved = path.resolve(dirPath);
+    const BLOCKED = ['/proc', '/sys', '/dev', '/run', '/boot', '/root', '/etc/shadow'];
+    if (BLOCKED.some(b => resolved === b || resolved.startsWith(b + '/'))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const entries = await fs.readdir(resolved, { withFileTypes: true });
+    const items = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      items.push({
+        name: entry.name,
+        path: path.join(resolved, entry.name),
+        type: entry.isDirectory() ? 'directory' : 'file',
+      });
+    }
+    // Sort: directories first, then alphabetical
+    items.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    res.json({ path: resolved, items });
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return res.status(404).json({ error: 'Directory not found' });
+    }
+    if (error.code === 'EACCES') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    console.error('Error browsing directory:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
