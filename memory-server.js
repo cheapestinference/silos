@@ -3,8 +3,13 @@ import { createServer } from 'http';
 import httpProxy from 'http-proxy';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
+
+const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -201,6 +206,33 @@ app.get('/api/config', async (req, res) => {
     version: APP_VERSION,
     openclawVersion: OPENCLAW_VERSION,
   });
+});
+
+// System stats endpoint (memory + disk)
+app.get('/api/stats', requireGatewayAuth, async (_req, res) => {
+  try {
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+
+    let diskUsed = 0, diskTotal = 0;
+    try {
+      const { stdout } = await execFileAsync('df', ['--output=used,size', '-B1', '/']);
+      const lines = stdout.trim().split('\n');
+      if (lines.length >= 2) {
+        const [used, size] = lines[1].trim().split(/\s+/).map(Number);
+        diskUsed = used;
+        diskTotal = size;
+      }
+    } catch { /* df not available */ }
+
+    res.json({
+      memory: { used: usedMem, total: totalMem, percent: Math.round(usedMem / totalMem * 100) },
+      disk: { used: diskUsed, total: diskTotal, percent: diskTotal > 0 ? Math.round(diskUsed / diskTotal * 100) : 0 },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Verify instance owner via Firebase ID token
