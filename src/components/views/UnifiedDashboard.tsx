@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import {
@@ -265,8 +265,18 @@ export function UnifiedDashboard() {
     }
   };
 
-  // Derive OpenClaw UI URL from gatewayUrl
-  const openClawUiUrl = gatewayUrl ? `${gatewayUrl}/openclaw` : null;
+  // Derive OpenClaw UI URL — in production, proxied at /openclaw on the same origin
+  const openClawUiUrl = useMemo(() => {
+    if (!gatewayUrl) return null;
+    const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
+    const isHttps = window.location.protocol === 'https:';
+    if (isLocal && isHttps) {
+      return `${window.location.origin}/openclaw`;
+    }
+    let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
+    if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
+    return `${httpUrl}/openclaw`;
+  }, [gatewayUrl]);
 
   const waStatus: 'connected' | 'running' | 'error' | 'not-configured' =
     waConnected ? 'connected' :

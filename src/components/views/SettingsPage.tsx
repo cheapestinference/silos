@@ -1695,7 +1695,7 @@ function ChannelsSection() {
 
 function AgentsSection() {
   const { t } = useTranslation();
-  const { gatewayConfig, patchGatewayConfig, loadGatewayConfig } = useDashboardStore();
+  const { gatewayConfig, patchGatewayConfig, loadGatewayConfig, availableModels } = useDashboardStore();
   const [saving, setSaving] = useState(false);
   const [modelSearchOpen, setModelSearchOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
@@ -1729,7 +1729,13 @@ function AgentsSection() {
     }
   }, [parsedModel.provider]);
 
-  const currentModels = providers[selectedProvider]?.models ?? [];
+  const currentModels = useMemo(() => {
+    // Prefer dynamically fetched models from the provider's /v1/models endpoint
+    if (availableModels?.[selectedProvider]?.length) {
+      return availableModels[selectedProvider];
+    }
+    return providers[selectedProvider]?.models ?? [];
+  }, [providers, selectedProvider, availableModels]);
 
   const filteredModels = useMemo(() => {
     if (!modelSearch) return currentModels;
@@ -1927,7 +1933,7 @@ function AgentsSection() {
         )}
 
         {currentModel && (
-          <div className="flex items-center gap-2 pt-3 border-t">
+          <div className="flex items-center gap-2 mt-3">
             <span className="text-xs text-muted-foreground">Current default:</span>
             <code className="text-xs text-teal-600 dark:text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
           </div>

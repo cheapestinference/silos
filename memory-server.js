@@ -342,10 +342,15 @@ app.use('/api/provider-models', requireGatewayAuth);
 // Fetch available models from all configured providers by calling their /models endpoint
 app.get('/api/provider-models', async (req, res) => {
   try {
-    const configPath = path.join(OPENCLAW_BASE, 'openclaw.json');
-    const raw = await fs.readFile(configPath, 'utf8');
-    const config = JSON.parse(raw);
-    const providers = config?.models?.providers || {};
+    // Build provider list from environment variables (set by dashboard env at provisioning)
+    // The provider URL and key are the source of truth — no need to read openclaw.json
+    const providers = {};
+    if (process.env.LLM_PROXY_URL) {
+      providers.silos = {
+        baseUrl: process.env.LLM_PROXY_URL.replace(/\/+$/, '') + '/v1',
+        apiKey: process.env.LLM_PROXY_KEY || '',
+      };
+    }
 
     const results = {};
 
@@ -771,6 +776,31 @@ app.post('/admin/update', async (req, res) => {
   }
 });
 
+// ─── Gateway Proxy (HTTP + WebSocket) ────────────────────────────────────────
+const GATEWAY_HOST = '127.0.0.1';
+const GATEWAY_PORT = parseInt(process.env.OPENCLAW_PORT || '18789');
+
+const wsProxy = httpProxy.createProxyServer({
+  target: `http://${GATEWAY_HOST}:${GATEWAY_PORT}`,
+  ws: true,
+  changeOrigin: false,
+  xfwd: true,
+});
+
+wsProxy.on('error', (err, _req, res) => {
+  console.error('[Gateway Proxy] Error:', err.message);
+  if (res && typeof res.writeHead === 'function') {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.end('Gateway proxy error');
+  }
+});
+
+// HTTP Proxy: /openclaw/* -> http://localhost:OPENCLAW_PORT/openclaw/* (OpenClaw control UI)
+app.use('/openclaw', (req, res) => {
+  req.url = '/openclaw' + (req.url || '/');
+  wsProxy.web(req, res);
+});
+
 // SPA catch-all: serve index.html for any non-API route (never cached)
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
@@ -778,28 +808,6 @@ app.use((req, res, next) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   } else {
     next();
-  }
-});
-
-// ─── WebSocket Proxy: /gateway -> ws://localhost:OPENCLAW_PORT/ ──────────────
-// Cloudflared sends all traffic to this server. We proxy WebSocket upgrade
-// requests on /gateway to the OpenClaw gateway, stripping the /gateway prefix.
-
-const GATEWAY_HOST = '127.0.0.1';
-const GATEWAY_PORT = parseInt(process.env.OPENCLAW_PORT || '18789');
-
-const wsProxy = httpProxy.createProxyServer({
-  target: `http://${GATEWAY_HOST}:${GATEWAY_PORT}`,
-  ws: true,
-  changeOrigin: false, // Preserve Origin header for gateway CORS check
-  xfwd: true, // Forward X-Forwarded-For/Proto/Port so gateway trusts proxy
-});
-
-wsProxy.on('error', (err, _req, res) => {
-  console.error('[WS Proxy] Error:', err.message);
-  if (res && typeof res.writeHead === 'function') {
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
-    res.end('Gateway proxy error');
   }
 });
 
@@ -820,7 +828,7 @@ server.on('upgrade', (req, socket, head) => {
   wsProxy.ws(req, socket, head);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`Dashboard server running on http://localhost:${PORT}`);
   console.log(`OpenClaw directory: ${OPENCLAW_BASE}`);
   console.log(`WebSocket proxy: /gateway -> ws://${GATEWAY_HOST}:${GATEWAY_PORT}/`);

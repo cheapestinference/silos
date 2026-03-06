@@ -627,12 +627,15 @@ export function AppSidebar() {
             <TooltipTrigger>
               <button
                 onClick={() => {
-                  // Build HTTP URL from the gateway URL (which may be ws:// or http://)
-                  let httpUrl = gatewayUrl;
-                  httpUrl = httpUrl.replace(/^wss?:\/\//, 'http://');
-                  if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
-                  // Control UI basePath is configured as /openclaw in gateway config
-                  window.open(`${httpUrl}/openclaw/`, '_blank');
+                  const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
+                  const isHttps = window.location.protocol === 'https:';
+                  if (isLocal && isHttps) {
+                    window.open(`${window.location.origin}/openclaw/`, '_blank');
+                  } else {
+                    let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
+                    if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
+                    window.open(`${httpUrl}/openclaw/`, '_blank');
+                  }
                 }}
                 className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover transition-colors"
               >
