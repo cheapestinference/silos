@@ -184,7 +184,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Failed to load configuration
+            {t('common.failedToLoad')}
           </div>
         )}
 
@@ -192,7 +192,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
           <div className="flex items-center justify-between w-full">
             <div className="text-sm text-muted-foreground">
               {hasChanges && !saveSuccess && (
-                <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
+                <span className="text-amber-600 dark:text-amber-400">{t('common.unsavedChanges')}</span>
               )}
               {saveSuccess && (
                 <span className="text-green-600 dark:text-green-400 flex items-center gap-1">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
+import useTranslation from '../../i18n';
 import { cn } from '../../lib/utils';
 import {
   FolderOpen,
@@ -170,6 +171,7 @@ function FileTreeItem({
 }
 
 export function WorkspacePanel({ agentId }: WorkspacePanelProps) {
+  const { t } = useTranslation();
   const {
     workspaceFiles, workspaceContent, workspaceLoading,
     listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile,
@@ -285,7 +287,13 @@ export function WorkspacePanel({ agentId }: WorkspacePanelProps) {
     setDeleteConfirm(null);
   };
 
-  const tree = buildTree(workspaceFiles);
+  // Hide system files that are shown in other tabs (Memory, Config, etc.)
+  const HIDDEN_ROOT_FILES = new Set(['USER.md', 'HEARTBEAT.md', 'IDENTITY.md', 'SOUL.md', 'TOOLS.md', 'BOOTSTRAP.md', 'AGENTS.md']);
+  const filteredFiles = workspaceFiles.filter(f => {
+    const parts = f.path.split('/');
+    return !(parts.length === 1 && HIDDEN_ROOT_FILES.has(parts[0]));
+  });
+  const tree = buildTree(filteredFiles);
 
   return (
     <div className="h-full flex animate-in fade-in duration-300">
@@ -341,7 +349,7 @@ export function WorkspacePanel({ agentId }: WorkspacePanelProps) {
           ) : tree.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground">
               <FolderOpen className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-              Empty workspace
+              {t('agentDetail.emptyWorkspace')}
             </div>
           ) : (
             tree.map((node) => (

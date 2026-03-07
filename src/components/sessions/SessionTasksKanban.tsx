@@ -1,5 +1,6 @@
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
+import { useTranslation } from '../../i18n';
 import {
   CheckCircle2,
   Clock,
@@ -22,6 +23,7 @@ interface SessionTasksKanbanProps {
 }
 
 export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
+  const { t } = useTranslation();
   const { tasks, abortTask, loadTaskHistory, taskHistoryLoading } = useDashboardStore();
   const navigate = useNavigate();
 
@@ -98,10 +100,10 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
           </div>
           <div>
             <h3 className="text-[11px] font-bold text-foreground uppercase tracking-[0.2em]" style={{ fontFamily: 'JetBrains Mono, IBM Plex Mono, monospace' }}>
-              Task Pipeline
+              {t('tasks.pipeline')}
             </h3>
             <p className="text-[9px] text-muted-foreground font-mono">
-              {totalTasks} task{totalTasks !== 1 ? 's' : ''} tracked
+              {totalTasks !== 1 ? t('tasks.tasksTracked', { count: totalTasks }) : t('tasks.taskTracked', { count: totalTasks })}
             </p>
           </div>
         </div>
@@ -120,7 +122,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
           title="Load task history from gateway"
         >
           <History className={cn("w-3 h-3", taskHistoryLoading && "animate-spin")} />
-          History
+          {t('tasks.history')}
         </button>
       </div>
 
@@ -129,8 +131,8 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
         <div className="h-full grid grid-cols-3 gap-3">
           {/* Active Column */}
           <KanbanColumn
-            title="Active"
-            subtitle="In progress"
+            title={t('tasks.active')}
+            subtitle={t('tasks.inProgress')}
             icon={<Play className="w-3.5 h-3.5" />}
             count={runningTasks.length}
             color="cyan"
@@ -139,13 +141,13 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             onAbort={handleAbort}
             onNavigate={(sk) => navigate(`/session/${sk}`)}
             emptyIcon={<Terminal className="w-8 h-8" />}
-            emptyMessage="No active tasks"
+            emptyMessage={t('tasks.noActiveTasks')}
           />
 
           {/* Completed Column */}
           <KanbanColumn
-            title="Completed"
-            subtitle="Successfully finished"
+            title={t('tasks.completed')}
+            subtitle={t('tasks.successfullyFinished')}
             icon={<CheckCircle2 className="w-3.5 h-3.5" />}
             count={completedTasks.length}
             color="emerald"
@@ -153,13 +155,13 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             formatDuration={formatDuration}
             onNavigate={(sk) => navigate(`/session/${sk}`)}
             emptyIcon={<CheckCircle2 className="w-8 h-8" />}
-            emptyMessage="No completed tasks"
+            emptyMessage={t('tasks.noCompletedTasks')}
           />
 
           {/* Failed Column */}
           <KanbanColumn
-            title="Failed"
-            subtitle="Errors & aborted"
+            title={t('tasks.failedTitle')}
+            subtitle={t('tasks.errorsAborted')}
             icon={<AlertTriangle className="w-3.5 h-3.5" />}
             count={failedTasks.length}
             color="rose"
@@ -168,7 +170,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             onAbort={handleAbort}
             onNavigate={(sk) => navigate(`/session/${sk}`)}
             emptyIcon={<AlertTriangle className="w-8 h-8" />}
-            emptyMessage="No failures"
+            emptyMessage={t('tasks.noFailures')}
           />
         </div>
       </div>

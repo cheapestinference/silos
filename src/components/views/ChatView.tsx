@@ -575,6 +575,7 @@ interface ToolsPanelProps {
 }
 
 function ToolsPanel({ messages }: ToolsPanelProps) {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const toolMessages = messages.filter(
@@ -594,8 +595,8 @@ function ToolsPanel({ messages }: ToolsPanelProps) {
         <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
           <Wrench className="w-6 h-6 text-cyan-500/50" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground mb-1">No tool activity yet</p>
-        <p className="text-xs text-muted-foreground/60">Tool calls will appear here when the agent uses tools</p>
+        <p className="text-sm font-medium text-muted-foreground mb-1">{t('chat.noToolActivity')}</p>
+        <p className="text-xs text-muted-foreground/60">{t('chat.toolCallsAppear')}</p>
       </div>
     );
   }

@@ -138,7 +138,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <h3 className="text-lg font-semibold">Memory Files</h3>
+            <h3 className="text-lg font-semibold">{t('memory.title')}</h3>
           </div>
           <Button
             variant="ghost"
@@ -167,9 +167,9 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
           >
             <div className="flex items-center gap-2 mb-1">
               <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span className="font-medium text-sm">Context Memory</span>
+              <span className="font-medium text-sm">{t('memory.contextMemory')}</span>
             </div>
-            <p className="text-xs text-muted-foreground">Agent's working memory</p>
+            <p className="text-xs text-muted-foreground">{t('memory.workingMemory')}</p>
           </button>
         </div>
 
@@ -177,7 +177,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
-              placeholder="filename.md"
+              placeholder={t('memory.filenamePlaceholder')}
               value={newFileName}
               onChange={(e) => setNewFileName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFile()}
@@ -209,17 +209,17 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             <div className="space-y-3">
               <div className="text-center py-4 text-muted-foreground text-sm">
                 <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="font-medium">No memory files yet</p>
-                <p className="text-xs mt-1">Create recommended files below</p>
+                <p className="font-medium">{t('memory.noFilesYet')}</p>
+                <p className="text-xs mt-1">{t('memory.createRecommended')}</p>
               </div>
 
               {/* Recommended Files */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground px-1">Quick Start:</p>
+                <p className="text-xs font-medium text-muted-foreground px-1">{t('memory.quickStart')}</p>
                 {[
-                  { name: 'personality.md', desc: 'Agent personality & tone', icon: Brain, iconClass: 'text-purple-600 dark:text-purple-400' },
-                  { name: 'long-term-memory.md', desc: 'Persistent knowledge', icon: Brain, iconClass: 'text-blue-600 dark:text-blue-400' },
-                  { name: 'preferences.md', desc: 'User preferences', icon: FileText, iconClass: 'text-green-600 dark:text-green-400' },
+                  { name: 'personality.md', desc: t('memory.personality'), icon: Brain, iconClass: 'text-purple-600 dark:text-purple-400' },
+                  { name: 'long-term-memory.md', desc: t('memory.persistentKnowledge'), icon: Brain, iconClass: 'text-blue-600 dark:text-blue-400' },
+                  { name: 'preferences.md', desc: t('memory.userPreferences'), icon: FileText, iconClass: 'text-green-600 dark:text-green-400' },
                 ].map((file) => (
                   <button
                     key={file.name}
@@ -273,8 +273,8 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
           <div className="flex items-start gap-2">
             <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5" />
             <div className="text-xs text-muted-foreground">
-              <p className="font-medium text-purple-600 dark:text-purple-400 mb-1">Memory Files</p>
-              <p>Store personality, preferences, and long-term context for the agent.</p>
+              <p className="font-medium text-purple-600 dark:text-purple-400 mb-1">{t('memory.infoTitle')}</p>
+              <p>{t('memory.infoText')}</p>
             </div>
           </div>
         </div>
@@ -302,7 +302,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             {saved && (
               <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
                 <Check className="w-4 h-4" />
-                Saved
+                {t('common.saved')}
               </div>
             )}
             {lastUpdated && !selectedFile && (
@@ -320,12 +320,12 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
+                  {t('common.saving')}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save
+                  {t('common.save')}
                 </>
               )}
             </Button>
@@ -358,7 +358,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               }}
               placeholder={
                 selectedFile
-                  ? "Edit memory file content..."
+                  ? t('memory.editPlaceholder')
                   : t('agents.config.contextMemoryPlaceholder')
               }
               className="h-full min-h-[400px] font-mono text-sm resize-none"
@@ -369,12 +369,12 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         {/* Footer */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div>
-            {(selectedFile ? editedContent : value).length.toLocaleString()} characters
+            {(selectedFile ? editedContent : value).length.toLocaleString()} {t('common.characters')}
           </div>
           {!selectedFile && (
             <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5" />
-              Changes saved automatically with config
+              {t('memory.autoSaveHint')}
             </div>
           )}
         </div>

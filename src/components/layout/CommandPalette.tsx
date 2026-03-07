@@ -120,7 +120,7 @@ export function CommandPalette() {
     const sessionItems = filteredItems.filter(i => i.type === 'session');
 
     if (pages.length > 0) {
-      groups.push({ type: 'page', label: 'Pages', items: pages });
+      groups.push({ type: 'page', label: t('common.pages'), items: pages });
     }
     if (agentItems.length > 0) {
       groups.push({ type: 'agent', label: t('nav.agents'), items: agentItems });
@@ -289,15 +289,15 @@ export function CommandPalette() {
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
                 <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">↑↓</kbd>
-                navigate
+                {t('common.navigate')}
               </span>
               <span className="flex items-center gap-1">
                 <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">↵</kbd>
-                select
+                {t('common.select')}
               </span>
               <span className="flex items-center gap-1">
                 <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">esc</kbd>
-                close
+                {t('common.close')}
               </span>
             </div>
           </div>

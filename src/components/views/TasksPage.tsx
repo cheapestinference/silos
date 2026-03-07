@@ -437,7 +437,7 @@ export function TasksPage() {
                 )}
               >
                 <ListTodo className="w-3.5 h-3.5" />
-                Tasks
+                {t('tasks.tasksTab')}
               </button>
               <button
                 onClick={() => setActiveTab('periodic')}
@@ -449,7 +449,7 @@ export function TasksPage() {
                 )}
               >
                 <CalendarClock className="w-3.5 h-3.5" />
-                Periodic Tasks
+                {t('tasks.periodicTasks')}
                 {cronJobs.length > 0 && (
                   <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">
                     {cronJobs.length}
@@ -532,7 +532,7 @@ export function TasksPage() {
                   disabled={taskHistoryLoading}
                 >
                   <History className={cn("w-3.5 h-3.5", taskHistoryLoading && "animate-spin")} />
-                  {taskHistoryLoading ? 'Loading...' : 'Load History'}
+                  {taskHistoryLoading ? t('common.loading') : t('tasks.loadHistory')}
                 </Button>
               </>
             ) : (
@@ -541,13 +541,13 @@ export function TasksPage() {
                 {runningCronJobs > 0 && (
                   <Badge variant="default" className="bg-blue-500 animate-pulse">
                     <Play className="h-3 w-3 mr-1" />
-                    {runningCronJobs} running
+                    {runningCronJobs} {t('tasks.running')}
                   </Badge>
                 )}
 
                 {/* Scheduler status */}
                 <Badge variant={cronStatus?.enabled ? 'default' : 'secondary'} className={cronStatus?.enabled ? 'bg-emerald-500' : ''}>
-                  {cronStatus?.enabled ? 'Scheduler Active' : 'Scheduler Paused'}
+                  {cronStatus?.enabled ? t('tasks.schedulerActive') : t('tasks.schedulerPaused')}
                 </Badge>
 
                 {/* Divider */}
@@ -563,7 +563,7 @@ export function TasksPage() {
                   }}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Create Task
+                  {t('tasks.createTask')}
                 </Button>
               </>
             )}
@@ -583,7 +583,7 @@ export function TasksPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-1">{t('tasks.noTasks')}</h3>
                 <p className="text-muted-foreground max-w-md">
-                  Tasks will appear here when you start conversations with agents.
+                  {t('tasks.tasksAppearHint')}
                 </p>
               </div>
             </div>
@@ -593,7 +593,7 @@ export function TasksPage() {
                 <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-30" />
                 <h3 className="text-lg font-semibold mb-1">{t('common.noResults')}</h3>
                 <p className="text-muted-foreground">
-                  Try adjusting your search or filters.
+                  {t('tasks.adjustFilters')}
                 </p>
                 <Button
                   variant="outline"
@@ -602,7 +602,7 @@ export function TasksPage() {
                   onClick={() => { setSearch(''); setFilter('all'); }}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Clear filters
+                  {t('tasks.clearFilters')}
                 </Button>
               </div>
             </div>
@@ -628,13 +628,13 @@ export function TasksPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-2xl font-bold">{cronJobs.length}</div>
-                  <p className="text-xs text-muted-foreground">Total Jobs</p>
+                  <p className="text-xs text-muted-foreground">{t('tasks.totalJobs')}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-2xl font-bold text-green-500">{enabledCronJobs}</div>
-                  <p className="text-xs text-muted-foreground">Active</p>
+                  <p className="text-xs text-muted-foreground">{t('cron.active')}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -642,7 +642,7 @@ export function TasksPage() {
                   <div className="text-2xl font-bold text-muted-foreground">
                     {cronJobs.length - enabledCronJobs}
                   </div>
-                  <p className="text-xs text-muted-foreground">Paused</p>
+                  <p className="text-xs text-muted-foreground">{t('cron.paused')}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -650,7 +650,7 @@ export function TasksPage() {
                   <div className="text-2xl font-bold">
                     {nextCronRun ? formatTimestamp(nextCronRun) : 'N/A'}
                   </div>
-                  <p className="text-xs text-muted-foreground">Next Run</p>
+                  <p className="text-xs text-muted-foreground">{t('tasks.nextRun')}</p>
                 </CardContent>
               </Card>
             </div>
@@ -666,7 +666,7 @@ export function TasksPage() {
               showAgentInfo={true}
               getAgentName={getAgentName}
               loading={cronLoading}
-              emptyMessage="Configure periodic tasks to automate agent work"
+              emptyMessage={t('tasks.configurePeriodicTasks')}
             />
           </div>
         )}

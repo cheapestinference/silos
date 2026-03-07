@@ -1,5 +1,6 @@
 import { Clock, Play, Pause, Timer } from 'lucide-react';
 import { cn, formatTimestamp } from '../../lib/utils';
+import { useTranslation } from '../../i18n';
 import type { CronJob } from '../../types/openclaw';
 
 interface CronStatsWidgetProps {
@@ -9,6 +10,7 @@ interface CronStatsWidgetProps {
 }
 
 export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetProps) {
+  const { t } = useTranslation();
   const totalJobs = jobs.length;
   const activeJobs = jobs.filter((j) => j.enabled).length;
   const pausedJobs = totalJobs - activeJobs;
@@ -37,11 +39,11 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-          <h4 className="text-sm font-semibold text-foreground">Scheduled Jobs</h4>
+          <h4 className="text-sm font-semibold text-foreground">{t('cron.scheduledJobs')}</h4>
         </div>
         {onViewAll && (
           <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-            View All &rarr;
+            {t('cron.viewAll')} &rarr;
           </span>
         )}
       </div>
@@ -50,7 +52,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
         {/* Total */}
         <div className="flex items-center gap-1.5">
           <span className="text-lg font-bold text-foreground">{totalJobs}</span>
-          <span className="text-xs text-muted-foreground">jobs</span>
+          <span className="text-xs text-muted-foreground">{t('cron.jobs')}</span>
         </div>
 
         <span className="w-px h-4 bg-border" />
@@ -59,7 +61,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
         <div className="flex items-center gap-1.5">
           <Play className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
           <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{activeJobs}</span>
-          <span className="text-xs text-muted-foreground">active</span>
+          <span className="text-xs text-muted-foreground">{t('cron.active')}</span>
         </div>
 
         {/* Paused */}
@@ -69,7 +71,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
             <div className="flex items-center gap-1.5">
               <Pause className="w-3 h-3 text-muted-foreground" />
               <span className="text-sm font-medium text-muted-foreground">{pausedJobs}</span>
-              <span className="text-xs text-muted-foreground">paused</span>
+              <span className="text-xs text-muted-foreground">{t('cron.paused')}</span>
             </div>
           </>
         )}
@@ -81,7 +83,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               <span className="text-sm font-medium text-blue-500 dark:text-blue-400">{runningCount}</span>
-              <span className="text-xs text-muted-foreground">running</span>
+              <span className="text-xs text-muted-foreground">{t('cron.running')}</span>
             </div>
           </>
         )}
@@ -91,7 +93,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
       {nextRun && (
         <div className="mt-3 pt-3 border-t border-border flex items-center gap-1.5">
           <Timer className="w-3 h-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Next:</span>
+          <span className="text-xs text-muted-foreground">{t('cron.next')}</span>
           <span className="text-xs text-muted-foreground">{formatTimestamp(nextRun)}</span>
         </div>
       )}

@@ -65,9 +65,10 @@ export function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
     return { extraPaths: extra };
   }, [gatewayConfig, agentId]);
 
-  // Filter only .md files
+  // Filter only .md files, hiding system files shown in other tabs
+  const HIDDEN_SYSTEM_FILES = new Set(['USER.md', 'HEARTBEAT.md', 'IDENTITY.md', 'SOUL.md', 'TOOLS.md', 'BOOTSTRAP.md', 'AGENTS.md']);
   const mdFiles = useMemo(() => {
-    return workspaceFiles.filter(f => f.type === 'file' && f.path.endsWith('.md'));
+    return workspaceFiles.filter(f => f.type === 'file' && f.path.endsWith('.md') && !HIDDEN_SYSTEM_FILES.has(f.path));
   }, [workspaceFiles]);
 
   // Determine indexing status for each file

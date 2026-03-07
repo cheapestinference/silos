@@ -162,6 +162,134 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
+  // ─── ClawHub Marketplace ──────────────────────────────────────────────────
+
+  const CLAWHUB_API = 'https://clawhub.ai/api';
+
+  router.get('/api/clawhub/search', authMiddleware, async (req, res) => {
+    try {
+      const q = req.query.q || '';
+      const limit = Math.min(Number(req.query.limit) || 20, 50);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(`${CLAWHUB_API}/search?q=${encodeURIComponent(q)}&limit=${limit}`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) return res.status(response.status).json({ error: 'ClawHub search failed' });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      if (error.name === 'AbortError') return res.status(504).json({ error: 'ClawHub search timed out' });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get('/api/clawhub/skill', authMiddleware, async (req, res) => {
+    try {
+      const slug = req.query.slug;
+      if (!slug) return res.status(400).json({ error: 'slug is required' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(`${CLAWHUB_API}/skill?slug=${encodeURIComponent(slug)}`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) return res.status(response.status).json({ error: 'Skill not found' });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      if (error.name === 'AbortError') return res.status(504).json({ error: 'ClawHub request timed out' });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post('/api/clawhub/install', authMiddleware, async (req, res) => {
+    try {
+      const { slug } = req.body;
+      console.log('[ClawHub Install] slug:', JSON.stringify(slug));
+      if (!slug || !/^[a-z0-9][a-z0-9._\/-]*$/i.test(slug)) {
+        return res.status(400).json({ error: 'Invalid skill slug' });
+      }
+      const skillsDir = path.join(openclawBase, 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      let stdout = '', stderr = '';
+      try {
+        const result = await execFileAsync('clawhub', ['install', slug, '--no-input', '--force'], {
+          cwd: openclawBase,
+          timeout: 30000,
+          env: { ...process.env, HOME: openclawBase },
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } catch (execErr) {
+        // clawhub may exit non-zero but still install (e.g. suspicious skill warnings)
+        stdout = execErr.stdout || '';
+        stderr = execErr.stderr || '';
+      }
+      // Check if skill was actually installed despite exit code
+      // clawhub installs as the skill name (last part of slug, e.g. "owner/skill" -> "skill")
+      const skillName = slug.includes('/') ? slug.split('/').pop() : slug;
+      const skillPath = path.join(openclawBase, 'skills', skillName);
+      try {
+        await fs.access(skillPath);
+        console.log('[ClawHub Install] OK:', skillPath);
+        res.json({ ok: true, output: stdout || stderr });
+      } catch {
+        console.log('[ClawHub Install] FAIL: not found at', skillPath, 'stdout:', stdout, 'stderr:', stderr);
+        res.status(500).json({ error: stderr || stdout || 'Install failed', output: stderr });
+      }
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ─── Skills Management ───────────────────────────────────────────────────
+
+  router.get('/api/skills/list', authMiddleware, async (_req, res) => {
+    try {
+      const skillsDir = path.join(openclawBase, 'skills');
+      let entries;
+      try {
+        entries = await fs.readdir(skillsDir, { withFileTypes: true });
+      } catch {
+        return res.json({ skills: [] });
+      }
+      const skills = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const skillPath = path.join(skillsDir, entry.name);
+        try {
+          const skillMd = await fs.readFile(path.join(skillPath, 'SKILL.md'), 'utf8');
+          // Parse YAML frontmatter
+          const fmMatch = skillMd.match(/^---\n([\s\S]*?)\n---/);
+          let name = entry.name, description = '';
+          if (fmMatch) {
+            const nameMatch = fmMatch[1].match(/^name:\s*(.+)$/m);
+            const descMatch = fmMatch[1].match(/^description:\s*(.+)$/m);
+            if (nameMatch) name = nameMatch[1].trim();
+            if (descMatch) description = descMatch[1].trim();
+          }
+          const stat = await fs.stat(skillPath);
+          skills.push({ slug: entry.name, name, description, installedAt: stat.mtimeMs });
+        } catch { /* skip dirs without SKILL.md */ }
+      }
+      res.json({ skills });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.delete('/api/skills/:slug', authMiddleware, async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      if (!slug || !/^[a-z0-9][a-z0-9._-]*$/i.test(slug)) {
+        return res.status(400).json({ error: 'Invalid skill slug' });
+      }
+      const skillPath = path.join(openclawBase, 'skills', slug);
+      await fs.rm(skillPath, { recursive: true, force: true });
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Browse server filesystem (for Knowledge Base extraPaths)
   router.get('/api/browse', authMiddleware, async (req, res) => {
     try {

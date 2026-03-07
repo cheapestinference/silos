@@ -151,12 +151,12 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
 
   const selectedModelName = useMemo(() => {
     const found = currentModels.find((m) => m.id === parsedModel.modelId);
-    return found ? (found.name || found.id) : parsedModel.modelId || 'Select model';
+    return found ? (found.name || found.id) : parsedModel.modelId || t('agentDetail.selectModel');
   }, [currentModels, parsedModel.modelId]);
 
   const DefaultBadge = () => (
     <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded">
-      Gateway Default
+      {t('agentDetail.gatewayDefault')}
     </span>
   );
 
@@ -172,18 +172,18 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted border border-border">
         <Cpu className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] text-muted-foreground mb-0.5">Active Model</div>
+          <div className="text-[11px] text-muted-foreground mb-0.5">{t('agentDetail.activeModel')}</div>
           <div className="text-sm font-mono text-foreground truncate">
-            {settings.model || defaultGatewayModel || 'Not configured'}
+            {settings.model || defaultGatewayModel || t('agentDetail.notConfigured')}
           </div>
         </div>
         {settings.model && settings.model !== defaultGatewayModel ? (
           <span className="px-1.5 py-0.5 text-[10px] font-medium bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 rounded shrink-0">
-            Agent Override
+            {t('agentDetail.agentOverride')}
           </span>
         ) : settings.model || defaultGatewayModel ? (
           <span className="px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border rounded shrink-0">
-            Global Default
+            {t('agentDetail.globalDefault')}
           </span>
         ) : null}
       </div>
@@ -195,14 +195,14 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Cpu className="w-4 h-4 text-muted-foreground" />
-              <label className="text-sm font-medium">Provider</label>
+              <label className="text-sm font-medium">{t('agentDetail.provider')}</label>
             </div>
             <Select
               value={selectedProvider}
               onValueChange={handleProviderChange}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select provider" />
+                <SelectValue placeholder={t('agentDetail.selectProvider')} />
               </SelectTrigger>
               <SelectContent>
                 {providerNames.map((name) => (
@@ -244,7 +244,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                       type="text"
                       value={modelSearch}
                       onChange={(e) => setModelSearch(e.target.value)}
-                      placeholder="Search models..."
+                      placeholder={t('agentDetail.searchModels')}
                       className="flex-1 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
                     />
                     {modelSearch && (
@@ -253,7 +253,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                   </div>
                   <div className="max-h-60 overflow-y-auto p-1">
                     {filteredModels.length === 0 ? (
-                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">No models found</div>
+                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">{t('agentDetail.noModelsFound')}</div>
                     ) : (
                       filteredModels.map((model) => (
                         <button
@@ -283,7 +283,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
         <div className="rounded-lg bg-muted border border-border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="w-4 h-4" />
-            <span>No model providers configured. Add providers in Settings.</span>
+            <span>{t('agentDetail.noProviders')}</span>
           </div>
         </div>
       )}

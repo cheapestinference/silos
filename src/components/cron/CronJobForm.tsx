@@ -10,6 +10,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { useTranslation } from '../../i18n';
 import type {
   CronJob,
   CronSchedule,
@@ -35,6 +36,7 @@ export function CronJobForm({
   onCancel,
   saving = false,
 }: CronJobFormProps) {
+  const { t } = useTranslation();
   const isEditing = !!job;
 
   // Form state
@@ -163,7 +165,7 @@ export function CronJobForm({
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5 text-primary" />
-            {isEditing ? 'Edit Periodic Task' : 'Create Periodic Task'}
+            {isEditing ? t('cron.editTask') : t('cron.createTask')}
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onCancel}>
             <X className="h-4 w-4" />
@@ -174,27 +176,27 @@ export function CronJobForm({
             {/* Basic Info */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
+                <label className="block text-sm font-medium mb-1">{t('cron.nameLabel')} *</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Daily Report, Hourly Check..."
+                  placeholder={t('cron.namePlaceholder')}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-sm font-medium mb-1">{t('cron.descriptionLabel')}</label>
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional description..."
+                  placeholder={t('cron.descriptionPlaceholder')}
                 />
               </div>
             </div>
 
             {/* Schedule */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium">Schedule *</label>
+              <label className="block text-sm font-medium">{t('cron.scheduleLabel')} *</label>
               <div className="flex gap-2">
                 {(['at', 'every', 'cron'] as const).map((kind) => (
                   <Button
@@ -208,7 +210,7 @@ export function CronJobForm({
                     {kind === 'at' && <Calendar className="h-3.5 w-3.5" />}
                     {kind === 'every' && <Repeat className="h-3.5 w-3.5" />}
                     {kind === 'cron' && <CalendarClock className="h-3.5 w-3.5" />}
-                    {kind === 'at' ? 'One-time' : kind === 'every' ? 'Interval' : 'Cron'}
+                    {kind === 'at' ? t('cron.oneTime') : kind === 'every' ? t('cron.interval') : 'Cron'}
                   </Button>
                 ))}
               </div>
@@ -234,7 +236,7 @@ export function CronJobForm({
 
               {scheduleKind === 'every' && (
                 <div className="flex gap-2 items-center">
-                  <span className="text-sm text-muted-foreground">Every</span>
+                  <span className="text-sm text-muted-foreground">{t('cron.every')}</span>
                   <Input
                     type="number"
                     min="1"
@@ -248,9 +250,9 @@ export function CronJobForm({
                     onChange={(e) => setEveryUnit(e.target.value as typeof everyUnit)}
                     className="px-3 py-2 bg-background border rounded-md text-sm"
                   >
-                    <option value="minutes">Minutes</option>
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
+                    <option value="minutes">{t('cron.minutes')}</option>
+                    <option value="hours">{t('cron.hours')}</option>
+                    <option value="days">{t('cron.days')}</option>
                   </select>
                 </div>
               )}
@@ -266,10 +268,10 @@ export function CronJobForm({
                   <Input
                     value={cronTz}
                     onChange={(e) => setCronTz(e.target.value)}
-                    placeholder="Timezone (e.g., America/New_York)"
+                    placeholder={t('cron.timezone')}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Format: minute hour day-of-month month day-of-week
+                    {t('cron.cronFormat')}
                   </p>
                 </div>
               )}
@@ -277,7 +279,7 @@ export function CronJobForm({
 
             {/* Payload */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium">Payload *</label>
+              <label className="block text-sm font-medium">{t('cron.payloadLabel')} *</label>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -285,7 +287,7 @@ export function CronJobForm({
                   size="sm"
                   onClick={() => setPayloadKind('agentTurn')}
                 >
-                  Agent Turn
+                  {t('cron.agentTurn')}
                 </Button>
                 <Button
                   type="button"
@@ -293,7 +295,7 @@ export function CronJobForm({
                   size="sm"
                   onClick={() => setPayloadKind('systemEvent')}
                 >
-                  System Event
+                  {t('cron.systemEvent')}
                 </Button>
               </div>
 
@@ -301,7 +303,7 @@ export function CronJobForm({
                 <textarea
                   value={payloadMessage}
                   onChange={(e) => setPayloadMessage(e.target.value)}
-                  placeholder="Message for the agent to process..."
+                  placeholder={t('cron.agentMessage')}
                   className="w-full px-3 py-2 bg-background border rounded-md text-sm min-h-[100px] resize-y"
                   required
                 />
@@ -309,7 +311,7 @@ export function CronJobForm({
                 <textarea
                   value={payloadText}
                   onChange={(e) => setPayloadText(e.target.value)}
-                  placeholder="System event text..."
+                  placeholder={t('cron.systemEventText')}
                   className="w-full px-3 py-2 bg-background border rounded-md text-sm min-h-[100px] resize-y"
                   required
                 />
@@ -318,39 +320,39 @@ export function CronJobForm({
 
             {/* Configuration */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium">Configuration</label>
+              <label className="block text-sm font-medium">{t('cron.configLabel')}</label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Session Target</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('cron.sessionTarget')}</label>
                   <select
                     value={sessionTarget}
                     onChange={(e) => setSessionTarget(e.target.value as CronSessionTarget)}
                     className="w-full px-3 py-2 bg-background border rounded-md text-sm"
                   >
-                    <option value="main">Main Session</option>
-                    <option value="isolated">Isolated Session</option>
+                    <option value="main">{t('cron.mainSession')}</option>
+                    <option value="isolated">{t('cron.isolatedSession')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Wake Mode</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('cron.wakeMode')}</label>
                   <select
                     value={wakeMode}
                     onChange={(e) => setWakeMode(e.target.value as CronWakeMode)}
                     className="w-full px-3 py-2 bg-background border rounded-md text-sm"
                   >
-                    <option value="now">Run Now</option>
-                    <option value="next-heartbeat">Next Heartbeat</option>
+                    <option value="now">{t('cron.runNow')}</option>
+                    <option value="next-heartbeat">{t('cron.nextHeartbeat')}</option>
                   </select>
                 </div>
               </div>
 
               {!agentId && (
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Agent ID (optional)</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('cron.agentIdOptional')}</label>
                   <Input
                     value={selectedAgentId}
                     onChange={(e) => setSelectedAgentId(e.target.value)}
-                    placeholder="Leave empty for global job"
+                    placeholder={t('cron.leaveEmptyGlobal')}
                   />
                 </div>
               )}
@@ -364,7 +366,7 @@ export function CronJobForm({
                   className="rounded border-muted-foreground"
                 />
                 <label htmlFor="deleteAfterRun" className="text-sm">
-                  Delete after first run (one-time job)
+                  {t('cron.deleteAfterRun')}
                 </label>
               </div>
 
@@ -377,7 +379,7 @@ export function CronJobForm({
                   className="rounded border-muted-foreground"
                 />
                 <label htmlFor="enabled" className="text-sm">
-                  Enabled
+                  {t('cron.enabled')}
                 </label>
               </div>
             </div>
@@ -385,18 +387,18 @@ export function CronJobForm({
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
+                    {t('common.saving')}
                   </>
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-2" />
-                    {isEditing ? 'Save Changes' : 'Create Task'}
+                    {isEditing ? t('cron.saveChanges') : t('tasks.createTask')}
                   </>
                 )}
               </Button>

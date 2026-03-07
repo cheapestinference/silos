@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useDashboardStore } from '../../store/dashboard-store';
+import useTranslation from '../../i18n';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
@@ -418,6 +419,7 @@ const staticNavItems = [
 ];
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     connected,
@@ -516,7 +518,7 @@ export function Sidebar() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="px-3 py-2 flex items-center justify-between shrink-0">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Agents
+            {t('nav.agents')}
           </span>
           <span className="text-xs text-muted-foreground">
             {sortedAgents.length}

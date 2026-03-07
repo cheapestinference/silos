@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { formatNumber, formatTimestamp } from '../../lib/utils';
+import { useTranslation } from '../../i18n';
 import type { GatewaySessionRow } from '../../types/openclaw';
 
 interface SessionIntelligenceHeaderProps {
@@ -12,6 +13,7 @@ export function SessionIntelligenceHeader({
   session,
   defaultExpanded = false
 }: SessionIntelligenceHeaderProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   if (!session) return null;
@@ -34,7 +36,7 @@ export function SessionIntelligenceHeader({
             <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform" />
           )}
           <span className="text-sm font-bold text-foreground/80 uppercase tracking-wide">
-            Session Intelligence
+            {t('chat.sessionIntelligence')}
           </span>
           <span className="text-xs text-muted-foreground">
             {displayName}
@@ -53,7 +55,7 @@ export function SessionIntelligenceHeader({
 
         <div className="flex items-center gap-4">
           <span className="text-xs text-muted-foreground font-mono">
-            {formatNumber(totalTokens)} tokens
+            {formatNumber(totalTokens)} {t('sessions.tokens')}
           </span>
         </div>
       </button>
@@ -77,25 +79,25 @@ export function SessionIntelligenceHeader({
             <div className="flex items-center gap-4 text-xs">
               {session.contextTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Context:</span>
+                  <span className="text-muted-foreground">{t('chat.context')}:</span>
                   <span className="font-mono font-semibold text-muted-foreground">{formatNumber(session.contextTokens)}</span>
                 </div>
               )}
               {session.inputTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Input:</span>
+                  <span className="text-muted-foreground">{t('chat.input')}:</span>
                   <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{formatNumber(session.inputTokens)}↓</span>
                 </div>
               )}
               {session.outputTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Output:</span>
+                  <span className="text-muted-foreground">{t('chat.output')}:</span>
                   <span className="font-mono font-semibold text-purple-600 dark:text-purple-400">{formatNumber(session.outputTokens)}↑</span>
                 </div>
               )}
               {session.totalTokens !== undefined && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Total:</span>
+                  <span className="text-muted-foreground">{t('chat.total')}:</span>
                   <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{formatNumber(session.totalTokens)}</span>
                 </div>
               )}
@@ -104,7 +106,7 @@ export function SessionIntelligenceHeader({
             {/* Settings */}
             {session.thinkingLevel && session.thinkingLevel !== 'normal' && (
               <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground">🎚️ Thinking:</span>
+                <span className="text-muted-foreground">🎚️ {t('chat.thinking')}:</span>
                 <span className="text-foreground/80">{session.thinkingLevel}</span>
               </div>
             )}
@@ -112,7 +114,7 @@ export function SessionIntelligenceHeader({
             {/* Updated timestamp */}
             {session.updatedAt && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                Updated {formatTimestamp(session.updatedAt)}
+                {t('common.updated')} {formatTimestamp(session.updatedAt)}
               </div>
             )}
           </div>

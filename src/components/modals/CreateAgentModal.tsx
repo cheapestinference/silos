@@ -76,7 +76,13 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
   }, [model, selectedProvider, modelsByProvider]);
 
   const generateAgentId = (name: string): string => {
-    return name
+    // Transliterate common accented characters, then keep only a-z0-9
+    const transliterated = name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // strip diacritics (é→e, ñ→n, ü→u)
+      .replace(/ñ/gi, 'n')            // fallback for ñ
+      .replace(/ß/g, 'ss');
+    return transliterated
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
@@ -192,24 +198,36 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
       setWaitingReconnect(true);
       setError(null);
 
-      // After gateway restart, write localized templates then notify success
-      setTimeout(async () => {
-        try {
-          const templates = getAgentTemplates(locale);
-          await Promise.all(
-            TEMPLATE_FILES.map(file => {
-              const content = templates[file];
-              if (content) return writeWorkspaceFile(finalAgentId, file, content);
-              return Promise.resolve(false);
-            })
-          );
-        } catch (e) {
-          console.warn('[CreateAgent] Failed to write localized templates:', e);
+      // After gateway restart, write localized templates with retry
+      const writeTemplatesWithRetry = async () => {
+        const templates = getAgentTemplates(locale);
+        const maxAttempts = 8;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          // Wait longer each attempt: 2s, 3s, 4s...
+          await new Promise(r => setTimeout(r, 1000 + attempt * 1000));
+          try {
+            const results = await Promise.all(
+              TEMPLATE_FILES.map(file => {
+                const content = templates[file];
+                if (content) return writeWorkspaceFile(finalAgentId, file, content);
+                return Promise.resolve(true);
+              })
+            );
+            if (results.every(Boolean)) {
+              console.log(`[CreateAgent] Templates written on attempt ${attempt}`);
+              return;
+            }
+          } catch (e) {
+            console.warn(`[CreateAgent] Template write attempt ${attempt} failed:`, e);
+          }
         }
+        console.warn('[CreateAgent] Could not write templates after all attempts');
+      };
+      writeTemplatesWithRetry().finally(() => {
         onSuccess();
         setWaitingReconnect(false);
         handleClose();
-      }, 6000);
+      });
     } catch (err) {
       console.error('Failed to create agent:', err);
       setError(err instanceof Error ? err.message : 'Failed to create agent');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
@@ -28,13 +28,13 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  Link,
   Download,
   Users,
   Copy,
   Check,
   CalendarClock,
   FolderOpen,
+  Package,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CronJobList, CronJobForm, CronStatsWidget } from '../cron';
@@ -67,7 +67,7 @@ export function AgentDetailView() {
     resetAgent,
     gatewayConfig,
   } = useDashboardStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'memory' | 'workspace' | 'skills' | 'knowledge' | 'scheduled' | 'config'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'memory' | 'workspace' | 'tools' | 'skills' | 'knowledge' | 'scheduled' | 'config'>('overview');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -205,20 +205,20 @@ export function AgentDetailView() {
               <StatCard
                 icon={<Activity className="w-3.5 h-3.5" />}
                 value={runningTasks}
-                label="Active"
+                label={t('agentDetail.active')}
                 color="cyan"
                 pulse={runningTasks > 0}
               />
               <StatCard
                 icon={<MessageSquare className="w-3.5 h-3.5" />}
                 value={agentSessions.length}
-                label="Sessions"
+                label={t('agentDetail.sessions')}
                 color="violet"
               />
               <StatCard
                 icon={<Sparkles className="w-3.5 h-3.5" />}
                 value={completedTasks}
-                label="Done"
+                label={t('agentDetail.done')}
                 color="emerald"
               />
               <div className="w-px h-8 bg-muted mx-1" />
@@ -255,19 +255,25 @@ export function AgentDetailView() {
               active={activeTab === 'workspace'}
               onClick={() => setActiveTab('workspace')}
               icon={<FolderOpen className="w-3.5 h-3.5" />}
-              label="Workspace"
+              label={t('agentDetail.workspace')}
+            />
+            <TabButton
+              active={activeTab === 'tools'}
+              onClick={() => setActiveTab('tools')}
+              icon={<Wrench className="w-3.5 h-3.5" />}
+              label={t('agentDetail.tools')}
             />
             <TabButton
               active={activeTab === 'skills'}
               onClick={() => setActiveTab('skills')}
-              icon={<Wrench className="w-3.5 h-3.5" />}
+              icon={<Sparkles className="w-3.5 h-3.5" />}
               label={t('agentDetail.skills')}
             />
             <TabButton
               active={activeTab === 'knowledge'}
               onClick={() => setActiveTab('knowledge')}
               icon={<BookOpen className="w-3.5 h-3.5" />}
-              label="Knowledge"
+              label={t('agentDetail.knowledgeTab')}
             />
             <TabButton
               active={activeTab === 'scheduled'}
@@ -305,6 +311,9 @@ export function AgentDetailView() {
         )}
         {activeTab === 'workspace' && (
           <WorkspacePanel agentId={id} />
+        )}
+        {activeTab === 'tools' && (
+          <AgentToolsPanel agentId={id} />
         )}
         {activeTab === 'skills' && (
           <SkillsPanel agent={agent} />
@@ -1238,479 +1247,690 @@ function MemoryPanel({ agentId }: MemoryPanelProps) {
   );
 }
 
-// Skills Panel Component - Catalog with search, categories, and detail view
+// Skills Panel Component - Unified view of built-in + ClawHub skills
 interface SkillsPanelProps {
   agent: AgentSummary;
 }
 
-interface SkillDefinition {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  icon: string;
-  requires?: string[];
-  install?: string;
-  docs?: string;
+// Built-in OpenClaw skills catalog — toolGroup maps to tools.deny entries
+const BUILTIN_SKILLS = [
+  { id: 'read', name: 'File Read', category: 'Core', description: 'Read file contents from the filesystem', icon: '📄', toolGroup: 'group:fs' },
+  { id: 'write', name: 'File Write', category: 'Core', description: 'Write and create files', icon: '✏️', toolGroup: 'group:fs' },
+  { id: 'edit', name: 'File Edit', category: 'Core', description: 'Edit files with structured patches', icon: '🔧', toolGroup: 'group:fs' },
+  { id: 'exec', name: 'Shell', category: 'Core', description: 'Execute shell commands', icon: '⚡', toolGroup: 'group:runtime' },
+  { id: 'process', name: 'Processes', category: 'Core', description: 'Manage background shell sessions', icon: '📟', toolGroup: 'group:runtime' },
+  { id: 'sessions_spawn', name: 'Spawn Agent', category: 'Core', description: 'Launch sub-agents for parallel tasks', icon: '🤖', toolGroup: 'group:sessions' },
+  { id: 'memory', name: 'Memory', category: 'Core', description: 'Persistent memory across sessions', icon: '🧠', toolGroup: 'group:memory' },
+  { id: 'web_search', name: 'Web Search', category: 'Web', description: 'Search the web (requires API key)', icon: '🔍', toolGroup: 'group:web' },
+  { id: 'web_fetch', name: 'Web Fetch', category: 'Web', description: 'Fetch and read web page contents', icon: '🌐', toolGroup: 'group:web' },
+  { id: 'browser', name: 'Browser', category: 'Web', description: 'Control a headless browser', icon: '🖥️', toolGroup: 'group:ui' },
+  { id: 'cron', name: 'Cron Jobs', category: 'Automation', description: 'Schedule recurring tasks', icon: '⏰', toolGroup: 'group:automation' },
+  { id: 'lobster', name: 'Workflows', category: 'Automation', description: 'Deterministic pipelines with approvals', icon: '🦞', toolGroup: 'lobster' },
+  { id: 'whatsapp', name: 'WhatsApp', category: 'Communication', description: 'Send and receive WhatsApp messages', icon: '💬', toolGroup: 'group:messaging' },
+  { id: 'telegram', name: 'Telegram', category: 'Communication', description: 'Telegram bot integration', icon: '📨', toolGroup: 'group:messaging' },
+  { id: 'discord', name: 'Discord', category: 'Communication', description: 'Discord bot integration', icon: '🎮', toolGroup: 'group:messaging' },
+  { id: 'slack', name: 'Slack', category: 'Communication', description: 'Slack workspace integration', icon: '💼', toolGroup: 'group:messaging' },
+  { id: 'email', name: 'Email', category: 'Communication', description: 'Read and send emails', icon: '📧', toolGroup: 'group:messaging' },
+  { id: 'nodes', name: 'Devices', category: 'Nodes', description: 'Connected companion devices', icon: '📱', toolGroup: 'group:nodes' },
+  { id: 'image', name: 'Image Analysis', category: 'Media', description: 'Analyze images with AI vision', icon: '🖼️', toolGroup: 'group:web' },
+  { id: 'tts', name: 'Text-to-Speech', category: 'Media', description: 'Convert text to spoken audio', icon: '🎤', toolGroup: 'group:web' },
+];
+
+const BUILTIN_CATEGORIES = ['Core', 'Web', 'Automation', 'Communication', 'Nodes', 'Media'];
+
+// ─── Per-Agent Tools Panel ──────────────────────────────────────────────
+
+const AGENT_TOOL_GROUPS = [
+  { id: 'group:fs', nameKey: 'settings.toolsConfig.groups.files', icon: '📁', descKey: 'settings.toolsConfig.groups.filesDesc' },
+  { id: 'group:runtime', nameKey: 'settings.toolsConfig.groups.shell', icon: '💻', descKey: 'settings.toolsConfig.groups.shellDesc' },
+  { id: 'group:web', nameKey: 'settings.toolsConfig.groups.web', icon: '🌐', descKey: 'settings.toolsConfig.groups.webDesc' },
+  { id: 'group:ui', nameKey: 'settings.toolsConfig.groups.browser', icon: '🖥️', descKey: 'settings.toolsConfig.groups.browserDesc' },
+  { id: 'group:sessions', nameKey: 'settings.toolsConfig.groups.sessions', icon: '🔗', descKey: 'settings.toolsConfig.groups.sessionsDesc' },
+  { id: 'group:memory', nameKey: 'settings.toolsConfig.groups.memory', icon: '🧠', descKey: 'settings.toolsConfig.groups.memoryDesc' },
+  { id: 'group:automation', nameKey: 'settings.toolsConfig.groups.automation', icon: '⏰', descKey: 'settings.toolsConfig.groups.automationDesc' },
+  { id: 'group:messaging', nameKey: 'settings.toolsConfig.groups.messaging', icon: '💬', descKey: 'settings.toolsConfig.groups.messagingDesc' },
+  { id: 'group:nodes', nameKey: 'settings.toolsConfig.groups.devices', icon: '📱', descKey: 'settings.toolsConfig.groups.devicesDesc' },
+];
+
+function AgentToolsPanel({ agentId }: { agentId: string }) {
+  const { t } = useTranslation();
+  const { gatewayConfig, patchGatewayConfig } = useDashboardStore();
+  const [saving, setSaving] = useState(false);
+
+  const config = gatewayConfig?.config as Record<string, unknown> | undefined;
+
+  // Global tools config
+  const globalTools = (config?.tools || {}) as Record<string, unknown>;
+  const globalDeny = (globalTools.deny || []) as string[];
+  const globalAlsoAllow = (globalTools.alsoAllow || []) as string[];
+
+  // Per-agent config: agents.list[].tools
+  const agentsCfg = config?.agents as { list?: Array<Record<string, unknown>> } | undefined;
+  const agentEntry = agentsCfg?.list?.find((a: Record<string, unknown>) => a.id === agentId);
+  const agentTools = (agentEntry?.tools || null) as Record<string, unknown> | null;
+  const agentDeny = agentTools ? (agentTools.deny || []) as string[] : null;
+  const agentAlsoAllow = agentTools ? (agentTools.alsoAllow || []) as string[] : null;
+
+  // Effective values: agent override if set, otherwise global
+  const effectiveDeny = agentDeny ?? globalDeny;
+  const effectiveAlsoAllow = agentAlsoAllow ?? globalAlsoAllow;
+
+  const isGroupEnabled = (groupId: string) => !effectiveDeny.includes(groupId);
+  const lobsterEnabled = effectiveAlsoAllow.includes('lobster');
+
+  const patchAgentTools = async (toolsPatch: Record<string, unknown>) => {
+    setSaving(true);
+    // If agent has no overrides yet, initialize from global before applying change
+    const currentAgentTools = agentTools || { deny: [...globalDeny], alsoAllow: [...globalAlsoAllow] };
+    const newTools = { ...currentAgentTools, ...toolsPatch };
+
+    const currentList = (agentsCfg?.list || []) as Array<Record<string, unknown>>;
+    const exists = currentList.some(a => a.id === agentId);
+    const updatedList = exists
+      ? currentList.map(a => a.id === agentId ? { ...a, tools: newTools } : a)
+      : [...currentList, { id: agentId, tools: newTools }];
+    await patchGatewayConfig({ agents: { ...config?.agents as object, list: updatedList } });
+    setSaving(false);
+  };
+
+  const toggleGroup = (groupId: string) => {
+    const deny = agentDeny ?? [...globalDeny];
+    const newDeny = isGroupEnabled(groupId) ? [...deny, groupId] : deny.filter(d => d !== groupId);
+    patchAgentTools({ deny: newDeny });
+  };
+
+  const toggleLobster = () => {
+    const allow = agentAlsoAllow ?? [...globalAlsoAllow];
+    const newAllow = lobsterEnabled ? allow.filter(a => a !== 'lobster') : [...allow, 'lobster'];
+    patchAgentTools({ alsoAllow: newAllow });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto p-6 animate-in fade-in duration-300">
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{t('agentDetail.toolsDescription')}</p>
+          {saving && <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />}
+        </div>
+
+        <div className="space-y-2">
+          {AGENT_TOOL_GROUPS.map((group) => {
+            const enabled = isGroupEnabled(group.id);
+            return (
+              <div key={group.id} className="flex items-center justify-between p-4 rounded-xl bg-card border">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{group.icon}</span>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{t(group.nameKey as any)}</h3>
+                    <p className="text-xs text-muted-foreground">{t(group.descKey as any)}</p>
+                  </div>
+                </div>
+                <button onClick={() => toggleGroup(group.id)} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", enabled ? "bg-emerald-500/30" : "bg-muted")}>
+                  <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", enabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Lobster */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🦞</span>
+              <div>
+                <h3 className="font-semibold text-foreground">{t('settings.toolsConfig.lobsterName')}</h3>
+                <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.lobsterDesc')}</p>
+              </div>
+            </div>
+            <button onClick={toggleLobster} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", lobsterEnabled ? "bg-emerald-500/30" : "bg-muted")}>
+              <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", lobsterEnabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// Comprehensive skill catalog based on OpenClaw skills
-const SKILL_CATALOG: SkillDefinition[] = [
-  // Core Tools
-  { id: 'file_read', name: 'File Read', category: 'Core', description: 'Read file contents from the filesystem', icon: '📄', docs: 'Read any file in the workspace or system (with permissions).' },
-  { id: 'file_write', name: 'File Write', category: 'Core', description: 'Write and create files', icon: '✏️', docs: 'Create new files or modify existing ones in the workspace.' },
-  { id: 'bash_execute', name: 'Bash', category: 'Core', description: 'Execute bash commands in terminal', icon: '⚡', docs: 'Run shell commands, scripts, and system operations.' },
-  { id: 'spawn_agent', name: 'Spawn Agent', category: 'Core', description: 'Launch sub-agents for parallel tasks', icon: '🤖', docs: 'Create child agents to handle subtasks in parallel.' },
+// ClawHub marketplace types
+interface ClawHubSearchResult {
+  score: number;
+  slug: string;
+  displayName: string;
+  summary: string;
+  version: string | null;
+  updatedAt: number;
+}
 
-  // Web
-  { id: 'web_search', name: 'Web Search', category: 'Web', description: 'Search the web for information', icon: '🔍', docs: 'Search Google, Bing, or DuckDuckGo for information.' },
-  { id: 'web_fetch', name: 'Web Fetch', category: 'Web', description: 'Fetch and read web page contents', icon: '🌐', docs: 'Download and parse web pages, APIs, and online resources.' },
-  { id: 'weather', name: 'Weather', category: 'Web', description: 'Get current weather and forecasts', icon: '🌤️', requires: ['curl'], docs: '# Weather\n\nGet weather using wttr.in (no API key needed).\n\n```bash\ncurl -s "wttr.in/London?format=3"\n# Output: London: ⛅️ +8°C\n```\n\nFormat codes: `%c` condition · `%t` temp · `%h` humidity' },
-
-  // Communication
-  { id: 'discord', name: 'Discord', category: 'Communication', description: 'Send messages and interact with Discord', icon: '💬', requires: ['discord-cli'], install: 'pip install discord.py', docs: '# Discord\n\nInteract with Discord servers and channels.\n\n- Send messages to channels\n- Read channel history\n- Manage server settings' },
-  { id: 'slack', name: 'Slack', category: 'Communication', description: 'Slack workspace integration', icon: '💼', requires: ['slack-cli'], docs: '# Slack\n\nIntegrate with Slack workspaces.\n\n- Post messages to channels\n- Read conversations\n- Manage workflows' },
-  { id: 'imsg', name: 'iMessage', category: 'Communication', description: 'Send and read iMessages (macOS)', icon: '💬', requires: ['imsg'], docs: '# iMessage\n\nSend and receive iMessages on macOS.\n\n```bash\nimsg send "+1234567890" "Hello!"\nimsg read --limit 10\n```' },
-  { id: 'email', name: 'Email (Himalaya)', category: 'Communication', description: 'Read and send emails', icon: '📧', requires: ['himalaya'], install: 'brew install himalaya', docs: '# Himalaya Email\n\nCLI email client for IMAP/SMTP.\n\n```bash\nhimalaya list --folder INBOX\nhimalaya read <id>\nhimalaya send --to user@example.com\n```' },
-
-  // Productivity
-  { id: 'github', name: 'GitHub', category: 'Productivity', description: 'GitHub CLI for repos, PRs, issues', icon: '🐙', requires: ['gh'], install: 'brew install gh', docs: '# GitHub\n\nUse `gh` CLI for GitHub operations.\n\n```bash\ngh pr list\ngh issue create --title "Bug"\ngh run list --limit 5\n```' },
-  { id: 'notion', name: 'Notion', category: 'Productivity', description: 'Notion workspace integration', icon: '📓', docs: '# Notion\n\nAccess Notion pages and databases.\n\n- Read and update pages\n- Query databases\n- Create new content' },
-  { id: 'obsidian', name: 'Obsidian', category: 'Productivity', description: 'Obsidian vault management', icon: '💎', docs: '# Obsidian\n\nManage Obsidian markdown vaults.\n\n- Read and write notes\n- Search vault content\n- Manage links and tags' },
-  { id: 'trello', name: 'Trello', category: 'Productivity', description: 'Trello boards and cards', icon: '📋', docs: '# Trello\n\nManage Trello boards.\n\n- Create and move cards\n- Update lists\n- Manage board members' },
-
-  // Apple (macOS)
-  { id: 'apple-notes', name: 'Apple Notes', category: 'Apple', description: 'Read and create Apple Notes', icon: '📝', docs: '# Apple Notes\n\nAccess Apple Notes on macOS.\n\n- Read existing notes\n- Create new notes\n- Search note content' },
-  { id: 'apple-reminders', name: 'Reminders', category: 'Apple', description: 'Apple Reminders integration', icon: '✅', docs: '# Apple Reminders\n\nManage Apple Reminders.\n\n- Create reminders\n- Mark as complete\n- Set due dates' },
-  { id: 'things-mac', name: 'Things 3', category: 'Apple', description: 'Things 3 task manager', icon: '☑️', requires: ['things-cli'], docs: '# Things 3\n\nIntegrate with Things 3 task manager.\n\n- Add todos and projects\n- Complete tasks\n- Organize with tags' },
-
-  // Media
-  { id: 'spotify', name: 'Spotify', category: 'Media', description: 'Control Spotify playback', icon: '🎵', requires: ['spotify_player'], install: 'brew install spotify_player', docs: '# Spotify\n\nControl Spotify with spotify_player CLI.\n\n```bash\nspotify_player playback play\nspotify_player playback pause\nspotify_player search "song name"\n```' },
-  { id: 'sonos', name: 'Sonos', category: 'Media', description: 'Control Sonos speakers', icon: '🔊', requires: ['sonos'], docs: '# Sonos\n\nControl Sonos speakers.\n\n- Play/pause music\n- Adjust volume\n- Group speakers' },
-  { id: 'tts', name: 'Text-to-Speech', category: 'Media', description: 'Convert text to spoken audio', icon: '🎤', requires: ['sag'], docs: '# TTS (sag)\n\nText-to-speech using ElevenLabs.\n\n```bash\nsag speak "Hello world"\nsag voices --list\n```' },
-  { id: 'image-gen', name: 'Image Generation', category: 'Media', description: 'Generate images with AI', icon: '🎨', docs: '# Image Generation\n\nGenerate images using DALL-E or Stable Diffusion.\n\n- Create images from prompts\n- Edit existing images\n- Variations of images' },
-
-  // Smart Home
-  { id: 'openhue', name: 'Philips Hue', category: 'Smart Home', description: 'Control Philips Hue lights', icon: '💡', requires: ['openhue'], docs: '# Philips Hue\n\nControl Hue lights with openhue CLI.\n\n```bash\nopenhue lights list\nopenhue lights on --name "Living Room"\nopenhue lights color --name "Desk" --hex "#FF5500"\n```' },
-
-  // Development
-  { id: 'coding-agent', name: 'Coding Agent', category: 'Development', description: 'Specialized coding assistant', icon: '👨‍💻', docs: '# Coding Agent\n\nLaunch a specialized coding sub-agent.\n\n- Code review\n- Refactoring\n- Bug fixing' },
-  { id: 'tmux', name: 'Tmux', category: 'Development', description: 'Terminal multiplexer control', icon: '🖥️', requires: ['tmux'], docs: '# Tmux\n\nManage tmux sessions.\n\n```bash\ntmux new -s dev\ntmux attach -t dev\ntmux list-sessions\n```' },
-
-  // Security
-  { id: '1password', name: '1Password', category: 'Security', description: 'Access 1Password vault', icon: '🔐', requires: ['op'], install: 'brew install 1password-cli', docs: '# 1Password\n\nAccess secrets from 1Password.\n\n```bash\nop item list\nop item get "API Key" --fields password\nop read "op://vault/item/field"\n```' },
-];
-
-const SKILL_CATEGORIES = [
-  { id: 'Core', icon: '⚙️', color: 'blue' },
-  { id: 'Web', icon: '🌐', color: 'cyan' },
-  { id: 'Communication', icon: '💬', color: 'violet' },
-  { id: 'Productivity', icon: '📊', color: 'emerald' },
-  { id: 'Apple', icon: '🍎', color: 'zinc' },
-  { id: 'Media', icon: '🎵', color: 'pink' },
-  { id: 'Smart Home', icon: '🏠', color: 'amber' },
-  { id: 'Development', icon: '💻', color: 'orange' },
-  { id: 'Security', icon: '🔒', color: 'red' },
-];
-
-const DEFAULT_ENABLED_SKILLS = ['file_read', 'file_write', 'bash_execute', 'web_search', 'web_fetch', 'spawn_agent'];
+interface ClawHubSkillDetail {
+  skill: {
+    slug: string;
+    displayName: string;
+    summary: string;
+    stats: { comments: number; downloads: number; installsAllTime: number; installsCurrent: number; stars: number; versions: number };
+    createdAt: number;
+    updatedAt: number;
+  };
+  latestVersion: { version: string; createdAt: number; changelog: string };
+  owner: { handle: string; displayName: string; image: string };
+}
 
 function SkillsPanel({ agent }: SkillsPanelProps) {
   const { t } = useTranslation();
-  const { selectedAgentConfig, loadAgentConfig, saveAgentConfig } = useDashboardStore();
-  const [enabledSkills, setEnabledSkills] = useState<string[]>(DEFAULT_ENABLED_SKILLS);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const { token, gatewayConfig, patchGatewayConfig } = useDashboardStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState<SkillDefinition | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string | null>(null);
-  const [showOnlyEnabled, setShowOnlyEnabled] = useState(false);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchResults, setSearchResults] = useState<ClawHubSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [installed, setInstalled] = useState<Array<{ slug: string; name: string; description: string; installedAt: number }>>([]);
+  const [loadingInstalled, setLoadingInstalled] = useState(true);
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [uninstalling, setUninstalling] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ClawHubSkillDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [togglingSkill, setTogglingSkill] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load config on mount
-  useEffect(() => {
-    if (agent.id) {
-      loadAgentConfig(agent.id);
-    }
-  }, [agent.id, loadAgentConfig]);
+  const authHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  }, [token]);
 
-  // Sync enabled skills from config
-  useEffect(() => {
-    if (selectedAgentConfig?.settings?.enabledSkills) {
-      setEnabledSkills(selectedAgentConfig.settings.enabledSkills);
-    }
-  }, [selectedAgentConfig]);
+  // ─── Per-agent tool deny/alsoAllow (same logic as AgentToolsPanel) ────
+  const config = gatewayConfig?.config as Record<string, unknown> | undefined;
+  const globalTools = (config?.tools || {}) as Record<string, unknown>;
+  const globalDeny = (globalTools.deny || []) as string[];
+  const globalAlsoAllow = (globalTools.alsoAllow || []) as string[];
+  const agentsCfg = config?.agents as { list?: Array<Record<string, unknown>> } | undefined;
+  const agentEntry = agentsCfg?.list?.find((a: Record<string, unknown>) => a.id === agent.id);
+  const agentTools = (agentEntry?.tools || null) as Record<string, unknown> | null;
+  const agentDeny = agentTools ? (agentTools.deny || []) as string[] : null;
+  const agentAlsoAllow = agentTools ? (agentTools.alsoAllow || []) as string[] : null;
+  const effectiveDeny = agentDeny ?? globalDeny;
+  const effectiveAlsoAllow = agentAlsoAllow ?? globalAlsoAllow;
 
-  // Save to backend
-  const saveSkills = useCallback(async (newEnabledSkills: string[]) => {
-    setSaveStatus('saving');
-    try {
-      const success = await saveAgentConfig(agent.id, {
-        settings: {
-          ...selectedAgentConfig?.settings,
-          enabledSkills: newEnabledSkills,
-        }
-      });
-      if (success) {
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 1500);
-      } else {
-        setSaveStatus('error');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      }
-    } catch (error) {
-      console.error('[SkillsPanel] Save error:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }
-  }, [agent.id, saveAgentConfig, selectedAgentConfig?.settings]);
-
-  const toggleSkill = (skillId: string) => {
-    const newEnabled = enabledSkills.includes(skillId)
-      ? enabledSkills.filter(s => s !== skillId)
-      : [...enabledSkills, skillId];
-    setEnabledSkills(newEnabled);
-
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => saveSkills(newEnabled), 500);
+  const isSkillEnabled = (skill: typeof BUILTIN_SKILLS[0]) => {
+    if (skill.toolGroup === 'lobster') return effectiveAlsoAllow.includes('lobster');
+    return !effectiveDeny.includes(skill.toolGroup);
   };
 
-  // Cleanup
+  const toggleSkill = async (skill: typeof BUILTIN_SKILLS[0]) => {
+    setTogglingSkill(true);
+    const currentAgentTools = agentTools || { deny: [...globalDeny], alsoAllow: [...globalAlsoAllow] };
+
+    if (skill.toolGroup === 'lobster') {
+      const allow = (currentAgentTools.alsoAllow || []) as string[];
+      const newAllow = effectiveAlsoAllow.includes('lobster')
+        ? allow.filter((a: string) => a !== 'lobster')
+        : [...allow, 'lobster'];
+      await patchAgentToolsConfig({ ...currentAgentTools, alsoAllow: newAllow });
+    } else {
+      const deny = (currentAgentTools.deny || []) as string[];
+      const enabled = !effectiveDeny.includes(skill.toolGroup);
+      const newDeny = enabled ? [...deny, skill.toolGroup] : deny.filter((d: string) => d !== skill.toolGroup);
+      // Deduplicate
+      await patchAgentToolsConfig({ ...currentAgentTools, deny: [...new Set(newDeny)] });
+    }
+    setTogglingSkill(false);
+  };
+
+  const patchAgentToolsConfig = async (newTools: Record<string, unknown>) => {
+    const currentList = (agentsCfg?.list || []) as Array<Record<string, unknown>>;
+    const exists = currentList.some(a => a.id === agent.id);
+    const updatedList = exists
+      ? currentList.map(a => a.id === agent.id ? { ...a, tools: newTools } : a)
+      : [...currentList, { id: agent.id, tools: newTools }];
+    await patchGatewayConfig({ agents: { ...config?.agents as object, list: updatedList } });
+  };
+
+  const loadInstalled = useCallback(async () => {
+    try {
+      const res = await fetch('/api/skills/list', { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setInstalled(data.skills || []);
+      }
+    } catch { /* ignore */ }
+    setLoadingInstalled(false);
+  }, [authHeaders]);
+
+  useEffect(() => { loadInstalled(); }, [loadInstalled]);
+
+  // Load ClawHub detail for installed skills
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
+    if (!selectedId || selectedId.startsWith('builtin:')) { setDetail(null); return; }
+    let cancelled = false;
+    setLoadingDetail(true);
+    fetch(`/api/clawhub/skill?slug=${encodeURIComponent(selectedId)}`, { headers: authHeaders })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled) setDetail(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingDetail(false); });
+    return () => { cancelled = true; };
+  }, [selectedId, authHeaders]);
 
-  // Filter skills
-  const filteredSkills = SKILL_CATALOG.filter(skill => {
-    const matchesSearch = searchQuery === '' ||
-      skill.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      skill.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      skill.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !filterCategory || skill.category === filterCategory;
-    const matchesEnabled = !showOnlyEnabled || enabledSkills.includes(skill.id);
-    return matchesSearch && matchesCategory && matchesEnabled;
-  });
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCategoryFilter(null);
+    setSelectedId(null);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (!query.trim()) { setSearchResults([]); return; }
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/clawhub/search?q=${encodeURIComponent(query)}&limit=20`, { headers: authHeaders });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results || (Array.isArray(data) ? data : []));
+        }
+      } catch { /* ignore */ }
+      setSearching(false);
+    }, 400);
+  };
 
-  // Group by category
-  const skillsByCategory = SKILL_CATEGORIES.map(cat => ({
-    ...cat,
-    skills: filteredSkills.filter(s => s.category === cat.id),
-  })).filter(cat => cat.skills.length > 0);
+  const handleInstall = async (slug: string) => {
+    setInstalling(slug);
+    try {
+      await fetch('/api/clawhub/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ slug }),
+      });
+    } catch { /* ignore */ }
+    await loadInstalled();
+    setInstalling(null);
+  };
 
-  const enabledCount = enabledSkills.length;
+  const handleUninstall = async (slug: string) => {
+    setUninstalling(slug);
+    try {
+      await fetch(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE', headers: authHeaders });
+    } catch { /* ignore */ }
+    await loadInstalled();
+    setUninstalling(null);
+  };
+
+  const installedSlugs = new Set(installed.map(s => s.slug));
+
+  // Filter built-in by category
+  const filteredBuiltin = categoryFilter
+    ? BUILTIN_SKILLS.filter(s => s.category === categoryFilter)
+    : BUILTIN_SKILLS;
+
+  // Selected built-in skill
+  const selectedBuiltin = selectedId?.startsWith('builtin:')
+    ? BUILTIN_SKILLS.find(s => s.id === selectedId.replace('builtin:', ''))
+    : null;
+
+  // Selected installed skill
+  const selectedInstalled = selectedId && !selectedId.startsWith('builtin:')
+    ? installed.find(s => s.slug === selectedId)
+    : null;
 
   return (
     <div className="h-full flex animate-in fade-in duration-300">
-      {/* Left: Catalog */}
+      {/* Left: Skills list */}
       <div className="flex-1 flex flex-col border-r border-border overflow-hidden">
-        {/* Header */}
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                {t('agentDetail.skillsCatalog')}
-              </h3>
+              <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">{t('agentDetail.skillsTitle')}</h3>
             </div>
-            <div className="flex items-center gap-2">
-              {saveStatus === 'saving' && <RefreshCw className="w-3.5 h-3.5 text-muted-foreground animate-spin" />}
-              {saveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
-              {saveStatus === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
-              <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 font-semibold">
-                {t('agentDetail.activeCount', { count: enabledCount })}
-              </span>
-            </div>
+            <span className="text-[10px] px-2 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-300 font-semibold">
+              {BUILTIN_SKILLS.length} {t('agentDetail.skillsBuiltinCount')} · {installed.length} {t('agentDetail.skillsAddedCount')}
+            </span>
           </div>
-
-          {/* Search */}
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('agentDetail.searchSkills')}
-              className="w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50"
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder={t('agentDetail.skillsSearchPlaceholder')}
+              className={cn("w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50", searchQuery && "pr-9")}
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setFilterCategory(null)}
-              className={cn(
-                "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all",
-                !filterCategory
-                  ? "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30"
-                  : "bg-muted text-muted-foreground border border-transparent hover:border-border"
-              )}
-            >
-              {t('agentDetail.all')}
-            </button>
-            {SKILL_CATEGORIES.slice(0, 5).map(cat => (
+            {searching && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
+            {searchQuery && !searching && (
               <button
-                key={cat.id}
-                onClick={() => setFilterCategory(filterCategory === cat.id ? null : cat.id)}
-                className={cn(
-                  "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all flex items-center gap-1",
-                  filterCategory === cat.id
-                    ? "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30"
-                    : "bg-muted text-muted-foreground border border-transparent hover:border-border"
-                )}
+                onClick={() => handleSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                <span>{cat.icon}</span>
-                <span>{cat.id}</span>
+                <XIcon className="w-3.5 h-3.5" />
               </button>
-            ))}
-            <button
-              onClick={() => setShowOnlyEnabled(!showOnlyEnabled)}
-              className={cn(
-                "px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all",
-                showOnlyEnabled
-                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                  : "bg-muted text-muted-foreground border border-transparent hover:border-border"
-              )}
-            >
-              ✓ Activos
-            </button>
+            )}
+          </div>
+          {/* Category filter + back button when searching */}
+          <div className="flex flex-wrap gap-1.5">
+            {searchQuery ? (
+              <>
+                <button
+                  onClick={() => handleSearch('')}
+                  className="px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30"
+                >
+                  {t('agentDetail.skillsBackToInstalled')}
+                </button>
+                {['agent', 'automation', 'email', 'git', 'calendar', 'deploy'].map(q => (
+                  <button
+                    key={q}
+                    onClick={() => handleSearch(q)}
+                    className={cn(
+                      "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
+                      searchQuery === q ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                    )}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className={cn(
+                    "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
+                    !categoryFilter ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                  )}
+                >
+                  All
+                </button>
+                {BUILTIN_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                    className={cn(
+                      "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
+                      categoryFilter === cat ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Skills List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
-          {skillsByCategory.map(category => (
-            <div key={category.id}>
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-sm">{category.icon}</span>
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{category.id}</h4>
-                <span className="text-[9px] text-muted-foreground">({category.skills.length})</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {category.skills.map(skill => {
-                  const isEnabled = enabledSkills.includes(skill.id);
-                  const isSelected = selectedSkill?.id === skill.id;
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+          {/* Default view: built-in + installed */}
+          {!searchQuery && (
+            <>
+              {/* Built-in skills */}
+              {filteredBuiltin.map(skill => {
+                const enabled = isSkillEnabled(skill);
+                return (
+                  <button
+                    key={skill.id}
+                    onClick={() => setSelectedId(`builtin:${skill.id}`)}
+                    className={cn(
+                      "w-full p-2.5 rounded-lg border transition-all text-left",
+                      selectedId === `builtin:${skill.id}`
+                        ? "bg-violet-500/10 border-violet-500/30"
+                        : "bg-card border-border hover:border-violet-500/20",
+                      !enabled && "opacity-50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={cn("text-base shrink-0", !enabled && "grayscale")}>{skill.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-xs font-semibold truncate", enabled ? "text-foreground" : "text-muted-foreground line-through")}>{skill.name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">{t('agentDetail.skillsBuiltinTag')}</span>
+                          {!enabled && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">{t('agentDetail.skillsDisabledTag')}</span>}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate block">{skill.description}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
 
-                  return (
+              {/* Installed ClawHub skills */}
+              {!categoryFilter && installed.length > 0 && (
+                <>
+                  <div className="pt-3 pb-1 px-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{t('agentDetail.skillsClawHubInstalled')}</span>
+                  </div>
+                  {installed.map(skill => (
                     <button
-                      key={skill.id}
-                      onClick={() => setSelectedSkill(skill)}
+                      key={skill.slug}
+                      onClick={() => setSelectedId(skill.slug)}
                       className={cn(
-                        "p-3 rounded-xl border transition-all duration-200 text-left group",
-                        isSelected
-                          ? "bg-violet-500/20 border-violet-500/40"
-                          : isEnabled
-                            ? "bg-card border-border hover:border-violet-500/30"
-                            : "bg-card border-border hover:border-border"
+                        "w-full p-2.5 rounded-lg border transition-all text-left",
+                        selectedId === skill.slug
+                          ? "bg-violet-500/10 border-violet-500/30"
+                          : "bg-card border-border hover:border-violet-500/20"
                       )}
                     >
-                      <div className="flex items-start gap-2">
-                        <span className={cn("text-lg", !isEnabled && "opacity-50")}>{skill.icon}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Package className="w-4 h-4 text-teal-500 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className={cn(
-                              "text-xs font-semibold truncate",
-                              isEnabled ? "text-foreground" : "text-muted-foreground"
-                            )}>
-                              {skill.name}
-                            </span>
-                            {isEnabled && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                            )}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-foreground truncate">{skill.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 shrink-0">{t('agentDetail.skillsClawHubTag')}</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground line-clamp-2">{skill.description}</p>
+                          <span className="text-[10px] text-muted-foreground truncate block">{skill.description || skill.slug}</span>
                         </div>
                       </div>
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                  ))}
+                </>
+              )}
 
-          {filteredSkills.length === 0 && (
-            <div className="text-center py-12">
-              <span className="text-4xl mb-3 block">🔍</span>
-              <p className="text-sm text-muted-foreground">{t('agentDetail.noSkillsFound')}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.tryAnotherSearch')}</p>
+              {loadingInstalled && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 justify-center">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('agentDetail.skillsLoadingInstalled')}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Search results */}
+          {searchQuery && searchResults.length > 0 && searchResults.map(result => {
+            const isInstalled = installedSlugs.has(result.slug);
+            return (
+              <button
+                key={result.slug}
+                onClick={() => setSelectedId(result.slug)}
+                className={cn(
+                  "w-full p-2.5 rounded-lg border transition-all text-left",
+                  selectedId === result.slug
+                    ? "bg-violet-500/10 border-violet-500/30"
+                    : "bg-card border-border hover:border-violet-500/20"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-foreground truncate">{result.displayName || result.slug}</span>
+                      {isInstalled && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">{t('agentDetail.skillsInstalledTag')}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground truncate block">{result.summary}</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+
+          {searchQuery && !searching && searchResults.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">{t('agentDetail.skillsNoResults')} &ldquo;{searchQuery}&rdquo;</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Right: Detail Panel */}
+      {/* Right: Detail panel */}
       <div className="w-96 flex flex-col overflow-hidden bg-card">
-        {selectedSkill ? (
-          <>
-            {/* Skill Header */}
-            <div className="p-5 border-b border-border">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{selectedSkill.icon}</span>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground">{selectedSkill.name}</h3>
-                    <span className="text-[10px] text-muted-foreground font-mono">{selectedSkill.id}</span>
+        {selectedBuiltin ? (
+          /* Built-in skill detail with enable/disable toggle */
+          <div className="p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{selectedBuiltin.icon}</span>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">{selectedBuiltin.name}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">{t('agentDetail.skillsBuiltinTag')}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">{selectedBuiltin.category}</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setSelectedSkill(null)}
-                  className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  <XIcon className="w-4 h-4" />
-                </button>
               </div>
+              <button onClick={() => setSelectedId(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">{selectedBuiltin.description}</p>
 
-              <p className="text-sm text-muted-foreground mb-4">{selectedSkill.description}</p>
-
-              {/* Enable/Disable Toggle */}
+            {/* Enable/Disable toggle for this agent */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-card border mb-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {isSkillEnabled(selectedBuiltin) ? t('agentDetail.skillsEnabledForAgent') : t('agentDetail.skillsDisabledForAgent')}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {t('agentDetail.skillsControls')} <span className="font-mono text-[9px] bg-muted px-1 py-0.5 rounded">{selectedBuiltin.toolGroup}</span>
+                  {BUILTIN_SKILLS.filter(s => s.toolGroup === selectedBuiltin.toolGroup).length > 1 && (
+                    <> — {t('agentDetail.skillsAlsoAffects')} {BUILTIN_SKILLS.filter(s => s.toolGroup === selectedBuiltin.toolGroup && s.id !== selectedBuiltin.id).map(s => s.name).join(', ')}</>
+                  )}
+                </p>
+              </div>
               <button
-                onClick={() => toggleSkill(selectedSkill.id)}
+                onClick={() => toggleSkill(selectedBuiltin)}
+                disabled={togglingSkill}
                 className={cn(
-                  "w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2",
-                  enabledSkills.includes(selectedSkill.id)
-                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
-                    : "bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/30"
+                  "w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0",
+                  isSkillEnabled(selectedBuiltin) ? "bg-emerald-500/30" : "bg-muted"
                 )}
               >
-                {enabledSkills.includes(selectedSkill.id) ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>{t('agentDetail.enabled')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span>{t('agentDetail.enableSkill')}</span>
-                  </>
-                )}
+                <span className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full transition-all",
+                  isSkillEnabled(selectedBuiltin) ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground"
+                )} />
               </button>
             </div>
 
-            {/* Requirements */}
-            {selectedSkill.requires && selectedSkill.requires.length > 0 && (
-              <div className="px-5 py-3 border-b border-border">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{t('agentDetail.requirements')}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedSkill.requires.map(req => (
-                    <span key={req} className="px-2 py-1 text-xs bg-background border border-border rounded-lg text-muted-foreground font-mono">
-                      {req}
-                    </span>
-                  ))}
-                </div>
-                {selectedSkill.install && (
-                  <div className="mt-2 p-2 bg-background border border-border rounded-lg">
-                    <code className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">{selectedSkill.install}</code>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Documentation */}
-            <div className="flex-1 overflow-y-auto p-5">
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">{t('agentDetail.documentation')}</h4>
-              {selectedSkill.docs ? (
-                <div className="prose dark:prose-invert prose-sm max-w-none">
-                  <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-background border border-border p-3 rounded-lg">
-                    {selectedSkill.docs}
-                  </pre>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">{t('agentDetail.noDocumentation')}</p>
-              )}
+            <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+              <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                {t('agentDetail.skillsBuiltinInfo')}
+              </p>
             </div>
-          </>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Import from URL */}
-            <div className="mb-6">
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Link className="w-3 h-3" />
-                {t('agentDetail.importFromUrl')}
-              </h4>
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://clawhub.ai/skills/nombre-skill"
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 font-mono"
-                  />
-                  <button className="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-lg text-xs text-cyan-600 dark:text-cyan-400 font-medium transition-colors flex items-center gap-1.5">
-                    <Download className="w-3 h-3" />
-                    {t('agentDetail.import')}
+          </div>
+        ) : selectedId ? (
+          loadingDetail ? (
+            <div className="flex-1 flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
+            </div>
+          ) : detail ? (
+            <>
+              <div className="p-5 border-b border-border">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    {detail.owner?.image && <img src={detail.owner.image} alt="" className="w-8 h-8 rounded-full" />}
+                    <div>
+                      <h3 className="text-base font-bold text-foreground">{detail.skill.displayName}</h3>
+                      <span className="text-[10px] text-muted-foreground">
+                        {detail.owner && <>by <span className="font-medium text-foreground">{detail.owner.displayName || detail.owner.handle}</span> · </>}
+                        {detail.latestVersion && <>v{detail.latestVersion.version}</>}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedId(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                    <XIcon className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {t('agentDetail.importUrlHint')}
-                </p>
+
+                <p className="text-sm text-muted-foreground mb-4">{detail.skill.summary}</p>
+
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="text-center p-2 bg-background rounded-lg border border-border">
+                    <div className="text-sm font-bold text-foreground">{(detail.skill.stats?.downloads || 0).toLocaleString()}</div>
+                    <div className="text-[9px] text-muted-foreground">Downloads</div>
+                  </div>
+                  <div className="text-center p-2 bg-background rounded-lg border border-border">
+                    <div className="text-sm font-bold text-foreground">{detail.skill.stats?.stars || 0}</div>
+                    <div className="text-[9px] text-muted-foreground">Stars</div>
+                  </div>
+                  <div className="text-center p-2 bg-background rounded-lg border border-border">
+                    <div className="text-sm font-bold text-foreground">{new Date(detail.skill.updatedAt).toLocaleDateString()}</div>
+                    <div className="text-[9px] text-muted-foreground">Updated</div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 mb-1">{t('agentDetail.skillsReviewBefore')}</p>
+                      <a href={`https://clawhub.ai/${detail.skill.slug}`} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:underline">
+                        <ExternalLink className="w-3 h-3" /> {t('agentDetail.skillsViewSecurity')}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {installedSlugs.has(selectedId) ? (
+                  <button onClick={() => handleUninstall(selectedId)} disabled={uninstalling === selectedId}
+                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20">
+                    {uninstalling === selectedId ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>{t('agentDetail.skillsUninstalling')}</span></> : <><Trash2 className="w-4 h-4" /><span>{t('agentDetail.skillsUninstall')}</span></>}
+                  </button>
+                ) : (
+                  <button onClick={() => handleInstall(selectedId)} disabled={installing === selectedId}
+                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50">
+                    {installing === selectedId ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>{t('agentDetail.skillsInstalling')}</span></> : <><Download className="w-4 h-4" /><span>{t('agentDetail.skillsInstall')}</span></>}
+                  </button>
+                )}
+              </div>
+              {detail.latestVersion?.changelog && (
+                <div className="flex-1 overflow-y-auto p-5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Changelog</h4>
+                  <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap bg-background border border-border p-3 rounded-lg">{detail.latestVersion.changelog}</pre>
+                </div>
+              )}
+            </>
+          ) : selectedInstalled ? (
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Package className="w-8 h-8 text-teal-500" />
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">{selectedInstalled.name}</h3>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">{t('agentDetail.skillsClawHubTag')}</span>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedId(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">{selectedInstalled.description || ''}</p>
+              <a href={`https://clawhub.ai/${selectedInstalled.slug}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-teal-600 dark:text-teal-400 hover:underline mb-4">
+                <ExternalLink className="w-3 h-3" /> {t('agentDetail.skillsViewOnClawHub')}
+              </a>
+              <button onClick={() => handleUninstall(selectedInstalled.slug)} disabled={uninstalling === selectedInstalled.slug}
+                className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20">
+                {uninstalling === selectedInstalled.slug ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>{t('agentDetail.skillsUninstalling')}</span></> : <><Trash2 className="w-4 h-4" /><span>{t('agentDetail.skillsUninstall')}</span></>}
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-5">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">{t('agentDetail.skillsCouldNotLoad')}</p>
               </div>
             </div>
-
-            {/* ClawHub CLI Instructions */}
-            <div className="mb-6">
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Terminal className="w-3 h-3" />
-                {t('agentDetail.installViaCli')}
-              </h4>
-              <div className="bg-background border border-border rounded-xl p-4 space-y-3">
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.searchAvailableSkills')}</p>
-                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
-                    clawhub search ethereum
-                  </code>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.installSkill')}</p>
-                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
-                    clawhub install nombre-skill
-                  </code>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">{t('agentDetail.viewInstalledSkills')}</p>
-                  <code className="block px-3 py-2 bg-foreground/5 dark:bg-black/30 rounded-lg text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
-                    clawhub list
-                  </code>
-                </div>
-                <a
-                  href="https://clawhub.ai/skills"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors mt-2"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  {t('agentDetail.exploreClawHub')}
-                </a>
-              </div>
-            </div>
-
-            {/* Create Custom Skill */}
-            <div>
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <FileText className="w-3 h-3" />
-                {t('agentDetail.createCustomSkill')}
-              </h4>
-              <div className="bg-background border border-border rounded-xl p-4">
-                <p className="text-[10px] text-muted-foreground mb-3">
-                  {t('agentDetail.createSkillFileHint')} <code className="text-cyan-600 dark:text-cyan-400">~/.openclaw/skills/tu-skill/</code>
-                </p>
-                <div className="bg-foreground/5 dark:bg-black/30 rounded-lg p-3 mb-3">
-                  <pre className="text-[10px] text-muted-foreground font-mono leading-relaxed whitespace-pre">{`---
-name: mi-skill
-description: Descripción del skill
-metadata:
-  openclaw:
-    emoji: "🔧"
-    requires:
-      bins: ["curl"]
----
-
-# Mi Skill
-
-Instrucciones y comandos...`}</pre>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {t('agentDetail.skillAutoAppears')}
-                </p>
-              </div>
+          )
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-5">
+            <div className="text-center">
+              <Sparkles className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">{t('agentDetail.skillsSelectToView')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.skillsSearchHint')}</p>
             </div>
           </div>
         )}

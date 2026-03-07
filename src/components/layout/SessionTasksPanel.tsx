@@ -57,7 +57,7 @@ export function SessionTasksPanel() {
         <div className="text-center px-4">
           <Cpu className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-30" />
           <p className="text-xs text-muted-foreground">
-            Select a session
+            {t('sessions.selectSession')}
           </p>
         </div>
       </aside>
@@ -71,7 +71,7 @@ export function SessionTasksPanel() {
         <div className="flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-muted-foreground" />
           <h3 className="text-xs font-semibold text-foreground/90">
-            Session Tasks
+            {t('tasks.pipeline')}
           </h3>
           <div className="ml-auto flex items-center gap-1.5">
             <button
@@ -97,7 +97,7 @@ export function SessionTasksPanel() {
               {runningTasks.length}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
-              Running
+              {t('tasks.status.running')}
             </div>
           </div>
           <div className="text-center">
@@ -105,7 +105,7 @@ export function SessionTasksPanel() {
               {completedTasks.length}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
-              Done
+              {t('agentDetail.done')}
             </div>
           </div>
           <div className="text-center">
@@ -113,7 +113,7 @@ export function SessionTasksPanel() {
               {failedTasks.length}
             </div>
             <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
-              Failed
+              {t('agentDetail.failed')}
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export function SessionTasksPanel() {
           <div className="flex flex-col items-center justify-center h-full px-4 text-center">
             <Clock className="w-6 h-6 text-muted-foreground/40 mb-2" />
             <p className="text-xs text-muted-foreground">
-              {t('tasks.noTasks') || 'No tasks yet'}
+              {t('tasks.noTasks')}
             </p>
           </div>
         ) : (
@@ -153,7 +153,7 @@ export function SessionTasksPanel() {
                           onClick={() => handleAbort(task.runId)}
                           className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                         >
-                          Abort
+                          {t('chat.abort')}
                         </button>
                       )}
                     </div>
@@ -187,7 +187,7 @@ export function SessionTasksPanel() {
                   {task.toolCalls !== undefined && task.toolCalls > 0 && (
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Cpu className="w-2.5 h-2.5" />
-                      <span>{task.toolCalls} tool calls</span>
+                      <span>{task.toolCalls} {t('sessions.toolCall').toLowerCase()}s</span>
                     </div>
                   )}
 

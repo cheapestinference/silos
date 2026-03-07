@@ -29,6 +29,10 @@ import {
   ChevronRight,
   ChevronDown,
   Search,
+  Package,
+  Download,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 import { Header } from '../layout/Header';
 import { useDashboardStore } from '../../store/dashboard-store';
@@ -38,8 +42,12 @@ import type { Locale, TranslationKey } from '../../i18n';
 import type { ChannelsStatusSnapshot } from '../../types/openclaw';
 import { formatDistanceToNow } from 'date-fns';
 
+function formatDate(ts: number): string {
+  try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
+}
+
 // Settings sections configuration
-type SettingsSection = 'models' | 'channels' | 'agents' | 'tools' | 'gateway' | 'appearance';
+type SettingsSection = 'models' | 'channels' | 'agents' | 'tools' | 'skills' | 'gateway' | 'appearance';
 
 const settingsSections: Array<{
   id: SettingsSection;
@@ -51,6 +59,7 @@ const settingsSections: Array<{
   { id: 'channels', labelKey: 'settings.channelsConfig.title', icon: <Globe className="w-4 h-4" />, descriptionKey: 'settings.channelsConfig.description' },
   { id: 'agents', labelKey: 'settings.agentsConfig.title', icon: <Bot className="w-4 h-4" />, descriptionKey: 'settings.agentsConfig.description' },
   { id: 'tools', labelKey: 'settings.toolsConfig.title', icon: <Wrench className="w-4 h-4" />, descriptionKey: 'settings.toolsConfig.description' },
+  { id: 'skills', labelKey: 'settings.skillsConfig.title', icon: <Package className="w-4 h-4" />, descriptionKey: 'settings.skillsConfig.description' },
   { id: 'gateway', labelKey: 'settings.gatewayConfig.title', icon: <Server className="w-4 h-4" />, descriptionKey: 'settings.gatewayConfig.description' },
   { id: 'appearance', labelKey: 'settings.appearanceConfig.title', icon: <Settings2 className="w-4 h-4" />, descriptionKey: 'settings.appearanceConfig.description' },
 ];
@@ -1375,6 +1384,7 @@ const channelPresets: Record<string, ChannelPreset> = {
 };
 
 function ChannelsSection() {
+  const { t } = useTranslation();
   const { channels, loadChannels, agents, patchGatewayConfig, gatewayConfig } = useDashboardStore();
   const rawChannelsConfig = (gatewayConfig?.config as Record<string, unknown>)?.channels as Record<string, Record<string, unknown>> | undefined;
   const [_sessionScope, setSessionScope] = useState<'per-sender' | 'global'>('per-sender');
@@ -1413,11 +1423,11 @@ function ChannelsSection() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">Configure messaging channels and session routing</p>
+      <p className="text-sm text-muted-foreground">{t('settings.channelsConfig.configure')}</p>
 
       {/* Default Agent */}
       <div>
-        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Default Agent</label>
+        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">{t('settings.channelsConfig.defaultAgent')}</label>
         <select
           value={defaultAgentId}
           onChange={(e) => setDefaultAgentId(e.target.value)}
@@ -1434,7 +1444,7 @@ function ChannelsSection() {
       {/* Channels List */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Connected Channels</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('settings.channelsConfig.connectedChannels')}</label>
           <button
             onClick={() => { setShowAddChannel(!showAddChannel); setSelectedChannelType(null); setChannelConfig({}); setSaveChannelError(null); }}
             className={cn(
@@ -1813,14 +1823,14 @@ function AgentsSection() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">Default settings applied to all new agents</p>
+      <p className="text-sm text-muted-foreground">{t('settings.agentsConfig.defaultSettings')}</p>
 
       {/* Default Model */}
       <div className="rounded-xl border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-foreground">Default Model</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Primary model used by new agents</p>
+            <h3 className="font-semibold text-foreground">{t('settings.agentsConfig.defaultModel')}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('settings.agentsConfig.defaultModelDesc')}</p>
           </div>
           {saving && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1836,7 +1846,7 @@ function AgentsSection() {
             {providerNames.length > 1 ? (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5" /> Provider
+                  <Cpu className="w-3.5 h-3.5" /> {t('agentDetail.provider')}
                 </label>
                 <select
                   value={selectedProvider}
@@ -1853,7 +1863,7 @@ function AgentsSection() {
             ) : (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5" /> Provider
+                  <Cpu className="w-3.5 h-3.5" /> {t('agentDetail.provider')}
                 </label>
                 <div className="flex h-10 items-center rounded-md border bg-background px-3 text-sm text-foreground">
                   {providerNames[0]}
@@ -1864,7 +1874,7 @@ function AgentsSection() {
             {/* Model Selector with Search */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5" /> Model
+                <Cpu className="w-3.5 h-3.5" /> {t('agents.config.model')}
                 <span className="text-muted-foreground normal-case font-normal">({currentModels.length})</span>
               </label>
               <div className="relative" ref={modelDropdownRef}>
@@ -1894,7 +1904,7 @@ function AgentsSection() {
                     </div>
                     <div className="max-h-60 overflow-y-auto p-1">
                       {filteredModels.length === 0 ? (
-                        <div className="px-3 py-4 text-center text-xs text-muted-foreground">No models found</div>
+                        <div className="px-3 py-4 text-center text-xs text-muted-foreground">{t('settings.agentsConfig.noModelsFound')}</div>
                       ) : (
                         filteredModels.map((model) => (
                           <button
@@ -1928,13 +1938,13 @@ function AgentsSection() {
           </div>
         ) : (
           <div className="p-4 text-center rounded-lg bg-muted/50 border border-dashed">
-            <p className="text-xs text-muted-foreground">No providers configured. Add a provider in Model Providers first.</p>
+            <p className="text-xs text-muted-foreground">{t('settings.agentsConfig.noProviders')}</p>
           </div>
         )}
 
         {currentModel && (
           <div className="flex items-center gap-2 mt-3">
-            <span className="text-xs text-muted-foreground">Current default:</span>
+            <span className="text-xs text-muted-foreground">{t('settings.agentsConfig.currentDefault')}</span>
             <code className="text-xs text-teal-600 dark:text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
           </div>
         )}
@@ -1943,70 +1953,109 @@ function AgentsSection() {
   );
 }
 
+const TOOL_GROUPS = [
+  { id: 'group:fs', nameKey: 'settings.toolsConfig.groups.files' as TranslationKey, icon: '📁', descKey: 'settings.toolsConfig.groups.filesDesc' as TranslationKey },
+  { id: 'group:runtime', nameKey: 'settings.toolsConfig.groups.shell' as TranslationKey, icon: '💻', descKey: 'settings.toolsConfig.groups.shellDesc' as TranslationKey },
+  { id: 'group:web', nameKey: 'settings.toolsConfig.groups.web' as TranslationKey, icon: '🌐', descKey: 'settings.toolsConfig.groups.webDesc' as TranslationKey },
+  { id: 'group:ui', nameKey: 'settings.toolsConfig.groups.browser' as TranslationKey, icon: '🖥️', descKey: 'settings.toolsConfig.groups.browserDesc' as TranslationKey },
+  { id: 'group:sessions', nameKey: 'settings.toolsConfig.groups.sessions' as TranslationKey, icon: '🔗', descKey: 'settings.toolsConfig.groups.sessionsDesc' as TranslationKey },
+  { id: 'group:memory', nameKey: 'settings.toolsConfig.groups.memory' as TranslationKey, icon: '🧠', descKey: 'settings.toolsConfig.groups.memoryDesc' as TranslationKey },
+  { id: 'group:automation', nameKey: 'settings.toolsConfig.groups.automation' as TranslationKey, icon: '⏰', descKey: 'settings.toolsConfig.groups.automationDesc' as TranslationKey },
+  { id: 'group:messaging', nameKey: 'settings.toolsConfig.groups.messaging' as TranslationKey, icon: '💬', descKey: 'settings.toolsConfig.groups.messagingDesc' as TranslationKey },
+  { id: 'group:nodes', nameKey: 'settings.toolsConfig.groups.devices' as TranslationKey, icon: '📱', descKey: 'settings.toolsConfig.groups.devicesDesc' as TranslationKey },
+];
+
 function ToolsSection() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const { gatewayConfig, patchGatewayConfig } = useDashboardStore();
+  const [saving, setSaving] = useState(false);
+
+  const config = gatewayConfig?.config as Record<string, unknown> | undefined;
+  const toolsConfig = (config?.tools || {}) as Record<string, unknown>;
+  const denyList = (toolsConfig.deny || []) as string[];
+  const alsoAllowList = (toolsConfig.alsoAllow || []) as string[];
+  const loopDetection = (toolsConfig.loopDetection || {}) as Record<string, unknown>;
+  const loopEnabled = !!loopDetection.enabled;
+
+  const lobsterEnabled = alsoAllowList.includes('lobster');
+
+  const isGroupEnabled = (groupId: string) => !denyList.includes(groupId);
+
+  const toggleGroup = async (groupId: string) => {
+    setSaving(true);
+    const newDeny = isGroupEnabled(groupId)
+      ? [...denyList, groupId]
+      : denyList.filter(d => d !== groupId);
+    await patchGatewayConfig({ tools: { ...toolsConfig, deny: newDeny } });
+    setSaving(false);
+  };
+
+  const toggleLobster = async () => {
+    setSaving(true);
+    const newAlsoAllow = lobsterEnabled
+      ? alsoAllowList.filter(a => a !== 'lobster')
+      : [...alsoAllowList, 'lobster'];
+    await patchGatewayConfig({ tools: { ...toolsConfig, alsoAllow: newAlsoAllow } });
+    setSaving(false);
+  };
+
+  const toggleLoopDetection = async () => {
+    setSaving(true);
+    await patchGatewayConfig({ tools: { ...toolsConfig, loopDetection: { enabled: !loopEnabled } } });
+    setSaving(false);
+  };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{t('settings.toolsConfig.configure')}</p>
-
-      <div className="space-y-3">
-        {[
-          { id: 'bash', nameKey: 'settings.toolsConfig.bash' as const, icon: '💻', enabled: true, descKey: 'settings.toolsConfig.bashDesc' as const },
-          { id: 'web', nameKey: 'settings.toolsConfig.web' as const, icon: '🌐', enabled: true, descKey: 'settings.toolsConfig.webDesc' as const },
-          { id: 'files', nameKey: 'settings.toolsConfig.files' as const, icon: '📁', enabled: true, descKey: 'settings.toolsConfig.filesDesc' as const },
-          { id: 'agent-to-agent', nameKey: 'settings.toolsConfig.agentComm' as const, icon: '🔗', enabled: false, descKey: 'settings.toolsConfig.agentCommDesc' as const },
-          { id: 'spawn', nameKey: 'settings.toolsConfig.spawn' as const, icon: '🚀', enabled: true, descKey: 'settings.toolsConfig.spawnDesc' as const },
-        ].map((tool) => (
-          <div key={tool.id} className="flex items-center justify-between p-4 rounded-xl bg-card border">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{tool.icon}</span>
-              <div>
-                <h3 className="font-semibold text-foreground">{t(tool.nameKey)}</h3>
-                <p className="text-xs text-muted-foreground">{t(tool.descKey)}</p>
-              </div>
-            </div>
-            <div className={cn(
-              "w-12 h-6 rounded-full transition-colors relative",
-              tool.enabled ? "bg-emerald-500/30" : "bg-muted"
-            )}>
-              <span className={cn(
-                "absolute top-1 w-4 h-4 rounded-full transition-all",
-                tool.enabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground"
-              )} />
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{t('settings.toolsConfig.globalHint')}</p>
+        {saving && <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />}
       </div>
 
-      {/* Skills Marketplace */}
-      <div className="p-4 rounded-xl bg-card border space-y-3">
-        <div className="flex items-center gap-3">
-          <Search className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-          <div>
-            <h3 className="font-semibold text-foreground">{t('settings.toolsConfig.skillsMarketplace')}</h3>
-            <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.skillsMarketplaceDesc')}</p>
+      <div className="space-y-2">
+        {TOOL_GROUPS.map((group) => {
+          const enabled = isGroupEnabled(group.id);
+          return (
+            <div key={group.id} className="flex items-center justify-between p-4 rounded-xl bg-card border">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{group.icon}</span>
+                <div>
+                  <h3 className="font-semibold text-foreground">{t(group.nameKey)}</h3>
+                  <p className="text-xs text-muted-foreground">{t(group.descKey)}</p>
+                </div>
+              </div>
+              <button onClick={() => toggleGroup(group.id)} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", enabled ? "bg-emerald-500/30" : "bg-muted")}>
+                <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", enabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Lobster plugin */}
+        <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🦞</span>
+            <div>
+              <h3 className="font-semibold text-foreground">{t('settings.toolsConfig.lobsterName')}</h3>
+              <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.lobsterDesc')}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => window.open('https://clawhub.ai', '_blank')}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 hover:bg-teal-500/20 transition-colors"
-          >
-            <Zap className="w-4 h-4" />
-            {t('settings.toolsConfig.exploreClawHub')}
+          <button onClick={toggleLobster} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", lobsterEnabled ? "bg-emerald-500/30" : "bg-muted")}>
+            <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", lobsterEnabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
           </button>
-          <button
-            onClick={() => {
-              const agentList = document.querySelector('[data-agent-id]');
-              if (agentList) navigate('/agents');
-              else navigate('/agents');
-            }}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-          >
-            <Bot className="w-4 h-4" />
-            {t('settings.toolsConfig.manageAgentSkills')}
+        </div>
+
+        {/* Loop Detection */}
+        <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🛡️</span>
+            <div>
+              <h3 className="font-semibold text-foreground">{t('settings.toolsConfig.loopDetectionName')}</h3>
+              <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.loopDetectionDesc')}</p>
+            </div>
+          </div>
+          <button onClick={toggleLoopDetection} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", loopEnabled ? "bg-emerald-500/30" : "bg-muted")}>
+            <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", loopEnabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
           </button>
         </div>
       </div>
@@ -2014,8 +2063,371 @@ function ToolsSection() {
       <div className="p-4 rounded-xl bg-muted/40 border">
         <p className="text-xs text-muted-foreground">
           <Info className="w-4 h-4 inline mr-1" />
-          {t('settings.toolsConfig.configHint')}
+          {t('settings.toolsConfig.configNote')}
         </p>
+      </div>
+    </div>
+  );
+}
+
+interface InstalledSkill {
+  slug: string;
+  name: string;
+  description: string;
+  installedAt: number;
+}
+
+interface ClawHubResult {
+  score: number;
+  slug: string;
+  displayName: string;
+  summary: string;
+  version: string | null;
+  updatedAt: number;
+}
+
+interface ClawHubDetail {
+  skill: {
+    slug: string;
+    displayName: string;
+    summary: string;
+    stats: { downloads: number; installsAllTime: number; stars: number; versions: number };
+    createdAt: number;
+    updatedAt: number;
+  };
+  latestVersion: { version: string; createdAt: number; changelog: string } | null;
+  owner: { handle: string; displayName: string; image: string } | null;
+}
+
+function SkillsSection() {
+  const { t } = useTranslation();
+  const { token } = useDashboardStore();
+  const [installed, setInstalled] = useState<InstalledSkill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ClawHubResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [uninstalling, setUninstalling] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ClawHubDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const authHeaders = useMemo(() => {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  }, [token]);
+
+  const loadInstalled = async () => {
+    try {
+      const res = await fetch('/api/skills/list', { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setInstalled(data.skills || []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadInstalled(); }, []);
+
+  // Load detail when a skill is selected
+  useEffect(() => {
+    if (!selectedSlug) { setDetail(null); return; }
+    let cancelled = false;
+    setLoadingDetail(true);
+    fetch(`/api/clawhub/skill?slug=${encodeURIComponent(selectedSlug)}`, { headers: authHeaders })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled) setDetail(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingDetail(false); });
+    return () => { cancelled = true; };
+  }, [selectedSlug, authHeaders]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setSelectedSlug(null);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (!query.trim()) { setSearchResults([]); return; }
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/clawhub/search?q=${encodeURIComponent(query)}&limit=20`, { headers: authHeaders });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(Array.isArray(data) ? data : data.results || []);
+        }
+      } catch { /* ignore */ }
+      setSearching(false);
+    }, 400);
+  };
+
+  const handleInstall = async (slug: string) => {
+    setInstalling(slug);
+    try {
+      await fetch('/api/clawhub/install', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ slug }),
+      });
+    } catch { /* ignore */ }
+    // Always reload — skill may install despite non-200 exit code
+    await loadInstalled();
+    setInstalling(null);
+  };
+
+  const handleUninstall = async (slug: string) => {
+    setUninstalling(slug);
+    try {
+      const res = await fetch(`/api/skills/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        setInstalled(prev => prev.filter(s => s.slug !== slug));
+      }
+    } catch { /* ignore */ }
+    setUninstalling(null);
+  };
+
+  const installedSlugs = new Set(installed.map(s => s.slug));
+
+  return (
+    <div className="space-y-6">
+      {/* Info box at top */}
+      <div className="p-4 rounded-xl bg-muted/40 border">
+        <p className="text-xs text-muted-foreground">
+          <Info className="w-4 h-4 inline mr-1" />
+          {t('settings.skillsConfig.infoText')}
+        </p>
+      </div>
+
+      {/* ClawHub Marketplace — search stays at top */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">ClawHub Marketplace</h3>
+
+        {/* Category quick-search tags */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[
+            { label: 'Explore', q: 'agent', icon: '🔎' },
+            { label: 'Calendar', q: 'calendar', icon: '📅' },
+            { label: 'Email', q: 'email', icon: '📧' },
+            { label: 'Git', q: 'git', icon: '🔀' },
+            { label: 'Database', q: 'database', icon: '🗄️' },
+            { label: 'DevOps', q: 'devops deploy', icon: '🚀' },
+            { label: 'Writing', q: 'writing', icon: '✍️' },
+            { label: 'API', q: 'api rest', icon: '🔌' },
+            { label: 'Testing', q: 'test', icon: '🧪' },
+          ].map(cat => (
+            <button
+              key={cat.q}
+              onClick={() => handleSearch(cat.q)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1.5",
+                searchQuery === cat.q
+                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30"
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted border-border"
+              )}
+            >
+              <span>{cat.icon}</span>{cat.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative mb-3">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder={t('settings.skillsConfig.searchPlaceholder')}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+          />
+          {searching && <RefreshCw className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />}
+        </div>
+
+        {searchResults.length > 0 && (
+          <div className="space-y-2">
+            {searchResults.map(result => {
+              const isInstalled = installedSlugs.has(result.slug);
+              const isSelected = selectedSlug === result.slug;
+              return (
+                <div key={result.slug}>
+                  {/* Result row */}
+                  <button
+                    onClick={() => setSelectedSlug(isSelected ? null : result.slug)}
+                    className={cn(
+                      "w-full text-left p-4 rounded-xl border transition-colors",
+                      isSelected ? "bg-card border-teal-500/30 ring-1 ring-teal-500/20" : "bg-card hover:bg-muted/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Package className="w-5 h-5 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground truncate">{result.displayName || result.slug}</h4>
+                            {result.version && (
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">v{result.version}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{result.summary}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {isInstalled && (
+                          <span className="px-2 py-1 text-[10px] font-medium rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <Check className="w-3 h-3 inline mr-0.5" />Installed
+                          </span>
+                        )}
+                        <ChevronDown className={cn("w-4 h-4 text-muted-foreground inline ml-2 transition-transform", isSelected && "rotate-180")} />
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Expanded detail panel */}
+                  {isSelected && (
+                    <div className="mt-1 p-5 rounded-xl bg-muted/30 border border-border space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {loadingDetail ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4 justify-center">
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Loading details...
+                        </div>
+                      ) : detail ? (
+                        <>
+                          {/* Header with author */}
+                          <div>
+                            <h3 className="text-base font-bold text-foreground">{detail.skill.displayName}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{detail.skill.summary}</p>
+                            {detail.owner && (
+                              <div className="flex items-center gap-2 mt-2">
+                                {detail.owner.image && <img src={detail.owner.image} alt="" className="w-5 h-5 rounded-full" />}
+                                <span className="text-xs text-muted-foreground">by <span className="text-foreground font-medium">{detail.owner.displayName || detail.owner.handle}</span></span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Stats */}
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {detail.skill.stats?.downloads > 0 && (
+                              <span><Download className="w-3 h-3 inline mr-1" />{detail.skill.stats.downloads.toLocaleString()} downloads</span>
+                            )}
+                            {detail.skill.stats?.stars > 0 && (
+                              <span>&#9733; {detail.skill.stats.stars} stars</span>
+                            )}
+                            {detail.latestVersion && (
+                              <span>v{detail.latestVersion.version}</span>
+                            )}
+                            <span>Updated {formatDate(detail.skill.updatedAt)}</span>
+                          </div>
+
+                          {/* Changelog */}
+                          {detail.latestVersion?.changelog && (
+                            <div className="text-xs text-muted-foreground bg-background/50 rounded-lg p-3 border">
+                              <p className="font-medium text-foreground mb-1">Changelog</p>
+                              <p className="whitespace-pre-wrap">{detail.latestVersion.changelog}</p>
+                            </div>
+                          )}
+
+                          {/* Security warning + actions */}
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                              <AlertTriangle className="w-4 h-4 inline mr-1" />
+                              Community-made skill. Review the security report before installing.
+                            </p>
+                            <a
+                              href={`https://clawhub.ai/${result.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-700 dark:text-amber-300 hover:underline"
+                            >
+                              <ExternalLink className="w-3 h-3" /> View on ClawHub (security scan, source code, reviews)
+                            </a>
+                          </div>
+
+                          {/* Install/Installed button */}
+                          <div className="flex items-center gap-3">
+                            {isInstalled ? (
+                              <span className="px-4 py-2 text-sm font-medium rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <Check className="w-4 h-4 inline mr-1.5" />Already installed
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleInstall(result.slug)}
+                                disabled={installing === result.slug}
+                                className="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                              >
+                                {installing === result.slug ? (
+                                  <><RefreshCw className="w-4 h-4 inline mr-1.5 animate-spin" />Installing...</>
+                                ) : (
+                                  <><Download className="w-4 h-4 inline mr-1.5" />Install skill</>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">Could not load skill details</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {searchQuery && !searching && searchResults.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">No skills found for &ldquo;{searchQuery}&rdquo;</p>
+        )}
+      </div>
+
+      {/* Installed Skills */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">{t('settings.skillsConfig.installed')} ({installed.length})</h3>
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
+            <RefreshCw className="w-4 h-4 animate-spin" /> Loading...
+          </div>
+        ) : installed.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-4 bg-muted/40 rounded-xl border">{t('settings.skillsConfig.noSkills')}</p>
+        ) : (
+          <div className="space-y-2">
+            {installed.map(skill => (
+              <div key={skill.slug} className="flex items-center justify-between p-4 rounded-xl bg-card border">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Package className="w-5 h-5 text-teal-500 shrink-0" />
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-foreground">{skill.name}</h4>
+                    <p className="text-xs text-muted-foreground truncate">{skill.description || skill.slug}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {skill.slug} &middot; installed {formatDate(skill.installedAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <a
+                    href={`https://clawhub.ai/${skill.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    title={t('settings.skillsConfig.viewOnClawHub')}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <button
+                    onClick={() => handleUninstall(skill.slug)}
+                    disabled={uninstalling === skill.slug}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                  >
+                    {uninstalling === skill.slug ? <RefreshCw className="w-3 h-3 animate-spin" /> : t('settings.skillsConfig.uninstall')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2056,7 +2468,7 @@ function GatewaySection() {
             <p className={cn("font-semibold", connected ? "text-emerald-700 dark:text-emerald-300" : connecting ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground")}>
               {connected ? t('settings.connection.connected') : connecting ? t('common.loading') : t('settings.connection.disconnected')}
             </p>
-            <p className="text-xs text-muted-foreground">{connected ? gatewayUrl : t('settings.connection.disconnected')}</p>
+            <p className="text-xs text-muted-foreground">{connected ? `wss://${window.location.hostname}/openclaw` : t('settings.connection.disconnected')}</p>
           </div>
         </div>
         <button
@@ -2208,7 +2620,7 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
-  const valid: SettingsSection[] = ['models', 'channels', 'agents', 'tools', 'gateway', 'appearance'];
+  const valid: SettingsSection[] = ['models', 'channels', 'agents', 'tools', 'skills', 'gateway', 'appearance'];
   const activeSection = valid.includes(tab as SettingsSection) ? (tab as SettingsSection) : 'models';
 
   const setActiveSection = (section: SettingsSection) => {
@@ -2221,6 +2633,7 @@ export function SettingsPage() {
       case 'channels': return <ChannelsSection />;
       case 'agents': return <AgentsSection />;
       case 'tools': return <ToolsSection />;
+      case 'skills': return <SkillsSection />;
       case 'gateway': return <GatewaySection />;
       case 'appearance': return <AppearanceSection />;
     }

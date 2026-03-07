@@ -21,6 +21,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { useTranslation } from '../../i18n';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { cn, formatTimestamp, formatDuration } from '../../lib/utils';
@@ -75,6 +76,7 @@ export function CronJobCard({
   showAgentInfo = false,
   agentName,
 }: CronJobCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [runs, setRuns] = useState<CronRunLogEntry[]>([]);
@@ -143,7 +145,7 @@ export function CronJobCard({
           </div>
           {isRunning && (
             <Badge variant="default" className="bg-blue-500 animate-pulse text-[10px]">
-              Running
+              {t('cron.running')}
             </Badge>
           )}
           <Button
@@ -187,7 +189,7 @@ export function CronJobCard({
                 {job.name}
                 {isRunning && (
                   <Badge variant="default" className="bg-blue-500 animate-pulse">
-                    Running
+                    {t('cron.running')}
                   </Badge>
                 )}
               </CardTitle>
@@ -242,7 +244,7 @@ export function CronJobCard({
                       }}
                     >
                       <Play className="h-4 w-4" />
-                      Run Now
+                      {t('cron.runNow')}
                     </button>
                     {onEdit && (
                       <button
@@ -253,7 +255,7 @@ export function CronJobCard({
                         }}
                       >
                         <Edit3 className="h-4 w-4" />
-                        Edit
+                        {t('common.edit')}
                       </button>
                     )}
                     <button
@@ -264,7 +266,7 @@ export function CronJobCard({
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </>
@@ -280,7 +282,7 @@ export function CronJobCard({
           {job.state?.lastRunAtMs && (
             <div className="flex items-center gap-1.5">
               <StatusIcon className={cn('h-4 w-4', statusColor)} />
-              <span className="text-muted-foreground">Last run:</span>
+              <span className="text-muted-foreground">{t('cron.lastRun')}</span>
               <span>{formatTimestamp(job.state.lastRunAtMs)}</span>
             </div>
           )}
@@ -288,7 +290,7 @@ export function CronJobCard({
           {job.state?.nextRunAtMs && job.enabled && (
             <div className="flex items-center gap-1.5">
               <Timer className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Next:</span>
+              <span className="text-muted-foreground">{t('cron.next')}</span>
               <span>{formatTimestamp(job.state.nextRunAtMs)}</span>
             </div>
           )}
@@ -311,12 +313,12 @@ export function CronJobCard({
           {expanded ? (
             <>
               <ChevronUp className="h-3 w-3 mr-1" />
-              Less
+              {t('cron.less')}
             </>
           ) : (
             <>
               <ChevronDown className="h-3 w-3 mr-1" />
-              More
+              {t('cron.more')}
             </>
           )}
         </Button>
@@ -327,24 +329,24 @@ export function CronJobCard({
             {/* Description */}
             {job.description && (
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Description</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.description')}</p>
                 <p className="text-sm">{job.description}</p>
               </div>
             )}
 
             {/* Payload */}
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">Payload</p>
+              <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.payload')}</p>
               <div className="bg-muted p-3 rounded-lg">
                 <div className="text-sm font-mono">
                   {job.payload.kind === 'systemEvent' ? (
                     <>
-                      <Badge variant="secondary" className="mb-2">System Event</Badge>
+                      <Badge variant="secondary" className="mb-2">{t('cron.systemEvent')}</Badge>
                       <div className="mt-1">{job.payload.text}</div>
                     </>
                   ) : (
                     <>
-                      <Badge variant="secondary" className="mb-2">Agent Turn</Badge>
+                      <Badge variant="secondary" className="mb-2">{t('cron.agentTurn')}</Badge>
                       <div className="mt-1">{job.payload.message}</div>
                     </>
                   )}
@@ -355,11 +357,11 @@ export function CronJobCard({
             {/* Configuration */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Session Target</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.sessionTarget')}</p>
                 <Badge variant="outline">{job.sessionTarget}</Badge>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Wake Mode</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">{t('cron.wakeMode')}</p>
                 <Badge variant="outline">{job.wakeMode}</Badge>
               </div>
             </div>
@@ -367,7 +369,7 @@ export function CronJobCard({
             {/* Error */}
             {job.state?.lastError && (
               <div className="bg-red-500/10 p-3 rounded-lg">
-                <p className="text-xs text-red-500 font-medium mb-1">Last Error</p>
+                <p className="text-xs text-red-500 font-medium mb-1">{t('cron.lastError')}</p>
                 <p className="text-sm text-red-500">{job.state.lastError}</p>
               </div>
             )}
@@ -377,7 +379,7 @@ export function CronJobCard({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <History className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground font-medium">Recent Executions</p>
+                  <p className="text-xs text-muted-foreground font-medium">{t('cron.recentExecutions')}</p>
                 </div>
                 <div className="space-y-1.5">
                   {runs.slice(0, 5).map((run, idx) => (
@@ -408,14 +410,14 @@ export function CronJobCard({
             {onLoadRuns && runsLoading && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Loading history...</span>
+                <span>{t('cron.loadingHistory')}</span>
               </div>
             )}
 
             {/* Metadata */}
             <div className="text-xs text-muted-foreground">
-              <p>Created: {new Date(job.createdAtMs).toLocaleString()}</p>
-              <p>Updated: {new Date(job.updatedAtMs).toLocaleString()}</p>
+              <p>{t('cron.created')} {new Date(job.createdAtMs).toLocaleString()}</p>
+              <p>{t('cron.updated')} {new Date(job.updatedAtMs).toLocaleString()}</p>
               <p>ID: {job.id}</p>
             </div>
           </div>

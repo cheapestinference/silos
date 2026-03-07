@@ -12,7 +12,8 @@ WORKDIR /app
 
 COPY --from=builder /app/package.json ./package-full.json
 RUN node -e "const p=require('./package-full.json'); const s={type:'module',version:p.version,dependencies:{express:'^5.2.1','express-rate-limit':'^8.3.0','http-proxy':'^1.18.1',jsonwebtoken:'^9.0.3'}}; require('fs').writeFileSync('package.json',JSON.stringify(s))" \
-    && rm package-full.json && npm install --production
+    && rm package-full.json && npm install --production \
+    && npm install -g clawhub
 
 COPY --from=builder /app/dist ./dist
 COPY server.js .
