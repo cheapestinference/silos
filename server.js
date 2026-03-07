@@ -71,7 +71,7 @@ app.use(express.static(path.join(__dirname, 'dist'), {
 }));
 
 // Routes
-app.use(createApiRouter(config, authMiddleware));
+app.use(createApiRouter(config, authMiddleware, OPENCLAW_BASE));
 app.use(createMemoryRouter(OPENCLAW_BASE, authMiddleware));
 app.use(createAdminRouter(GATEWAY_TOKEN));
 

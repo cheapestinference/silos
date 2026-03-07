@@ -472,19 +472,12 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       loadAvailableModels: async () => {
-        const { token, gatewayConfig } = get();
+        const { token } = get();
         set({ availableModelsLoading: true });
         try {
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          const headers: Record<string, string> = {};
           if (token) headers['Authorization'] = `Bearer ${token}`;
-          // Send providers from gateway config so the server can fetch models from each
-          const configProviders = (gatewayConfig?.config as Record<string, unknown>)?.models as { providers?: Record<string, unknown> } | undefined;
-          const providers = configProviders?.providers ?? {};
-          const res = await fetch('/api/provider-models', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ providers }),
-          });
+          const res = await fetch('/api/provider-models', { headers });
           if (res.ok) {
             const data = await res.json();
             set({ availableModels: data, availableModelsLoading: false });
@@ -635,9 +628,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
       loadAll: async () => {
         const { loadAgents, loadSessions, loadCronJobs, loadChannels, loadModels, loadAvailableModels, loadGatewayConfig } = get();
-        // Load gateway config first — loadAvailableModels needs provider URLs from it
-        await Promise.all([loadAgents(), loadSessions(), loadCronJobs(), loadChannels(), loadModels(), loadGatewayConfig()]);
-        await loadAvailableModels();
+        await Promise.all([loadAgents(), loadSessions(), loadCronJobs(), loadChannels(), loadModels(), loadGatewayConfig(), loadAvailableModels()]);
       },
 
       // Agent actions

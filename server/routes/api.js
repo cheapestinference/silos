@@ -9,7 +9,7 @@ import { isAllowedProxyUrl } from '../validation.js';
 
 const execFileAsync = promisify(execFile);
 
-export function createApiRouter(config, authMiddleware) {
+export function createApiRouter(config, authMiddleware, openclawBase) {
   const router = Router();
   const { appVersion, openclawVersion, ownerEmail, gatewayToken, openclawPort, firebaseProjectId } = config;
 
@@ -88,21 +88,27 @@ export function createApiRouter(config, authMiddleware) {
     }
   });
 
-  // Fetch available models from LLM providers
-  // Accepts POST with { providers: { name: { baseUrl, apiKey } } } from frontend (gateway config)
-  // Falls back to LLM_PROXY_URL env var if no providers sent
-  router.post('/api/provider-models', authMiddleware, async (req, res) => {
+  // Fetch available models from LLM providers configured in openclaw.json
+  // Reads provider config (with real API keys) directly from the filesystem,
+  // since the gateway's config.get RPC redacts apiKey fields.
+  router.get('/api/provider-models', authMiddleware, async (_req, res) => {
     try {
       const providers = {};
-      // Merge providers from request body (frontend sends gateway config providers)
-      if (req.body?.providers && typeof req.body.providers === 'object') {
-        for (const [name, p] of Object.entries(req.body.providers)) {
-          if (p && typeof p === 'object' && p.baseUrl) {
-            providers[name] = { baseUrl: String(p.baseUrl).replace(/\/+$/, ''), apiKey: p.apiKey ? String(p.apiKey) : '' };
+      // Read providers from openclaw.json on disk (unredacted)
+      try {
+        const configPath = path.join(openclawBase, 'openclaw.json');
+        const raw = await fs.readFile(configPath, 'utf8');
+        const config = JSON.parse(raw);
+        const cfgProviders = config?.models?.providers;
+        if (cfgProviders && typeof cfgProviders === 'object') {
+          for (const [name, p] of Object.entries(cfgProviders)) {
+            if (p && typeof p === 'object' && p.baseUrl) {
+              providers[name] = { baseUrl: String(p.baseUrl).replace(/\/+$/, ''), apiKey: p.apiKey ? String(p.apiKey) : '' };
+            }
           }
         }
-      }
-      // Fallback: env var (for backwards compatibility)
+      } catch { /* config not readable */ }
+      // Fallback: env var
       if (Object.keys(providers).length === 0 && process.env.LLM_PROXY_URL) {
         providers.silos = {
           baseUrl: process.env.LLM_PROXY_URL.replace(/\/+$/, '') + '/v1',
@@ -114,7 +120,6 @@ export function createApiRouter(config, authMiddleware) {
         try {
           const baseUrl = (provider.baseUrl || '').replace(/\/+$/, '');
           if (!baseUrl) return;
-          // No SSRF check here — providers are admin-configured in gateway config
           const headers = {};
           if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
           const controller = new AbortController();
