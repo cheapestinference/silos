@@ -76,9 +76,8 @@ app.use(createMemoryRouter(OPENCLAW_BASE, authMiddleware));
 app.use(createAdminRouter(GATEWAY_TOKEN));
 
 // Gateway proxy (HTTP for /openclaw control UI)
+// Redirect logic for /openclaw → /openclaw/ is inside httpMiddleware (proxy.js)
 const { httpMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
-// Redirect /openclaw → /openclaw/ so relative asset paths (./assets/...) resolve correctly
-app.get('/openclaw', (_req, res) => res.redirect(301, '/openclaw/'));
 app.use('/openclaw', httpMiddleware);
 
 // SPA catch-all
