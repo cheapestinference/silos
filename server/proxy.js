@@ -127,25 +127,28 @@ export function createGatewayProxy(gatewayHost, gatewayPort, gatewayToken) {
       return res.redirect(301, '/openclaw/');
     }
 
-    // Check auth cookie — only authenticated users can access the control UI
-    const cookies = parseCookies(req.headers.cookie);
-    const email = cookies.silos_auth && gatewayToken
-      ? verifyCookie(cookies.silos_auth, gatewayToken)
-      : null;
+    // Auth gate: only protect document navigations (HTML pages), not sub-resources.
+    // The Accept header distinguishes browser navigations (text/html) from asset loads.
+    const isNavigation = (req.headers.accept || '').includes('text/html');
 
-    if (!email && gatewayToken) {
-      // Not authenticated — redirect to dashboard for login
-      return res.redirect(302, '/?redirect=openclaw');
+    if (isNavigation && gatewayToken) {
+      const cookies = parseCookies(req.headers.cookie);
+      const email = cookies.silos_auth
+        ? verifyCookie(cookies.silos_auth, gatewayToken)
+        : null;
+
+      if (!email) {
+        return res.redirect(302, '/?redirect=openclaw');
+      }
+
+      // Inject token into the HTML page so OpenClaw UI auto-connects
+      req.url = '/openclaw' + (req.url || '/');
+      req._injectToken = true;
+      return tokenInjectionProxy.web(req, res);
     }
 
     req.url = '/openclaw' + (req.url || '/');
-    // Only inject token into the root HTML page, not assets
-    if (email && (req.url === '/openclaw/' || req.url === '/openclaw/index.html')) {
-      req._injectToken = true;
-      tokenInjectionProxy.web(req, res);
-    } else {
-      proxy.web(req, res);
-    }
+    proxy.web(req, res);
   };
 
   // WebSocket upgrade handler for /gateway and /openclaw
