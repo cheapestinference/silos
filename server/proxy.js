@@ -18,6 +18,10 @@ export function createGatewayProxy(gatewayHost, gatewayPort) {
 
   // HTTP middleware for /openclaw — proxies to gateway's control UI
   const httpMiddleware = (req, res) => {
+    // Redirect /openclaw → /openclaw/ so relative asset paths (./assets/...) resolve correctly
+    if (req.baseUrl === '/openclaw' && (req.url === '/' || req.url === '') && !req.originalUrl.endsWith('/')) {
+      return res.redirect(301, '/openclaw/');
+    }
     req.url = '/openclaw' + (req.url || '/');
     proxy.web(req, res);
   };
