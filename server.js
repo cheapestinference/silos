@@ -77,7 +77,7 @@ app.use(createAdminRouter(GATEWAY_TOKEN));
 
 // Gateway proxy (HTTP for /openclaw control UI)
 // Redirect logic for /openclaw → /openclaw/ is inside httpMiddleware (proxy.js)
-const { httpMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT), GATEWAY_TOKEN);
+const { httpMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
 app.use('/openclaw', httpMiddleware);
 
 // SPA catch-all

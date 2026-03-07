@@ -55,6 +55,7 @@ export function UnifiedDashboard() {
     gatewayConfig,
     channels,
     gatewayUrl,
+    token,
     loadChannels,
     channelsLoading,
     client,
@@ -270,13 +271,16 @@ export function UnifiedDashboard() {
     if (!gatewayUrl) return null;
     const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
     const isHttps = window.location.protocol === 'https:';
+    let base: string;
     if (isLocal && isHttps) {
-      return `${window.location.origin}/openclaw`;
+      base = `${window.location.origin}/openclaw/`;
+    } else {
+      let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
+      if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
+      base = `${httpUrl}/openclaw/`;
     }
-    let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
-    if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
-    return `${httpUrl}/openclaw`;
-  }, [gatewayUrl]);
+    return token ? `${base}#token=${encodeURIComponent(token)}` : base;
+  }, [gatewayUrl, token]);
 
   const waStatus: 'connected' | 'running' | 'error' | 'not-configured' =
     waConnected ? 'connected' :

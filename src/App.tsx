@@ -78,12 +78,6 @@ function App() {
             if (data.gatewayUrl) {
               setGatewayUrl(data.gatewayUrl);
             }
-            // Handle redirect after login (e.g. from /openclaw/ auth gate)
-            const redirectParam = new URLSearchParams(window.location.search).get('redirect');
-            if (redirectParam === 'openclaw') {
-              window.location.href = '/openclaw/';
-              return;
-            }
           } else {
             setAuthError('Access denied. You are not the owner of this instance.');
             await signOut();

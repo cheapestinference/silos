@@ -211,6 +211,7 @@ export function AppSidebar() {
     addSessionOptimistic,
     unreadCounts,
     gatewayUrl,
+    token,
   } = useDashboardStore();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
   const navigate = useNavigate();
@@ -629,12 +630,13 @@ export function AppSidebar() {
                 onClick={() => {
                   const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
                   const isHttps = window.location.protocol === 'https:';
+                  const suffix = token ? `#token=${encodeURIComponent(token)}` : '';
                   if (isLocal && isHttps) {
-                    window.open(`${window.location.origin}/openclaw/`, '_blank');
+                    window.open(`${window.location.origin}/openclaw/${suffix}`, '_blank');
                   } else {
                     let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
                     if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
-                    window.open(`${httpUrl}/openclaw/`, '_blank');
+                    window.open(`${httpUrl}/openclaw/${suffix}`, '_blank');
                   }
                 }}
                 className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover transition-colors"

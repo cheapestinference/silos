@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { verifyFirebaseToken } from '../middleware/auth.js';
-import { setAuthCookie } from '../proxy.js';
+
 import { isAllowedProxyUrl } from '../validation.js';
 
 const execFileAsync = promisify(execFile);
@@ -35,7 +35,6 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     if (!idToken) return res.status(400).json({ error: 'idToken is required' });
 
     if (!ownerEmail) {
-      if (gatewayToken) setAuthCookie(res, 'owner', gatewayToken);
       return res.json({
         authorized: true,
         gatewayToken: gatewayToken || null,
@@ -54,7 +53,6 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
         return res.status(403).json({ authorized: false, reason: 'EMAIL_NOT_VERIFIED', error: 'Please verify your email address before accessing the dashboard.' });
       }
 
-      if (gatewayToken) setAuthCookie(res, email, gatewayToken);
       res.json({
         authorized: true,
         gatewayToken: gatewayToken || null,
