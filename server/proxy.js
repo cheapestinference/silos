@@ -26,14 +26,16 @@ export function createGatewayProxy(gatewayHost, gatewayPort) {
     proxy.web(req, res);
   };
 
-  // WebSocket upgrade handler for /gateway
+  // WebSocket upgrade handler for /gateway and /openclaw (control UI connects via /openclaw)
   const upgradeHandler = (req, socket, head) => {
-    if (!req.url || !req.url.startsWith('/gateway')) {
+    if (req.url && req.url.startsWith('/gateway')) {
+      req.url = req.url.replace(/^\/gateway/, '') || '/';
+      proxy.ws(req, socket, head);
+    } else if (req.url && req.url.startsWith('/openclaw')) {
+      proxy.ws(req, socket, head);
+    } else {
       socket.destroy();
-      return;
     }
-    req.url = req.url.replace(/^\/gateway/, '') || '/';
-    proxy.ws(req, socket, head);
   };
 
   return { proxy, httpMiddleware, upgradeHandler };
