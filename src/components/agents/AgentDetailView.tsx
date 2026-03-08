@@ -35,6 +35,7 @@ import {
   CalendarClock,
   FolderOpen,
   Package,
+  Rocket,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CronJobList, CronJobForm, CronStatsWidget } from '../cron';
@@ -884,6 +885,27 @@ const FILE_CATEGORIES = [
     descriptionKey: 'agentDetail.toolsDescription' as const,
     files: [
       { name: 'TOOLS.md', descriptionKey: 'agentDetail.toolsFileDescription' as const },
+    ],
+  },
+  {
+    id: 'behavior',
+    labelKey: 'agentDetail.behavior' as const,
+    icon: Rocket,
+    color: 'sky',
+    descriptionKey: 'agentDetail.behaviorDescription' as const,
+    files: [
+      { name: 'BOOTSTRAP.md', descriptionKey: 'agentDetail.bootstrapFileDescription' as const },
+      { name: 'HEARTBEAT.md', descriptionKey: 'agentDetail.heartbeatFileDescription2' as const },
+    ],
+  },
+  {
+    id: 'collaboration',
+    labelKey: 'agentDetail.collaboration' as const,
+    icon: Users,
+    color: 'orange',
+    descriptionKey: 'agentDetail.collaborationDescription' as const,
+    files: [
+      { name: 'AGENTS.md', descriptionKey: 'agentDetail.agentsFileDescription' as const },
     ],
   },
 ];
