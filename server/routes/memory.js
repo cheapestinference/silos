@@ -10,17 +10,35 @@ const SKIP_DIRS = new Set([
   'site-packages', '.next', 'target', 'vendor',
 ]);
 
-function getWorkspaceDir(openclawBase, agentId) {
-  return {
-    defaultWorkspace: path.join(openclawBase, 'workspace'),
-    agentWorkspace: path.join(openclawBase, 'agents', agentId, 'workspace'),
-    legacyWorkspace: path.join(openclawBase, `workspace-${agentId}`),
-  };
+// Resolve the default agent ID from openclaw.json (first agent in list, or "main")
+let _defaultAgentId = null;
+async function getDefaultAgentId(openclawBase) {
+  if (_defaultAgentId) return _defaultAgentId;
+  try {
+    const configPath = path.join(openclawBase, 'openclaw.json');
+    const cfg = JSON.parse(await fs.readFile(configPath, 'utf-8'));
+    const list = cfg?.agents?.list;
+    _defaultAgentId = (Array.isArray(list) && list[0]?.id) || 'main';
+  } catch {
+    _defaultAgentId = 'main';
+  }
+  return _defaultAgentId;
 }
 
 async function resolveAgentDir(openclawBase, agentId) {
-  const { defaultWorkspace, agentWorkspace, legacyWorkspace } = getWorkspaceDir(openclawBase, agentId);
-  for (const dir of [agentWorkspace, legacyWorkspace, defaultWorkspace]) {
+  // Match the gateway's resolveAgentWorkspaceDir() path resolution:
+  // 1. workspace-{id} (gateway convention for non-default agents)
+  // 2. agents/{id}/workspace (legacy)
+  // 3. workspace/ (only for the default agent — bare workspace dir)
+  const candidates = [
+    path.join(openclawBase, `workspace-${agentId}`),
+    path.join(openclawBase, 'agents', agentId, 'workspace'),
+  ];
+  const defaultId = await getDefaultAgentId(openclawBase);
+  if (agentId === defaultId) {
+    candidates.push(path.join(openclawBase, 'workspace'));
+  }
+  for (const dir of candidates) {
     try { await fs.access(dir); return dir; } catch {}
   }
   return null;
@@ -29,9 +47,10 @@ async function resolveAgentDir(openclawBase, agentId) {
 async function ensureAgentDir(openclawBase, agentId) {
   const existing = await resolveAgentDir(openclawBase, agentId);
   if (existing) return existing;
-  const { agentWorkspace } = getWorkspaceDir(openclawBase, agentId);
-  await fs.mkdir(agentWorkspace, { recursive: true });
-  return agentWorkspace;
+  // Create at the gateway's expected path: workspace-{id}
+  const dir = path.join(openclawBase, `workspace-${agentId}`);
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
 }
 
 async function walkDir(dir, relativePath, files) {
