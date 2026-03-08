@@ -26,7 +26,7 @@ import {
   Kanban,
   Wrench,
 } from 'lucide-react';
-import { formatTimestamp, cn, truncateText, formatNumber } from '../../lib/utils';
+import { formatTimestamp, cn, formatNumber } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import type { ChatMessage, AgentSummary } from '../../types/openclaw';
@@ -83,10 +83,10 @@ function extractMessageText(message: unknown): string | null {
     return m.text;
   }
 
-  // Last resort: try to stringify content if it exists
+  // Last resort: try to JSON-stringify content if it exists (avoid [object Object])
   if (m.content) {
     try {
-      return String(m.content);
+      return typeof m.content === 'object' ? JSON.stringify(m.content, null, 2) : String(m.content);
     } catch {
       return null;
     }
@@ -479,8 +479,9 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   }
 
   const hasOutput = !!outputStr;
-  const outputTruncated = outputStr ? truncateText(outputStr, 300) : '';
   const needsExpansion = (outputStr?.length || 0) > 300;
+  const inputPreview = inputStr ? inputStr.split('\n')[0].slice(0, 60) + (inputStr.length > 60 ? '…' : '') : null;
+  const outputPreview = outputStr ? outputStr.split('\n')[0].slice(0, 60) + (outputStr.length > 60 ? '…' : '') : null;
 
   // Get tool icon based on name
   const getToolIcon = (name?: string) => {
@@ -503,9 +504,9 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
         className={cn(
           "flex items-center justify-between px-4 py-2.5",
           "bg-cyan-500/5",
-          hasOutput ? "cursor-pointer hover:bg-cyan-500/10 transition-all" : ""
+          "cursor-pointer hover:bg-cyan-500/10 transition-all"
         )}
-        onClick={() => hasOutput && setExpanded(!expanded)}
+        onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 border border-cyan-500/20">
@@ -525,44 +526,36 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
               "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
             )}>done</span>
           )}
-          {hasOutput && (
-            <button className="p-1 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
-              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          )}
+          <button className="p-1 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
+            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
-      {/* Input (always visible, compact) */}
+      {/* Input */}
       {inputStr && (
         <div className="px-4 py-2 border-t border-cyan-500/10 bg-cyan-500/[0.02]">
-          <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all">{inputStr}</pre>
+          <pre className={cn(
+            "text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all",
+            !expanded && "line-clamp-1"
+          )}>{expanded ? inputStr : inputPreview}</pre>
         </div>
       )}
 
-      {/* Output (collapsible) */}
-      {hasOutput && expanded && (
+      {/* Output */}
+      {hasOutput && (
         <div className="border-t border-cyan-500/10">
           <div className="px-4 py-1.5 bg-emerald-500/5">
             <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
           </div>
           <div className={cn(
-            "px-4 py-2 text-[11px] font-mono text-foreground/80 overflow-x-auto overflow-y-auto custom-scrollbar whitespace-pre-wrap break-all",
-            needsExpansion ? "max-h-64" : ""
+            "px-4 py-2 text-[11px] font-mono text-foreground/80 whitespace-pre-wrap break-all",
+            expanded ? "overflow-x-auto overflow-y-auto custom-scrollbar" : "line-clamp-2",
+            expanded && needsExpansion ? "max-h-64" : ""
           )}>
-            {outputStr}
+            {expanded ? outputStr : outputPreview}
           </div>
         </div>
-      )}
-
-      {/* Collapsed output preview */}
-      {hasOutput && !expanded && (
-        <button
-          onClick={() => setExpanded(true)}
-          className="w-full px-4 py-1.5 text-[10px] text-left font-mono text-muted-foreground/60 border-t border-cyan-500/10 hover:bg-cyan-500/5 transition-colors truncate"
-        >
-          {outputTruncated}
-        </button>
       )}
     </div>
   );

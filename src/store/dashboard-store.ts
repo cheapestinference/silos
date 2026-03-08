@@ -784,7 +784,16 @@ export const useDashboardStore = create<DashboardStore>()(
             id: m.id || `msg-${i}`,
             role: m.role || 'user',
             // Strip gateway metadata from user messages for clean display
-            content: m.role === 'user' ? stripInboundMeta(m.content) : (typeof m.content === 'string' ? m.content : (m.content || '')),
+            content: m.role === 'user'
+              ? stripInboundMeta(m.content)
+              : (typeof m.content === 'string'
+                ? m.content
+                : Array.isArray(m.content)
+                  ? m.content
+                      .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
+                      .filter(Boolean)
+                      .join('\n') || ''
+                  : ''),
             timestamp: m.timestamp || Date.now(),
             toolName: m.toolName,
             toolCall: m.toolCall,
