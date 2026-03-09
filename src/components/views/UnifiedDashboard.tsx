@@ -64,7 +64,7 @@ function DashStatCard({ icon, value, label, color }: {
   label: string;
   color: string;
 }) {
-  const colorMap: Record<string, { card: string; icon: string; glow: string }> = {
+  const colorMap: Record<string, { icon: string }> = {
     violet: {
       icon: 'bg-violet-500/12 text-violet-500 dark:text-violet-400',
     },

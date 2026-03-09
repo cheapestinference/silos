@@ -608,7 +608,7 @@ function ModelsSection() {
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});
   const [showAddProvider, setShowAddProvider] = useState(false);
-  const [newProvider, setNewProvider] = useState<{ id: string; baseUrl: string; apiKey: string; api: string; models?: ModelDef[] }>({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions' });
+  const [newProvider, setNewProvider] = useState<{ id: string; baseUrl: string; apiKey: string; api: string; auth?: string; models?: ModelDef[] }>({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions' });
   const [savingProvider, setSavingProvider] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -634,7 +634,14 @@ function ModelsSection() {
   };
 
   type ModelDef = { id: string; name: string; contextWindow: number; reasoning?: boolean };
-  const providerPresets: Record<string, { baseUrl: string; api: string }> = {
+  const claudeModels: ModelDef[] = [
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 200000, reasoning: true },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 200000, reasoning: true },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', contextWindow: 200000, reasoning: false },
+  ];
+
+  const providerPresets: Record<string, { baseUrl: string; api: string; auth?: string; label?: string; models?: ModelDef[] }> = {
+    'claude-sub': { baseUrl: 'https://api.anthropic.com/v1', api: 'anthropic-messages', auth: 'oauth', label: t('settings.providers.claudeSubscription'), models: claudeModels },
     anthropic: { baseUrl: 'https://api.anthropic.com/v1', api: 'anthropic-messages' },
     openai: { baseUrl: 'https://api.openai.com/v1', api: 'openai-completions' },
     google: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', api: 'google-generative-ai' },
@@ -643,6 +650,8 @@ function ModelsSection() {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', api: 'openai-completions' },
     ollama: { baseUrl: 'http://localhost:11434/v1', api: 'openai-completions' },
   };
+
+  const isClaudeSubscription = newProvider.auth === 'oauth';
 
   const getProviderIcon = (id: string) => {
     const lower = id.toLowerCase();
@@ -665,10 +674,15 @@ function ModelsSection() {
 
     try {
       const isAnthropic = newProvider.api === 'anthropic-messages';
+      const isOAuthToken = newProvider.auth === 'oauth';
       const targetHeaders: Record<string, string> = {};
 
       if (newProvider.apiKey) {
-        if (isAnthropic) {
+        if (isOAuthToken) {
+          // Claude subscription uses Bearer token auth
+          targetHeaders['Authorization'] = `Bearer ${newProvider.apiKey}`;
+          targetHeaders['anthropic-version'] = '2023-06-01';
+        } else if (isAnthropic) {
           targetHeaders['x-api-key'] = newProvider.apiKey;
           targetHeaders['anthropic-version'] = '2023-06-01';
         } else {
@@ -753,29 +767,36 @@ function ModelsSection() {
         <div className="p-4 rounded-xl bg-card border border-purple-500/30 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">{t('settings.providers.addNewProvider')}</h3>
           <div className="flex flex-wrap gap-2">
-            {Object.keys(providerPresets).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => {
-                  setNewProvider({
-                    ...newProvider,
-                    id: preset,
-                    baseUrl: providerPresets[preset].baseUrl,
-                    api: providerPresets[preset].api,
-                    models: undefined,
-                  });
-                  setTestResult(null);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
-                  newProvider.id === preset
-                    ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 border-purple-500/50"
-                    : "bg-muted text-muted-foreground border hover:border-foreground/20"
-                )}
-              >
-                {getProviderIcon(preset)} {preset}
-              </button>
-            ))}
+            {Object.keys(providerPresets).map((preset) => {
+              const p = providerPresets[preset];
+              const isSelected = preset === 'claude-sub'
+                ? newProvider.auth === 'oauth'
+                : newProvider.id === preset && !newProvider.auth;
+              return (
+                <button
+                  key={preset}
+                  onClick={() => {
+                    setNewProvider({
+                      ...newProvider,
+                      id: preset === 'claude-sub' ? 'anthropic' : preset,
+                      baseUrl: p.baseUrl,
+                      api: p.api,
+                      auth: p.auth,
+                      models: p.models,
+                    });
+                    setTestResult(null);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
+                    isSelected
+                      ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 border-purple-500/50"
+                      : "bg-muted text-muted-foreground border hover:border-foreground/20"
+                  )}
+                >
+                  {getProviderIcon(preset === 'claude-sub' ? 'claude' : preset)} {p.label || preset}
+                </button>
+              );
+            })}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -795,56 +816,67 @@ function ModelsSection() {
               className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
             />
           </div>
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder={t('settings.providers.apiKey')}
-            value={newProvider.apiKey}
-            onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
-            className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
-          />
-          {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <button
-              disabled={!newProvider.baseUrl || testing}
-              onClick={testConnection}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
-                newProvider.baseUrl && !testing
-                  ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              )}
-            >
-              {testing ? (
-                <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
-              ) : (
-                <><Zap className="w-3.5 h-3.5" /> {t('settings.providers.testConnection')}</>
-              )}
-            </button>
-            {testResult && !testResult.ok && (
-              <span className="text-xs text-red-600 dark:text-red-400">{testResult.error}</span>
+          <div className="space-y-1">
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder={isClaudeSubscription ? t('settings.providers.setupToken') : t('settings.providers.apiKey')}
+              value={newProvider.apiKey}
+              onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
+              className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+            />
+            {isClaudeSubscription && (
+              <p className="text-[11px] text-muted-foreground px-1">
+                {t('settings.providers.setupTokenHint')}
+              </p>
             )}
           </div>
-
-          {/* Test Result - Fetched Models */}
-          {testResult?.ok && (
-            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+          {/* Test Connection — hidden for Claude subscription (gateway handles auth) */}
+          {!isClaudeSubscription && (
+            <>
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  Connection OK — {testResult.models?.length || 0} models found
-                </span>
+                <button
+                  disabled={!newProvider.baseUrl || testing}
+                  onClick={testConnection}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
+                    newProvider.baseUrl && !testing
+                      ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  )}
+                >
+                  {testing ? (
+                    <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
+                  ) : (
+                    <><Zap className="w-3.5 h-3.5" /> {t('settings.providers.testConnection')}</>
+                  )}
+                </button>
+                {testResult && !testResult.ok && (
+                  <span className="text-xs text-red-600 dark:text-red-400">{testResult.error}</span>
+                )}
               </div>
-              {testResult.models && testResult.models.length > 0 && (
-                <div className="max-h-32 overflow-y-auto space-y-0.5">
-                  {testResult.models.map(m => (
-                    <div key={m.id} className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-muted">
-                      {m.id}
+
+              {/* Test Result - Fetched Models */}
+              {testResult?.ok && (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      Connection OK — {testResult.models?.length || 0} models found
+                    </span>
+                  </div>
+                  {testResult.models && testResult.models.length > 0 && (
+                    <div className="max-h-32 overflow-y-auto space-y-0.5">
+                      {testResult.models.map(m => (
+                        <div key={m.id} className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-muted">
+                          {m.id}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {saveError && (
@@ -856,7 +888,7 @@ function ModelsSection() {
             <button
               onClick={() => {
                 setShowAddProvider(false);
-                setNewProvider({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions', models: undefined });
+                setNewProvider({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions', auth: undefined, models: undefined });
                 setSaveError(null);
                 setTestResult(null);
               }}
@@ -865,7 +897,7 @@ function ModelsSection() {
               {t('common.cancel')}
             </button>
             <button
-              disabled={!newProvider.id || !newProvider.baseUrl || savingProvider || !testResult?.ok}
+              disabled={!newProvider.id || !newProvider.baseUrl || savingProvider || (!isClaudeSubscription && !testResult?.ok) || (isClaudeSubscription && !newProvider.apiKey)}
               onClick={async () => {
                 setSavingProvider(true);
                 setSaveError(null);
@@ -874,13 +906,14 @@ function ModelsSection() {
                   const success = await addModelProvider(newProvider.id, {
                     baseUrl: newProvider.baseUrl,
                     apiKey: newProvider.apiKey || undefined,
+                    auth: newProvider.auth,
                     api: newProvider.api,
                     models: newProvider.models,
                   });
                   if (success) {
                     setSaveSuccess(true);
                     setShowAddProvider(false);
-                    setNewProvider({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions', models: undefined });
+                    setNewProvider({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions', auth: undefined, models: undefined });
                     // Clear success message after 5 seconds
                     setTimeout(() => setSaveSuccess(false), 5000);
                   } else {
@@ -894,7 +927,7 @@ function ModelsSection() {
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
-                newProvider.id && newProvider.baseUrl && !savingProvider && testResult?.ok
+                newProvider.id && newProvider.baseUrl && !savingProvider && (isClaudeSubscription ? newProvider.apiKey : testResult?.ok)
                   ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/40"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}

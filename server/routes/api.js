@@ -140,6 +140,64 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
+  // Store a setup-token for a provider in auth-profiles.json + auth.json
+  router.post('/api/provider-auth-token', authMiddleware, async (req, res) => {
+    try {
+      const { provider, token } = req.body;
+      if (!provider || !token) return res.status(400).json({ error: 'provider and token are required' });
+
+      // Find agent dirs to write auth files
+      const agentsDir = path.join(openclawBase, 'agents');
+      let agentDirs = [];
+      try {
+        const entries = await fs.readdir(agentsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            agentDirs.push(path.join(agentsDir, entry.name, 'agent'));
+          }
+        }
+      } catch { /* no agents dir */ }
+      // Fallback: if no agents found, use main
+      if (agentDirs.length === 0) {
+        agentDirs = [path.join(agentsDir, 'main', 'agent')];
+      }
+
+      const profileId = `${provider}:manual`;
+      for (const agentDir of agentDirs) {
+        await fs.mkdir(agentDir, { recursive: true });
+
+        // Write auth-profiles.json (OpenClaw's credential store)
+        const authProfilesPath = path.join(agentDir, 'auth-profiles.json');
+        let store = { version: 1, profiles: {} };
+        try {
+          const raw = await fs.readFile(authProfilesPath, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && parsed.profiles) {
+            store = parsed;
+          }
+        } catch { /* file doesn't exist yet */ }
+        store.profiles[profileId] = { type: 'token', provider, token };
+        await fs.writeFile(authProfilesPath, JSON.stringify(store, null, 2) + '\n', { mode: 0o600 });
+
+        // Write auth.json (pi-sdk format — tokens stored as api_key)
+        const authJsonPath = path.join(agentDir, 'auth.json');
+        let authJson = {};
+        try {
+          const raw = await fs.readFile(authJsonPath, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') authJson = parsed;
+        } catch { /* file doesn't exist yet */ }
+        authJson[provider] = { type: 'api_key', key: token };
+        await fs.writeFile(authJsonPath, JSON.stringify(authJson, null, 2) + '\n', { mode: 0o600 });
+      }
+
+      res.json({ ok: true, profileId, agentDirs: agentDirs.length });
+    } catch (error) {
+      console.error('[Provider Auth Token] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Proxy for testing LLM provider connections (avoids browser CORS)
   router.post('/api/proxy-test', authMiddleware, async (req, res) => {
     try {

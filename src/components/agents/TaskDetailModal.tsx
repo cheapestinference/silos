@@ -74,7 +74,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         const client = getGatewayClient();
         if (!client) throw new Error('Not connected');
         const result = await client.getChatHistory(task.sessionKey, { limit: 500 });
-        const allMessages = result.messages || [];
+        const allMessages = (result.messages || []) as ChatMessage[];
 
         // Try matching by runId first
         let runMessages = allMessages.filter((m: ChatMessage) => m.runId === task.runId);
