@@ -1202,6 +1202,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   useEffect(() => {
     selectSession(sessionKey);
+    userScrolledUp.current = false;  // Reset scroll state for new session
   }, [sessionKey, selectSession]);
 
   // Smooth auto-scroll — throttled via RAF, respects user scroll position

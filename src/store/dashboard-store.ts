@@ -26,6 +26,17 @@ import { generateId } from '../lib/utils';
 let _streamingBuffer = '';
 let _streamingRafId: number | null = null;
 let _firstDeltaPending: { runId?: string } | null = null;
+let _transitionTimerId: ReturnType<typeof setTimeout> | null = null;
+
+/** Discard (not flush) the streaming buffer — used on session switch, abort, and error */
+function clearStreamingBuffer() {
+  if (_streamingRafId !== null) {
+    cancelAnimationFrame(_streamingRafId);
+    _streamingRafId = null;
+  }
+  _streamingBuffer = '';
+  _firstDeltaPending = null;
+}
 
 function flushStreamingBuffer() {
   if (_streamingRafId !== null) {
@@ -37,18 +48,17 @@ function flushStreamingBuffer() {
     const pendingFirst = _firstDeltaPending;
     _streamingBuffer = '';
     _firstDeltaPending = null;
-    const store = useDashboardStore.getState();
-    useDashboardStore.setState({
-      streamingContent: (store.streamingContent || '') + buffered,
+    useDashboardStore.setState((state) => ({
+      streamingContent: (state.streamingContent || '') + buffered,
       ...(pendingFirst?.runId ? {
-        chatMessages: store.chatMessages.map(m => {
+        chatMessages: state.chatMessages.map(m => {
           if (m.role === 'user' && m.status === 'sending' && (m.runId === pendingFirst.runId || !m.runId)) {
             return { ...m, status: 'delivered' as const, runId: pendingFirst.runId };
           }
           return m;
         }),
       } : {}),
-    });
+    }));
   }
 }
 
@@ -704,7 +714,12 @@ export const useDashboardStore = create<DashboardStore>()(
         if (key === selectedSessionKey) {
           return;
         }
-        set({ selectedSessionKey: key, chatMessages: [], streamingContent: '' });
+        clearStreamingBuffer();
+        if (_transitionTimerId !== null) {
+          clearTimeout(_transitionTimerId);
+          _transitionTimerId = null;
+        }
+        set({ selectedSessionKey: key, chatMessages: [], streamingContent: '', streamingComplete: false });
         if (key) {
           get().loadChatHistory(key);
           // Mark session as read when selected
@@ -848,6 +863,12 @@ export const useDashboardStore = create<DashboardStore>()(
         const { client, selectedSessionKey, chatMessages, chatSending, activeRunId } = get();
         if (!client || !selectedSessionKey) return;
 
+        // Cancel any pending transition timer from a previous completion
+        if (_transitionTimerId !== null) {
+          clearTimeout(_transitionTimerId);
+          _transitionTimerId = null;
+        }
+
         // Check if we're already processing a message for this session
         const isAlreadySending = chatSending.get(selectedSessionKey) === true;
 
@@ -939,6 +960,12 @@ export const useDashboardStore = create<DashboardStore>()(
         try {
           await client.abortChat(effectiveSessionKey, runId);
 
+          clearStreamingBuffer();
+          if (_transitionTimerId !== null) {
+            clearTimeout(_transitionTimerId);
+            _transitionTimerId = null;
+          }
+
           const newActiveRunId = new Map(activeRunId);
           newActiveRunId.delete(selectedSessionKey);
 
@@ -953,6 +980,7 @@ export const useDashboardStore = create<DashboardStore>()(
               t.runId === runId ? { ...t, status: 'aborted', completedAt: Date.now() } : t
             ),
             streamingContent: '', // Clear any streaming content
+            streamingComplete: false,
           });
 
         } catch (error) {
@@ -1565,6 +1593,11 @@ export const useDashboardStore = create<DashboardStore>()(
 
             // If first delta, mark user message as delivered immediately (important UX feedback)
             if (isFirstDelta) {
+              // Cancel any pending transition timer from a previous completion
+              if (_transitionTimerId !== null) {
+                clearTimeout(_transitionTimerId);
+                _transitionTimerId = null;
+              }
               const runId = payload?.runId || (get().selectedSessionKey ? get().activeRunId.get(get().selectedSessionKey) : undefined);
               if (runId) {
                 _firstDeltaPending = { runId };
@@ -1699,6 +1732,11 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // Handle agent run error (LLM provider failure, auth errors, etc.)
           if (isCurrentSessionEvent && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'error' || (payload?.data?.phase === 'end' && payload?.data?.isError))) {
+            clearStreamingBuffer();
+            if (_transitionTimerId !== null) {
+              clearTimeout(_transitionTimerId);
+              _transitionTimerId = null;
+            }
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
@@ -1727,6 +1765,7 @@ export const useDashboardStore = create<DashboardStore>()(
                   }
                   return {
                     streamingContent: '',
+                    streamingComplete: false,
                     chatSending: newChatSending,
                     activeRunId: newActiveRunId,
                   };
@@ -1763,6 +1802,7 @@ export const useDashboardStore = create<DashboardStore>()(
               return {
                 chatMessages: [...updatedMessages, errorMessage],
                 streamingContent: '',
+                streamingComplete: false,
                 chatSending: newChatSending,
                 activeRunId: newActiveRunId,
               };
@@ -1833,7 +1873,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 : state.tasks;
 
               // Two-phase transition: add message + mark complete, then clear streaming after brief delay
-              setTimeout(() => {
+              _transitionTimerId = setTimeout(() => {
+                _transitionTimerId = null;
                 useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
               }, 150);
 
@@ -1874,6 +1915,11 @@ export const useDashboardStore = create<DashboardStore>()(
               : null;
 
           if (chatDeltaText) {
+            // Cancel any pending transition timer if this is the first delta
+            if (!get().streamingContent && _transitionTimerId !== null) {
+              clearTimeout(_transitionTimerId);
+              _transitionTimerId = null;
+            }
             set((state) => {
               const isFirstDelta = !state.streamingContent;
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
@@ -1949,7 +1995,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 const newMessages = [...state.chatMessages, assistantMessage];
 
                 // Two-phase transition: add message + mark complete, then clear streaming after brief delay
-                setTimeout(() => {
+                _transitionTimerId = setTimeout(() => {
+                  _transitionTimerId = null;
                   useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
                 }, 150);
 
@@ -2179,6 +2226,11 @@ export const useDashboardStore = create<DashboardStore>()(
 
               // If this lifecycle end matches the active runId, or if it's for a subagent task that was spawned from here
               if (currentActiveRunId === runId || (isSubAgent && existingTask)) {
+                clearStreamingBuffer();
+                if (_transitionTimerId !== null) {
+                  clearTimeout(_transitionTimerId);
+                  _transitionTimerId = null;
+                }
                 // Single atomic update to avoid race conditions
                 set((state) => {
                   // Find messages that need status updates
@@ -2194,7 +2246,8 @@ export const useDashboardStore = create<DashboardStore>()(
 
                   // Build result object - only include chatMessages if we need to modify it
                   const result: Partial<typeof state> = {
-                    streamingContent: ''
+                    streamingContent: '',
+                    streamingComplete: false,
                   };
 
                   if (nextQueuedMessage) {
