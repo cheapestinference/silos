@@ -1085,6 +1085,9 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
 
 export function ChatView({ sessionKey }: { sessionKey: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollSentinelRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const userScrolledUp = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useTranslation();
 
@@ -1189,11 +1192,23 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     selectSession(sessionKey);
   }, [sessionKey, selectSession]);
 
+  // Smooth auto-scroll — throttled via RAF, respects user scroll position
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (userScrolledUp.current) return;
+    if (scrollRafRef.current !== null) return;
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      scrollSentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
   }, [chatMessages, streamingContent, chatSending]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+    };
+  }, []);
 
   // Auto-resize textarea
   const handleInputChange = useCallback(() => {
@@ -1227,7 +1242,15 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
         {/* LEFT: Chat Column */}
         <div className="flex-1 flex flex-col min-w-0 relative">
           {/* Messages Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
+          onScroll={() => {
+            if (!scrollRef.current) return;
+            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+            userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 100;
+          }}
+        >
           {/* Premium Empty State */}
           {chatMessages.length === 0 && !chatLoading && (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -1286,7 +1309,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <TypingIndicator streamingContent={streamingContent} />
           )}
 
-          <div className="h-4" />
+          <div ref={scrollSentinelRef} className="h-4" />
         </div>
 
         {/* Premium Input Area */}
