@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { useTranslation } from '../../i18n';
 import {
@@ -1157,6 +1157,12 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   // Get per-session sending state
   const chatSending = chatSendingMap.get(sessionKey) || false;
 
+  // Memoize filtered messages — only recalculate when chatMessages changes, not on streaming updates
+  const filteredMessages = useMemo(
+    () => chatMessages.filter(msg => !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result)),
+    [chatMessages]
+  );
+
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
   const sendingCount = chatMessages.filter(m => m.role === 'user' && m.status === 'sending').length;
@@ -1294,15 +1300,15 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             </div>
           )}
 
-          {chatMessages.filter(msg => !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result)).map((msg, i, filteredMsgs) => {
+          {filteredMessages.map((msg, i, arr) => {
             // Skip the last assistant message during streaming→message transition (avoid duplicate)
-            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === filteredMsgs.length - 1) {
+            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === arr.length - 1) {
               return null;
             }
 
             const showAvatar = i === 0 ||
-              filteredMsgs[i-1].role !== msg.role ||
-              Boolean(filteredMsgs[i-1].timestamp && msg.timestamp - filteredMsgs[i-1].timestamp > 60000);
+              arr[i-1].role !== msg.role ||
+              Boolean(arr[i-1].timestamp && msg.timestamp - arr[i-1].timestamp > 60000);
 
             return (
               <MessageBubble
