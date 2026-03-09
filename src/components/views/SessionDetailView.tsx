@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
-import { cn } from '../../lib/utils';
+import { cn, formatNumber } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import {
   ArrowLeft,
@@ -106,6 +106,7 @@ export function SessionDetailView() {
     connected,
     loadAgentConfig,
     gatewayConfig,
+    sessionCumulativeTokens,
   } = useDashboardStore();
 
   const agentId = sessionKey ? extractAgentIdFromSessionKey(sessionKey) : null;
@@ -236,8 +237,8 @@ export function SessionDetailView() {
               />
               <StatCard
                 icon={<MessageSquare className="w-3.5 h-3.5" />}
-                value={session?.totalTokens?.toLocaleString() || 0}
-                label={t('sessionDetail.tokens')}
+                value={formatNumber(sessionCumulativeTokens.get(sessionKey!)?.total || (session?.inputTokens || 0) + (session?.outputTokens || 0))}
+                label={t('sessionDetail.totalSession')}
                 color="violet"
               />
               <StatCard

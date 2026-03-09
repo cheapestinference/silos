@@ -31,6 +31,8 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import type { ChatMessage, AgentSummary } from '../../types/openclaw';
 import { SessionTasksKanban } from '../sessions/SessionTasksKanban';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 // WorkspaceExplorer removed for now
 // AddMemberModal removed for now
 
@@ -97,121 +99,57 @@ function extractMessageText(message: unknown): string | null {
 
 // ============== Message Markdown Renderer ==============
 
+// Markdown component renderers for react-markdown
+const markdownComponents: Record<string, React.ComponentType<any>> = {
+  code({ className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || '');
+    const text = String(children).replace(/\n$/, '');
+    if (match || text.includes('\n')) {
+      return <CodeBlock language={match?.[1] || 'text'} code={text} />;
+    }
+    return (
+      <code className="px-1.5 py-0.5 rounded bg-muted text-indigo-500 dark:text-indigo-400 text-xs font-mono">
+        {children}
+      </code>
+    );
+  },
+  pre({ children }: any) { return <>{children}</>; },
+  h1: ({ children }: any) => <h3 className="text-base font-bold mt-4 mb-2">{children}</h3>,
+  h2: ({ children }: any) => <h4 className="text-sm font-bold mt-3 mb-1.5">{children}</h4>,
+  h3: ({ children }: any) => <h5 className="text-sm font-semibold mt-2 mb-1">{children}</h5>,
+  p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
+  ul: ({ children }: any) => <ul className="list-disc pl-5 mb-2 space-y-0.5">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal pl-5 mb-2 space-y-0.5">{children}</ol>,
+  li: ({ children }: any) => <li className="text-sm">{children}</li>,
+  table: ({ children }: any) => (
+    <div className="overflow-x-auto my-2 rounded-lg border">
+      <table className="min-w-full text-xs">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: any) => <thead className="bg-muted/50 border-b">{children}</thead>,
+  th: ({ children }: any) => <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground">{children}</th>,
+  td: ({ children }: any) => <td className="px-3 py-1.5 border-t border-border/50">{children}</td>,
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-2 border-indigo-500/30 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+  ),
+  hr: () => <hr className="my-3 border-border/50" />,
+};
+
 function renderMarkdown(text: string | undefined | null): React.ReactNode {
   if (!text) return null;
-
-  // Ensure text is a string
-  if (typeof text !== 'string') {
-    try {
-      text = String(text);
-    } catch {
-      return null;
-    }
-  }
-
-  const textStr = text;
-
-  // Split by code blocks first
-  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-  let key = 0;
-
-  while ((match = codeBlockRegex.exec(textStr)) !== null) {
-    // Add text before code block
-    if (match.index > lastIndex) {
-      parts.push(
-        <span key={key++}>
-          {renderInlineMarkdown(textStr.slice(lastIndex, match.index))}
-        </span>
-      );
-    }
-
-    // Add code block
-    const language = match[1] || 'text';
-    const code = match[2];
-    parts.push(
-      <CodeBlock key={key++} language={language} code={code} />
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < textStr.length) {
-    parts.push(
-      <span key={key++}>
-        {renderInlineMarkdown(textStr.slice(lastIndex))}
-      </span>
-    );
-  }
-
-  return parts.length > 0 ? parts : renderInlineMarkdown(textStr);
-}
-
-function renderInlineMarkdown(text: string | undefined | null): React.ReactNode {
-  // Ensure text is a string (defensive against type mismatches)
-  const textStr = String(text || '');
-
-  // Handle inline code, bold, italic, and links
-  const parts: React.ReactNode[] = [];
-  let remaining = textStr;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    // Inline code
-    const inlineCodeMatch = remaining.match(/^`([^`]+)`/);
-    if (inlineCodeMatch) {
-      parts.push(
-        <code key={key++} className="px-1.5 py-0.5 rounded bg-muted text-indigo-500 dark:text-indigo-400 text-xs font-mono">
-          {inlineCodeMatch[1]}
-        </code>
-      );
-      remaining = remaining.slice(inlineCodeMatch[0].length);
-      continue;
-    }
-
-    // Bold
-    const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
-    if (boldMatch) {
-      parts.push(<strong key={key++} className="font-semibold">{boldMatch[1]}</strong>);
-      remaining = remaining.slice(boldMatch[0].length);
-      continue;
-    }
-
-    // Italic
-    const italicMatch = remaining.match(/^\*([^*]+)\*/);
-    if (italicMatch) {
-      parts.push(<em key={key++}>{italicMatch[1]}</em>);
-      remaining = remaining.slice(italicMatch[0].length);
-      continue;
-    }
-
-    // Link
-    const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
-    if (linkMatch) {
-      parts.push(
-        <a
-          key={key++}
-          href={linkMatch[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
-        >
-          {linkMatch[1]}
-        </a>
-      );
-      remaining = remaining.slice(linkMatch[0].length);
-      continue;
-    }
-
-    // Regular character
-    parts.push(remaining[0]);
-    remaining = remaining.slice(1);
-  }
-
-  return parts;
+  const textStr = (typeof text === 'string' ? text : String(text)).trimStart();
+  if (!textStr) return null;
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {textStr}
+    </ReactMarkdown>
+  );
 }
 
 // ============== Code Block Component (Premium) ==============
@@ -934,7 +872,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
             return (
               <div className="flex flex-col gap-1">
                 <div className={cn(
-                  "relative px-4 py-3.5 rounded-2xl leading-relaxed whitespace-pre-wrap transition-all duration-200",
+                  "relative px-4 py-3.5 rounded-2xl leading-relaxed transition-all duration-200",
                   isUser && !isSubagentSession
                     ? [
                         // Human user messages - indigo
@@ -1052,7 +990,7 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
               const text = typeof streamingContent === 'string' ? streamingContent : extractMessageText(streamingContent) || '';
               return (
                 <div className="inline-flex items-start gap-1">
-                  <span className="text-sm leading-relaxed break-words whitespace-pre-wrap">{renderMarkdown(text)}</span>
+                  <span className="text-sm leading-relaxed break-words">{renderMarkdown(text)}</span>
                   <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
                 </div>
               );
@@ -1199,9 +1137,18 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     userScrolledUp.current = false;  // Reset scroll state for new session
   }, [sessionKey, selectSession]);
 
-  // Auto-scroll — throttled via RAF
+  // Retry chat history load when connection becomes available (handles page refresh)
   useEffect(() => {
-    if (scrollRafRef.current !== null) return;
+    if (connected && chatMessages.length === 0 && !chatLoading) {
+      useDashboardStore.getState().loadChatHistory(sessionKey);
+    }
+  }, [connected, sessionKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-scroll — always cancel previous and reschedule to avoid missed updates
+  useEffect(() => {
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current);
+    }
 
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
@@ -1248,7 +1195,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       {/* Main Content: Two Columns (Chat + Tasks) */}
       <div className="flex flex-1 min-h-0">
         {/* LEFT: Chat Column */}
-        <div className="flex-1 flex flex-col min-w-0 relative">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
           {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           {/* Premium Empty State */}
@@ -1361,18 +1308,10 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                     </span>
                   </div>
 
-                  {/* Token counter */}
-                  {currentSession && (currentSession.totalTokens || currentSession.inputTokens || currentSession.outputTokens) && (
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono pl-2 border-l">
-                      {currentSession.inputTokens !== undefined && (
-                        <span className="text-cyan-600 dark:text-cyan-400">{formatNumber(currentSession.inputTokens)}↓</span>
-                      )}
-                      {currentSession.outputTokens !== undefined && (
-                        <span className="text-purple-600 dark:text-purple-400">{formatNumber(currentSession.outputTokens)}↑</span>
-                      )}
-                      {currentSession.totalTokens !== undefined && (
-                        <span className="text-muted-foreground">{formatNumber(currentSession.totalTokens)} tok</span>
-                      )}
+                  {/* Context utilization */}
+                  {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono pl-2 border-l">
+                      <span>{formatNumber(currentSession.totalTokens)} context</span>
                     </div>
                   )}
 

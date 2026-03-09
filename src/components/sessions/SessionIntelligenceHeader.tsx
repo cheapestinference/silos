@@ -54,9 +54,11 @@ export function SessionIntelligenceHeader({
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground font-mono">
-            {formatNumber(totalTokens)} {t('sessions.tokens')}
-          </span>
+          {totalTokens > 0 && (
+            <span className="text-xs text-muted-foreground font-mono">
+              {formatNumber(totalTokens)}{session.contextTokens ? ` / ${formatNumber(session.contextTokens)}` : ''} ctx
+            </span>
+          )}
         </div>
       </button>
 
@@ -75,30 +77,23 @@ export function SessionIntelligenceHeader({
               </div>
             )}
 
-            {/* Token Breakdown */}
+            {/* Token Info */}
             <div className="flex items-center gap-4 text-xs">
-              {session.contextTokens !== undefined && (
+              {session.totalTokens !== undefined && session.totalTokens > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">{t('chat.context')}:</span>
-                  <span className="font-mono font-semibold text-muted-foreground">{formatNumber(session.contextTokens)}</span>
+                  <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                    {formatNumber(session.totalTokens)}
+                    {session.contextTokens ? ` / ${formatNumber(session.contextTokens)}` : ''}
+                  </span>
                 </div>
               )}
-              {session.inputTokens !== undefined && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">{t('chat.input')}:</span>
-                  <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{formatNumber(session.inputTokens)}↓</span>
-                </div>
-              )}
-              {session.outputTokens !== undefined && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">{t('chat.output')}:</span>
-                  <span className="font-mono font-semibold text-purple-600 dark:text-purple-400">{formatNumber(session.outputTokens)}↑</span>
-                </div>
-              )}
-              {session.totalTokens !== undefined && (
+              {(session.inputTokens || session.outputTokens) && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">{t('chat.total')}:</span>
-                  <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{formatNumber(session.totalTokens)}</span>
+                  <span className="font-mono font-semibold text-muted-foreground">
+                    {formatNumber((session.inputTokens || 0) + (session.outputTokens || 0))}
+                  </span>
                 </div>
               )}
             </div>

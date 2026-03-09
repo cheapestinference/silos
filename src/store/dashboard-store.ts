@@ -98,6 +98,7 @@ interface DashboardStore {
   subagentParents: Map<string, string>; // subagentSessionKey -> parentSessionKey
   pendingSpawnParent: string | null; // Parent session for next spawned subagent
   unreadCounts: Map<string, number>; // sessionKey -> unread message count
+  sessionCumulativeTokens: Map<string, { total: number; lastInput: number; lastOutput: number }>;
 
   // Loading states
   agentsLoading: boolean;
@@ -287,6 +288,7 @@ export const useDashboardStore = create<DashboardStore>()(
       subagentParents: new Map(),
       pendingSpawnParent: null,
       unreadCounts: new Map(),
+      sessionCumulativeTokens: new Map(),
 
       agentsLoading: false,
       sessionsLoading: false,
@@ -459,7 +461,23 @@ export const useDashboardStore = create<DashboardStore>()(
             count: loadedSessions.count + optimisticSessions.length,
           };
 
-          set({ sessions: mergedSessions, sessionsLoading: false });
+          // Accumulate per-session token usage (gateway overwrites per-run, we track cumulative)
+          const cumTokens = new Map(get().sessionCumulativeTokens);
+          for (const s of mergedBackendSessions) {
+            const input = s.inputTokens || 0;
+            const output = s.outputTokens || 0;
+            const runTotal = input + output;
+            const prev = cumTokens.get(s.key);
+            if (!prev) {
+              // First time seeing this session — seed with current values
+              cumTokens.set(s.key, { total: runTotal, lastInput: input, lastOutput: output });
+            } else if (input !== prev.lastInput || output !== prev.lastOutput) {
+              // Values changed = new run completed, accumulate
+              cumTokens.set(s.key, { total: prev.total + runTotal, lastInput: input, lastOutput: output });
+            }
+          }
+
+          set({ sessions: mergedSessions, sessionsLoading: false, sessionCumulativeTokens: cumTokens });
 
           // Auto-load task history from subagent sessions
           setTimeout(() => get().loadTaskHistory(), 100);

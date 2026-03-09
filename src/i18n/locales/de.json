@@ -862,6 +862,7 @@
   "sessionDetail": {
     "active": "Aktiv",
     "tokens": "Tokens",
+    "totalSession": "Gesamt Sitzung",
     "done": "Erledigt",
     "notConfigured": "Nicht konfiguriert"
   },
