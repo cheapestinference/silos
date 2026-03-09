@@ -1012,11 +1012,14 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 
 // ============== Typing Indicator (Premium) ==============
 
-function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
+function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: string; isComplete?: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className={cn(
+      "flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500 transition-opacity",
+      isComplete && "opacity-0 duration-150"
+    )}>
       {/* Animated Avatar */}
       <div className="relative w-11 h-11 flex-shrink-0">
         {/* Pulsing outer rings */}
@@ -1053,7 +1056,9 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
               return (
                 <div className="inline-flex items-start gap-1">
                   <span className="text-sm leading-relaxed break-words whitespace-pre-wrap">{renderMarkdown(text)}</span>
-                  <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
+                  {!isComplete && (
+                    <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
+                  )}
                 </div>
               );
             })() : (
@@ -1097,6 +1102,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     chatLoading,
     chatSending: chatSendingMap,
     streamingContent,
+    streamingComplete,
     selectSession,
     agents,
     sessions,
@@ -1289,6 +1295,11 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           )}
 
           {chatMessages.filter(msg => !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result)).map((msg, i, filteredMsgs) => {
+            // Skip the last assistant message during streaming→message transition (avoid duplicate)
+            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === filteredMsgs.length - 1) {
+              return null;
+            }
+
             const showAvatar = i === 0 ||
               filteredMsgs[i-1].role !== msg.role ||
               Boolean(filteredMsgs[i-1].timestamp && msg.timestamp - filteredMsgs[i-1].timestamp > 60000);
@@ -1306,7 +1317,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Streaming / Typing Indicator */}
           {(streamingContent || chatSending) && (
-            <TypingIndicator streamingContent={streamingContent} />
+            <TypingIndicator streamingContent={streamingContent} isComplete={streamingComplete} />
           )}
 
           <div ref={scrollSentinelRef} className="h-4" />

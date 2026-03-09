@@ -84,6 +84,7 @@ interface DashboardStore {
   chatSending: Map<string, boolean>; // Per-session sending state
   activeRunId: Map<string, string>; // Per-session active run ID
   streamingContent: string;
+  streamingComplete: boolean;
   subagentParents: Map<string, string>; // subagentSessionKey -> parentSessionKey
   pendingSpawnParent: string | null; // Parent session for next spawned subagent
   unreadCounts: Map<string, number>; // sessionKey -> unread message count
@@ -272,6 +273,7 @@ export const useDashboardStore = create<DashboardStore>()(
       chatSending: new Map(),
       activeRunId: new Map(),
       streamingContent: '',
+      streamingComplete: false,
       subagentParents: new Map(),
       pendingSpawnParent: null,
       unreadCounts: new Map(),
@@ -869,6 +871,7 @@ export const useDashboardStore = create<DashboardStore>()(
           chatMessages: [...chatMessages, userMessage],
           chatSending: newChatSending,
           streamingContent: isAlreadySending ? get().streamingContent : '',
+          streamingComplete: false,
         });
 
         // Handle agent routing: if it's a DM session dm-{agentId},
@@ -1829,9 +1832,14 @@ export const useDashboardStore = create<DashboardStore>()(
                   )
                 : state.tasks;
 
+              // Two-phase transition: add message + mark complete, then clear streaming after brief delay
+              setTimeout(() => {
+                useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+              }, 150);
+
               return {
                 chatMessages: [...updatedChatMessages, assistantMessage],
-                streamingContent: '',
+                streamingComplete: true,
                 chatSending: newChatSending,
                 activeRunId: newActiveRunId,
                 tasks: updatedTasks,
@@ -1940,9 +1948,14 @@ export const useDashboardStore = create<DashboardStore>()(
 
                 const newMessages = [...state.chatMessages, assistantMessage];
 
+                // Two-phase transition: add message + mark complete, then clear streaming after brief delay
+                setTimeout(() => {
+                  useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+                }, 150);
+
                 return {
                   chatMessages: newMessages,
-                  streamingContent: '',
+                  streamingComplete: true,
                   chatSending: newChatSending,
                   activeRunId: newActiveRunId,
                   tasks: updatedTasks,
