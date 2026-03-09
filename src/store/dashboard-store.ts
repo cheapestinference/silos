@@ -1905,6 +1905,16 @@ export const useDashboardStore = create<DashboardStore>()(
               clearTimeout(_transitionTimerId);
               _transitionTimerId = null;
             }
+            // Clear RAF buffer: if state='delta' (accumulated), buffer content is already
+            // included in the accumulated text. If legacy delta, avoid double-append with
+            // agent events that also buffer the same deltas.
+            if (_streamingRafId !== null) {
+              cancelAnimationFrame(_streamingRafId);
+              _streamingRafId = null;
+            }
+            _streamingBuffer = '';
+            _firstDeltaPending = null;
+
             set((state) => {
               const isFirstDelta = !state.streamingContent;
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
