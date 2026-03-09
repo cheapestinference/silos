@@ -22,6 +22,36 @@ import type {
 } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 
+// --- Streaming buffer: accumulates deltas outside React state, flushes via RAF ---
+let _streamingBuffer = '';
+let _streamingRafId: number | null = null;
+let _firstDeltaPending: { runId?: string } | null = null;
+
+function flushStreamingBuffer() {
+  if (_streamingRafId !== null) {
+    cancelAnimationFrame(_streamingRafId);
+    _streamingRafId = null;
+  }
+  if (_streamingBuffer) {
+    const buffered = _streamingBuffer;
+    const pendingFirst = _firstDeltaPending;
+    _streamingBuffer = '';
+    _firstDeltaPending = null;
+    const store = useDashboardStore.getState();
+    useDashboardStore.setState({
+      streamingContent: (store.streamingContent || '') + buffered,
+      ...(pendingFirst?.runId ? {
+        chatMessages: store.chatMessages.map(m => {
+          if (m.role === 'user' && m.status === 'sending' && (m.runId === pendingFirst.runId || !m.runId)) {
+            return { ...m, status: 'delivered' as const, runId: pendingFirst.runId };
+          }
+          return m;
+        }),
+      } : {}),
+    });
+  }
+}
+
 interface DashboardStore {
   // Connection state
   connected: boolean;
@@ -1528,30 +1558,51 @@ export const useDashboardStore = create<DashboardStore>()(
           const isCurrentSessionEvent = eventSessionKey === currentEffectiveKey || !eventSessionKey;
 
           if (isCurrentSessionEvent && payload?.stream === 'assistant' && payload?.data?.delta) {
-            // Streaming text content - also mark user message as delivered when streaming starts
-            set((state) => {
-              const isFirstDelta = !state.streamingContent;
-              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
+            const isFirstDelta = !get().streamingContent && !_streamingBuffer;
 
-              // If this is the first delta, mark the user's sending message as delivered
-              if (isFirstDelta && runId) {
-                const updatedMessages = state.chatMessages.map(m => {
-                  if (m.role === 'user' && m.status === 'sending' && (m.runId === runId || !m.runId)) {
-                    return { ...m, status: 'delivered' as const, runId: runId };
-                  }
-                  return m;
-                });
-                return {
-                  streamingContent: state.streamingContent + payload.data.delta,
-                  chatMessages: updatedMessages,
-                };
+            // If first delta, mark user message as delivered immediately (important UX feedback)
+            if (isFirstDelta) {
+              const runId = payload?.runId || (get().selectedSessionKey ? get().activeRunId.get(get().selectedSessionKey) : undefined);
+              if (runId) {
+                _firstDeltaPending = { runId };
               }
+            }
 
-              return {
-                streamingContent: state.streamingContent + payload.data.delta,
-              };
-            });
+            // Accumulate delta in buffer (no React re-render)
+            _streamingBuffer += payload.data.delta;
+
+            // Schedule RAF flush if not already scheduled
+            if (_streamingRafId === null) {
+              _streamingRafId = requestAnimationFrame(() => {
+                _streamingRafId = null;
+                const buffered = _streamingBuffer;
+                _streamingBuffer = '';
+                const pendingFirst = _firstDeltaPending;
+                _firstDeltaPending = null;
+
+                if (!buffered) return;
+
+                set((state) => {
+                  const updates: Partial<DashboardStore> = {
+                    streamingContent: (state.streamingContent || '') + buffered,
+                  };
+
+                  // Handle first-delta user message status update
+                  if (pendingFirst?.runId) {
+                    updates.chatMessages = state.chatMessages.map(m => {
+                      if (m.role === 'user' && m.status === 'sending' && (m.runId === pendingFirst.runId || !m.runId)) {
+                        return { ...m, status: 'delivered' as const, runId: pendingFirst.runId };
+                      }
+                      return m;
+                    });
+                  }
+
+                  return updates;
+                });
+              });
+            }
           } else if (isCurrentSessionEvent && payload?.stream === 'tool') {
+            flushStreamingBuffer();
             const toolName = payload?.data?.name || payload?.data?.toolName;
             const phase = payload?.data?.phase;
 
@@ -1718,6 +1769,7 @@ export const useDashboardStore = create<DashboardStore>()(
           // Handle completion from agent events (some backends send it here)
           // Note: 'end' is also a completion phase in some backends
           if (isCurrentSessionEvent && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'complete' || payload?.data?.phase === 'done' || (payload?.data?.phase === 'end' && !payload?.data?.isError))) {
+            flushStreamingBuffer();
             // Use functional update to get latest state and avoid race conditions
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
