@@ -1,19 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Brush } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import {
-  CheckCircle2,
-  AlertCircle,
   ExternalLink,
   BookOpen,
-  RefreshCw,
-  Loader2,
-  XCircle,
-  Wifi,
-  Globe,
   ChevronRight,
+  Bot,
+  MessageSquare,
+  Zap,
+  Activity,
+  CalendarClock,
 } from 'lucide-react';
-import { Button } from '../ui/button';
 import useTranslation from '../../i18n';
 
 // ─── OpenClaw Lobster Logo ───────────────────────────────────────────────────
@@ -48,225 +46,76 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function getDateLabel(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function DashStatCard({ icon, value, label, color }: {
+  icon: React.ReactNode;
+  value: string | number;
+  label: string;
+  color: string;
+}) {
+  const colorMap: Record<string, { card: string; icon: string; glow: string }> = {
+    violet: {
+      icon: 'bg-violet-500/12 text-violet-500 dark:text-violet-400',
+    },
+    blue: {
+      icon: 'bg-blue-500/12 text-blue-500 dark:text-blue-400',
+    },
+    amber: {
+      icon: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
+    },
+    cyan: {
+      icon: 'bg-cyan-500/12 text-cyan-600 dark:text-cyan-400',
+    },
+    emerald: {
+      icon: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
+    },
+  };
+  const c = colorMap[color] || colorMap.violet;
+  return (
+    <div className="rounded-xl bg-card border border-border p-4 flex flex-col gap-2">
+      <div className={`w-8 h-8 rounded-lg ${c.icon} flex items-center justify-center`}>
+        {icon}
+      </div>
+      <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground leading-tight">{label}</p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 export function UnifiedDashboard() {
   const {
     connected,
     loadAll,
-    gatewayConfig,
     channels,
     gatewayUrl,
     token,
-    loadChannels,
-    channelsLoading,
-    client,
-    patchGatewayConfig,
+    agents,
+    sessions,
+    tasks,
+    cronJobs,
   } = useDashboardStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [, setDataLoaded] = useState(false);
-
-  // WhatsApp data (derived early so useEffect can reference waConnected)
-  const waAccounts = channels?.channelAccounts?.['whatsapp'] || [];
-  const waConnected = waAccounts.some(a => a.connected);
-  const waRunning = waAccounts.some(a => a.running);
-  const waError = waAccounts.find(a => a.lastError);
-
-  // WhatsApp QR flow state
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [qrMessage, setQrMessage] = useState<string | null>(null);
-  const [qrError, setQrError] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const [waitingForScan, setWaitingForScan] = useState(false);
-  const [phoneInput, setPhoneInput] = useState('');
-  const [askingPhone, setAskingPhone] = useState(false);
 
   useEffect(() => {
     if (connected) {
-      loadAll().then(() => setDataLoaded(true));
+      loadAll();
     }
   }, [connected, loadAll]);
 
-
-  // Clear QR when WhatsApp connects
-  useEffect(() => {
-    if (waConnected) {
-      setQrDataUrl(null);
-      setQrMessage(null);
-      setQrError(null);
-      setWaitingForScan(false);
-      setConnecting(false);
-      setAskingPhone(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waConnected]);
-
-  const startQrFlow = async (phone?: string) => {
-    if (!client) return;
-    setConnecting(true);
-    setAskingPhone(false);
-    setQrDataUrl(null);
-    setQrMessage(null);
-    setQrError(null);
-
-    try {
-      const waitForGateway = async () => {
-        for (let i = 0; i < 20; i++) {
-          if (client.connected) return true;
-          await new Promise(r => setTimeout(r, 500));
-        }
-        return client.connected;
-      };
-
-      // Ensure WhatsApp channel is configured in gateway config (same as SettingsPage add-channel flow)
-      const rawConfig = gatewayConfig?.config as Record<string, unknown> | undefined;
-      const channelsConfig = rawConfig?.channels as Record<string, unknown> | undefined;
-      const waConfigured = channelsConfig?.whatsapp != null;
-
-      if (!waConfigured) {
-        setQrMessage(t('unifiedDashboard.configuringWhatsApp'));
-        const waConfig: Record<string, unknown> = {
-          dmPolicy: 'allowlist',
-          groupPolicy: 'allowlist',
-          selfChatMode: true,
-          sendReadReceipts: true,
-        };
-        if (phone?.trim()) waConfig.allowFrom = [phone.trim()];
-        await patchGatewayConfig({ channels: { whatsapp: waConfig } });
-        // Wait for gateway to restart after config change
-        setQrMessage(t('unifiedDashboard.restartingGateway'));
-        await new Promise(r => setTimeout(r, 3000));
-        for (let poll = 0; poll < 20; poll++) {
-          await new Promise(r => setTimeout(r, 1000));
-          if (client.connected) break;
-        }
-      }
-
-      const attemptLogin = async () => {
-        if (!client.connected) {
-          setQrMessage(t('unifiedDashboard.waitingGateway'));
-          if (!await waitForGateway()) throw new Error('Gateway unavailable');
-        }
-        // Clear stale session before starting (same as SettingsPage)
-        if (!waConnected) {
-          setQrMessage(t('unifiedDashboard.clearingSession'));
-          await client.logoutChannel('whatsapp').catch(() => {});
-        }
-        setQrMessage(null);
-        return await client.webLoginStart(undefined, true);
-      };
-
-      let result: { qrDataUrl?: string; message: string };
-      try {
-        result = await attemptLogin();
-      } catch (firstErr) {
-        const msg = String(firstErr instanceof Error ? firstErr.message : firstErr);
-        if (msg.includes('not connected') || msg.includes('unavailable') || msg.includes('1012')) {
-          setQrMessage(t('unifiedDashboard.reconnectingGateway'));
-          await new Promise(r => setTimeout(r, 2000));
-          if (!await waitForGateway()) throw new Error('Gateway did not reconnect');
-          result = await attemptLogin();
-        } else {
-          throw firstErr;
-        }
-      }
-
-      if (result.qrDataUrl) {
-        setQrDataUrl(result.qrDataUrl);
-        setConnecting(false);
-        setWaitingForScan(true);
-
-        let paired = false;
-        let hadError = false;
-        for (let attempt = 0; attempt < 3 && !paired && !hadError; attempt++) {
-          try {
-            const waitResult = await client.webLoginWait();
-            if (waitResult.connected) {
-              paired = true;
-              setQrDataUrl(null);
-              await loadChannels();
-            } else if (waitResult.message?.includes('515')) {
-              paired = true;
-              setQrDataUrl(null);
-              setQrMessage(t('unifiedDashboard.pairedRestarting'));
-              await patchGatewayConfig({ channels: { whatsapp: {} } }).catch(() => {});
-              await new Promise(r => setTimeout(r, 3000));
-              for (let poll = 0; poll < 15; poll++) {
-                await new Promise(r => setTimeout(r, 2000));
-                if (!client.connected) continue;
-                try {
-                  await loadChannels();
-                  const fresh = useDashboardStore.getState().channels;
-                  if (fresh?.channelAccounts?.['whatsapp']?.some(a => a.connected)) break;
-                } catch { /* gateway restarting */ }
-              }
-              setQrMessage(null);
-            } else {
-              setQrMessage(t('unifiedDashboard.updatingQR'));
-              try {
-                const refresh = await client.webLoginStart(undefined, true);
-                if (refresh.qrDataUrl) { setQrDataUrl(refresh.qrDataUrl); setQrMessage(null); }
-                else { await loadChannels(); paired = true; }
-              } catch { hadError = true; }
-            }
-          } catch (waitErr) {
-            const msg = String(waitErr instanceof Error ? waitErr.message : waitErr);
-            setQrDataUrl(null);
-            if (msg.includes('515')) {
-              paired = true;
-              setQrMessage(t('unifiedDashboard.pairedRestarting'));
-              await patchGatewayConfig({ channels: { whatsapp: {} } }).catch(() => {});
-              await new Promise(r => setTimeout(r, 3000));
-              for (let poll = 0; poll < 15; poll++) {
-                await new Promise(r => setTimeout(r, 2000));
-                if (!client.connected) continue;
-                try {
-                  await loadChannels();
-                  const fresh = useDashboardStore.getState().channels;
-                  if (fresh?.channelAccounts?.['whatsapp']?.some(a => a.connected)) break;
-                } catch { /* gateway restarting */ }
-              }
-              setQrMessage(null);
-            } else {
-              setQrError(t('unifiedDashboard.connectionError'));
-              hadError = true;
-            }
-          }
-        }
-
-        if (!paired && !hadError) {
-          setQrError(t('unifiedDashboard.qrExpired'));
-          setQrDataUrl(null);
-        }
-        setWaitingForScan(false);
-      } else {
-        setConnecting(false);
-        await loadChannels();
-        const fresh = useDashboardStore.getState().channels;
-        if (!fresh?.channelAccounts?.['whatsapp']?.some(a => a.connected)) {
-          setQrError(t('unifiedDashboard.qrGenerationFailed'));
-        }
-      }
-    } catch (err) {
-      const msg = String(err instanceof Error ? err.message : err);
-      setQrError(msg.includes('515') ? t('unifiedDashboard.sessionConflict') : `Error: ${msg}`);
-      setConnecting(false);
-    }
-  };
-
-  const handleWaConnect = () => {
-    const rawConfig = gatewayConfig?.config as Record<string, unknown> | undefined;
-    const channelsConfig = rawConfig?.channels as Record<string, unknown> | undefined;
-    const waConfigured = channelsConfig?.whatsapp != null;
-    if (!waConfigured) {
-      // Need to configure first — ask for phone number
-      setAskingPhone(true);
-      setQrError(null);
-    } else {
-      startQrFlow();
-    }
-  };
-
-  // Derive OpenClaw UI URL — in production, proxied at /openclaw on the same origin
+  // Derive OpenClaw UI URL
   const openClawUiUrl = useMemo(() => {
     if (!gatewayUrl) return null;
     const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
@@ -282,198 +131,260 @@ export function UnifiedDashboard() {
     return token ? `${base}#token=${encodeURIComponent(token)}` : base;
   }, [gatewayUrl, token]);
 
-  const waStatus: 'connected' | 'running' | 'error' | 'not-configured' =
-    waConnected ? 'connected' :
-    waRunning ? 'running' :
-    waError ? 'error' :
-    'not-configured';
+  // ─── Derived Stats ──────────────────────────────────────────────────────────
+  const agentCount = agents?.agents.length || 0;
+  const sessionCount = sessions?.sessions.length || 0;
+  const runningTasks = tasks.filter(t => t.status === 'running').length;
+  const enabledCronJobs = cronJobs.filter(j => j.enabled).length;
 
-  const waStatusConfig = {
-    connected: { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', label: t('unifiedDashboard.connected') },
-    running: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: t('unifiedDashboard.connecting') },
-    error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: t('unifiedDashboard.notConnected') },
-    'not-configured': { icon: AlertCircle, color: 'text-muted-foreground', bg: 'bg-muted/50', label: t('unifiedDashboard.notConnected') },
-  };
+  const { totalTokens, activityByDay } = useMemo(() => {
+    const allSessions = sessions?.sessions || [];
+    let tTotal = 0;
 
-  const WaStatus = waStatusConfig[waStatus];
-  const WaIcon = WaStatus.icon;
+    for (const s of allSessions) {
+      tTotal += s.totalTokens || 0;
+    }
 
+    // Build histogram from earliest session to today
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    // Find earliest session, but ensure at least 14 days of range
+    const minStart = new Date(now);
+    minStart.setDate(minStart.getDate() - 13);
+    let earliest = minStart;
+    for (const s of allSessions) {
+      if (s.updatedAt) {
+        const d = new Date(s.updatedAt);
+        d.setHours(0, 0, 0, 0);
+        if (d < earliest) earliest = d;
+      }
+    }
+
+    const days: { date: Date; dateStr: string; sessions: number; tokens: number; input: number; output: number }[] = [];
+    const dayMap = new Map<string, typeof days[number]>();
+    const cursor = new Date(earliest);
+    while (cursor <= now) {
+      const dateStr = cursor.toISOString().slice(0, 10);
+      const entry = { date: new Date(cursor), dateStr, sessions: 0, tokens: 0, input: 0, output: 0 };
+      days.push(entry);
+      dayMap.set(dateStr, entry);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    for (const s of allSessions) {
+      if (!s.updatedAt) continue;
+      const sDate = new Date(s.updatedAt).toISOString().slice(0, 10);
+      const day = dayMap.get(sDate);
+      if (day) {
+        day.sessions++;
+        day.tokens += s.totalTokens || 0;
+        day.input += s.inputTokens || 0;
+        day.output += s.outputTokens || 0;
+      }
+    }
+
+    return { totalTokens: tTotal, activityByDay: days };
+  }, [sessions]);
+
+  const hasActivity = activityByDay.some(d => d.tokens > 0);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   return (
     <div className="flex flex-col h-full bg-background overflow-y-auto">
-      {/* Header */}
-      <div className="px-6 py-5 border-b bg-card shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">{t('unifiedDashboard.mainPanel')}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{t('unifiedDashboard.manageAI')}</p>
+      {/* ── Header ────────────────────────────────────────────────────────────── */}
+      <div className="border-b bg-card/80 backdrop-blur-sm">
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                {t('unifiedDashboard.mainPanel')}
+              </h1>
+              <p className="text-[13px] text-muted-foreground mt-0.5">{t('unifiedDashboard.manageAI')}</p>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${connected ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-400'}`} />
+              {connected ? t('unifiedDashboard.gatewayConnected') : t('unifiedDashboard.gatewayDisconnected')}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="p-6 max-w-3xl space-y-8">
+      <div className="flex-1 flex flex-col min-h-0 p-4 gap-3">
 
-        {/* ── WhatsApp ─────────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <WhatsAppIcon className="w-5 h-5" />
-            <h2 className="text-base font-semibold">WhatsApp</h2>
-          </div>
+        {/* ── Row 1: Stat Cards ────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <DashStatCard icon={<Bot className="w-4.5 h-4.5" />} value={agentCount} label={t('unifiedDashboard.agents')} color="violet" />
+          <DashStatCard icon={<MessageSquare className="w-4.5 h-4.5" />} value={sessionCount} label={t('unifiedDashboard.sessions')} color="blue" />
+          <DashStatCard icon={<Zap className="w-4.5 h-4.5" />} value={formatTokens(totalTokens)} label={t('unifiedDashboard.tokens')} color="amber" />
+          <DashStatCard icon={<Activity className="w-4.5 h-4.5" />} value={runningTasks} label={t('unifiedDashboard.activeTasks')} color="cyan" />
+          <DashStatCard icon={<CalendarClock className="w-4.5 h-4.5" />} value={`${cronJobs.length}`} label={`${t('unifiedDashboard.cronJobs')} · ${enabledCronJobs} ${t('unifiedDashboard.enabled')}`} color="emerald" />
+        </div>
 
-          <div className="rounded-xl border bg-card p-5 space-y-4">
-            {/* Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${WaStatus.bg}`}>
-                  <WaIcon className={`w-5 h-5 ${WaStatus.color} ${waStatus === 'running' ? 'animate-spin' : ''}`} />
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold ${WaStatus.color}`}>{WaStatus.label}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => loadChannels()} disabled={channelsLoading}>
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${channelsLoading ? 'animate-spin' : ''}`} />
-                {t('unifiedDashboard.refresh')}
-              </Button>
+        {/* ── Row 2: Chart ─────────────────────────────────────────────────────── */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {hasActivity ? (
+            <div className="px-4 pt-4 pb-2">
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={activityByDay} barCategoryGap="20%">
+                  <XAxis
+                    dataKey="dateStr"
+                    tickFormatter={(v: string) => {
+                      const d = new Date(v + 'T00:00:00');
+                      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    }}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) => formatTokens(v)}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={45}
+                    label={{ value: 'Tokens', angle: -90, position: 'insideLeft', offset: 0, style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                  />
+                  <RechartsTooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-xl px-3 py-2.5 text-[11px] space-y-0.5">
+                          <p className="font-bold text-xs">{getDateLabel(new Date(d.dateStr + 'T00:00:00'))}</p>
+                          <p className="text-muted-foreground">{formatTokens(d.tokens)} tokens · {d.sessions} {t('unifiedDashboard.sessionsLabel')}</p>
+                          <div className="flex gap-3 pt-0.5 border-t border-border mt-1">
+                            <span className="text-muted-foreground">{t('unifiedDashboard.inputTokensLabel')}: <span className="text-foreground font-medium">{formatTokens(d.input)}</span></span>
+                            <span className="text-muted-foreground">{t('unifiedDashboard.outputTokensLabel')}: <span className="text-foreground font-medium">{formatTokens(d.output)}</span></span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                    cursor={false}
+                  />
+                  <Bar dataKey="tokens" fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                  {activityByDay.length > 14 && (
+                    <Brush
+                      dataKey="dateStr"
+                      height={24}
+                      stroke="hsl(var(--border))"
+                      fill="hsl(var(--card))"
+                      tickFormatter={(v: string) => {
+                        const d = new Date(v + 'T00:00:00');
+                        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                      }}
+                      startIndex={Math.max(0, activityByDay.length - 14)}
+                    />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
             </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Activity className="w-8 h-8 text-muted-foreground/30 mb-3" />
+              <p className="text-sm text-muted-foreground">{t('unifiedDashboard.noActivityYet')}</p>
+            </div>
+          )}
+        </div>
 
-            {/* Accounts list */}
-            {waAccounts.length > 0 && (
-              <div className="space-y-2">
-                {waAccounts.filter(acc => (acc.name || acc.accountId) !== 'default').map(acc => (
-                  <div key={acc.accountId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${acc.connected ? 'bg-green-500' : acc.running ? 'bg-blue-500 animate-pulse' : 'bg-muted-foreground'}`} />
-                      <span className="font-medium">{acc.name || acc.accountId}</span>
-                    </div>
-                    {!acc.connected && !acc.running && <span className="text-xs text-muted-foreground">{t('unifiedDashboard.notConnected')}</span>}
-                  </div>
-                ))}
+        <p className="text-[10px] text-muted-foreground/50 px-1 -mt-1">{t('unifiedDashboard.dataDisclaimer')}</p>
+
+        {/* ── Bottom row: OpenClaw + Channels link ─────────────────────────── */}
+        <div className="flex gap-3 items-stretch">
+
+        {/* ── OpenClaw Control UI ──────────────────────────────────────────────── */}
+        <div className="relative rounded-xl overflow-hidden border border-red-500/30 dark:border-red-800/40 max-w-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50/30 to-rose-50 dark:from-red-950/30 dark:via-orange-950/10 dark:to-rose-950/20" />
+          <div className="relative p-5">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/10 border border-red-500/20 flex items-center justify-center">
+                <OpenClawLogo className="w-8 h-8" />
               </div>
-            )}
-
-
-            {/* Phone number input step */}
-            {askingPhone && !connecting && (
-              <div className="space-y-3 rounded-lg bg-muted/40 p-4 border">
-                <p className="text-sm font-medium">{t('unifiedDashboard.whatsappNumber')}</p>
-                <p className="text-xs text-muted-foreground">{t('unifiedDashboard.phoneFormat')}</p>
-                <input
-                  type="tel"
-                  placeholder="+34612345678"
-                  value={phoneInput}
-                  onChange={e => setPhoneInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && phoneInput.trim() && startQrFlow(phoneInput)}
-                  className="w-full px-3 py-2 rounded-lg bg-background border text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 bg-[#25D366] hover:bg-[#1fb356] text-white"
-                    disabled={!phoneInput.trim()}
-                    onClick={() => startQrFlow(phoneInput)}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-foreground">{t('unifiedDashboard.openClawControlUI')}</h3>
+                <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+                  {t('unifiedDashboard.openClawControlUIDesc')}
+                </p>
+                <div className="flex items-center gap-4 mt-3">
+                  <button
+                    disabled={!openClawUiUrl}
+                    onClick={() => openClawUiUrl && window.open(openClawUiUrl, '_blank')}
+                    className="group inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold text-xs disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
                   >
-                    {t('unifiedDashboard.continue')}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setAskingPhone(false)}>
-                    {t('common.cancel')}
-                  </Button>
+                    <OpenClawLogo className="w-4 h-4 [&_path]:fill-white [&_circle]:fill-white [&_path[stroke]]:stroke-white" />
+                    {t('unifiedDashboard.openControlUI')}
+                    <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <a href="https://openclaw.ai/docs" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors">
+                    <BookOpen className="w-4 h-4" />
+                    {t('unifiedDashboard.documentation')}
+                  </a>
                 </div>
               </div>
-            )}
-
-            {/* QR flow */}
-            {qrMessage && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {qrMessage}
-              </div>
-            )}
-            {qrError && (
-              <p className="text-sm text-red-500">{qrError}</p>
-            )}
-            {qrDataUrl && (
-              <div className="flex flex-col items-center gap-2 py-2">
-                <div className="bg-white p-3 rounded-xl">
-                  <img src={qrDataUrl} alt="WhatsApp QR" className="w-48 h-48" />
-                </div>
-                <p className="text-xs text-muted-foreground">{t('unifiedDashboard.scanQR')}</p>
-              </div>
-            )}
-
-            {/* Connect button (only when not connected and not in phone-ask/qr flow) */}
-            {!waConnected && !askingPhone && (
-              <Button
-                className="w-full bg-[#25D366] hover:bg-[#1fb356] text-white"
-                disabled={connecting || waitingForScan}
-                onClick={handleWaConnect}
-              >
-                {connecting ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('unifiedDashboard.connectingWait')}</>
-                ) : waitingForScan ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('unifiedDashboard.awaitingScan')}</>
-                ) : (
-                  <><Wifi className="w-4 h-4 mr-2" /> {t('unifiedDashboard.connectWhatsApp')}</>
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* Connect more channels link */}
-          <button
-            onClick={() => navigate('/settings/channels')}
-            className="mt-3 w-full flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-border bg-muted/30 hover:bg-muted/60 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <Globe className="w-4 h-4 text-muted-foreground group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors" />
-              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{t('dashboard.connectMoreChannels')}</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-          </button>
-        </section>
-
-        {/* ── OpenClaw ─────────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-3 mb-3">
-            <OpenClawLogo className="w-7 h-7" />
-            <h2 className="text-base font-semibold">OpenClaw</h2>
-          </div>
-
-          <div className="rounded-xl border bg-card p-5">
-            <p className="text-sm text-muted-foreground mb-5">
-              {t('unifiedDashboard.openclawDescription')}
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Big button: OpenClaw UI */}
-              <button
-                disabled={!openClawUiUrl}
-                onClick={() => openClawUiUrl && window.open(openClawUiUrl, '_blank')}
-                className="group flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 hover:border-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <OpenClawLogo className="w-12 h-12 group-hover:scale-110 transition-transform" />
-                <div className="text-center">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('unifiedDashboard.openClawUI')}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('unifiedDashboard.fullPanel')}</p>
-                </div>
-                <ExternalLink className="w-4 h-4 text-red-600 dark:text-red-400" />
-              </button>
-
-              {/* Big button: OpenClaw Docs */}
-              <button
-                onClick={() => window.open('https://openclaw.ai/docs', '_blank')}
-                className="group flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 hover:border-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900/40 transition-all"
-              >
-                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <BookOpen className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('unifiedDashboard.documentation')}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('unifiedDashboard.apiReference')}</p>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </button>
             </div>
           </div>
-        </section>
+        </div>
+
+        {/* ── Channels ──────────────────────────────────────────────────────────── */}
+        <button
+          onClick={() => navigate('/settings/channels')}
+          className="rounded-xl border bg-card p-5 flex flex-col gap-3 min-w-[180px] hover:border-foreground/20 transition-colors justify-center"
+        >
+          <div className="flex items-center justify-between w-full">
+            <p className="text-sm font-semibold text-foreground">{t('unifiedDashboard.connectChannels')}</p>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="flex flex-col gap-2 w-full">
+            {(() => {
+              const accounts = channels?.channelAccounts || {};
+              const isConnected = (ch: string) => accounts[ch]?.some(a => a.connected);
+              const channelList = [
+                { id: 'whatsapp', label: 'WhatsApp', icon: <WhatsAppIcon className="w-4 h-4" />, color: '#25D366' },
+                { id: 'telegram', label: 'Telegram', icon: <svg viewBox="0 0 24 24" fill="#229ED9" className="w-4 h-4"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>, color: '#229ED9' },
+                { id: 'discord', label: 'Discord', icon: <svg viewBox="0 0 24 24" fill="#5865F2" className="w-4 h-4"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>, color: '#5865F2' },
+                { id: 'slack', label: 'Slack', icon: <svg viewBox="0 0 24 24" className="w-4 h-4"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.271 0a2.528 2.528 0 0 1-2.521 2.521 2.528 2.528 0 0 1-2.521-2.521V2.522A2.528 2.528 0 0 1 15.164 0a2.528 2.528 0 0 1 2.521 2.522v6.312z" fill="#2EB67D"/><path d="M15.164 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.164 24a2.528 2.528 0 0 1-2.521-2.522v-2.522h2.521zm0-1.271a2.528 2.528 0 0 1-2.521-2.521 2.528 2.528 0 0 1 2.521-2.521h6.314A2.528 2.528 0 0 1 24 15.164a2.528 2.528 0 0 1-2.522 2.521h-6.314z" fill="#ECB22E"/></svg>, color: '#E01E5A' },
+              ];
+              return channelList.map(ch => {
+                const connected = isConnected(ch.id);
+                return (
+                  <div key={ch.id} className="flex items-center gap-2.5">
+                    <div className={`${connected ? '' : 'opacity-30 grayscale'}`}>{ch.icon}</div>
+                    <span className={`text-[12px] ${connected ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{ch.label}</span>
+                    {connected && <span className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto" />}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </button>
+
+        </div>
 
       </div>
+
+      {/* ── Powered by — pinned to bottom ────────────────────────────────────── */}
+      <a
+        href="https://cheapestinference.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-auto flex items-center justify-center gap-3 py-4 border-t border-border"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" className="w-6 h-6 flex-shrink-0">
+          <defs>
+            <linearGradient id="ci-logo" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#818CF8" />
+              <stop offset="50%" stopColor="#6366F1" />
+              <stop offset="100%" stopColor="#22D3EE" />
+            </linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="8" fill="url(#ci-logo)" />
+          <path d="M19.5 8L12.5 24" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+          <path d="M11 12L7.5 16L11 20" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" opacity=".7" />
+          <path d="M21 12L24.5 16L21 20" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" opacity=".7" />
+        </svg>
+        <span className="text-[13px] text-muted-foreground">{t('unifiedDashboard.poweredBy')} <span className="font-semibold">cheapestinference.com</span></span>
+      </a>
     </div>
   );
 }

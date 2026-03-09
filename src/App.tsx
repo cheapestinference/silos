@@ -7,6 +7,14 @@ import { auth, sendEmailVerification } from './lib/firebase';
 import { ConnectPage } from './components/views/ConnectPage';
 import { MainShell } from './MainShell';
 import { AgentDetailView } from './components/agents/AgentDetailView';
+import { OverviewPanel } from './components/agents/OverviewPanel';
+import { BrainPanel } from './components/agents/BrainPanel';
+import { WorkspacePanel } from './components/agents/WorkspacePanel';
+import { AgentToolsPanel } from './components/agents/AgentToolsPanel';
+import { SkillsPanel } from './components/agents/SkillsPanel';
+import { KnowledgeBrowser } from './components/agents/KnowledgeBrowser';
+import { ScheduledPanel } from './components/agents/ScheduledPanel';
+import { ConfigPanel } from './components/agents/ConfigPanel';
 import { SessionDetailView } from './components/views/SessionDetailView';
 import { TasksPage } from './components/views/TasksPage';
 import { SettingsPage } from './components/views/SettingsPage';
@@ -240,7 +248,16 @@ function App() {
         <Route element={<MainShell />}>
             <Route path="/" element={<UnifiedDashboard />} />
             <Route path="/session/:key" element={<SessionDetailView />} />
-            <Route path="/agents/:id" element={<AgentDetailView />} />
+            <Route path="/agents/:id" element={<AgentDetailView />}>
+              <Route index element={<OverviewPanel />} />
+              <Route path="brain" element={<BrainPanel />} />
+              <Route path="workspace" element={<WorkspacePanel />} />
+              <Route path="tools" element={<AgentToolsPanel />} />
+              <Route path="skills" element={<SkillsPanel />} />
+              <Route path="knowledge" element={<KnowledgeBrowser />} />
+              <Route path="scheduled" element={<ScheduledPanel />} />
+              <Route path="config" element={<ConfigPanel />} />
+            </Route>
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/cron" element={<CronPage />} />
             <Route path="/settings" element={<SettingsPage />} />

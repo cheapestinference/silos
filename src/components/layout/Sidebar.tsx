@@ -320,7 +320,7 @@ function AgentSection({
   const displayName = agent.identity?.name || agent.name || agent.id;
   const emoji = agent.identity?.emoji;
 
-  const isAgentSelected = location.pathname === `/agents/${agent.id}`;
+  const isAgentSelected = location.pathname.startsWith(`/agents/${agent.id}`);
   const hasSelectedSession = allSessions.some(s => s.key === selectedSessionKey);
 
   return (

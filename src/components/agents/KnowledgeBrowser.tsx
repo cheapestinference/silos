@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
@@ -20,14 +21,11 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-interface KnowledgeBrowserProps {
-  agentId: string;
-}
-
 type FileEntry = { path: string; size: number; mtime: number; type: 'file' | 'directory' };
 type BrowseItem = { name: string; path: string; type: 'file' | 'directory' };
 
-export function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
+export function KnowledgeBrowser() {
+  const { id: agentId } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const {
     workspaceFiles, workspaceLoading, workspaceContent,
@@ -130,12 +128,12 @@ export function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
       const newPath = isInMemory ? fileName : `memory/${fileName}`;
 
       if (!isInMemory) {
-        await mkdirWorkspace(agentId, 'memory');
+        await mkdirWorkspace(agentId!, 'memory');
       }
 
-      const ok = await renameWorkspaceFile(agentId, filePath, newPath);
+      const ok = await renameWorkspaceFile(agentId!, filePath, newPath);
       if (ok) {
-        await listWorkspaceFiles(agentId);
+        await listWorkspaceFiles(agentId!);
         if (previewPath === filePath) setPreviewPath(newPath);
       }
     } catch (error) {
@@ -151,10 +149,10 @@ export function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
     const fullPath = `memory/${name}`;
     setSaving(true);
     try {
-      await mkdirWorkspace(agentId, 'memory');
-      const ok = await writeWorkspaceFile(agentId, fullPath, `# ${name.replace('.md', '')}\n\n`);
+      await mkdirWorkspace(agentId!, 'memory');
+      const ok = await writeWorkspaceFile(agentId!, fullPath, `# ${name.replace('.md', '')}\n\n`);
       if (ok) {
-        await listWorkspaceFiles(agentId);
+        await listWorkspaceFiles(agentId!);
         setPreviewPath(fullPath);
       }
     } finally {
@@ -213,8 +211,10 @@ export function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
 
   // Load preview content
   useEffect(() => {
-    if (previewPath) readWorkspaceFile(agentId, previewPath);
+    if (previewPath && agentId) readWorkspaceFile(agentId, previewPath);
   }, [previewPath, agentId, readWorkspaceFile]);
+
+  if (!agentId) return null;
 
   const toggleDir = (dir: string) => {
     setExpandedDirs(prev => {

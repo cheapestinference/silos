@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import useTranslation from '../../i18n';
 import { cn } from '../../lib/utils';
@@ -18,10 +19,6 @@ import {
   MoreHorizontal,
   Upload,
 } from 'lucide-react';
-
-interface WorkspacePanelProps {
-  agentId: string;
-}
 
 type FileEntry = { path: string; size: number; mtime: number; type: 'file' | 'directory' };
 
@@ -170,7 +167,8 @@ function FileTreeItem({
   );
 }
 
-export function WorkspacePanel({ agentId }: WorkspacePanelProps) {
+export function WorkspacePanel() {
+  const { id: agentId } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const {
     workspaceFiles, workspaceContent, workspaceLoading,
@@ -202,6 +200,8 @@ export function WorkspacePanel({ agentId }: WorkspacePanelProps) {
       lastSavedRef.current = workspaceContent;
     }
   }, [workspaceContent, selectedPath, selectedType]);
+
+  if (!agentId) return null;
 
   const handleSelect = (path: string, type: 'file' | 'directory') => {
     setSelectedPath(path);

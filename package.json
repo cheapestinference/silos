@@ -1,7 +1,7 @@
 {
   "name": "dashboardopenclaw",
   "private": true,
-  "version": "2.5.1",
+  "version": "2.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -22,6 +22,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
+    "recharts": "^3.8.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.10"
   },

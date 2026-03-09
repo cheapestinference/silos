@@ -465,6 +465,10 @@ interface ToolCallExpanderProps {
 
 function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpanderProps) {
   const [expanded, setExpanded] = useState(false);
+  const [inputExpanded, setInputExpanded] = useState(false);
+  const [outputExpanded, setOutputExpanded] = useState(false);
+  const [copiedField, setCopiedField] = useState<'input' | 'output' | null>(null);
+
   // Format input (tool call args)
   const inputStr = toolCall
     ? (typeof toolCall === 'string' ? toolCall : JSON.stringify(toolCall, null, 2))
@@ -479,11 +483,7 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   }
 
   const hasOutput = !!outputStr;
-  const needsExpansion = (outputStr?.length || 0) > 300;
-  const inputPreview = inputStr ? inputStr.split('\n')[0].slice(0, 60) + (inputStr.length > 60 ? '…' : '') : null;
-  const outputPreview = outputStr ? outputStr.split('\n')[0].slice(0, 60) + (outputStr.length > 60 ? '…' : '') : null;
 
-  // Get tool icon based on name
   const getToolIcon = (name?: string) => {
     if (!name) return <Cpu className="w-4 h-4" />;
     const lower = name.toLowerCase();
@@ -492,6 +492,40 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
     return <Cpu className="w-4 h-4" />;
   };
 
+  const handleCopy = (text: string, field: 'input' | 'output') => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const handleHeaderClick = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next) {
+      setInputExpanded(true);
+      setOutputExpanded(true);
+    } else {
+      setInputExpanded(false);
+      setOutputExpanded(false);
+    }
+  };
+
+  const handleSectionClick = (field: 'input' | 'output', text: string) => {
+    const isFieldExpanded = field === 'input' ? inputExpanded : outputExpanded;
+    // If fully expanded → copy to clipboard
+    if (expanded && isFieldExpanded) {
+      handleCopy(text, field);
+      return;
+    }
+    // Otherwise toggle that section
+    if (field === 'input') setInputExpanded(!inputExpanded);
+    else setOutputExpanded(!outputExpanded);
+  };
+
+  // Whether a section is visually open (either its own toggle or global expand)
+  const isInputOpen = expanded || inputExpanded;
+  const isOutputOpen = expanded || outputExpanded;
+
   return (
     <div className={cn(
       "rounded-xl overflow-hidden transition-all duration-300",
@@ -499,14 +533,14 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
       "shadow-sm",
       expanded && "ring-1 ring-cyan-500/20"
     )}>
-      {/* Header */}
+      {/* Header — click to expand/collapse all */}
       <div
         className={cn(
           "flex items-center justify-between px-4 py-2.5",
           "bg-cyan-500/5",
           "cursor-pointer hover:bg-cyan-500/10 transition-all"
         )}
-        onClick={() => setExpanded(!expanded)}
+        onClick={handleHeaderClick}
       >
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 border border-cyan-500/20">
@@ -532,28 +566,54 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
         </div>
       </div>
 
-      {/* Input */}
+      {/* Input — click to expand section or copy when fully open */}
       {inputStr && (
-        <div className="px-4 py-2 border-t border-cyan-500/10 bg-cyan-500/[0.02]">
+        <div
+          className={cn(
+            "px-4 py-2 border-t border-cyan-500/10 bg-cyan-500/[0.02] cursor-pointer transition-colors",
+            isInputOpen && expanded ? "hover:bg-cyan-500/[0.06]" : "hover:bg-cyan-500/[0.04]"
+          )}
+          onClick={() => handleSectionClick('input', inputStr)}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Input</span>
+            {copiedField === 'input' && (
+              <span className="text-[10px] text-emerald-500 flex items-center gap-1"><Check className="w-3 h-3" /> Copied</span>
+            )}
+            {expanded && isInputOpen && copiedField !== 'input' && (
+              <Copy className="w-3 h-3 text-muted-foreground/40" />
+            )}
+          </div>
           <pre className={cn(
             "text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all",
-            !expanded && "line-clamp-1"
-          )}>{expanded ? inputStr : inputPreview}</pre>
+            !isInputOpen && "line-clamp-3"
+          )}>{inputStr}</pre>
         </div>
       )}
 
-      {/* Output */}
+      {/* Output — click to expand section or copy when fully open */}
       {hasOutput && (
-        <div className="border-t border-cyan-500/10">
-          <div className="px-4 py-1.5 bg-emerald-500/5">
+        <div
+          className={cn(
+            "border-t border-cyan-500/10 cursor-pointer transition-colors",
+            isOutputOpen && expanded ? "hover:bg-emerald-500/[0.04]" : "hover:bg-emerald-500/[0.02]"
+          )}
+          onClick={() => handleSectionClick('output', outputStr!)}
+        >
+          <div className="px-4 py-1.5 bg-emerald-500/5 flex items-center justify-between">
             <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
+            {copiedField === 'output' && (
+              <span className="text-[10px] text-emerald-500 flex items-center gap-1"><Check className="w-3 h-3" /> Copied</span>
+            )}
+            {expanded && isOutputOpen && copiedField !== 'output' && (
+              <Copy className="w-3 h-3 text-muted-foreground/40" />
+            )}
           </div>
           <div className={cn(
             "px-4 py-2 text-[11px] font-mono text-foreground/80 whitespace-pre-wrap break-all",
-            expanded ? "overflow-x-auto overflow-y-auto custom-scrollbar" : "line-clamp-2",
-            expanded && needsExpansion ? "max-h-64" : ""
+            isOutputOpen ? "overflow-y-auto custom-scrollbar max-h-64" : "line-clamp-3"
           )}>
-            {expanded ? outputStr : outputPreview}
+            {outputStr}
           </div>
         </div>
       )}
@@ -1045,6 +1105,38 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   const [inputFocused, setInputFocused] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'tasks'>('tools');
 
+  // Resizable right panel
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('silos-chat-panel-width');
+    return saved ? Math.max(260, Math.min(800, Number(saved))) : 384;
+  });
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      e.preventDefault();
+      const delta = dragStartX.current - e.clientX;
+      const newWidth = Math.max(260, Math.min(800, dragStartWidth.current + delta));
+      setPanelWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('silos-chat-panel-width', String(panelWidth));
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [panelWidth]);
+
   // Translate sessionKey to effective key for backend matching
   const effectiveKey = sessionKey.startsWith('dm-')
     ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
@@ -1133,7 +1225,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       {/* Main Content: Two Columns (Chat + Tasks) */}
       <div className="flex flex-1 min-h-0">
         {/* LEFT: Chat Column */}
-        <div className="flex-1 flex flex-col min-w-0 relative border-r">
+        <div className="flex-1 flex flex-col min-w-0 relative">
           {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           {/* Premium Empty State */}
@@ -1339,8 +1431,24 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
         </div>
         {/* End Chat Column */}
 
+        {/* Resize Handle */}
+        <div
+          className="w-1 shrink-0 cursor-col-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            isDragging.current = true;
+            dragStartX.current = e.clientX;
+            dragStartWidth.current = panelWidth;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+          }}
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+        </div>
+
         {/* RIGHT: Tasks/Workspace Column */}
-        <div className="w-96 flex flex-col">
+        <div className="flex flex-col shrink-0" style={{ width: panelWidth }}>
           {/* Tab Switcher */}
           <div className="flex border-b border-border/50 shrink-0">
             <button

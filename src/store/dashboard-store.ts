@@ -1649,9 +1649,15 @@ export const useDashboardStore = create<DashboardStore>()(
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
 
-              // Deduplicate rate limit errors: if we already have one in the last 60s, skip
+              // Classify rate limit type from LiteLLM error detail
               const isRateLimit = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
               if (isRateLimit) {
+                const limitType = /budget/i.test(errorDetail) ? 'BUDGET'
+                  : /requests?\s*per\s*minute|rpm/i.test(errorDetail) ? 'RPM'
+                  : /tokens?\s*per\s*minute|tpm/i.test(errorDetail) ? 'TPM'
+                  : 'UNKNOWN';
+                const resetMatch = errorDetail.match(/resets?\s*(?:at|in)[:\s]*(.+?)(?:\s*UTC)?\s*$/i);
+                console.log(`[RateLimit] Type: ${limitType} | Reset: ${resetMatch?.[1] || 'unknown'} | Detail: ${errorDetail}`);
                 const recentRateLimit = state.chatMessages.find(
                   m => m.role === 'system' && m.content?.startsWith('__provider_error__') &&
                        (m.content.includes('429') || /rate limit/i.test(m.content)) &&
