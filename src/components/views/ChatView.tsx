@@ -1199,9 +1199,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     userScrolledUp.current = false;  // Reset scroll state for new session
   }, [sessionKey, selectSession]);
 
-  // Smooth auto-scroll — throttled via RAF, respects user scroll position
+  // Auto-scroll — throttled via RAF
   useEffect(() => {
-    if (userScrolledUp.current) return;
     if (scrollRafRef.current !== null) return;
 
     scrollRafRef.current = requestAnimationFrame(() => {
@@ -1251,15 +1250,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
         {/* LEFT: Chat Column */}
         <div className="flex-1 flex flex-col min-w-0 relative">
           {/* Messages Area */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
-          onScroll={() => {
-            if (!scrollRef.current) return;
-            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-            userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 100;
-          }}
-        >
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           {/* Premium Empty State */}
           {chatMessages.length === 0 && !chatLoading && (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
