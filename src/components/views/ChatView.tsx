@@ -101,7 +101,7 @@ function extractMessageText(message: unknown): string | null {
 
 // Markdown component renderers for react-markdown
 const markdownComponents: Record<string, React.ComponentType<any>> = {
-  code({ className, children, ...props }: any) {
+  code({ className, children }: any) {
     const match = /language-(\w+)/.exec(className || '');
     const text = String(children).replace(/\n$/, '');
     if (match || text.includes('\n')) {

@@ -1616,7 +1616,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 clearTimeout(_transitionTimerId);
                 _transitionTimerId = null;
               }
-              const runId = payload?.runId || (get().selectedSessionKey ? get().activeRunId.get(get().selectedSessionKey) : undefined);
+              const selKey = get().selectedSessionKey;
+              const runId = payload?.runId || (selKey ? get().activeRunId.get(selKey) : undefined);
               if (runId) {
                 _firstDeltaPending = { runId };
               }
