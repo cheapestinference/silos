@@ -1817,20 +1817,21 @@ export const useDashboardStore = create<DashboardStore>()(
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
 
-              // Even if no streaming content, still clear chatSending and activeRunId
-              if (!state.streamingContent || !state.streamingContent.trim()) {
-                const newActiveRunId = new Map(state.activeRunId);
-                const newChatSending = new Map(state.chatSending);
-                if (state.selectedSessionKey) {
-                  newActiveRunId.delete(state.selectedSessionKey);
-                  newChatSending.delete(state.selectedSessionKey);
-                }
-                const updatedTasks = runId
-                  ? state.tasks.map((t) =>
-                      t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
-                    )
-                  : state.tasks;
-                return { chatSending: newChatSending, activeRunId: newActiveRunId, tasks: updatedTasks };
+              const newActiveRunId = new Map(state.activeRunId);
+              const newChatSending = new Map(state.chatSending);
+              if (state.selectedSessionKey) {
+                newActiveRunId.delete(state.selectedSessionKey);
+                newChatSending.delete(state.selectedSessionKey);
+              }
+              const updatedTasks = runId
+                ? state.tasks.map((t) =>
+                    t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
+                  )
+                : state.tasks;
+
+              // If already completed by another handler, or no streaming content, just clear sending state
+              if (state.streamingComplete || !state.streamingContent || !state.streamingContent.trim()) {
+                return { chatSending: newChatSending, activeRunId: newActiveRunId, tasks: updatedTasks, streamingComplete: false };
               }
 
               const assistantMessage: ChatMessage = {
@@ -1841,36 +1842,19 @@ export const useDashboardStore = create<DashboardStore>()(
                 runId: runId,
               };
 
-              const newActiveRunId = new Map(state.activeRunId);
-              const newChatSending = new Map(state.chatSending);
-              if (state.selectedSessionKey) {
-                newActiveRunId.delete(state.selectedSessionKey);
-                newChatSending.delete(state.selectedSessionKey);
-              }
-
               // Update user message status from 'sending' to 'delivered'
-              // First try to match by runId, fallback to finding the most recent sending message
               const hasRunIdMatch = runId && state.chatMessages.some(m => m.runId === runId && m.role === 'user' && m.status === 'sending');
               let foundSending = false;
               const updatedChatMessages = state.chatMessages.map(m => {
-                // Match by runId if available
                 if (runId && m.runId === runId && m.role === 'user' && m.status === 'sending') {
                   return { ...m, status: 'delivered' as const };
                 }
-                // Fallback: if no runId match and this is a sending user message without runId, mark as delivered
-                // (handles race condition where completion arrives before sendChat response)
                 if (!hasRunIdMatch && !foundSending && m.role === 'user' && m.status === 'sending') {
                   foundSending = true;
                   return { ...m, status: 'delivered' as const, runId: runId || m.runId };
                 }
                 return m;
               });
-
-              const updatedTasks = runId
-                ? state.tasks.map((t) =>
-                    t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
-                  )
-                : state.tasks;
 
               // Two-phase transition: add message + mark complete, then clear streaming after brief delay
               _transitionTimerId = setTimeout(() => {
@@ -1880,7 +1864,8 @@ export const useDashboardStore = create<DashboardStore>()(
 
               return {
                 chatMessages: [...updatedChatMessages, assistantMessage],
-                streamingComplete: true,
+                streamingContent: '',
+                streamingComplete: false,
                 chatSending: newChatSending,
                 activeRunId: newActiveRunId,
                 tasks: updatedTasks,
@@ -1983,37 +1968,32 @@ export const useDashboardStore = create<DashboardStore>()(
                   )
                 : state.tasks;
 
-              if (state.streamingContent && state.streamingContent.trim()) {
-                const assistantMessage: ChatMessage = {
-                  id: generateId(),
-                  role: 'assistant',
-                  content: state.streamingContent,
-                  timestamp: Date.now(),
-                  runId: runId,
-                };
-
-                const newMessages = [...state.chatMessages, assistantMessage];
-
-                // Two-phase transition: add message + mark complete, then clear streaming after brief delay
-                _transitionTimerId = setTimeout(() => {
-                  _transitionTimerId = null;
-                  useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
-                }, 150);
-
+              // If already completed by another handler, or no streaming content, just clear sending state
+              if (state.streamingComplete || !state.streamingContent || !state.streamingContent.trim()) {
                 return {
-                  chatMessages: newMessages,
-                  streamingComplete: true,
                   chatSending: newChatSending,
                   activeRunId: newActiveRunId,
                   tasks: updatedTasks,
-                };
-              } else {
-                return {
-                  chatSending: newChatSending,
-                  activeRunId: newActiveRunId,
-                  tasks: updatedTasks
+                  streamingComplete: false,
                 };
               }
+
+              const assistantMessage: ChatMessage = {
+                id: generateId(),
+                role: 'assistant',
+                content: state.streamingContent,
+                timestamp: Date.now(),
+                runId: runId,
+              };
+
+              return {
+                chatMessages: [...state.chatMessages, assistantMessage],
+                streamingContent: '',
+                streamingComplete: false,
+                chatSending: newChatSending,
+                activeRunId: newActiveRunId,
+                tasks: updatedTasks,
+              };
             });
             // Refresh sessions to update token counts
             setTimeout(() => get().loadSessions(), 1000);

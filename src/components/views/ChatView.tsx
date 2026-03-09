@@ -1012,14 +1012,11 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 
 // ============== Typing Indicator (Premium) ==============
 
-function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: string; isComplete?: boolean }) {
+function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
   const { t } = useTranslation();
 
   return (
-    <div className={cn(
-      "flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500 transition-opacity",
-      isComplete && "opacity-0 duration-150"
-    )}>
+    <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
       {/* Animated Avatar */}
       <div className="relative w-11 h-11 flex-shrink-0">
         {/* Pulsing outer rings */}
@@ -1056,9 +1053,7 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
               return (
                 <div className="inline-flex items-start gap-1">
                   <span className="text-sm leading-relaxed break-words whitespace-pre-wrap">{renderMarkdown(text)}</span>
-                  {!isComplete && (
-                    <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
-                  )}
+                  <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
                 </div>
               );
             })() : (
@@ -1102,7 +1097,6 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     chatLoading,
     chatSending: chatSendingMap,
     streamingContent,
-    streamingComplete,
     selectSession,
     agents,
     sessions,
@@ -1212,7 +1206,9 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
-      scrollSentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
     });
   }, [chatMessages, streamingContent, chatSending]);
 
@@ -1302,11 +1298,6 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           )}
 
           {filteredMessages.map((msg, i, arr) => {
-            // Skip the last assistant message during streaming→message transition (avoid duplicate)
-            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === arr.length - 1) {
-              return null;
-            }
-
             const showAvatar = i === 0 ||
               arr[i-1].role !== msg.role ||
               Boolean(arr[i-1].timestamp && msg.timestamp - arr[i-1].timestamp > 60000);
@@ -1324,7 +1315,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Streaming / Typing Indicator */}
           {(streamingContent || chatSending) && (
-            <TypingIndicator streamingContent={streamingContent} isComplete={streamingComplete} />
+            <TypingIndicator streamingContent={streamingContent} />
           )}
 
           <div ref={scrollSentinelRef} className="h-4" />
