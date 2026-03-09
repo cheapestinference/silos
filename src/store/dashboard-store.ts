@@ -101,7 +101,7 @@ interface DashboardStore {
   patchGatewayConfig: (patch: Record<string, unknown>) => Promise<boolean>;
 
   // Model provider actions
-  addModelProvider: (providerId: string, config: { baseUrl: string; apiKey?: string; auth?: string; api?: string; models?: Array<{ id: string; name: string; contextWindow: number; reasoning?: boolean }> }) => Promise<boolean>;
+  addModelProvider: (providerId: string, config: { baseUrl: string; apiKey?: string; api?: string; models?: Array<{ id: string; name: string; contextWindow: number; reasoning?: boolean }> }) => Promise<boolean>;
   deleteModelProvider: (providerId: string) => Promise<boolean>;
 
   // Session actions
@@ -528,28 +528,10 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       addModelProvider: async (providerId, config) => {
-        const { client, loadGatewayConfig, token } = get();
+        const { client, loadGatewayConfig } = get();
         if (!client) return false;
 
         try {
-          // If this is a token-based auth (e.g. Claude subscription), store the token
-          // in auth-profiles.json via the server endpoint (NOT in the config)
-          const isTokenAuth = config.auth === 'oauth' || config.auth === 'token';
-          if (isTokenAuth && config.apiKey) {
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            const authRes = await fetch('/api/provider-auth-token', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ provider: providerId, token: config.apiKey }),
-            });
-            const authResult = await authRes.json();
-            if (!authResult.ok) {
-              set({ error: `Failed to store auth token: ${authResult.error}` });
-              return false;
-            }
-          }
-
           // Get current config to get the hash
           const currentConfig = await client.getConfig();
           if (!currentConfig.valid) {
@@ -569,24 +551,15 @@ export const useDashboardStore = create<DashboardStore>()(
             maxTokens: Math.min(m.contextWindow, 16384),
           }));
 
-          const providerPatch: Record<string, unknown> = {
-            baseUrl: config.baseUrl,
-            ...(config.api && { api: config.api }),
-            models: modelsConfig,
-          };
-
-          // For token auth, don't store apiKey in config — it's in auth-profiles.json
-          if (!isTokenAuth && config.apiKey) {
-            providerPatch.apiKey = config.apiKey;
-          }
-          if (isTokenAuth) {
-            providerPatch.auth = 'token';
-          }
-
           const patch = {
             models: {
               providers: {
-                [providerId]: providerPatch,
+                [providerId]: {
+                  baseUrl: config.baseUrl,
+                  ...(config.apiKey && { apiKey: config.apiKey }),
+                  ...(config.api && { api: config.api }),
+                  models: modelsConfig,
+                },
               },
             },
           };

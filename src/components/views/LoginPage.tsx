@@ -120,13 +120,10 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
             </form>
           )}
 
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-transparent px-2 text-white/20">{t('login.orContinueWith')}</span>
-            </div>
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 border-t border-white/10" />
+            <span className="text-xs uppercase text-white/20">{t('login.orContinueWith')}</span>
+            <div className="flex-1 border-t border-white/10" />
           </div>
 
           <button
@@ -157,9 +154,8 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
           </button>
         </div>
 
-        <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-white/15">
-          {t('login.ownerOnly')}
-        </p>
+        {/* Footer spacer */}
+        <div className="mt-6" />
       </div>
     </div>
   );
