@@ -891,6 +891,34 @@ export const useDashboardStore = create<DashboardStore>()(
         // Check if we're already processing a message for this session
         const isAlreadySending = chatSending.get(selectedSessionKey) === true;
 
+        // If streaming content exists, flush it as an assistant message before sending new user message
+        const currentStreaming = get().streamingContent;
+        if (currentStreaming && currentStreaming.trim()) {
+          flushStreamingBuffer();
+          const activeRun = activeRunId.get(selectedSessionKey);
+          const alreadyExists = activeRun && chatMessages.some(m => m.runId === activeRun && m.role === 'assistant');
+          if (!alreadyExists) {
+            const flushedMessage: ChatMessage = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentStreaming,
+              timestamp: Date.now(),
+              runId: activeRun,
+            };
+            set((state) => ({
+              chatMessages: [...state.chatMessages, flushedMessage],
+              streamingContent: '',
+              streamingComplete: false,
+            }));
+          } else {
+            set({ streamingContent: '', streamingComplete: false });
+          }
+          clearStreamingBuffer();
+        }
+
+        // Re-read chatMessages after potential flush
+        const latestMessages = get().chatMessages;
+
         // Add user message immediately with appropriate status
         const messageId = generateId();
         const userMessage: ChatMessage = {
@@ -908,9 +936,9 @@ export const useDashboardStore = create<DashboardStore>()(
         }
 
         set({
-          chatMessages: [...chatMessages, userMessage],
+          chatMessages: [...latestMessages, userMessage],
           chatSending: newChatSending,
-          streamingContent: isAlreadySending ? get().streamingContent : '',
+          streamingContent: '',
           streamingComplete: false,
         });
 
