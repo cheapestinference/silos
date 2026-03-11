@@ -927,15 +927,18 @@ export const useDashboardStore = create<DashboardStore>()(
             idempotencyKey: messageId,
           });
 
-          // Update message with runId and mark as sending (queued messages become sending when their turn comes)
+          // Update message with runId — keep 'queued' status if gateway says in_flight
+          const isInFlight = result.status === 'in_flight';
           set({
             chatMessages: get().chatMessages.map(m =>
-              m.id === messageId ? { ...m, runId: result.runId, status: 'sending' as const } : m
+              m.id === messageId
+                ? { ...m, runId: result.runId, status: (isInFlight ? 'queued' : 'sending') as const }
+                : m
             ),
           });
 
-          // Only update activeRunId if this was the first message (not queued)
-          if (!isAlreadySending) {
+          // Only update activeRunId if this was the first message (not queued/in_flight)
+          if (!isAlreadySending && !isInFlight) {
             const newActiveRunId = new Map(activeRunId);
             newActiveRunId.set(selectedSessionKey, result.runId);
             set({ activeRunId: newActiveRunId });
