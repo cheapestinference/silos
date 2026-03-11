@@ -7,7 +7,6 @@ import {
   Clock,
   Zap,
   Play,
-  AlertTriangle,
   X,
   Terminal,
   Sparkles,
@@ -50,9 +49,11 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
     return false;
   });
 
+  const queuedTasks = sessionTasks.filter(t => t.status === 'pending');
   const runningTasks = sessionTasks.filter(t => t.status === 'running');
-  const completedTasks = sessionTasks.filter(t => t.status === 'completed');
-  const failedTasks = sessionTasks.filter(t => t.status === 'error' || t.status === 'aborted');
+  const completedTasks = sessionTasks.filter(t =>
+    t.status === 'completed' || t.status === 'error' || t.status === 'aborted'
+  );
 
   const handleAbort = async (runId: string) => {
     try {
@@ -113,6 +114,15 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
       <div className="flex-1 overflow-hidden p-2">
         <div className="h-full grid grid-cols-3 gap-2">
           <TaskColumn
+            label="Queued"
+            icon={<Clock className="w-3 h-3" />}
+            count={queuedTasks.length}
+            color="amber"
+            tasks={queuedTasks}
+            formatDuration={formatDuration}
+            onSelect={setSelectedTask}
+          />
+          <TaskColumn
             label={t('tasks.active')}
             icon={<Play className="w-3 h-3" />}
             count={runningTasks.length}
@@ -131,16 +141,6 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             formatDuration={formatDuration}
             onSelect={setSelectedTask}
           />
-          <TaskColumn
-            label={t('tasks.failedTitle')}
-            icon={<AlertTriangle className="w-3 h-3" />}
-            count={failedTasks.length}
-            color="rose"
-            tasks={failedTasks}
-            formatDuration={formatDuration}
-            onAbort={handleAbort}
-            onSelect={setSelectedTask}
-          />
         </div>
       </div>
 
@@ -157,7 +157,7 @@ interface TaskColumnProps {
   label: string;
   icon: React.ReactNode;
   count: number;
-  color: 'cyan' | 'emerald' | 'rose';
+  color: 'amber' | 'cyan' | 'emerald' | 'rose';
   tasks: Task[];
   formatDuration: (s: number, e?: number) => string;
   onAbort?: (runId: string) => void;
@@ -165,6 +165,7 @@ interface TaskColumnProps {
 }
 
 const colStyles = {
+  amber:   { text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30', accent: 'bg-amber-500',   border: 'border-l-amber-400',   progress: '' },
   cyan:    { text: 'text-cyan-600 dark:text-cyan-400',    badge: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30', accent: 'bg-cyan-500',    border: 'border-l-cyan-400',    progress: 'from-cyan-400 via-blue-500 to-cyan-400' },
   emerald: { text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30', accent: 'bg-emerald-500', border: 'border-l-emerald-400', progress: '' },
   rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
@@ -211,7 +212,7 @@ function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort,
 
 interface MiniTaskCardProps {
   task: Task;
-  color: 'cyan' | 'emerald' | 'rose';
+  color: 'amber' | 'cyan' | 'emerald' | 'rose';
   formatDuration: (s: number, e?: number) => string;
   onAbort?: (runId: string) => void;
   onSelect: (task: Task) => void;
@@ -256,6 +257,12 @@ function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect }: MiniTa
           >
             <X className="w-2.5 h-2.5" />
           </button>
+        )}
+        {task.status === 'error' && (
+          <span className="ml-auto text-[8px] font-semibold px-1 py-px rounded bg-rose-500/10 text-rose-500 shrink-0">error</span>
+        )}
+        {task.status === 'aborted' && (
+          <span className="ml-auto text-[8px] font-semibold px-1 py-px rounded bg-muted text-muted-foreground shrink-0">aborted</span>
         )}
       </div>
 
