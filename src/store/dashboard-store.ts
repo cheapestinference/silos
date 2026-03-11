@@ -169,6 +169,7 @@ interface DashboardStore {
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   abortTask: (runId: string) => Promise<void>;
   loadTaskHistory: () => Promise<void>;
+  clearQueue: () => void;
   taskHistoryLoading: boolean;
 
   // Agent configuration actions
@@ -575,7 +576,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
           const result = await client.patchConfig(currentConfig.hash, patch);
           if (result.ok) {
-            loadGatewayConfig().catch(() => {});
+            loadGatewayConfig().catch(() => { });
             return true;
           } else {
             set({ error: 'Failed to patch config' });
@@ -629,7 +630,7 @@ export const useDashboardStore = create<DashboardStore>()(
           if (result.ok) {
             // Gateway restarts after config.patch, so WebSocket will drop.
             // handleHello -> loadAll will reload config on reconnect.
-            loadGatewayConfig().catch(() => {});
+            loadGatewayConfig().catch(() => { });
             return true;
           } else {
             set({ error: 'Failed to save provider config' });
@@ -674,7 +675,7 @@ export const useDashboardStore = create<DashboardStore>()(
           const result = await client.patchConfig(currentConfig.hash, patch);
           if (result.ok) {
             // Gateway restarts after config.patch - loadAll on reconnect handles reload
-            loadGatewayConfig().catch(() => {});
+            loadGatewayConfig().catch(() => { });
             return true;
           } else {
             set({ error: 'Failed to delete provider' });
@@ -855,9 +856,9 @@ export const useDashboardStore = create<DashboardStore>()(
                 ? m.content
                 : Array.isArray(m.content)
                   ? m.content
-                      .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
-                      .filter(Boolean)
-                      .join('\n') || ''
+                    .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
+                    .filter(Boolean)
+                    .join('\n') || ''
                   : ''),
             timestamp: m.timestamp || Date.now(),
             toolName: m.toolName,
@@ -1005,6 +1006,16 @@ export const useDashboardStore = create<DashboardStore>()(
           console.error('[Abort] Failed:', error);
           set({ error: String(error) });
         }
+      },
+
+      clearQueue: () => {
+        set((state) => ({
+          chatMessages: state.chatMessages.map(m =>
+            m.role === 'user' && m.status === 'queued'
+              ? { ...m, status: 'error' as const }
+              : m
+          ),
+        }));
       },
 
       // Cron actions
@@ -1591,7 +1602,7 @@ export const useDashboardStore = create<DashboardStore>()(
           if (eventSessionKey && eventSessionKey !== currentEffectiveKey) {
             // Track unread for other sessions when message completes
             if (payload?.stream === 'lifecycle' &&
-                (payload?.data?.phase === 'complete' || payload?.data?.phase === 'done' || payload?.data?.phase === 'end')) {
+              (payload?.data?.phase === 'complete' || payload?.data?.phase === 'done' || payload?.data?.phase === 'end')) {
               get().incrementUnread(eventSessionKey);
             }
             // Allow subagent events from the same agent to pass through for task/tool tracking
@@ -1765,14 +1776,14 @@ export const useDashboardStore = create<DashboardStore>()(
               if (isRateLimit) {
                 const limitType = /budget/i.test(errorDetail) ? 'BUDGET'
                   : /requests?\s*per\s*minute|rpm/i.test(errorDetail) ? 'RPM'
-                  : /tokens?\s*per\s*minute|tpm/i.test(errorDetail) ? 'TPM'
-                  : 'UNKNOWN';
+                    : /tokens?\s*per\s*minute|tpm/i.test(errorDetail) ? 'TPM'
+                      : 'UNKNOWN';
                 const resetMatch = errorDetail.match(/resets?\s*(?:at|in)[:\s]*(.+?)(?:\s*UTC)?\s*$/i);
                 console.log(`[RateLimit] Type: ${limitType} | Reset: ${resetMatch?.[1] || 'unknown'} | Detail: ${errorDetail}`);
                 const recentRateLimit = state.chatMessages.find(
                   m => m.role === 'system' && m.content?.startsWith('__provider_error__') &&
-                       (m.content.includes('429') || /rate limit/i.test(m.content)) &&
-                       (Date.now() - m.timestamp) < 60000
+                    (m.content.includes('429') || /rate limit/i.test(m.content)) &&
+                    (Date.now() - m.timestamp) < 60000
                 );
                 if (recentRateLimit) {
                   // Still clear sending state but don't add another error message
@@ -1844,13 +1855,19 @@ export const useDashboardStore = create<DashboardStore>()(
               }
               const updatedTasks = runId
                 ? state.tasks.map((t) =>
-                    t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
-                  )
+                  t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
+                )
                 : state.tasks;
 
               // If already completed by another handler, or no streaming content, just clear sending state
               if (state.streamingComplete || !state.streamingContent || !state.streamingContent.trim()) {
                 return { chatSending: newChatSending, activeRunId: newActiveRunId, tasks: updatedTasks, streamingComplete: false };
+              }
+
+              // Deduplication check: if a message with this runId already exists in history, don't add it again
+              const alreadyExists = runId && state.chatMessages.some(m => m.runId === runId && (m.role === 'assistant' || m.role === 'tool'));
+              if (alreadyExists) {
+                return { chatSending: newChatSending, activeRunId: newActiveRunId, tasks: updatedTasks, streamingContent: '', streamingComplete: false };
               }
 
               const assistantMessage: ChatMessage = {
@@ -1914,8 +1931,8 @@ export const useDashboardStore = create<DashboardStore>()(
             ? payload.delta
             : isStateDelta
               ? (Array.isArray(payload.message.content)
-                  ? payload.message.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('')
-                  : typeof payload.message.content === 'string' ? payload.message.content : null)
+                ? payload.message.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('')
+                : typeof payload.message.content === 'string' ? payload.message.content : null)
               : null;
 
           if (chatDeltaText) {
@@ -1993,8 +2010,8 @@ export const useDashboardStore = create<DashboardStore>()(
               // Mark task as completed
               const updatedTasks = runId
                 ? state.tasks.map((t) =>
-                    t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
-                  )
+                  t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
+                )
                 : state.tasks;
 
               // If already completed by another handler, or no streaming content, just clear sending state
@@ -2003,6 +2020,18 @@ export const useDashboardStore = create<DashboardStore>()(
                   chatSending: newChatSending,
                   activeRunId: newActiveRunId,
                   tasks: updatedTasks,
+                  streamingComplete: false,
+                };
+              }
+
+              // Deduplication check: if a message with this runId already exists in history, don't add it again
+              const alreadyExists = runId && state.chatMessages.some(m => m.runId === runId && (m.role === 'assistant' || m.role === 'tool'));
+              if (alreadyExists) {
+                return {
+                  chatSending: newChatSending,
+                  activeRunId: newActiveRunId,
+                  tasks: updatedTasks,
+                  streamingContent: '',
                   streamingComplete: false,
                 };
               }
@@ -2096,8 +2125,8 @@ export const useDashboardStore = create<DashboardStore>()(
 
               // Track potential spawn parent when spawn-related tools are called
               const isSpawnTool = toolName.toLowerCase().includes('spawn') ||
-                                  toolName.toLowerCase().includes('task') ||
-                                  toolName === 'sessions_spawn';
+                toolName.toLowerCase().includes('task') ||
+                toolName === 'sessions_spawn';
               if (isSpawnTool && selectedSessionKey) {
                 set({ pendingSpawnParent: selectedSessionKey });
               }
@@ -2128,11 +2157,11 @@ export const useDashboardStore = create<DashboardStore>()(
                   tasks: state.tasks.map((t: Task) =>
                     t.id === toolTaskId
                       ? {
-                          ...t,
-                          status: isError ? 'error' : 'completed',
-                          completedAt: Date.now(),
-                          error: isError ? (payload?.data?.error || 'Error') : undefined,
-                        }
+                        ...t,
+                        status: isError ? 'error' : 'completed',
+                        completedAt: Date.now(),
+                        error: isError ? (payload?.data?.error || 'Error') : undefined,
+                      }
                       : t
                   ),
                 }));
@@ -2217,11 +2246,11 @@ export const useDashboardStore = create<DashboardStore>()(
                 tasks: state.tasks.map((t: Task) =>
                   t.runId === runId
                     ? {
-                        ...t,
-                        status: isError ? 'error' : 'completed',
-                        completedAt: Date.now(),
-                        error: isError ? (payload?.data?.error || 'Error') : undefined,
-                      }
+                      ...t,
+                      status: isError ? 'error' : 'completed',
+                      completedAt: Date.now(),
+                      error: isError ? (payload?.data?.error || 'Error') : undefined,
+                    }
                     : t
                 ),
               }));
