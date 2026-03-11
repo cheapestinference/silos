@@ -423,11 +423,11 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   const hasOutput = !!outputStr;
 
   const getToolIcon = (name?: string) => {
-    if (!name) return <Cpu className="w-4 h-4" />;
+    if (!name) return <Cpu className="w-3 h-3" />;
     const lower = name.toLowerCase();
-    if (lower.includes('code') || lower.includes('write')) return <Code2 className="w-4 h-4" />;
-    if (lower.includes('terminal') || lower.includes('bash') || lower.includes('exec')) return <Terminal className="w-4 h-4" />;
-    return <Cpu className="w-4 h-4" />;
+    if (lower.includes('code') || lower.includes('write')) return <Code2 className="w-3 h-3" />;
+    if (lower.includes('terminal') || lower.includes('bash') || lower.includes('exec')) return <Terminal className="w-3 h-3" />;
+    return <Cpu className="w-3 h-3" />;
   };
 
   const handleCopy = (text: string, field: 'input' | 'output') => {
@@ -466,40 +466,34 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
 
   return (
     <div className={cn(
-      "rounded-xl overflow-hidden transition-all duration-300",
+      "rounded-lg overflow-hidden transition-all duration-200",
       "border border-cyan-500/20 bg-card",
-      "shadow-sm",
       expanded && "ring-1 ring-cyan-500/20"
     )}>
       {/* Header — click to expand/collapse all */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-2.5",
+          "flex items-center justify-between px-2.5 py-1.5",
           "bg-cyan-500/5",
           "cursor-pointer hover:bg-cyan-500/10 transition-all"
         )}
         onClick={handleHeaderClick}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 border border-cyan-500/20">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-5 h-5 rounded bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 shrink-0">
             {getToolIcon(toolName)}
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold font-mono text-foreground">{toolName || 'unknown'}</p>
-          </div>
+          <p className="text-[11px] font-semibold font-mono text-foreground truncate">{toolName || 'unknown'}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!hasOutput && (
-            <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-2.5 h-2.5 border-[1.5px] border-cyan-400 border-t-transparent rounded-full animate-spin" />
           )}
           {hasOutput && (
-            <span className={cn(
-              "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            )}>done</span>
+            <span className="text-[9px] font-semibold px-1 py-px rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">ok</span>
           )}
-          <button className="p-1 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
-            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          <button className="p-0.5 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
       </div>
@@ -508,23 +502,23 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
       {inputStr && (
         <div
           className={cn(
-            "px-4 py-2 border-t border-cyan-500/10 bg-cyan-500/[0.02] cursor-pointer transition-colors",
+            "px-2.5 py-1.5 border-t border-cyan-500/10 bg-cyan-500/[0.02] cursor-pointer transition-colors",
             isInputOpen && expanded ? "hover:bg-cyan-500/[0.06]" : "hover:bg-cyan-500/[0.04]"
           )}
           onClick={() => handleSectionClick('input', inputStr)}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Input</span>
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[9px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Input</span>
             {copiedField === 'input' && (
-              <span className="text-[10px] text-emerald-500 flex items-center gap-1"><Check className="w-3 h-3" /> Copied</span>
+              <span className="text-[9px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
             )}
             {expanded && isInputOpen && copiedField !== 'input' && (
-              <Copy className="w-3 h-3 text-muted-foreground/40" />
+              <Copy className="w-2.5 h-2.5 text-muted-foreground/40" />
             )}
           </div>
           <pre className={cn(
-            "text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all",
-            !isInputOpen && "line-clamp-3"
+            "text-[10px] leading-tight font-mono text-muted-foreground whitespace-pre-wrap break-all",
+            !isInputOpen && "line-clamp-2"
           )}>{inputStr}</pre>
         </div>
       )}
@@ -538,18 +532,18 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
           )}
           onClick={() => handleSectionClick('output', outputStr!)}
         >
-          <div className="px-4 py-1.5 bg-emerald-500/5 flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
+          <div className="px-2.5 py-1 bg-emerald-500/5 flex items-center justify-between">
+            <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
             {copiedField === 'output' && (
-              <span className="text-[10px] text-emerald-500 flex items-center gap-1"><Check className="w-3 h-3" /> Copied</span>
+              <span className="text-[9px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
             )}
             {expanded && isOutputOpen && copiedField !== 'output' && (
-              <Copy className="w-3 h-3 text-muted-foreground/40" />
+              <Copy className="w-2.5 h-2.5 text-muted-foreground/40" />
             )}
           </div>
           <div className={cn(
-            "px-4 py-2 text-[11px] font-mono text-foreground/80 whitespace-pre-wrap break-all",
-            isOutputOpen ? "overflow-y-auto custom-scrollbar max-h-64" : "line-clamp-3"
+            "px-2.5 py-1.5 text-[10px] leading-tight font-mono text-foreground/80 whitespace-pre-wrap break-all",
+            isOutputOpen ? "overflow-y-auto custom-scrollbar max-h-48" : "line-clamp-2"
           )}>
             {outputStr}
           </div>
@@ -576,7 +570,11 @@ function ToolsPanel({ messages }: ToolsPanelProps) {
   // Auto-scroll to bottom when new tool messages arrive
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        }
+      });
     }
   }, [toolMessages.length]);
 
@@ -593,7 +591,7 @@ function ToolsPanel({ messages }: ToolsPanelProps) {
   }
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto custom-scrollbar p-3 space-y-2">
+    <div ref={scrollRef} className="h-full overflow-y-auto custom-scrollbar p-2 space-y-1.5">
       {toolMessages.map((msg) => (
         <ToolCallExpander
           key={msg.id}
@@ -950,8 +948,21 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 
 // ============== Typing Indicator (Premium) ==============
 
+/** Memoized streaming content renderer — avoids re-parsing markdown when text hasn't changed */
+const StreamingMarkdown = React.memo(function StreamingMarkdown({ text }: { text: string }) {
+  return (
+    <div className="streaming-cursor text-sm leading-relaxed break-words" style={{ contain: 'content' }}>
+      {renderMarkdown(text)}
+    </div>
+  );
+});
+
 function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
   const { t } = useTranslation();
+
+  const text = streamingContent
+    ? (typeof streamingContent === 'string' ? streamingContent : extractMessageText(streamingContent) || '')
+    : '';
 
   return (
     <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -986,15 +997,9 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
           <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-r from-purple-500/5 via-fuchsia-500/5 to-purple-500/5 animate-gradient-x" />
 
           <div className="relative text-foreground min-h-[1.5rem]">
-            {streamingContent ? (() => {
-              const text = typeof streamingContent === 'string' ? streamingContent : extractMessageText(streamingContent) || '';
-              return (
-                <div className="inline-flex items-start gap-1">
-                  <span className="text-sm leading-relaxed break-words">{renderMarkdown(text)}</span>
-                  <span className="w-0.5 h-5 bg-gradient-to-t from-purple-400 to-fuchsia-400 animate-pulse rounded-full flex-shrink-0 mt-0.5" />
-                </div>
-              );
-            })() : (
+            {text ? (
+              <StreamingMarkdown text={text} />
+            ) : (
               <div className="flex items-center gap-2 py-1">
                 {/* Premium wave animation */}
                 <div className="flex items-center gap-1">
@@ -1016,6 +1021,22 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ============== Agent Status Dot ==============
+
+function AgentStatusDot({ isWorking }: { isWorking: boolean }) {
+  return (
+    <span className="relative flex h-2 w-2">
+      {isWorking && (
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+      )}
+      <span className={cn(
+        "relative inline-flex rounded-full h-2 w-2 transition-colors duration-300",
+        isWorking ? "bg-indigo-500" : "bg-emerald-500"
+      )} />
+    </span>
   );
 }
 
@@ -1089,6 +1110,12 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   // Get per-session sending state
   const chatSending = chatSendingMap.get(sessionKey) || false;
 
+  // Agent working state (for status dot)
+  const tasks = useDashboardStore((s) => s.tasks);
+  const isAgentWorking = chatSending || tasks.some(
+    t => t.status === 'running' && t.sessionKey === effectiveKey
+  );
+
   // Memoize filtered messages — only recalculate when chatMessages changes, not on streaming updates
   const filteredMessages = useMemo(
     () => chatMessages.filter(msg => !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result)),
@@ -1144,8 +1171,23 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     }
   }, [connected, sessionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll — always cancel previous and reschedule to avoid missed updates
+  // Detect when user scrolls up manually — pause auto-scroll so they can read
   useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      // Consider "at bottom" if within 80px of the end
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      userScrolledUp.current = !atBottom;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Auto-scroll — smooth during streaming, instant for new messages; respects user scroll position
+  useEffect(() => {
+    if (userScrolledUp.current) return;
+
     if (scrollRafRef.current !== null) {
       cancelAnimationFrame(scrollRafRef.current);
     }
@@ -1153,10 +1195,20 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
       if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: streamingContent ? 'smooth' : 'instant',
+        });
       }
     });
   }, [chatMessages, streamingContent, chatSending]);
+
+  // Reset scroll lock when user sends a new message
+  useEffect(() => {
+    if (chatSending) {
+      userScrolledUp.current = false;
+    }
+  }, [chatSending]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -1294,17 +1346,9 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                 <div className="flex items-center gap-3">
                   {/* Status indicator */}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="relative flex h-2 w-2">
-                      {connected && (
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                      )}
-                      <span className={cn(
-                        "relative inline-flex rounded-full h-2 w-2",
-                        connected ? "bg-green-500" : "bg-muted-foreground"
-                      )} />
-                    </span>
+                    <AgentStatusDot isWorking={connected && isAgentWorking} />
                     <span className="font-medium">
-                      {connected ? t('chat.systemReady') : 'Disconnected'}
+                      {!connected ? 'Disconnected' : isAgentWorking ? 'Working...' : t('chat.systemReady')}
                     </span>
                   </div>
 
