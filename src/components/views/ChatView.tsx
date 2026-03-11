@@ -180,7 +180,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   const langStyle = getLangStyle(language);
 
   return (
-    <div className="my-3 rounded-xl overflow-hidden border bg-card shadow-sm group">
+    <div className="my-3 rounded-xl overflow-hidden border bg-card shadow-sm group max-w-full">
       {/* Premium Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/60 backdrop-blur-sm">
         <div className="flex items-center gap-2">
@@ -823,7 +823,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
         <div className="w-11 flex-shrink-0" />
       )}
 
-      <div className={cn("flex flex-col max-w-[70%]", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col max-w-[70%] min-w-0", isUser ? "items-end" : "items-start")}>
         {showAvatar && (
           <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
             <span className={cn(
@@ -870,7 +870,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
             return (
               <div className="flex flex-col gap-1">
                 <div className={cn(
-                  "relative px-4 py-3.5 rounded-2xl leading-relaxed transition-all duration-200",
+                  "relative px-4 py-3.5 rounded-2xl leading-relaxed transition-all duration-200 overflow-hidden",
                   isUser && !isSubagentSession
                     ? [
                         // Human user messages - indigo
@@ -904,7 +904,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   {!isUser && (
                     <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
                   )}
-                  <div className="relative">
+                  <div className="relative min-w-0 w-full">
                     {renderMarkdown(extractedText)}
                   </div>
                 </div>
