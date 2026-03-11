@@ -928,7 +928,8 @@ export const useDashboardStore = create<DashboardStore>()(
           });
 
           // Update message with runId — keep 'queued' status if gateway says in_flight
-          const isInFlight = result.status === 'in_flight';
+          console.log(`[sendMessage] gateway response: status=${result.status} runId=${result.runId} isAlreadySending=${isAlreadySending}`);
+          const isInFlight = result.status === 'in_flight' || isAlreadySending;
           set({
             chatMessages: get().chatMessages.map(m =>
               m.id === messageId
