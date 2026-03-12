@@ -2046,8 +2046,9 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
               }
 
-              // Dedup: if an assistant message with this runId already exists, update it
-              // with the final content (which includes post-tool-call text) instead of creating another
+              // Dedup: if assistant message(s) with this runId already exist (created by tool handler
+              // saving streaming content mid-run), consolidate into one message with the final content.
+              // Multiple tool calls can create multiple partial assistant messages for the same run.
               if (runId && state.chatMessages.some(m => m.runId === runId && m.role === 'assistant')) {
                 // Two-phase transition for the updated message too
                 setTimeout(() => {
@@ -2057,12 +2058,24 @@ export const useDashboardStore = create<DashboardStore>()(
                   }
                 }, 150);
 
+                // Keep only the LAST assistant message with this runId (updated), remove earlier ones
+                let updatedLast = false;
+                const consolidated: ChatMessage[] = [];
+                for (let j = state.chatMessages.length - 1; j >= 0; j--) {
+                  const m = state.chatMessages[j];
+                  if (m.runId === runId && m.role === 'assistant') {
+                    if (!updatedLast) {
+                      consolidated.unshift({ ...m, content: finalContent });
+                      updatedLast = true;
+                    }
+                    // else: skip earlier partial assistant messages from same run
+                  } else {
+                    consolidated.unshift(m);
+                  }
+                }
+
                 return {
-                  chatMessages: state.chatMessages.map(m =>
-                    m.runId === runId && m.role === 'assistant'
-                      ? { ...m, content: finalContent }
-                      : m
-                  ),
+                  chatMessages: consolidated,
                   activeRunId: newActiveRunId,
                   streamingComplete: true,
                   streamingRunId: null,
