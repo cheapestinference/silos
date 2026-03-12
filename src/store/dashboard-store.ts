@@ -22,8 +22,50 @@ import type {
 } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 
-// --- Single-source streaming: chat events (state='delta') are the sole streaming source ---
-// No RAF buffer needed — chat events carry accumulated text (replace semantics).
+// --- Streaming buffer: coalesces WebSocket deltas to animation-frame rate (~60fps) ---
+// Chat events use replace semantics (each delta = full accumulated text).
+// We store the latest delta outside React state and flush via RAF to reduce re-renders.
+let _latestStreamingText: string | null = null;
+let _streamingRafId: number | null = null;
+let _pendingFirstDelta: { runId?: string } | null = null;
+
+function flushStreamingBuffer() {
+  if (_streamingRafId !== null) {
+    cancelAnimationFrame(_streamingRafId);
+    _streamingRafId = null;
+  }
+  const text = _latestStreamingText;
+  const pendingFirst = _pendingFirstDelta;
+  _latestStreamingText = null;
+  _pendingFirstDelta = null;
+  if (text === null) return;
+
+  useDashboardStore.setState((state) => {
+    const updates: Partial<DashboardStore> = { streamingContent: text };
+
+    if (pendingFirst) {
+      const runId = pendingFirst.runId;
+      (updates as any).streamingRunId = runId || null;
+
+      if (runId) {
+        const newActiveRunId = new Map(state.activeRunId);
+        if (state.selectedSessionKey) {
+          newActiveRunId.set(state.selectedSessionKey, runId);
+        }
+        updates.activeRunId = newActiveRunId;
+
+        updates.chatMessages = state.chatMessages.map(m => {
+          if (m.role === 'user' && m.status === 'sending') {
+            return { ...m, status: 'delivered' as const, runId };
+          }
+          return m;
+        }) as ChatMessage[];
+      }
+    }
+
+    return updates;
+  });
+}
 
 interface DashboardStore {
   // Connection state
@@ -1706,6 +1748,7 @@ export const useDashboardStore = create<DashboardStore>()(
           // Streaming text comes exclusively from chat:state='delta' events (accumulated/replace semantics).
 
           if (shouldShowInChat && payload?.stream === 'tool') {
+            flushStreamingBuffer(); // Ensure buffered content is flushed before tool processing
             const toolName = payload?.data?.name || payload?.data?.toolName;
             const phase = payload?.data?.phase;
 
@@ -1914,47 +1957,32 @@ export const useDashboardStore = create<DashboardStore>()(
               : null;
 
           if (chatDeltaText) {
-            set((state) => {
-              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
+            const currentState = get();
+            const runId = payload?.runId || (currentState.selectedSessionKey ? currentState.activeRunId.get(currentState.selectedSessionKey) : undefined);
 
-              // Ignore deltas from a different run than our active one (cross-run contamination guard)
-              if (runId && state.streamingRunId && runId !== state.streamingRunId) {
-                return {};
-              }
+            // Cross-run contamination guard (check both flushed state and pending buffer)
+            const effectiveRunId = currentState.streamingRunId || _pendingFirstDelta?.runId;
+            if (!(runId && effectiveRunId && runId !== effectiveRunId)) {
+              // First delta: no content flushed to state AND nothing buffered
+              const isFirstDelta = !currentState.streamingContent && _latestStreamingText === null;
 
-              const isFirstDelta = !state.streamingContent;
+              // Replace semantics for state='delta', append for legacy
+              _latestStreamingText = isStateDelta
+                ? chatDeltaText
+                : (_latestStreamingText ?? currentState.streamingContent ?? '') + chatDeltaText;
 
-              // state='delta' → replace (accumulated), legacy → append (incremental)
-              const newStreamingContent = isStateDelta ? chatDeltaText : (state.streamingContent || '') + chatDeltaText;
-
-              // First delta of a run: transition the 'sending' user message → 'delivered'
               if (isFirstDelta) {
-                const updates: Partial<DashboardStore> = {
-                  streamingContent: newStreamingContent,
-                  streamingRunId: runId || null,
-                };
-
-                if (runId) {
-                  const newActiveRunId = new Map(state.activeRunId);
-                  if (state.selectedSessionKey) {
-                    newActiveRunId.set(state.selectedSessionKey, runId);
-                  }
-                  updates.activeRunId = newActiveRunId;
-
-                  // Only transition 'sending' messages (NOT 'queued' — queued haven't been sent yet)
-                  updates.chatMessages = state.chatMessages.map(m => {
-                    if (m.role === 'user' && m.status === 'sending') {
-                      return { ...m, status: 'delivered' as const, runId };
-                    }
-                    return m;
-                  }) as ChatMessage[];
-                }
-
-                return updates;
+                _pendingFirstDelta = { runId };
               }
 
-              return { streamingContent: newStreamingContent };
-            });
+              // Schedule RAF flush if not already scheduled
+              if (_streamingRafId === null) {
+                _streamingRafId = requestAnimationFrame(() => {
+                  _streamingRafId = null;
+                  flushStreamingBuffer();
+                });
+              }
+            }
           }
 
           // ── TOOL CALLS from chat events — SKIPPED ──
@@ -1962,6 +1990,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // ── COMPLETION (sole handler for message creation + state cleanup) ──
           if (payload?.status === 'ok' || payload?.status === 'done' || payload?.state === 'final' || payload?.state === 'done') {
+            flushStreamingBuffer(); // Ensure buffered content is flushed before completion
             const sessionKey = get().selectedSessionKey;
 
             // Extract final content from the completion event payload (authoritative source).
