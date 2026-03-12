@@ -13,7 +13,7 @@ import {
   Check,
   Sparkles,
   User,
-  Paperclip,
+
   Terminal,
   Code2,
   Layers,
@@ -23,8 +23,8 @@ import {
   X,
   AlertTriangle,
   Loader2,
-  Kanban,
   Wrench,
+  Info,
 } from 'lucide-react';
 import { formatTimestamp, cn, formatNumber } from '../../lib/utils';
 import { Button } from '../ui/button';
@@ -221,7 +221,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       {/* Code Content with line numbers */}
       <div className="relative">
         <pre className="p-4 overflow-x-auto text-[13px] leading-relaxed">
-          <code className="text-foreground/90 font-mono">{code}</code>
+          <code className="text-foreground/90 font-mono whitespace-pre">{code}</code>
         </pre>
         <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-card to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -421,6 +421,7 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   }
 
   const hasOutput = !!outputStr;
+  const isRunning = !hasOutput;
 
   const getToolIcon = (name?: string) => {
     if (!name) return <Cpu className="w-3 h-3" />;
@@ -464,35 +465,42 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   const isInputOpen = expanded || inputExpanded;
   const isOutputOpen = expanded || outputExpanded;
 
+  // Color scheme: amber while running, cyan when done
+  const colors = isRunning
+    ? { border: 'border-amber-500/30', bg: 'bg-amber-500/5', hover: 'hover:bg-amber-500/10', icon: 'bg-amber-500/10 text-amber-500 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-500 dark:text-amber-400 hover:bg-amber-500/10' }
+    : { border: 'border-cyan-500/20', bg: 'bg-cyan-500/5', hover: 'hover:bg-cyan-500/10', icon: 'bg-cyan-500/10 text-cyan-500 dark:text-cyan-400', ring: 'ring-cyan-500/20', chevron: 'text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10' };
+
   return (
     <div className={cn(
       "rounded-lg overflow-hidden transition-all duration-200",
-      "border border-cyan-500/20 bg-card",
-      expanded && "ring-1 ring-cyan-500/20"
+      "border bg-card",
+      colors.border,
+      expanded && `ring-1 ${colors.ring}`
     )}>
       {/* Header — click to expand/collapse all */}
       <div
         className={cn(
           "flex items-center justify-between px-2.5 py-1.5",
-          "bg-cyan-500/5",
-          "cursor-pointer hover:bg-cyan-500/10 transition-all"
+          colors.bg,
+          "cursor-pointer transition-all",
+          colors.hover
         )}
         onClick={handleHeaderClick}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-5 h-5 rounded bg-cyan-500/10 flex items-center justify-center text-cyan-500 dark:text-cyan-400 shrink-0">
+          <div className={cn("w-5 h-5 rounded flex items-center justify-center shrink-0", colors.icon)}>
             {getToolIcon(toolName)}
           </div>
           <p className="text-[11px] font-semibold font-mono text-foreground truncate">{toolName || 'unknown'}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {!hasOutput && (
-            <div className="w-2.5 h-2.5 border-[1.5px] border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          {isRunning && (
+            <div className="w-2.5 h-2.5 border-[1.5px] border-amber-400 border-t-transparent rounded-full animate-spin" />
           )}
           {hasOutput && (
             <span className="text-[9px] font-semibold px-1 py-px rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">ok</span>
           )}
-          <button className="p-0.5 rounded text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10">
+          <button className={cn("p-0.5 rounded", colors.chevron)}>
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
@@ -561,22 +569,13 @@ interface ToolsPanelProps {
 
 function ToolsPanel({ messages }: ToolsPanelProps) {
   const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const toolMessages = messages.filter(
     m => m.role === 'tool' || m.toolName || m.toolCall || m.result
   );
 
-  // Auto-scroll to bottom when new tool messages arrive
-  useEffect(() => {
-    if (scrollRef.current) {
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-        }
-      });
-    }
-  }, [toolMessages.length]);
+  // Reverse: most recent first
+  const reversed = useMemo(() => [...toolMessages].reverse(), [toolMessages]);
 
   if (toolMessages.length === 0) {
     return (
@@ -591,8 +590,8 @@ function ToolsPanel({ messages }: ToolsPanelProps) {
   }
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto custom-scrollbar p-2 space-y-1.5">
-      {toolMessages.map((msg) => (
+    <div className="h-full overflow-y-auto custom-scrollbar p-3 space-y-2">
+      {reversed.map((msg) => (
         <ToolCallExpander
           key={msg.id}
           toolName={msg.toolName}
@@ -808,7 +807,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 
   return (
     <div className={cn(
-      "flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300",
+      "flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300 min-w-0",
       isUser && "flex-row-reverse"
     )}>
       {showAvatar ? (
@@ -823,7 +822,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
         <div className="w-11 flex-shrink-0" />
       )}
 
-      <div className={cn("flex flex-col max-w-[70%] min-w-0", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col max-w-[70%] min-w-0", isUser ? "items-end" : "w-full")}>
         {showAvatar && (
           <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
             <span className={cn(
@@ -847,7 +846,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
           </div>
         )}
 
-        <div className="text-sm">
+        <div className="text-sm min-w-0 w-full">
           {isTool ? (
             <ToolCallExpander
               toolName={message.toolName}
@@ -863,7 +862,6 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
               return null;
             }
 
-            const isQueued = message.status === 'queued';
             const isSending = message.status === 'sending';
             const hasError = message.status === 'error';
 
@@ -878,8 +876,6 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                         "text-white rounded-br-md",
                         "shadow-xl shadow-indigo-500/15",
                         "hover:shadow-indigo-500/25 hover:translate-y-[-1px]",
-                        // Queued state - reduced opacity
-                        isQueued && "opacity-70",
                         // Error state
                         hasError && "from-rose-500 via-rose-500 to-rose-600 shadow-rose-500/15"
                       ]
@@ -909,20 +905,13 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   </div>
                 </div>
 
-                {/* Status indicator for queued/sending messages */}
-                {isUser && (isQueued || isSending || hasError) && (
+                {/* Status indicator for sending messages */}
+                {isUser && (isSending || hasError) && (
                   <div className={cn(
                     "flex items-center justify-end gap-1.5 px-2 text-[10px] font-medium",
-                    isQueued && "text-amber-600 dark:text-amber-400",
                     isSending && "text-indigo-600 dark:text-indigo-400",
                     hasError && "text-rose-600 dark:text-rose-400"
                   )}>
-                    {isQueued && (
-                      <>
-                        <Clock className="w-3 h-3" />
-                        <span>Queued</span>
-                      </>
-                    )}
                     {isSending && (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -951,7 +940,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 /** Memoized streaming content renderer — avoids re-parsing markdown when text hasn't changed */
 const StreamingMarkdown = React.memo(function StreamingMarkdown({ text }: { text: string }) {
   return (
-    <div className="streaming-cursor text-sm leading-relaxed break-words" style={{ contain: 'content' }}>
+    <div className="streaming-cursor text-sm leading-relaxed break-words overflow-hidden" style={{ contain: 'content' }}>
       {renderMarkdown(text)}
     </div>
   );
@@ -976,7 +965,7 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
         </div>
       </div>
 
-      <div className="flex flex-col max-w-[70%] min-w-0">
+      <div className={cn("flex flex-col max-w-[70%] min-w-0", text && "w-full")}>
         <div className="flex items-center gap-2 mb-1.5 px-1">
           <span className="font-semibold text-xs text-purple-500 dark:text-purple-400 tracking-wide flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
@@ -1026,54 +1015,26 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
 
 // ============== Activity Bar (Queued Messages) ==============
 
-function ActivityBar({ queuedCount, onStop, onClearQueue }: {
+function ActivityBar({ queuedCount, onRemoveLast }: {
   queuedCount: number;
-  onStop: () => void;
-  onClearQueue: () => void;
+  onRemoveLast: () => void;
 }) {
-  const [lastStopAt, setLastStopAt] = useState(0);
-  const [, forceUpdate] = useState(0);
-  const isConfirmingClear = lastStopAt > 0 && Date.now() - lastStopAt < 2000;
-
-  // Reset confirmation state after 2s
-  useEffect(() => {
-    if (!lastStopAt) return;
-    const timer = setTimeout(() => {
-      setLastStopAt(0);
-      forceUpdate(n => n + 1);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [lastStopAt]);
-
-  const handleStop = () => {
-    if (isConfirmingClear) {
-      onClearQueue();
-      setLastStopAt(0);
-    } else {
-      onStop();
-      setLastStopAt(Date.now());
-      forceUpdate(n => n + 1);
-    }
-  };
+  const { t } = useTranslation();
 
   return (
     <div className="flex items-center justify-between px-4 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg mx-4 mb-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
         <Clock className="w-3.5 h-3.5" />
         <span className="text-xs font-medium">
-          {queuedCount} message{queuedCount !== 1 ? 's' : ''} queued
+          {queuedCount} {queuedCount === 1 ? 'message' : 'messages'} {t('chat.messagesQueued')}
         </span>
       </div>
       <button
-        onClick={handleStop}
-        className={cn(
-          "text-xs font-medium px-2.5 py-1 rounded-md transition-all",
-          isConfirmingClear
-            ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20"
-            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
-        )}
+        onClick={onRemoveLast}
+        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-all bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
       >
-        {isConfirmingClear ? 'Clear Queue' : 'Stop'}
+        <X className="w-3 h-3" />
+        {t('chat.removeQueued')}
       </button>
     </div>
   );
@@ -1102,6 +1063,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
   const userScrolledUp = useRef(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useTranslation();
 
@@ -1120,15 +1082,22 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'tasks'>('tools');
 
-  // Resizable right panel
+  // Resizable right panel (width)
   const [panelWidth, setPanelWidth] = useState(() => {
     const saved = localStorage.getItem('silos-chat-panel-width');
     return saved ? Math.max(260, Math.min(800, Number(saved))) : 384;
   });
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
+
+  // Resizable split between Tools and Tasks (percentage of panel height for tools)
+  const [toolsSplit, setToolsSplit] = useState(() => {
+    const saved = localStorage.getItem('silos-chat-tools-split');
+    return saved ? Math.max(15, Math.min(85, Number(saved))) : 50;
+  });
+  const isSplitDragging = useRef(false);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
   const dragStartWidth = useRef(0);
 
   useEffect(() => {
@@ -1154,6 +1123,30 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     };
   }, [panelWidth]);
 
+  // Vertical split drag handlers
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isSplitDragging.current || !splitContainerRef.current) return;
+      e.preventDefault();
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      setToolsSplit(Math.max(15, Math.min(85, pct)));
+    };
+    const onMouseUp = () => {
+      if (!isSplitDragging.current) return;
+      isSplitDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('silos-chat-tools-split', String(toolsSplit));
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [toolsSplit]);
+
   // Translate sessionKey to effective key for backend matching
   const effectiveKey = sessionKey.startsWith('dm-')
     ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
@@ -1173,13 +1166,15 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   // Memoize filtered messages — only recalculate when chatMessages changes, not on streaming updates
   const filteredMessages = useMemo(
-    () => chatMessages.filter(msg => !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result)),
+    () => chatMessages.filter(msg =>
+      !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result) &&
+      msg.status !== 'queued'
+    ),
     [chatMessages]
   );
 
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
-  const sendingCount = chatMessages.filter(m => m.role === 'user' && m.status === 'sending').length;
 
   // Check if rate limited (recent rate limit error in last 30s)
   const [rateLimitedUntil, setRateLimitedUntil] = useState<number>(0);
@@ -1216,7 +1211,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   useEffect(() => {
     selectSession(sessionKey);
-    userScrolledUp.current = false;  // Reset scroll state for new session
+    userScrolledUp.current = false;
+    setShowScrollButton(false);
   }, [sessionKey, selectSession]);
 
   // Retry chat history load when connection becomes available (handles page refresh)
@@ -1234,6 +1230,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       // Consider "at bottom" if within 80px of the end
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       userScrolledUp.current = !atBottom;
+      setShowScrollButton(!atBottom);
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
@@ -1262,6 +1259,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   useEffect(() => {
     if (chatSending) {
       userScrolledUp.current = false;
+      setShowScrollButton(false);
     }
   }, [chatSending]);
 
@@ -1290,6 +1288,14 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     }
   };
 
+  const scrollToBottom = useCallback(() => {
+    userScrolledUp.current = false;
+    setShowScrollButton(false);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1304,7 +1310,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
         {/* LEFT: Chat Column */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
           {/* Messages Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar">
           {/* Premium Empty State */}
           {chatMessages.length === 0 && !chatLoading && (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -1364,19 +1370,28 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           )}
 
           <div ref={scrollSentinelRef} className="h-4" />
+
+          {/* Scroll-to-bottom button — sticky inside scroll container */}
+          {showScrollButton && (
+            <div className="sticky bottom-3 z-10 flex justify-center pointer-events-none -mt-12">
+              <button
+                onClick={scrollToBottom}
+                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-lg shadow-indigo-500/25 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+                {t('chat.newMessages') || 'New messages'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Activity Bar — queued messages */}
         {queuedCount > 0 && (
           <ActivityBar
             queuedCount={queuedCount}
-            onStop={() => {
-              const { abortChat } = useDashboardStore.getState();
-              abortChat();
-            }}
-            onClearQueue={() => {
-              const { clearQueue } = useDashboardStore.getState();
-              clearQueue();
+            onRemoveLast={() => {
+              const { removeLastQueued } = useDashboardStore.getState();
+              removeLastQueued();
             }}
           />
         )}
@@ -1423,26 +1438,39 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                   </div>
 
                   {/* Context utilization */}
-                  {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono pl-2 border-l">
-                      <span>{formatNumber(currentSession.totalTokens)} context</span>
-                    </div>
-                  )}
+                  {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {
+                    const used = currentSession.totalTokens!;
+                    const max = currentSession.contextTokens || sessions?.defaults?.contextTokens;
+                    const pct = max ? Math.min((used / max) * 100, 100) : null;
+                    const barColor = pct === null ? 'bg-muted-foreground/40'
+                      : pct < 50 ? 'bg-emerald-500/70'
+                      : pct < 80 ? 'bg-amber-500/70'
+                      : 'bg-red-500/80';
+                    return (
+                      <div className="flex items-center gap-2 pl-2 border-l">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+                          <span>{formatNumber(used)}{max ? ` / ${formatNumber(max)}` : ''}</span>
+                        </div>
+                        {pct !== null && (
+                          <div className="w-12 h-1 rounded-full bg-muted/60 overflow-hidden" title={`${pct.toFixed(0)}% ${t('chat.context').toLowerCase()}`}>
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground cursor-help transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="w-56 text-xs leading-relaxed">
+                            {t('chat.contextInfo')}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    );
+                  })()}
 
-                  {/* Tool buttons */}
-                  <div className="flex items-center gap-1 pl-2 border-l">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                        >
-                          <Paperclip className="w-4 h-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Attach file</TooltipContent>
-                    </Tooltip>
-                  </div>
                 </div>
 
                 {/* Send button (always available) + Abort button when processing */}
@@ -1483,7 +1511,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Keyboard hint */}
           <p className="text-[10px] text-muted-foreground text-center mt-2">
-            Press <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Shift+Enter</kbd> for new line
+            <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Enter</kbd> {t('chat.keyHintSend')} <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Shift+Enter</kbd> {t('chat.keyHintNewLine')}
           </p>
         </div>
         </div>
@@ -1505,42 +1533,36 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
         </div>
 
-        {/* RIGHT: Tasks/Workspace Column */}
-        <div className="flex flex-col shrink-0" style={{ width: panelWidth }}>
-          {/* Tab Switcher */}
-          <div className="flex border-b border-border/50 shrink-0">
-            <button
-              onClick={() => setRightPanelTab('tools')}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
-                rightPanelTab === 'tools'
-                  ? 'text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-500 dark:border-cyan-400'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Wrench className="h-3.5 w-3.5" />
-              Tools
-            </button>
-            <button
-              onClick={() => setRightPanelTab('tasks')}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
-                rightPanelTab === 'tasks'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Kanban className="h-3.5 w-3.5" />
-              Tasks
-            </button>
+        {/* RIGHT: Tasks + Tools Column */}
+        <div ref={splitContainerRef} className="flex flex-col shrink-0" style={{ width: panelWidth }}>
+          {/* Tasks section */}
+          <div className="flex flex-col min-h-0 overflow-hidden" style={{ height: `${toolsSplit}%` }}>
+            <SessionTasksKanban sessionKey={effectiveKey} />
           </div>
-          {/* Tab Content */}
-          <div className="flex-1 min-h-0">
-            {rightPanelTab === 'tools' ? (
+
+          {/* Horizontal resize handle */}
+          <div
+            className="h-1 shrink-0 cursor-row-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors border-y border-border/30"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isSplitDragging.current = true;
+              document.body.style.cursor = 'row-resize';
+              document.body.style.userSelect = 'none';
+            }}
+          >
+            <div className="absolute inset-x-0 -top-1 -bottom-1" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+          </div>
+
+          {/* Tools section */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/50 shrink-0">
+              <Wrench className="h-3 w-3 text-cyan-500" />
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tools</span>
+            </div>
+            <div className="h-[calc(100%-28px)]">
               <ToolsPanel messages={chatMessages} />
-            ) : (
-              <SessionTasksKanban sessionKey={effectiveKey} />
-            )}
+            </div>
           </div>
         </div>
       </div>

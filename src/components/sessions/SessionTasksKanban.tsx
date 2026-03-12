@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
 import { useTranslation } from '../../i18n';
@@ -12,6 +12,7 @@ import {
   Sparkles,
   History,
   Wrench,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { TaskDetailModal } from '../agents/TaskDetailModal';
@@ -21,9 +22,24 @@ interface SessionTasksKanbanProps {
   sessionKey: string;
 }
 
+const TASK_CACHE_PREFIX = 'kanban-tasks:';
+
+function getCachedTasks(sessionKey: string): Task[] {
+  try {
+    const raw = localStorage.getItem(TASK_CACHE_PREFIX + sessionKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function setCachedTasks(sessionKey: string, tasks: Task[]) {
+  try {
+    localStorage.setItem(TASK_CACHE_PREFIX + sessionKey, JSON.stringify(tasks));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
   const { t } = useTranslation();
-  const { tasks, abortTask, loadTaskHistory, taskHistoryLoading } = useDashboardStore();
+  const { tasks, abortTask, loadTaskHistory, taskHistoryLoading, selectSession } = useDashboardStore();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Extract agent ID from sessionKey to match tasks by agent, not exact key
@@ -39,6 +55,18 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
 
   const sessionAgentId = extractAgentId(sessionKey);
 
+  // On mount: restore cached tasks into store
+  useEffect(() => {
+    const cached = getCachedTasks(sessionKey);
+    if (cached.length === 0) return;
+    const { tasks: currentTasks } = useDashboardStore.getState();
+    const existingIds = new Set(currentTasks.map(t => t.id));
+    const newTasks = cached.filter(t => !existingIds.has(t.id));
+    if (newTasks.length > 0) {
+      useDashboardStore.setState({ tasks: [...currentTasks, ...newTasks] });
+    }
+  }, [sessionKey]);
+
   const sessionTasks = tasks.filter(task => {
     if (task.sessionKey === sessionKey) return true;
     if (sessionAgentId && task.agentId === sessionAgentId) return true;
@@ -49,11 +77,30 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
     return false;
   });
 
-  const queuedTasks = sessionTasks.filter(t => t.status === 'pending');
+  // Persist session tasks to localStorage whenever they change
+  useEffect(() => {
+    if (sessionTasks.length > 0) {
+      setCachedTasks(sessionKey, sessionTasks);
+    }
+  }, [sessionKey, sessionTasks.length]);
+
   const runningTasks = sessionTasks.filter(t => t.status === 'running');
   const completedTasks = sessionTasks.filter(t =>
     t.status === 'completed' || t.status === 'error' || t.status === 'aborted'
   );
+
+  // Navigate to sub-agent session when task card has a different sessionKey
+  const handleNavigateToSession = (task: Task) => {
+    if (task.sessionKey && task.sessionKey !== sessionKey) {
+      selectSession(task.sessionKey);
+    }
+  };
+
+  // Fetch history from API and cache results
+  const handleLoadHistory = useCallback(async () => {
+    await loadTaskHistory();
+    // After loading, the store's tasks are updated — the useEffect above will persist to localStorage
+  }, [loadTaskHistory]);
 
   const handleAbort = async (runId: string) => {
     try {
@@ -97,7 +144,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
         </div>
 
         <button
-          onClick={() => loadTaskHistory()}
+          onClick={handleLoadHistory}
           disabled={taskHistoryLoading}
           className={cn(
             "p-1.5 rounded-md text-muted-foreground",
@@ -112,16 +159,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
 
       {/* Columns */}
       <div className="flex-1 overflow-hidden p-2">
-        <div className="h-full grid grid-cols-3 gap-2">
-          <TaskColumn
-            label="Queued"
-            icon={<Clock className="w-3 h-3" />}
-            count={queuedTasks.length}
-            color="amber"
-            tasks={queuedTasks}
-            formatDuration={formatDuration}
-            onSelect={setSelectedTask}
-          />
+        <div className="h-full grid grid-cols-2 gap-2">
           <TaskColumn
             label={t('tasks.active')}
             icon={<Play className="w-3 h-3" />}
@@ -131,6 +169,8 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             formatDuration={formatDuration}
             onAbort={handleAbort}
             onSelect={setSelectedTask}
+            onNavigate={handleNavigateToSession}
+            parentSessionKey={sessionKey}
           />
           <TaskColumn
             label={t('tasks.completed')}
@@ -140,6 +180,8 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             tasks={completedTasks}
             formatDuration={formatDuration}
             onSelect={setSelectedTask}
+            onNavigate={handleNavigateToSession}
+            parentSessionKey={sessionKey}
           />
         </div>
       </div>
@@ -162,6 +204,8 @@ interface TaskColumnProps {
   formatDuration: (s: number, e?: number) => string;
   onAbort?: (runId: string) => void;
   onSelect: (task: Task) => void;
+  onNavigate?: (task: Task) => void;
+  parentSessionKey: string;
 }
 
 const colStyles = {
@@ -171,7 +215,7 @@ const colStyles = {
   rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
 };
 
-function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort, onSelect }: TaskColumnProps) {
+function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort, onSelect, onNavigate, parentSessionKey }: TaskColumnProps) {
   const s = colStyles[color];
 
   return (
@@ -200,6 +244,8 @@ function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort,
               formatDuration={formatDuration}
               onAbort={onAbort}
               onSelect={onSelect}
+              onNavigate={onNavigate}
+              isSubAgent={!!task.sessionKey && task.sessionKey !== parentSessionKey}
             />
           ))
         )}
@@ -216,6 +262,8 @@ interface MiniTaskCardProps {
   formatDuration: (s: number, e?: number) => string;
   onAbort?: (runId: string) => void;
   onSelect: (task: Task) => void;
+  onNavigate?: (task: Task) => void;
+  isSubAgent: boolean;
 }
 
 function formatTokens(n: number): string {
@@ -224,17 +272,20 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect }: MiniTaskCardProps) {
+function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect, onNavigate, isSubAgent }: MiniTaskCardProps) {
   const s = colStyles[color];
   const duration = formatDuration(task.startedAt, task.completedAt);
   const isToolTask = !!task.toolName;
   const tokens = (task.inputTokens || 0) + (task.outputTokens || 0);
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(task)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(task); } }}
       className={cn(
-        "group w-full text-left p-2 rounded-md bg-card border border-l-2 transition-all duration-150",
+        "group w-full text-left p-2 rounded-md bg-card border border-l-2 transition-all duration-150 cursor-pointer",
         "hover:bg-muted/60 hover:shadow-sm",
         s.border
       )}
@@ -304,6 +355,18 @@ function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect }: MiniTa
           {task.error}
         </p>
       )}
-    </button>
+
+      {/* Sub-agent session link */}
+      {isSubAgent && onNavigate && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNavigate(task); }}
+          className="mt-1.5 flex items-center gap-1 text-[8px] text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 transition-colors"
+          title="Open sub-agent session"
+        >
+          <ExternalLink className="w-2 h-2" />
+          <span>sub-agent session</span>
+        </button>
+      )}
+    </div>
   );
 }

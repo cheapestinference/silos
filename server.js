@@ -25,7 +25,7 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
 let openclawVersion = process.env.OPENCLAW_VERSION || null;
 if (!openclawVersion) {
   for (const p of ['/usr/lib/node_modules/openclaw/package.json', '/usr/local/lib/node_modules/openclaw/package.json', '/home/openclaw/openclaw/package.json']) {
-    try { openclawVersion = JSON.parse(await fs.readFile(p, 'utf8')).version; if (openclawVersion) break; } catch {}
+    try { openclawVersion = JSON.parse(await fs.readFile(p, 'utf8')).version; if (openclawVersion) break; } catch { }
   }
 }
 

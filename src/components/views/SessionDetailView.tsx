@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn, formatNumber } from '../../lib/utils';
@@ -12,6 +12,10 @@ import {
   Sparkles,
   Hash,
   Clock,
+  ChevronDown,
+  Check,
+  Loader2,
+  Search,
 } from 'lucide-react';
 import { ChatView } from './ChatView';
 import { formatDistanceToNow } from 'date-fns';
@@ -107,6 +111,8 @@ export function SessionDetailView() {
     loadAgentConfig,
     gatewayConfig,
     sessionCumulativeTokens,
+    availableModels,
+    loadAvailableModels,
   } = useDashboardStore();
 
   const agentId = sessionKey ? extractAgentIdFromSessionKey(sessionKey) : null;
@@ -144,8 +150,75 @@ export function SessionDetailView() {
   const sessionAgentOverride = sessionAgentEntry?.model
     ? (typeof sessionAgentEntry.model === 'string' ? sessionAgentEntry.model : sessionAgentEntry.model.primary || '')
     : '';
-  const model = session?.model || sessionAgentOverride || agentsCfg?.defaults?.model?.primary || t('sessionDetail.notConfigured');
+  const resolvedModel = session?.model || sessionAgentOverride || agentsCfg?.defaults?.model?.primary || t('sessionDetail.notConfigured');
   const isOnline = true;
+
+  // Model dropdown
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+  const [optimisticModel, setOptimisticModel] = useState<string | null>(null);
+
+  // Clear optimistic override once real config catches up
+  useEffect(() => {
+    if (optimisticModel && resolvedModel === optimisticModel) {
+      setOptimisticModel(null);
+    }
+  }, [resolvedModel, optimisticModel]);
+
+  const model = optimisticModel || resolvedModel;
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const modelSearchRef = useRef<HTMLInputElement>(null);
+
+  const currentProvider = session?.modelProvider;
+  const providerModels = useMemo(() => {
+    if (!currentProvider || !availableModels) return [];
+    const all = availableModels[currentProvider] || [];
+    if (!modelSearch.trim()) return all;
+    const q = modelSearch.toLowerCase();
+    return all.filter(m => m.id.toLowerCase().includes(q) || (m.name && m.name.toLowerCase().includes(q)));
+  }, [currentProvider, availableModels, modelSearch]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!modelDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [modelDropdownOpen]);
+
+  const { patchGatewayConfig, loadGatewayConfig } = useDashboardStore();
+
+  const handleModelChange = useCallback(async (newModelId: string) => {
+    if (!currentProvider || !agentId) return;
+    const fullModel = `${currentProvider}/${newModelId}`;
+    setOptimisticModel(fullModel);
+    setModelDropdownOpen(false);
+    try {
+      const currentList: Array<Record<string, unknown>> = (agentsCfg?.list || []).map(a => ({ ...a }));
+      const existingIdx = currentList.findIndex(a => a.id === agentId);
+
+      if (existingIdx >= 0) {
+        currentList[existingIdx] = { ...currentList[existingIdx], model: fullModel };
+      } else {
+        currentList.push({ id: agentId, model: fullModel });
+      }
+
+      const success = await patchGatewayConfig({ agents: { list: currentList } });
+      if (success) {
+        loadGatewayConfig();
+        loadSessions();
+      } else {
+        setOptimisticModel(null); // revert on failure
+      }
+    } catch (err) {
+      console.error('Failed to change model:', err);
+      setOptimisticModel(null); // revert on error
+    }
+  }, [currentProvider, agentId, agentsCfg, patchGatewayConfig, loadGatewayConfig, loadSessions]);
 
   // Format last activity
   const lastActivity = session?.updatedAt
@@ -208,10 +281,72 @@ export function SessionDetailView() {
                       <span className="font-medium">{agentName}</span>
                     </span>
                     <span className="w-1 h-1 rounded-full bg-border" />
-                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                      <Cpu className="w-3 h-3" />
-                      {model}
-                    </span>
+                    <div className="relative" ref={modelDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!availableModels) loadAvailableModels();
+                          setModelDropdownOpen(!modelDropdownOpen);
+                          setModelSearch('');
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <Cpu className="w-3 h-3" />
+                        <span>{model.includes('/') ? model.split('/').slice(1).join('/') : model}</span>
+                        <ChevronDown className={cn("w-3 h-3 transition-transform", modelDropdownOpen && "rotate-180")} />
+                      </button>
+
+                      {modelDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg border bg-popover shadow-xl z-50 overflow-hidden">
+                          {/* Search input */}
+                          <div className="flex items-center gap-2 px-3 py-2 border-b">
+                            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <input
+                              ref={modelSearchRef}
+                              type="text"
+                              value={modelSearch}
+                              onChange={(e) => setModelSearch(e.target.value)}
+                              placeholder={t('common.search')}
+                              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+                              autoFocus
+                            />
+                          </div>
+                          {/* Model list */}
+                          <div className="max-h-56 overflow-y-auto py-1 custom-scrollbar">
+                            {providerModels.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                                {!availableModels ? (
+                                  <><Loader2 className="w-3 h-3 animate-spin" />{t('common.loading')}</>
+                                ) : (
+                                  t('common.noResults')
+                                )}
+                              </div>
+                            ) : (
+                              providerModels.map(m => {
+                                const modelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
+                                const isActive = m.id === modelId;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => !isActive && handleModelChange(m.id)}
+                                    className={cn(
+                                      "w-full text-left px-3 py-1.5 text-xs font-mono transition-colors flex items-center justify-between gap-2",
+                                      isActive
+                                        ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                                        : "text-foreground/80 hover:bg-muted"
+                                    )}
+                                  >
+                                    <span className="truncate">{m.name || m.id}</span>
+                                    {isActive && <Check className="w-3 h-3 shrink-0" />}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     {lastActivity && (
                       <>
                         <span className="w-1 h-1 rounded-full bg-border" />
