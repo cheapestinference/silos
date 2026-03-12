@@ -2067,11 +2067,15 @@ export const useDashboardStore = create<DashboardStore>()(
                 ? [...updatedMessages.slice(0, firstQueuedIdx), assistantMessage, ...updatedMessages.slice(firstQueuedIdx)]
                 : [...updatedMessages, assistantMessage];
 
+              // Two-phase transition: keep streamingContent for TypingIndicator fade-out
+              setTimeout(() => {
+                useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+              }, 150);
+
               return {
                 chatMessages: orderedMessages,
-                streamingContent: '',
+                streamingComplete: true,
                 streamingRunId: null,
-                streamingComplete: false,
                 activeRunId: newActiveRunId,
               };
             });

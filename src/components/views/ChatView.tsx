@@ -946,7 +946,7 @@ const StreamingMarkdown = React.memo(function StreamingMarkdown({ text }: { text
   );
 });
 
-function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
+function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: string; isComplete?: boolean }) {
   const { t } = useTranslation();
 
   const text = streamingContent
@@ -954,12 +954,15 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
     : '';
 
   return (
-    <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className={cn(
+      "flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500",
+      isComplete && "transition-opacity duration-150 opacity-0"
+    )}>
       {/* Animated Avatar */}
       <div className="relative w-11 h-11 flex-shrink-0">
         {/* Pulsing outer rings */}
-        <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-500 opacity-10 animate-ping" />
-        <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-500 opacity-30 blur-[2px] animate-pulse" />
+        {!isComplete && <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-500 opacity-10 animate-ping" />}
+        {!isComplete && <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-500 opacity-30 blur-[2px] animate-pulse" />}
         <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-600 flex items-center justify-center shadow-xl shadow-purple-500/30">
           <Zap className="w-5 h-5 text-white animate-pulse" />
         </div>
@@ -968,10 +971,12 @@ function TypingIndicator({ streamingContent }: { streamingContent?: string }) {
       <div className={cn("flex flex-col max-w-[70%] min-w-0", text && "w-full")}>
         <div className="flex items-center gap-2 mb-1.5 px-1">
           <span className="font-semibold text-xs text-purple-500 dark:text-purple-400 tracking-wide flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
-            </span>
+            {!isComplete && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+              </span>
+            )}
             {t('chat.processing')}
           </span>
         </div>
@@ -1073,6 +1078,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     chatLoading,
     chatSending: chatSendingMap,
     streamingContent,
+    streamingComplete,
     selectSession,
     agents,
     sessions,
@@ -1349,6 +1355,10 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           )}
 
           {filteredMessages.map((msg, i, arr) => {
+            // Hide the last assistant message during streaming→message transition (same content is in TypingIndicator)
+            if (streamingComplete && streamingContent && msg.role === 'assistant' && i === arr.length - 1) {
+              return null;
+            }
             const showAvatar = i === 0 ||
               arr[i-1].role !== msg.role ||
               Boolean(arr[i-1].timestamp && msg.timestamp - arr[i-1].timestamp > 60000);
@@ -1366,7 +1376,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Streaming / Typing Indicator */}
           {(streamingContent || chatSending) && (
-            <TypingIndicator streamingContent={streamingContent} />
+            <TypingIndicator streamingContent={streamingContent} isComplete={streamingComplete} />
           )}
 
           <div ref={scrollSentinelRef} className="h-4" />
