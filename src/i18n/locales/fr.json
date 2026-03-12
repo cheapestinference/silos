@@ -263,7 +263,9 @@
     "keyHintNewLine": "pour nouvelle ligne",
     "input": "Entrée",
     "output": "Sortie",
-    "total": "Total"
+    "total": "Total",
+    "messagesQueued": "en attente",
+    "removeQueued": "Retirer"
   },
   "tasks": {
     "title": "Tâches",
