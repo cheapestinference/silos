@@ -67,6 +67,16 @@ function flushStreamingBuffer() {
   });
 }
 
+/** Discard any buffered streaming data without flushing to state. */
+function cancelStreamingBuffer() {
+  if (_streamingRafId !== null) {
+    cancelAnimationFrame(_streamingRafId);
+    _streamingRafId = null;
+  }
+  _latestStreamingText = null;
+  _pendingFirstDelta = null;
+}
+
 interface DashboardStore {
   // Connection state
   connected: boolean;
@@ -744,6 +754,7 @@ export const useDashboardStore = create<DashboardStore>()(
         if (key === selectedSessionKey) {
           return;
         }
+        cancelStreamingBuffer();
         set({ selectedSessionKey: key, chatMessages: [], streamingContent: '', streamingRunId: null, streamingComplete: false });
         if (key) {
           get().loadChatHistory(key);
@@ -918,6 +929,7 @@ export const useDashboardStore = create<DashboardStore>()(
         const newChatSending = new Map(chatSending);
         newChatSending.set(selectedSessionKey, true);
 
+        cancelStreamingBuffer();
         set({
           chatMessages: [...get().chatMessages, userMessage],
           chatSending: newChatSending,
@@ -992,6 +1004,7 @@ export const useDashboardStore = create<DashboardStore>()(
           newChatSending.delete(selectedSessionKey);
 
           // Also update the task status to aborted
+          cancelStreamingBuffer();
           set({
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
@@ -1033,6 +1046,7 @@ export const useDashboardStore = create<DashboardStore>()(
         newQueue.set(sessionKey, queue.slice(1));
 
         // Transition message status: queued → sending
+        cancelStreamingBuffer();
         const newChatSending = new Map(get().chatSending);
         newChatSending.set(sessionKey, true);
         set({
@@ -1843,6 +1857,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // Handle agent run error (LLM provider failure, auth errors, etc.)
           if (shouldShowInChat && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'error' || (payload?.data?.phase === 'end' && payload?.data?.isError))) {
+            cancelStreamingBuffer(); // Discard buffered content on error
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
@@ -2067,9 +2082,13 @@ export const useDashboardStore = create<DashboardStore>()(
                 ? [...updatedMessages.slice(0, firstQueuedIdx), assistantMessage, ...updatedMessages.slice(firstQueuedIdx)]
                 : [...updatedMessages, assistantMessage];
 
-              // Two-phase transition: keep streamingContent for TypingIndicator fade-out
+              // Two-phase transition: keep streamingContent for TypingIndicator fade-out.
+              // Guard: only clear if no new run has started (avoids wiping a new run's content).
               setTimeout(() => {
-                useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+                const s = useDashboardStore.getState();
+                if (s.streamingComplete && !s.streamingRunId) {
+                  useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+                }
               }, 150);
 
               return {
