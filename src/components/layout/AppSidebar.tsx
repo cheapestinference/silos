@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from '../../i18n';
 import type { Locale } from '../../i18n';
 import { cn } from '../../lib/utils';
@@ -213,6 +214,7 @@ export function AppSidebar() {
     gatewayUrl,
     token,
   } = useDashboardStore();
+  const { signOut } = useAuth();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -655,7 +657,7 @@ export function AppSidebar() {
           <Tooltip>
             <TooltipTrigger>
               <button
-                onClick={disconnect}
+                onClick={() => { disconnect(); signOut(); }}
                 className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />

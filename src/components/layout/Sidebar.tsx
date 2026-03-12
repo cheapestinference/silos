@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { useAuth } from '../../hooks/useAuth';
 import useTranslation from '../../i18n';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -421,6 +422,7 @@ const staticNavItems = [
 export function Sidebar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const {
     connected,
     connecting,
@@ -620,7 +622,7 @@ export function Sidebar() {
             variant="ghost"
             size="sm"
             className="w-full justify-start h-8 text-xs text-destructive hover:text-destructive"
-            onClick={disconnect}
+            onClick={() => { disconnect(); signOut(); }}
           >
             <LogOut className="mr-2 h-3.5 w-3.5" />
             Disconnect

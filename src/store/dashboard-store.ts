@@ -376,6 +376,7 @@ export const useDashboardStore = create<DashboardStore>()(
           connected: false,
           connecting: false,
           error: null,
+          token: null,
         });
       },
 
