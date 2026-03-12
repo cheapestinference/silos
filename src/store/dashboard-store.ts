@@ -2046,13 +2046,26 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
               }
 
-              // Dedup: if an assistant message with this runId already exists, don't create another
+              // Dedup: if an assistant message with this runId already exists, update it
+              // with the final content (which includes post-tool-call text) instead of creating another
               if (runId && state.chatMessages.some(m => m.runId === runId && m.role === 'assistant')) {
+                // Two-phase transition for the updated message too
+                setTimeout(() => {
+                  const s = useDashboardStore.getState();
+                  if (s.streamingComplete && !s.streamingRunId) {
+                    useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+                  }
+                }, 150);
+
                 return {
+                  chatMessages: state.chatMessages.map(m =>
+                    m.runId === runId && m.role === 'assistant'
+                      ? { ...m, content: finalContent }
+                      : m
+                  ),
                   activeRunId: newActiveRunId,
-                  streamingContent: '',
+                  streamingComplete: true,
                   streamingRunId: null,
-                  streamingComplete: false,
                 };
               }
 

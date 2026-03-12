@@ -1079,6 +1079,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     chatSending: chatSendingMap,
     streamingContent,
     streamingComplete,
+    streamingRunId,
     selectSession,
     agents,
     sessions,
@@ -1355,9 +1356,13 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           )}
 
           {filteredMessages.map((msg, i, arr) => {
-            // Hide the last assistant message during streaming→message transition (same content is in TypingIndicator)
-            if (streamingComplete && streamingContent && msg.role === 'assistant' && i === arr.length - 1) {
-              return null;
+            // Hide assistant messages whose content is already visible in the TypingIndicator:
+            // 1. During streaming→message transition (fade-out): last assistant msg is duplicate
+            // 2. During post-tool streaming: tool handler saved a partial assistant msg for the
+            //    active run, but TypingIndicator now shows the full accumulated text (replace semantics)
+            if (streamingContent && msg.role === 'assistant') {
+              if (streamingComplete && i === arr.length - 1) return null;
+              if (!streamingComplete && streamingRunId && msg.runId === streamingRunId) return null;
             }
             const showAvatar = i === 0 ||
               arr[i-1].role !== msg.role ||
