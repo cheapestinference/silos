@@ -1173,10 +1173,16 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   // Memoize filtered messages — only recalculate when chatMessages changes, not on streaming updates
   const filteredMessages = useMemo(
-    () => chatMessages.filter(msg =>
-      !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result) &&
-      msg.status !== 'queued'
-    ),
+    () => {
+      const msgs = chatMessages.filter(msg =>
+        !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result) &&
+        msg.status !== 'queued'
+      );
+      // Collapse consecutive same-role same-content duplicates (gateway may persist them)
+      return msgs.filter((msg, i) =>
+        i === 0 || msg.role !== msgs[i - 1].role || msg.content !== msgs[i - 1].content
+      );
+    },
     [chatMessages]
   );
 

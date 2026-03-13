@@ -2082,6 +2082,24 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
               }
 
+              // Guard: if last assistant message already has this exact content, this is a
+              // duplicate completion event (e.g. both status='done' and state='final' fired).
+              // Just transition state without creating another message.
+              const lastAssistant = [...state.chatMessages].reverse().find(m => m.role === 'assistant');
+              if (lastAssistant && lastAssistant.content === finalContent) {
+                setTimeout(() => {
+                  const s = useDashboardStore.getState();
+                  if (s.streamingComplete && !s.streamingRunId) {
+                    useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
+                  }
+                }, 150);
+                return {
+                  activeRunId: newActiveRunId,
+                  streamingComplete: true,
+                  streamingRunId: null,
+                };
+              }
+
               // Create the assistant message — prefer final event content over streaming content
               if (finalPayloadContent && state.streamingContent && finalPayloadContent !== state.streamingContent) {
                 console.log(`[chat:final] Content mismatch — payload: ${finalPayloadContent.length} chars, streaming: ${state.streamingContent.length} chars`);
