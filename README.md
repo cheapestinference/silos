@@ -1,6 +1,6 @@
 # Silos Dashboard
 
-> Open source dashboard for [OpenClaw](https://openclaw.ai) — connect, monitor and control your AI agents across all your channels.
+> Open-source alternative web UI for [OpenClaw](https://openclaw.ai) — manage agents, sessions, channels, tasks, cron jobs, and more from a single interface.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/cheapestinference/silos)](https://github.com/cheapestinference/silos/releases)
@@ -11,21 +11,75 @@
 
 ---
 
-## What is Silos Dashboard?
+## Features
 
-Silos Dashboard is a modern, multilingual web UI that connects to an **OpenClaw gateway** and gives you a complete interface to manage your AI agent deployments. It is designed to be self-hosted, lightweight and easy to extend.
+### Agent Management
+- Create, configure and monitor multiple OpenClaw agents
+- Per-agent model selection (GPT, Claude, DeepSeek, Mistral, any provider)
+- Brain editor — edit SOUL.md, IDENTITY.md, MEMORY.md, BOOTSTRAP.md, HEARTBEAT.md directly
+- Workspace file browser — full CRUD on agent workspace files and folders
+- Tool permissions — enable/disable tool groups globally or per agent
+- Agent-to-agent delegation rules
+- Knowledge base management with RAG indexing
 
-[OpenClaw](https://openclaw.ai) is an open-source AI agent framework. The gateway is the local service that Silos Dashboard communicates with over WebSocket and HTTP to read state, trigger actions and receive real-time updates.
+### Skills
+- Browse and install skills from [ClawHub](https://clawhub.ai/) marketplace
+- View skill details, stats, changelog, security scans
+- Enable/disable skills per agent
+- Built-in skill catalog organized by category
 
-**Key capabilities:**
+### Chat & Sessions
+- Live chat with real-time streaming
+- Markdown rendering with syntax-highlighted code blocks
+- Tool call visualization — see what the agent is doing as it runs tools
+- Session intelligence panel — active agents, token usage, context window size
+- Per-session model override
+- Message queue and retry
+- Subagent parent-child session hierarchy
 
-- 🤖 **Agent management** — create, configure and monitor OpenClaw agents
-- 💬 **Multi-channel sessions** — WhatsApp, Telegram, Discord and more
-- 📋 **Task & session tracking** — Kanban view, session detail, activity log
-- ⏱ **Cron jobs** — schedule automated agent tasks
-- 🌐 **i18n** — English, Spanish, French and German out of the box
-- 🌗 **Theme** — respects your OS dark/light preference, fully toggleable
-- 🔌 **Gateway-first** — talks to any OpenClaw gateway instance via configurable URL
+### Tasks
+- Kanban board — To Do, In Progress, Done columns
+- Filter by running, completed, or failed
+- Task detail with full conversation transcript, tokens, duration
+- Stop/abort running tasks
+- Per-session task view
+
+### Cron Jobs
+- Create one-time, interval, or cron-expression schedules
+- System event or agent turn payloads
+- Run manually, enable/disable, view run history
+- Per-agent cron management
+- Last run status, duration, next run time
+
+### Channels
+- Connect WhatsApp, Telegram, Discord, Slack
+- QR code pairing for WhatsApp
+- Per-channel connection status and account details
+- Default agent routing
+
+### Settings
+- **Model Providers** — add/edit API keys, base URLs, test connections, see available models with context window info
+- **Channels** — manage all messaging platform connections
+- **Agents** — global default model selector
+- **Tools** — global tool group toggles, Lobster Workflows, loop detection
+- **Skills** — manage installed skills
+- **Gateway** — connection URL and auth token
+- **Appearance** — dark/light theme, language selector
+
+### Analytics & Monitoring
+- Dashboard stats — agents, sessions, tokens, active tasks, cron jobs
+- Token activity chart (14+ day bar chart with input/output breakdown)
+- Per-session token tracking
+- Context window utilization display
+- Gateway connection status with auto-reconnect
+
+### Navigation & UX
+- Command palette (Cmd/Ctrl+K) — fuzzy search across pages, agents, sessions
+- Keyboard shortcuts throughout
+- Dark/light theme with OS preference detection
+- 4 languages — English, Spanish, French, German
+- Responsive layout
+- Real-time WebSocket updates with auto-reconnect
 
 ---
 
@@ -47,7 +101,20 @@ Silos Dashboard is a modern, multilingual web UI that connects to an **OpenClaw 
      OpenClaw AI Agents
 ```
 
-The dashboard is a pure frontend — it has no backend of its own. All state lives in the OpenClaw gateway.
+Connects to any OpenClaw gateway instance. All state lives in the gateway.
+
+---
+
+## Tech Stack
+
+- **React 19** + **TypeScript**
+- **Vite** — dev server and build
+- **Zustand** — state management
+- **Tailwind CSS** — styling with dark/light theme
+- **Recharts** — analytics charts
+- **React Router** — client-side routing
+- **React Markdown** — GFM rendering with syntax highlighting
+- **Firebase Auth** — authentication (Google OAuth + email/password)
 
 ---
 
@@ -63,11 +130,12 @@ The dashboard is a pure frontend — it has no backend of its own. All state liv
 ```bash
 git clone https://github.com/cheapestinference/silos.git
 cd silos
+cp .env.example .env  # fill in your Firebase config
 npm install
 npm run dev
 ```
 
-The dev server starts at `http://localhost:5173`. By default it connects to the gateway at `http://localhost:18789`. You can override this in the Settings panel inside the dashboard.
+The dev server starts at `http://localhost:3001`. Configure the gateway URL in Settings.
 
 ### Production build
 
@@ -76,48 +144,29 @@ npm run build
 # Output in ./dist
 ```
 
+### Environment Variables
+
+See [`.env.example`](.env.example) for all available configuration options.
+
 ---
 
 ## Docker
 
-Every release is published as a Docker image to the GitHub Container Registry.
+Every release is published as a Docker image to GHCR.
 
 ```bash
 docker pull ghcr.io/cheapestinference/silos:latest
+
+docker run -p 3001:3001 \
+  -e GATEWAY_TOKEN=your-token \
+  -e OWNER_EMAIL=you@example.com \
+  ghcr.io/cheapestinference/silos:latest
 ```
-
-Run it:
-
-```bash
-docker run -p 8080:80 ghcr.io/cheapestinference/silos:latest
-```
-
-Available tags:
 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Latest stable release |
-| `v1.2.3` | Specific version |
-| `main` | Built from the tip of main (may be unstable) |
-
----
-
-## Releases
-
-Releases follow [Semantic Versioning](https://semver.org/). Each release is:
-
-- Published on [GitHub Releases](https://github.com/cheapestinference/silos/releases) with a changelog entry
-- Built and pushed as a Docker image to [ghcr.io/cheapestinference/silos](https://github.com/cheapestinference/silos/pkgs/container/silos)
-
----
-
-## Configuration
-
-The gateway URL is configurable at runtime from the Settings panel — no rebuild required. You can also set it during development via a `.env` file:
-
-```env
-VITE_GATEWAY_URL=http://localhost:18789
-```
+| `v2.7.5` | Specific version |
 
 ---
 
@@ -126,12 +175,20 @@ VITE_GATEWAY_URL=http://localhost:18789
 ```
 silos/
 ├── src/
-│   ├── components/        # UI components (agents, sessions, cron, layout…)
-│   ├── store/             # Zustand global store
-│   ├── hooks/             # React hooks
-│   ├── types/             # TypeScript types
-│   ├── i18n/              # Translations (en, es, fr, de)
-│   └── lib/               # Utilities and gateway client
+│   ├── components/
+│   │   ├── views/          # Page components (Dashboard, Chat, Tasks, Cron, Settings…)
+│   │   ├── agents/         # Agent detail panels (Brain, Skills, Tools, Workspace…)
+│   │   ├── sessions/       # Session intelligence, task pipeline
+│   │   ├── layout/         # Sidebar, command palette
+│   │   └── ui/             # Shared UI components
+│   ├── store/              # Zustand store (gateway connection, streaming, state)
+│   ├── hooks/              # React hooks (auth, theme)
+│   ├── types/              # TypeScript types
+│   ├── i18n/               # Translations (en, es, fr, de)
+│   ├── lib/                # Gateway client, utilities, validation
+│   └── services/           # OpenClaw RPC service layer
+├── server.js               # Express server (static files + API proxy + gateway proxy)
+├── server/                 # Server-side routes and middleware
 ├── public/
 ├── index.html
 └── vite.config.ts
@@ -143,8 +200,6 @@ silos/
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-**Quick start:**
-
 1. Fork the repo
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make your changes and make sure `npm run build` passes
@@ -152,13 +207,13 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 
 ---
 
-## Related projects
+## Related Projects
 
 | Project | Description |
 |---------|-------------|
 | [OpenClaw](https://openclaw.ai) | The open-source AI agent framework this dashboard connects to |
-| [Silos Platform](https://github.com/cheapestinference/silosplatform) | Managed hosting platform for OpenClaw |
-| [CheapestInference](https://cheapestinference.com) | AI subscription provider — flat-rate inference powering Silos |
+| [Silos Platform](https://silosplatform.com) | Managed OpenClaw hosting with flat-rate AI inference |
+| [CheapestInference](https://cheapestinference.com) | AI inference provider powering Silos Platform |
 
 ---
 
