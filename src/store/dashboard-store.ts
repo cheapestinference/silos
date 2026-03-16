@@ -21,6 +21,8 @@ import type {
   ConfigSnapshot,
 } from '../types/openclaw';
 import { generateId } from '../lib/utils';
+import { getAgentTemplates, TEMPLATE_FILES } from '../lib/agent-templates';
+import { useI18nStore } from '../i18n';
 
 // --- Streaming buffer: coalesces WebSocket deltas to animation-frame rate (~60fps) ---
 // Chat events use replace semantics (each delta = full accumulated text).
@@ -75,6 +77,42 @@ function cancelStreamingBuffer() {
   }
   _latestStreamingText = null;
   _pendingFirstDelta = null;
+}
+
+// --- Main agent template initialization ---
+// Ensures the "main" agent has workspace templates (AGENTS.md, SOUL.md, etc.)
+// on freshly provisioned instances. Runs once per page load.
+let _mainAgentTemplatesChecked = false;
+
+async function initializeMainAgentTemplates(get: () => DashboardStore) {
+  const { token: authToken } = get();
+  try {
+    const headers: Record<string, string> = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    // List workspace files for the main agent
+    const response = await fetch('/api/memory/main', { headers });
+    const result = await response.json();
+    const files: Array<{ path: string }> = result?.files || [];
+
+    if (files.some(f => f.path === 'AGENTS.md')) return; // Already has templates
+
+    // Write templates in the user's locale
+    const locale = useI18nStore.getState().locale;
+    const templates = getAgentTemplates(locale);
+    const { writeWorkspaceFile } = get();
+
+    await Promise.all(
+      TEMPLATE_FILES.map(file => {
+        const content = templates[file];
+        if (content) return writeWorkspaceFile('main', file, content);
+        return Promise.resolve(true);
+      })
+    );
+    console.log(`[Dashboard] Initialized main agent templates (locale: ${locale})`);
+  } catch (err) {
+    console.warn('[Dashboard] Could not initialize main agent templates:', err);
+  }
 }
 
 interface DashboardStore {
@@ -441,6 +479,12 @@ export const useDashboardStore = create<DashboardStore>()(
         try {
           const agents = await client.listAgents();
           set({ agents, agentsLoading: false });
+
+          // On first load, ensure the "main" agent has workspace templates
+          if (!_mainAgentTemplatesChecked && agents.some(a => a.id === 'main')) {
+            _mainAgentTemplatesChecked = true;
+            initializeMainAgentTemplates(get).catch(() => {});
+          }
         } catch (error) {
           set({ agentsLoading: false, error: String(error) });
         }
