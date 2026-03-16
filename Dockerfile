@@ -29,6 +29,7 @@ COPY server/ ./server/
 EXPOSE 3001
 ENV PORT=3001 \
     NODE_ENV=production \
-    OPENCLAW_PORT=18789
+    OPENCLAW_PORT=18789 \
+    FIREBASE_PROJECT_ID=silos-4352a
 
 CMD ["node", "server.js"]

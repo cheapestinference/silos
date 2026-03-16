@@ -20,7 +20,7 @@ const OPENCLAW_BASE = process.env.OPENCLAW_BASE || '/home/openclaw/.openclaw';
 const OPENCLAW_PORT = process.env.OPENCLAW_PORT || '18789';
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || '';
 const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || '';
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
 
 let openclawVersion = process.env.OPENCLAW_VERSION || null;
 if (!openclawVersion) {
