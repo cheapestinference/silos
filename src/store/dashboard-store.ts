@@ -481,7 +481,7 @@ export const useDashboardStore = create<DashboardStore>()(
           set({ agents, agentsLoading: false });
 
           // On first load, ensure the "main" agent has workspace templates
-          if (!_mainAgentTemplatesChecked && agents.some(a => a.id === 'main')) {
+          if (!_mainAgentTemplatesChecked && agents.agents?.some(a => a.id === 'main')) {
             _mainAgentTemplatesChecked = true;
             initializeMainAgentTemplates(get).catch(() => {});
           }
