@@ -7,6 +7,8 @@
 [![Docker Image](https://img.shields.io/badge/ghcr.io-silos-blue)](https://github.com/cheapestinference/silos/pkgs/container/silos)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+![Silos Dashboard](docs/screenshots/silos-home.png)
+
 ---
 
 ## What is Silos Dashboard?
@@ -24,6 +26,10 @@ Silos Dashboard is a modern, multilingual web UI that connects to an **OpenClaw 
 - 🌐 **i18n** — English, Spanish, French and German out of the box
 - 🌗 **Theme** — respects your OS dark/light preference, fully toggleable
 - 🔌 **Gateway-first** — talks to any OpenClaw gateway instance via configurable URL
+
+| Chat Sessions | Channel Management |
+|:---:|:---:|
+| ![Chat](docs/screenshots/chat-view.png) | ![Channels](docs/screenshots/channels-settings.png) |
 
 ---
 
