@@ -7,7 +7,7 @@
 [![Docker Image](https://img.shields.io/badge/ghcr.io-silos-blue)](https://github.com/cheapestinference/silos/pkgs/container/silos)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-![Silos Dashboard](docs/screenshots/silos-home.png)
+![Silos Dashboard](docs/screenshots/chat-view.png)
 
 ---
 
