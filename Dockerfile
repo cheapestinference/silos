@@ -1,6 +1,13 @@
 # Build stage — compile React frontend
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Firebase config passed at build time (Vite bakes VITE_* into the bundle)
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_GA_ID
+
 COPY package*.json ./
 RUN npm ci
 COPY . .
@@ -22,7 +29,6 @@ COPY server/ ./server/
 EXPOSE 3001
 ENV PORT=3001 \
     NODE_ENV=production \
-    OPENCLAW_PORT=18789 \
-    FIREBASE_PROJECT_ID=silos-4352a
+    OPENCLAW_PORT=18789
 
 CMD ["node", "server.js"]

@@ -1,7 +1,13 @@
 {
-  "name": "dashboardopenclaw",
-  "private": true,
+  "name": "silos",
+  "description": "Dashboard for managing OpenClaw AI agents, sessions, and channels",
   "version": "2.7.3",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cheapestinference/silos"
+  },
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",

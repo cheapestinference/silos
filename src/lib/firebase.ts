@@ -11,11 +11,10 @@ import {
   type User,
 } from 'firebase/auth';
 
-// Same Firebase project as the landing page (silos-4352a)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAyfXeeLwvElR8TVh81YuNt3C6miDi7rqY',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'silos-4352a.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'silos-4352a',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
 };
 
 let app: FirebaseApp | null = null;

@@ -7,13 +7,20 @@
     <meta name="theme-color" content="#111118" />
     <meta name="description" content="Silos - Manage AI agents, sessions, and automation" />
     <title>Silos Dashboard</title>
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-D0668PRSDQ"></script>
+    <!-- Google Analytics (only loads if VITE_GA_ID is set at build time) -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-D0668PRSDQ', { send_page_view: false });
+      window.__GA_ID = '%VITE_GA_ID%';
+      if (window.__GA_ID && !window.__GA_ID.startsWith('%')) {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + window.__GA_ID;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', window.__GA_ID, { send_page_view: false });
+      }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
