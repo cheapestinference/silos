@@ -25,6 +25,7 @@ RUN node -e "const p=require('./package-full.json'); const s={type:'module',vers
 COPY --from=builder /app/dist ./dist
 COPY server.js .
 COPY server/ ./server/
+COPY templates/ ./templates/
 
 EXPOSE 3001
 ENV PORT=3001 \

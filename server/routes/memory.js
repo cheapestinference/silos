@@ -26,18 +26,17 @@ async function getDefaultAgentId(openclawBase) {
 }
 
 async function resolveAgentDir(openclawBase, agentId) {
-  // Match the gateway's resolveAgentWorkspaceDir() path resolution:
-  // 1. workspace-{id} (gateway convention for non-default agents)
-  // 2. agents/{id}/workspace (legacy)
-  // 3. workspace/ (only for the default agent — bare workspace dir)
-  const candidates = [
-    path.join(openclawBase, `workspace-${agentId}`),
-    path.join(openclawBase, 'agents', agentId, 'workspace'),
-  ];
+  // Match the gateway's resolveAgentWorkspaceDir() path resolution.
+  // For the default agent, prefer workspace/ (gateway's actual path) over workspace-{id}.
   const defaultId = await getDefaultAgentId(openclawBase);
+  const candidates = [];
   if (agentId === defaultId) {
     candidates.push(path.join(openclawBase, 'workspace'));
   }
+  candidates.push(
+    path.join(openclawBase, `workspace-${agentId}`),
+    path.join(openclawBase, 'agents', agentId, 'workspace'),
+  );
   for (const dir of candidates) {
     try { await fs.access(dir); return dir; } catch {}
   }
@@ -47,8 +46,12 @@ async function resolveAgentDir(openclawBase, agentId) {
 async function ensureAgentDir(openclawBase, agentId) {
   const existing = await resolveAgentDir(openclawBase, agentId);
   if (existing) return existing;
-  // Create at the gateway's expected path: workspace-{id}
-  const dir = path.join(openclawBase, `workspace-${agentId}`);
+  // For the default agent, create workspace/ (gateway's actual path).
+  // For other agents, use workspace-{id}.
+  const defaultId = await getDefaultAgentId(openclawBase);
+  const dir = agentId === defaultId
+    ? path.join(openclawBase, 'workspace')
+    : path.join(openclawBase, `workspace-${agentId}`);
   await fs.mkdir(dir, { recursive: true });
   return dir;
 }
