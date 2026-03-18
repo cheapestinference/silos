@@ -2329,13 +2329,15 @@ export const useDashboardStore = create<DashboardStore>()(
 
       handleHello: (_hello) => {
         // Load initial data after connection.
-        // The gateway may still be initializing (models/agents can take >60s on cold start).
-        // If agents or models come back empty, retry once after a short delay.
+        // The gateway may still be initializing (providers/models can take >60s on cold start).
+        // If models or gateway config come back empty, retry once after a short delay.
         get().loadAll().then(() => {
-          const { agents, models } = get();
-          const hasAgents = agents?.agents && agents.agents.length > 0;
+          const { models, gatewayConfig } = get();
           const hasModels = models?.models && models.models.length > 0;
-          if (!hasAgents || !hasModels) {
+          const cfg = gatewayConfig?.config as Record<string, unknown> | undefined;
+          const providers = (cfg?.models as Record<string, unknown>)?.providers as Record<string, unknown> | undefined;
+          const hasProviders = providers && Object.keys(providers).length > 0;
+          if (!hasModels || !hasProviders) {
             setTimeout(() => get().loadAll(), 5000);
           }
         });
