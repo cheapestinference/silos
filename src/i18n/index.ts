@@ -22,12 +22,20 @@ const translations: Record<Locale, typeof en> = {
   de,
 };
 
-// Detect locale: silos-locale cookie > browser language > 'en'
+// Read locale from silos-locale cookie (set by server from provisioning env)
+function getCookieLocale(): Locale | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)silos-locale=([a-z]{2})/);
+  if (match && match[1] in locales) return match[1] as Locale;
+  return null;
+}
+
+// Detect locale: cookie > browser language > 'en'
 function detectLocale(): Locale {
-  if (typeof document !== 'undefined') {
-    const match = document.cookie.match(/(?:^|;\s*)silos-locale=([a-z]{2})/);
-    if (match && match[1] in locales) return match[1] as Locale;
-  }
+  return getCookieLocale() || detectBrowserLocale();
+}
+
+function detectBrowserLocale(): Locale {
   if (typeof navigator !== 'undefined') {
     const browserLang = navigator.language.split('-')[0];
     if (browserLang in locales) return browserLang as Locale;
@@ -84,6 +92,13 @@ export const useI18nStore = create<I18nStore>()(
     }),
     {
       name: 'silos-i18n',
+      // Cookie (set by server from provisioning) always wins over localStorage
+      merge: (persisted, current) => {
+        const cookie = getCookieLocale();
+        if (cookie) return { ...current, locale: cookie };
+        const stored = (persisted as Partial<I18nStore>)?.locale;
+        return { ...current, locale: stored || current.locale };
+      },
     }
   )
 );
