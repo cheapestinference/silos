@@ -22,12 +22,16 @@ const translations: Record<Locale, typeof en> = {
   de,
 };
 
-// Detect browser language
-function detectBrowserLanguage(): Locale {
-  if (typeof navigator === 'undefined') return 'en';
-
-  const browserLang = navigator.language.split('-')[0];
-  if (browserLang in locales) return browserLang as Locale;
+// Detect locale: silos-locale cookie > browser language > 'en'
+function detectLocale(): Locale {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|;\s*)silos-locale=([a-z]{2})/);
+    if (match && match[1] in locales) return match[1] as Locale;
+  }
+  if (typeof navigator !== 'undefined') {
+    const browserLang = navigator.language.split('-')[0];
+    if (browserLang in locales) return browserLang as Locale;
+  }
   return 'en';
 }
 
@@ -75,7 +79,7 @@ interface I18nStore {
 export const useI18nStore = create<I18nStore>()(
   persist(
     (set) => ({
-      locale: detectBrowserLanguage(),
+      locale: detectLocale(),
       setLocale: (locale) => set({ locale }),
     }),
     {
