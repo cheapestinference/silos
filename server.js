@@ -21,6 +21,7 @@ const OPENCLAW_PORT = process.env.OPENCLAW_PORT || '18789';
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || '';
 const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
+const USER_LOCALE = process.env.USER_LOCALE || '';
 
 let openclawVersion = process.env.OPENCLAW_VERSION || null;
 if (!openclawVersion) {
@@ -69,6 +70,9 @@ app.use(express.static(path.join(__dirname, 'dist'), {
     else if (filePath.match(/\.(js|css)$/)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   }
 }));
+
+// Locale endpoint (no auth — read by frontend i18n on first load)
+app.get('/api/locale', (_req, res) => res.json({ locale: USER_LOCALE || null }));
 
 // Routes
 app.use(createApiRouter(config, authMiddleware, OPENCLAW_BASE));
