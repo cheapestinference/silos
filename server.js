@@ -46,6 +46,14 @@ app.set('trust proxy', 'loopback');
 
 app.use(express.json({ limit: '1mb' }));
 
+// Set locale cookie from provisioning env (so frontend i18n picks it up)
+if (USER_LOCALE) {
+  app.use((_req, res, next) => {
+    res.cookie('silos-locale', USER_LOCALE, { maxAge: 365 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    next();
+  });
+}
+
 // CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -70,9 +78,6 @@ app.use(express.static(path.join(__dirname, 'dist'), {
     else if (filePath.match(/\.(js|css)$/)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   }
 }));
-
-// Locale endpoint (no auth — read by frontend i18n on first load)
-app.get('/api/locale', (_req, res) => res.json({ locale: USER_LOCALE || null }));
 
 // Routes
 app.use(createApiRouter(config, authMiddleware, OPENCLAW_BASE));

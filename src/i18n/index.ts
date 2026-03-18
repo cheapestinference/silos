@@ -88,15 +88,6 @@ export const useI18nStore = create<I18nStore>()(
   )
 );
 
-// On first load, check server-side locale (set during VPS provisioning).
-// Only applies if no locale was previously persisted in localStorage.
-if (typeof window !== 'undefined' && !localStorage.getItem('silos-i18n')) {
-  fetch('/api/locale').then(r => r.json()).then(data => {
-    if (data?.locale && data.locale in locales) {
-      useI18nStore.setState({ locale: data.locale as Locale });
-    }
-  }).catch(() => {});
-}
 
 // Main translation hook
 export function useTranslation() {
