@@ -1,16 +1,17 @@
+
 # TOOLS.md - Lokale Notizen
 
-Skills definieren _wie_ Werkzeuge funktionieren. Diese Datei ist fuer _deine_ Besonderheiten — das, was einzigartig an deiner Konfiguration ist.
+Skills definieren, _wie_ Tools funktionieren. Diese Datei ist für _deine_ Besonderheiten — alles, was einzigartig für dein Setup ist.
 
-## Was Kommt Hierhin
+## Was hier reingehört
 
-Dinge wie:
+Zum Beispiel:
 
-- Kameranamen und Standorte
+- Kameranamen und -standorte
 - SSH-Hosts und Aliase
-- Bevorzugte Stimmen fuer TTS
+- Bevorzugte Stimmen für TTS
 - Lautsprecher-/Raumnamen
-- Geraetespitznamen
+- Geräte-Spitznamen
 - Alles Umgebungsspezifische
 
 ## Beispiele
@@ -18,23 +19,23 @@ Dinge wie:
 ```markdown
 ### Kameras
 
-- wohnzimmer -> Hauptbereich, 180 Weitwinkel
-- haustuer -> Eingang, bewegungsausgeloest
+- living-room → Hauptbereich, 180°-Weitwinkel
+- front-door → Eingang, bewegungsgesteuert
 
 ### SSH
 
-- heimserver -> 192.168.1.100, Benutzer: admin
+- home-server → 192.168.1.100, user: admin
 
 ### TTS
 
 - Bevorzugte Stimme: "Nova" (warm, leicht britisch)
-- Standard-Lautsprecher: Kuechen-HomePod
+- Standard-Lautsprecher: Küche HomePod
 ```
 
-## Warum Getrennt?
+## Warum getrennt?
 
-Skills werden geteilt. Deine Konfiguration gehoert dir. Sie getrennt zu halten bedeutet, dass du Skills aktualisieren kannst ohne deine Notizen zu verlieren, und Skills teilen kannst ohne deine Infrastruktur preiszugeben.
+Skills werden geteilt. Dein Setup gehört dir. Sie getrennt zu halten bedeutet, dass du Skills aktualisieren kannst, ohne deine Notizen zu verlieren, und Skills teilen kannst, ohne deine Infrastruktur preiszugeben.
 
 ---
 
-Fuege alles hinzu, was dir bei der Arbeit hilft. Das ist dein Spickzettel.
+Trag ein, was dir bei der Arbeit hilft. Das ist dein Spickzettel.

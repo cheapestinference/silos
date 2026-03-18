@@ -1,40 +1,41 @@
+
 # TOOLS.md - Notes Locales
 
-Les skills definissent _comment_ les outils fonctionnent. Ce fichier est pour _tes_ details specifiques — ce qui est unique a ta configuration.
+Les skills définissent _comment_ les outils fonctionnent. Ce fichier est pour _tes_ spécificités — ce qui est unique à ta configuration.
 
 ## Quoi Mettre Ici
 
 Des choses comme :
 
-- Noms et emplacements des cameras
-- Hotes SSH et alias
-- Voix preferees pour le TTS
-- Noms des enceintes/pieces
+- Noms et emplacements des caméras
+- Hôtes SSH et alias
+- Voix préférées pour le TTS
+- Noms des enceintes/pièces
 - Surnoms des appareils
-- Tout ce qui est specifique a ton environnement
+- Tout ce qui est spécifique à ton environnement
 
 ## Exemples
 
 ```markdown
-### Cameras
+### Caméras
 
-- salon -> Zone principale, grand angle 180
-- porte-entree -> Entree, declenchee par mouvement
+- salon → Zone principale, grand angle 180°
+- porte-entrée → Entrée, déclenchée par mouvement
 
 ### SSH
 
-- serveur-maison -> 192.168.1.100, utilisateur: admin
+- serveur-maison → 192.168.1.100, utilisateur : admin
 
 ### TTS
 
-- Voix preferee : "Nova" (chaleureuse, legerement britannique)
-- Enceinte par defaut : HomePod de la cuisine
+- Voix préférée : "Nova" (chaleureuse, légèrement britannique)
+- Enceinte par défaut : HomePod de la cuisine
 ```
 
-## Pourquoi Separer ?
+## Pourquoi Séparer ?
 
-Les skills sont partages. Ta configuration est la tienne. Les garder separes signifie que tu peux mettre a jour les skills sans perdre tes notes, et partager les skills sans exposer ton infrastructure.
+Les skills sont partagés. Ta configuration est la tienne. Les garder séparés signifie que tu peux mettre à jour les skills sans perdre tes notes, et partager les skills sans exposer ton infrastructure.
 
 ---
 
-Ajoute tout ce qui t'aide a faire ton travail. C'est ton aide-memoire.
+Ajoute tout ce qui t'aide à faire ton travail. C'est ton aide-mémoire.

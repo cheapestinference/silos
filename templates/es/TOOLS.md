@@ -1,40 +1,41 @@
+
 # TOOLS.md - Notas Locales
 
-Los skills definen _como_ funcionan las herramientas. Este archivo es para _tus_ detalles especificos — lo que es unico de tu configuracion.
+Los skills definen _cómo_ funcionan las herramientas. Este archivo es para _tus_ detalles — lo que es único de tu configuración.
 
-## Que Va Aqui
+## Qué Va Aquí
 
 Cosas como:
 
-- Nombres y ubicaciones de camaras
-- Hosts SSH y alias
+- Nombres y ubicaciones de cámaras
+- Hosts y alias SSH
 - Voces preferidas para TTS
 - Nombres de altavoces/habitaciones
 - Apodos de dispositivos
-- Cualquier cosa especifica de tu entorno
+- Cualquier cosa específica de tu entorno
 
 ## Ejemplos
 
 ```markdown
-### Camaras
+### Cámaras
 
-- salon -> Area principal, angulo amplio 180
-- puerta-principal -> Entrada, activada por movimiento
+- living-room → Área principal, gran angular 180°
+- front-door → Entrada, activada por movimiento
 
 ### SSH
 
-- servidor-casa -> 192.168.1.100, usuario: admin
+- home-server → 192.168.1.100, usuario: admin
 
 ### TTS
 
-- Voz preferida: "Nova" (calida, ligeramente britanica)
+- Voz preferida: "Nova" (cálida, ligeramente británica)
 - Altavoz por defecto: HomePod de la cocina
 ```
 
-## Por Que Separado?
+## ¿Por Qué Separado?
 
-Los skills son compartidos. Tu configuracion es tuya. Mantenerlos separados significa que puedes actualizar skills sin perder tus notas, y compartir skills sin exponer tu infraestructura.
+Los skills se comparten. Tu configuración es tuya. Mantenerlos separados significa que puedes actualizar skills sin perder tus notas, y compartir skills sin exponer tu infraestructura.
 
 ---
 
-Anade lo que te ayude a hacer tu trabajo. Esta es tu chuleta.
+Añade lo que te ayude a hacer tu trabajo. Esta es tu chuleta.

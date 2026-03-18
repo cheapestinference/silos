@@ -1,14 +1,18 @@
+
 # USER.md - About Your Human
 
-**Name:** (pending)
-**What to call them:** (you/formal — as they prefer)
-**Pronouns:** (optional)
-**Timezone:** (detected from system)
-**Notes:**
+_Learn about the person you're helping. Update this as you go._
+
+- **Name:**
+- **What to call them:**
+- **Pronouns:** _(optional)_
+- **Timezone:**
+- **Notes:**
 
 ## Context
-_We'll fill this in as we talk. Projects, interests, whatever you want to share._
+
+_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
 
 ---
 
-Let's get started.
+The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
