@@ -46,13 +46,10 @@ app.set('trust proxy', 'loopback');
 
 app.use(express.json({ limit: '1mb' }));
 
-// Set locale cookie from provisioning env (so frontend i18n picks it up)
-if (USER_LOCALE) {
-  app.use((_req, res, next) => {
-    res.cookie('silos-locale', USER_LOCALE, { maxAge: 365 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
-    next();
-  });
-}
+// Locale cookie is set by the landing page on .silosplatform.com (covers all subdomains).
+// The dashboard frontend reads it as the initial seed, then localStorage takes over.
+// We intentionally do NOT set a server-side cookie here to avoid overriding the user's
+// explicit language choice on every response.
 
 // CORS
 app.use((req, res, next) => {

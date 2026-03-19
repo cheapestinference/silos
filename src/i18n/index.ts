@@ -92,12 +92,15 @@ export const useI18nStore = create<I18nStore>()(
     }),
     {
       name: 'silos-i18n',
-      // Cookie (set by server from provisioning) always wins over localStorage
+      // localStorage (user's explicit choice) wins over cookie.
+      // Cookie from landing page (.silosplatform.com) is only used as initial seed
+      // when no localStorage preference exists yet.
       merge: (persisted, current) => {
+        const stored = (persisted as Partial<I18nStore>)?.locale;
+        if (stored && stored in locales) return { ...current, locale: stored };
         const cookie = getCookieLocale();
         if (cookie) return { ...current, locale: cookie };
-        const stored = (persisted as Partial<I18nStore>)?.locale;
-        return { ...current, locale: stored || current.locale };
+        return current;
       },
     }
   )
