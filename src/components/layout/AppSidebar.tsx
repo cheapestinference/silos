@@ -28,6 +28,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
 import { CreateChannelModal } from '../modals/CreateChannelModal';
+import { UsageBar } from './UsageBar';
 
 // Parse session key to extract agent ID and session type
 interface ParsedSession {
@@ -550,6 +551,9 @@ export function AppSidebar() {
           </div>
         )}
       </div>
+
+      {/* Usage Bar */}
+      <UsageBar />
 
       {/* Footer Actions */}
       <div className="px-2 py-2 flex items-center gap-1 border-t border-sidebar-border">

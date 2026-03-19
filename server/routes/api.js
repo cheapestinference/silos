@@ -10,6 +10,13 @@ import { isAllowedProxyUrl } from '../validation.js';
 
 const execFileAsync = promisify(execFile);
 
+/** Parse JSON that may have trailing commas (OpenClaw config files) */
+function parseRelaxedJson(text) {
+  // Strip trailing commas before } or ]
+  const cleaned = text.replace(/,\s*([}\]])/g, '$1');
+  return JSON.parse(cleaned);
+}
+
 export function createApiRouter(config, authMiddleware, openclawBase) {
   const router = Router();
   const { appVersion, openclawVersion, ownerEmail, gatewayToken, openclawPort, firebaseProjectId } = config;
@@ -89,6 +96,45 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
+  // LLM provider usage (proxied to avoid exposing API key to frontend)
+  router.get('/api/usage', authMiddleware, async (_req, res) => {
+    try {
+      let baseUrl = '', apiKey = '';
+      try {
+        const configPath = path.join(openclawBase, 'openclaw.json');
+        const raw = await fs.readFile(configPath, 'utf8');
+        const config = parseRelaxedJson(raw);
+        const providers = config?.models?.providers;
+        if (providers && typeof providers === 'object') {
+          const first = Object.values(providers)[0];
+          if (first?.baseUrl) {
+            baseUrl = String(first.baseUrl).replace(/\/+$/, '');
+            apiKey = first.apiKey ? String(first.apiKey) : '';
+          }
+        }
+      } catch { /* config not readable */ }
+      if (!baseUrl && process.env.LLM_PROXY_URL) {
+        baseUrl = process.env.LLM_PROXY_URL.replace(/\/+$/, '');
+        apiKey = process.env.LLM_PROXY_KEY || '';
+      }
+      if (!baseUrl || !apiKey) return res.json(null);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const usageUrl = baseUrl.endsWith('/v1') ? `${baseUrl}/usage` : `${baseUrl}/v1/usage`;
+      const response = await fetch(usageUrl, {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) return res.json(null);
+      const data = await response.json();
+      res.json(data);
+    } catch {
+      res.json(null);
+    }
+  });
+
   // Fetch available models from LLM providers configured in openclaw.json
   // Reads provider config (with real API keys) directly from the filesystem,
   // since the gateway's config.get RPC redacts apiKey fields.
@@ -99,7 +145,7 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
       try {
         const configPath = path.join(openclawBase, 'openclaw.json');
         const raw = await fs.readFile(configPath, 'utf8');
-        const config = JSON.parse(raw);
+        const config = parseRelaxedJson(raw);
         const cfgProviders = config?.models?.providers;
         if (cfgProviders && typeof cfgProviders === 'object') {
           for (const [name, p] of Object.entries(cfgProviders)) {

@@ -1077,6 +1077,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     sendMessage,
     chatLoading,
     chatSending: chatSendingMap,
+    activeRunId: activeRunIdMap,
     streamingContent,
     streamingComplete,
     streamingRunId,
@@ -1164,10 +1165,11 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   // Get per-session sending state
   const chatSending = chatSendingMap.get(sessionKey) || false;
+  const hasActiveRun = !!activeRunIdMap.get(sessionKey);
 
   // Agent working state (for status dot)
   const tasks = useDashboardStore((s) => s.tasks);
-  const isAgentWorking = chatSending || tasks.some(
+  const isAgentWorking = chatSending || hasActiveRun || tasks.some(
     t => t.status === 'running' && t.sessionKey === effectiveKey
   );
 
@@ -1291,14 +1293,25 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     }
   }, []);
 
+  const STOP_COMMANDS = new Set(['stop', '/stop', 'abort', '/abort', 'esc', '/esc']);
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (isRateLimited) return;
-    if (inputRef.current?.value.trim()) {
-      sendMessage(inputRef.current.value);
-      inputRef.current.value = '';
-      inputRef.current.style.height = 'auto';
+    const text = inputRef.current?.value.trim();
+    if (!text) return;
+
+    // Intercept stop commands when agent is working
+    if (STOP_COMMANDS.has(text.toLowerCase()) && isAgentWorking) {
+      inputRef.current!.value = '';
+      inputRef.current!.style.height = 'auto';
+      useDashboardStore.getState().abortChat();
+      return;
     }
+
+    sendMessage(text);
+    inputRef.current!.value = '';
+    inputRef.current!.style.height = 'auto';
   };
 
   const scrollToBottom = useCallback(() => {
@@ -1496,7 +1509,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
                 {/* Send button (always available) + Abort button when processing */}
                 <div className="flex items-center gap-2">
-                  {chatSending && (
+                  {(chatSending || hasActiveRun || isAgentWorking) && (
                     <Button
                       type="button"
                       onClick={() => {

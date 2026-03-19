@@ -984,9 +984,6 @@ export const useDashboardStore = create<DashboardStore>()(
         if (!client || !selectedSessionKey) return;
 
         const runId = activeRunId.get(selectedSessionKey);
-        if (!runId) {
-          return;
-        }
 
         // Translate DM sessionKey to effective key
         let effectiveSessionKey = selectedSessionKey;
@@ -996,7 +993,9 @@ export const useDashboardStore = create<DashboardStore>()(
         }
 
         try {
-          await client.abortChat(effectiveSessionKey, runId);
+          // Send abort even without runId — gateway accepts sessionKey-only abort
+          // to handle cases where the page was refreshed mid-run
+          await client.abortChat(effectiveSessionKey, runId || undefined);
 
           const newActiveRunId = new Map(activeRunId);
           newActiveRunId.delete(selectedSessionKey);
@@ -1010,7 +1009,7 @@ export const useDashboardStore = create<DashboardStore>()(
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
             tasks: tasks.map((t) =>
-              t.runId === runId ? { ...t, status: 'aborted', completedAt: Date.now() } : t
+              (runId && t.runId === runId) ? { ...t, status: 'aborted', completedAt: Date.now() } : t
             ),
             streamingContent: '',
             streamingRunId: null,
@@ -1021,7 +1020,19 @@ export const useDashboardStore = create<DashboardStore>()(
 
         } catch (error) {
           console.error('[Abort] Failed:', error);
-          set({ error: String(error) });
+          // Still clear local state even if gateway abort fails
+          const newActiveRunId = new Map(get().activeRunId);
+          newActiveRunId.delete(selectedSessionKey);
+          const newChatSending = new Map(get().chatSending);
+          newChatSending.delete(selectedSessionKey);
+          cancelStreamingBuffer();
+          set({
+            activeRunId: newActiveRunId,
+            chatSending: newChatSending,
+            streamingContent: '',
+            streamingRunId: null,
+            streamingComplete: false,
+          });
         }
       },
 
@@ -2328,6 +2339,17 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       handleHello: (_hello) => {
+        // Reset orphaned in-flight state from before disconnect.
+        // Any run's final event was lost during the disconnect window.
+        cancelStreamingBuffer();
+        set({
+          chatSending: new Map(),
+          activeRunId: new Map(),
+          streamingContent: '',
+          streamingRunId: null,
+          streamingComplete: false,
+        });
+
         // Load initial data after connection.
         // The gateway may still be initializing (providers/models can take >60s on cold start).
         // If models or gateway config come back empty, retry once after a short delay.
