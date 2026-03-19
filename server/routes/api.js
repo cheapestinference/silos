@@ -276,6 +276,40 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
       try {
         await fs.access(skillPath);
         console.log('[ClawHub Install] OK:', skillPath);
+
+        // Fix ownership: clawhub runs as container user (often root), but OpenClaw
+        // gateway runs as 'openclaw' and needs to read skill files.
+        try {
+          await execFileAsync('chown', ['-R', 'openclaw:openclaw', skillPath], { timeout: 5000 });
+        } catch { /* chown may fail in dev/non-root — non-fatal */ }
+
+        // Auto-install npm dependencies declared in skill metadata
+        try {
+          const skillMd = await fs.readFile(path.join(skillPath, 'SKILL.md'), 'utf8');
+          const fmMatch = skillMd.match(/^---\n([\s\S]*?)\n---/);
+          if (fmMatch) {
+            const metaMatch = fmMatch[1].match(/^metadata:\s*(.+)$/m);
+            if (metaMatch) {
+              const meta = JSON.parse(metaMatch[1]);
+              const installs = meta?.openclaw?.install || [];
+              for (const step of installs) {
+                if (step.kind === 'node' && step.package) {
+                  console.log(`[ClawHub Install] Installing npm dep: ${step.package}`);
+                  try {
+                    await execFileAsync('npm', ['install', '-g', step.package], {
+                      timeout: 60000,
+                      env: { ...process.env, HOME: openclawBase },
+                    });
+                    console.log(`[ClawHub Install] npm dep installed: ${step.package}`);
+                  } catch (npmErr) {
+                    console.warn(`[ClawHub Install] npm dep failed: ${step.package}`, npmErr.stderr || npmErr.message);
+                  }
+                }
+              }
+            }
+          }
+        } catch { /* metadata parsing failed — non-fatal */ }
+
         res.json({ ok: true, output: stdout || stderr });
       } catch {
         console.log('[ClawHub Install] FAIL: not found at', skillPath, 'stdout:', stdout, 'stderr:', stderr);

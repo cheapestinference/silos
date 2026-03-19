@@ -1016,7 +1016,8 @@ export const useDashboardStore = create<DashboardStore>()(
             streamingComplete: false,
           });
 
-          // Do NOT dispatch next queued message — let the user decide via Clear Queue
+          // Dispatch next queued message — agent is now free
+          setTimeout(() => get()._dispatchNextQueued(selectedSessionKey), 100);
 
         } catch (error) {
           console.error('[Abort] Failed:', error);
@@ -1033,6 +1034,8 @@ export const useDashboardStore = create<DashboardStore>()(
             streamingRunId: null,
             streamingComplete: false,
           });
+          // Still try to dispatch queued messages
+          setTimeout(() => get()._dispatchNextQueued(selectedSessionKey), 100);
         }
       },
 
