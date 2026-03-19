@@ -91,7 +91,7 @@ export const useI18nStore = create<I18nStore>()(
       setLocale: (locale) => set({ locale }),
     }),
     {
-      name: 'silos-i18n',
+      name: 'silos-i18n-v2',
       // localStorage (user's explicit choice) wins over cookie.
       // Cookie from landing page (.silosplatform.com) is only used as initial seed
       // when no localStorage preference exists yet.
