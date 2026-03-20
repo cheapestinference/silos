@@ -83,8 +83,17 @@ app.use(createAdminRouter(GATEWAY_TOKEN));
 
 // Gateway proxy (HTTP for /openclaw control UI)
 // Redirect logic for /openclaw → /openclaw/ is inside httpMiddleware (proxy.js)
-const { httpMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
+const { httpMiddleware, browserMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
 app.use('/openclaw', httpMiddleware);
+
+// Browser noVNC proxy — auth via ?token= query param (gateway token)
+app.use('/browser', (req, res, next) => {
+  const token = req.query.token || req.headers['authorization']?.replace('Bearer ', '');
+  if (token !== GATEWAY_TOKEN) {
+    return res.status(403).json({ error: 'Invalid browser token' });
+  }
+  next();
+}, browserMiddleware);
 
 // SPA catch-all
 app.use((req, res, next) => {
@@ -98,7 +107,7 @@ app.use((req, res, next) => {
 
 // --- Server ---
 const server = createServer(app);
-server.on('upgrade', upgradeHandler);
+server.on('upgrade', (req, socket, head) => upgradeHandler(req, socket, head, GATEWAY_TOKEN));
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Silos Dashboard v${pkg.version} listening on 127.0.0.1:${PORT}`);

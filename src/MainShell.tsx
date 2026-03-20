@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { CommandPalette } from './components/layout/CommandPalette';
+import { BrowserPanel } from './components/layout/BrowserPanel';
 import { ToastProvider, useToast } from './components/ui/toast';
 import { useDashboardStore } from './store/dashboard-store';
 import useTranslation from './i18n';
@@ -72,6 +73,7 @@ function ConnectionOverlay() {
 
 export function MainShell() {
   const { connected, token } = useDashboardStore();
+  const [browserOpen, setBrowserOpen] = useState(false);
 
   // No token at all → redirect to login
   if (!token) {
@@ -81,10 +83,11 @@ export function MainShell() {
   return (
     <ToastProvider>
       <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
-        <AppSidebar />
+        <AppSidebar onBrowserToggle={() => setBrowserOpen(o => !o)} browserOpen={browserOpen} />
         <main className="flex-1 flex flex-col min-w-0">
           <Outlet />
         </main>
+        <BrowserPanel open={browserOpen} onClose={() => setBrowserOpen(false)} />
         <CommandPalette />
       </div>
       {/* Overlay when disconnected but have token (reconnecting) */}

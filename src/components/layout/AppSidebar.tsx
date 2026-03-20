@@ -23,6 +23,7 @@ import {
   X,
   Pencil,
   ExternalLink,
+  Monitor,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
@@ -196,7 +197,7 @@ function getAgentColor(agentId: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function AppSidebar() {
+export function AppSidebar({ onBrowserToggle, browserOpen }: { onBrowserToggle?: () => void; browserOpen?: boolean }) {
   const {
     agents,
     sessions,
@@ -627,6 +628,28 @@ export function AppSidebar() {
             <span className="text-xs">{t('nav.settings')}</span>
           </TooltipContent>
         </Tooltip>
+
+        {/* Browser Viewer */}
+        {connected && onBrowserToggle && (
+          <Tooltip>
+            <TooltipTrigger>
+              <button
+                onClick={onBrowserToggle}
+                className={cn(
+                  "w-7 h-7 rounded flex items-center justify-center transition-colors",
+                  browserOpen
+                    ? "bg-primary text-white"
+                    : "text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover"
+                )}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <span className="text-xs">Remote Browser</span>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {/* OpenClaw Control UI */}
         {connected && (

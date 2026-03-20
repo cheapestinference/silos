@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+  #screen { width: 100%; height: 100%; }
+  #status {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    text-align: center; padding: 8px;
+    font: 12px/1 -apple-system, sans-serif;
+    color: #888; background: rgba(0,0,0,0.7);
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+  #status.connected { opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="screen"></div>
+<div id="status">Connecting...</div>
+<script type="module">
+  // noVNC lives on the same origin as this page (served from the container)
+  import RFB from './core/rfb.js';
+
+  const params = new URLSearchParams(window.location.search);
+  const password = params.get('password') || '';
+  const host = params.get('host') || window.location.hostname;
+  const port = params.get('port') || window.location.port;
+  const path = params.get('path') || 'websockify';
+  const statusEl = document.getElementById('status');
+
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = `${proto}://${host}${port ? ':' + port : ''}/${path}`;
+
+  const rfb = new RFB(document.getElementById('screen'), url, {
+    credentials: { password },
+    wsProtocols: [],
+  });
+
+  rfb.scaleViewport = true;
+  rfb.resizeSession = true;
+
+  rfb.addEventListener('connect', () => {
+    statusEl.textContent = 'Connected';
+    statusEl.classList.add('connected');
+  });
+
+  rfb.addEventListener('disconnect', (e) => {
+    statusEl.textContent = e.detail.clean ? 'Disconnected' : 'Connection lost';
+    statusEl.classList.remove('connected');
+  });
+
+  rfb.addEventListener('credentialsrequired', () => {
+    const pw = prompt('VNC Password:');
+    if (pw) rfb.sendCredentials({ password: pw });
+  });
+</script>
+</body>
+</html>

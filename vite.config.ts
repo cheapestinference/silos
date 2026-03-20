@@ -49,6 +49,12 @@ export default defineConfig({
         target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
+      },
+      '/browser': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        ws: true,
+        secure: false
       }
     }
   }
