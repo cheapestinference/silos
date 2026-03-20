@@ -620,10 +620,24 @@ function ModelsSection() {
   const [editSaving, setEditSaving] = useState(false);
   const [editTesting, setEditTesting] = useState(false);
   const [editTestResult, setEditTestResult] = useState<{ ok: boolean; models?: ModelDef[]; error?: string } | null>(null);
+  const [showAddSubscription, setShowAddSubscription] = useState(false);
+  const [setupToken, setSetupToken] = useState('');
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
 
   // Get providers from the config
   const configProviders = (gatewayConfig?.config as Record<string, unknown>)?.models as { providers?: Record<string, unknown> } | undefined;
   const providers = configProviders?.providers ?? {};
+
+  // Check which providers have auth profiles (subscription-based auth, no apiKey needed)
+  const authProfiles = (gatewayConfig?.config as Record<string, unknown>)?.auth as { profiles?: Record<string, { provider?: string; mode?: string }> } | undefined;
+  const providersWithAuthProfile = new Set<string>();
+  if (authProfiles?.profiles) {
+    for (const profile of Object.values(authProfiles.profiles)) {
+      if (profile.provider) providersWithAuthProfile.add(profile.provider.toLowerCase());
+    }
+  }
 
   // Silos subscription provider
   const defaultProvider = {
@@ -644,10 +658,10 @@ function ModelsSection() {
     ollama: { baseUrl: 'http://localhost:11434/v1', api: 'openai-completions' },
   };
 
-  const getProviderIcon = (id: string) => {
+  const getProviderIcon = (id: string): string | React.ReactElement => {
     const lower = id.toLowerCase();
-    if (lower.includes('silos')) return '🔮';
-    if (lower.includes('anthropic') || lower.includes('claude')) return '🟣';
+    if (lower.includes('silos')) return <img src="/icons/silos.svg" alt="Silos" className="w-7 h-7" />;
+    if (lower.includes('anthropic') || lower.includes('claude')) return <img src="/icons/claude.svg" alt="Claude" className="w-7 h-7" />;
     if (lower.includes('openai') || lower.includes('gpt')) return '🟢';
     if (lower.includes('google') || lower.includes('gemini')) return '🔵';
     if (lower.includes('bedrock') || lower.includes('aws')) return '🟠';
@@ -735,18 +749,130 @@ function ModelsSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{t('settings.providers.configure')}</p>
-        <button
-          onClick={() => setShowAddProvider(!showAddProvider)}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
-            showAddProvider
-              ? "bg-muted text-foreground"
-              : "bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
-          )}
-        >
-          <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowAddSubscription(!showAddSubscription); setShowAddProvider(false); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
+              showAddSubscription
+                ? "bg-muted text-foreground"
+                : "bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30"
+            )}
+          >
+            <Zap className="w-3.5 h-3.5" /> Add Subscription
+          </button>
+          <button
+            onClick={() => { setShowAddProvider(!showAddProvider); setShowAddSubscription(false); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
+              showAddProvider
+                ? "bg-muted text-foreground"
+                : "bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
+            )}
+          >
+            <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
+          </button>
+        </div>
       </div>
+
+      {/* Add Subscription Form */}
+      {showAddSubscription && (
+        <div className="p-4 rounded-xl bg-card border border-amber-500/30 space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">Add Claude Subscription</h3>
+          <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">How to get your setup token:</p>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>Open a terminal on a machine where you have <strong className="text-foreground">Claude Code</strong> installed</li>
+              <li>Run: <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-[11px]">claude setup-token</code></li>
+              <li>Copy the full token (starts with <code className="px-1 py-0.5 rounded bg-muted font-mono text-[11px]">sk-ant-oat01-</code>)</li>
+              <li>Paste it below</li>
+            </ol>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block">Setup Token</label>
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder="sk-ant-oat01-..."
+              value={setupToken}
+              onChange={(e) => { setSetupToken(e.target.value); setSubscriptionError(null); }}
+              className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          {subscriptionError && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
+              {subscriptionError}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setShowAddSubscription(false); setSetupToken(''); setSubscriptionError(null); }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              disabled={!setupToken.trim() || subscriptionSaving}
+              onClick={async () => {
+                const trimmed = setupToken.trim();
+                if (!trimmed.startsWith('sk-ant-oat01-')) {
+                  setSubscriptionError('Invalid token. Must start with sk-ant-oat01-');
+                  return;
+                }
+                if (trimmed.length < 80) {
+                  setSubscriptionError('Token looks too short. Paste the full setup-token.');
+                  return;
+                }
+                setSubscriptionSaving(true);
+                setSubscriptionError(null);
+                try {
+                  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                  if (gatewayToken) headers['Authorization'] = `Bearer ${gatewayToken}`;
+                  const res = await fetch('/api/add-subscription', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ token: trimmed }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok || !data.ok) {
+                    setSubscriptionError(data.error || 'Failed to save subscription');
+                    return;
+                  }
+                  setSubscriptionSuccess(true);
+                  setShowAddSubscription(false);
+                  setSetupToken('');
+                  loadGatewayConfig();
+                  setTimeout(() => setSubscriptionSuccess(false), 5000);
+                } catch (err) {
+                  setSubscriptionError(String(err instanceof Error ? err.message : err));
+                } finally {
+                  setSubscriptionSaving(false);
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
+                setupToken.trim() && !subscriptionSaving
+                  ? "bg-amber-500/30 text-amber-600 dark:text-amber-300 hover:bg-amber-500/40"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              )}
+            >
+              {subscriptionSaving && <div className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />}
+              {subscriptionSaving ? 'Saving...' : 'Add Subscription'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Success */}
+      {subscriptionSuccess && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+          <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <div>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Claude subscription added!</p>
+            <p className="text-xs text-muted-foreground">The gateway will pick up the new credentials. Models may take a moment to appear.</p>
+          </div>
+        </div>
+      )}
 
       {/* Add Provider Form */}
       {showAddProvider && (
@@ -1041,7 +1167,7 @@ function ModelsSection() {
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{getProviderIcon(providerId)}</span>
                       <div className="text-left">
-                        <h3 className="font-semibold text-foreground">{providerId}</h3>
+                        <h3 className="font-semibold text-foreground">{providersWithAuthProfile.has(providerId.toLowerCase()) && providerId.toLowerCase() === 'anthropic' ? 'Claude Subscription' : providerId}</h3>
                         <p className="text-xs text-muted-foreground">{provider.baseUrl || 'Default'}</p>
                       </div>
                     </div>
@@ -1051,9 +1177,11 @@ function ModelsSection() {
                       </span>
                       <span className={cn(
                         "px-2 py-0.5 text-xs font-medium rounded",
-                        provider.apiKey ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                        (provider.apiKey || providersWithAuthProfile.has(providerId.toLowerCase()))
+                          ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                          : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
                       )}>
-                        {provider.apiKey ? 'Configured' : 'No Key'}
+                        {provider.apiKey ? 'Configured' : providersWithAuthProfile.has(providerId.toLowerCase()) ? 'Subscription' : 'No Key'}
                       </span>
                       <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
                     </div>
@@ -1238,7 +1366,7 @@ function ModelsSection() {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">API Key</label>
                               <div className="flex items-center gap-2">
                                 <code className="text-xs text-muted-foreground font-mono">
-                                  {showApiKey[providerId] ? provider.apiKey : (provider.apiKey ? '••••••••' : '(not set)')}
+                                  {showApiKey[providerId] ? provider.apiKey : (provider.apiKey ? '••••••••' : providersWithAuthProfile.has(providerId.toLowerCase()) ? 'Via subscription token' : '(not set)')}
                                 </code>
                                 {provider.apiKey && (
                                   <button onClick={() => setShowApiKey(prev => ({ ...prev, [providerId]: !prev[providerId] }))}>

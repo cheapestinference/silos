@@ -208,6 +208,88 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
+  // ─── Add Subscription (Claude setup-token) ──────────────────────────────
+  router.post('/api/add-subscription', authMiddleware, async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'token is required' });
+      }
+      const trimmed = token.trim();
+
+      // Validate: must start with sk-ant-oat01- and be >= 80 chars
+      if (!trimmed.startsWith('sk-ant-oat01-')) {
+        return res.status(400).json({ error: 'Invalid token. Expected a Claude setup-token starting with sk-ant-oat01-' });
+      }
+      if (trimmed.length < 80) {
+        return res.status(400).json({ error: 'Token looks too short. Paste the full setup-token.' });
+      }
+
+      const profileId = 'anthropic:manual';
+      const provider = 'anthropic';
+
+      // 1. Write token to auth-profiles.json
+      const authDir = path.join(openclawBase, 'agents', 'main', 'agent');
+      await fs.mkdir(authDir, { recursive: true });
+      const authPath = path.join(authDir, 'auth-profiles.json');
+
+      let store = { version: 1, profiles: {} };
+      try {
+        const raw = await fs.readFile(authPath, 'utf8');
+        store = JSON.parse(raw);
+        if (!store.profiles) store.profiles = {};
+      } catch { /* file doesn't exist yet */ }
+
+      store.profiles[profileId] = {
+        type: 'token',
+        provider,
+        token: trimmed,
+      };
+
+      await fs.writeFile(authPath, JSON.stringify(store, null, 2) + '\n');
+
+      // 2. Patch openclaw.json config to register the auth profile
+      try {
+        const configPath = path.join(openclawBase, 'openclaw.json');
+        const raw = await fs.readFile(configPath, 'utf8');
+        const config = parseRelaxedJson(raw);
+
+        if (!config.auth) config.auth = {};
+        if (!config.auth.profiles) config.auth.profiles = {};
+        config.auth.profiles[profileId] = {
+          provider,
+          mode: 'token',
+        };
+
+        // Ensure anthropic provider exists in models.providers
+        // Anthropic /models endpoint doesn't support setup-tokens, so we must list models explicitly
+        if (!config.models) config.models = {};
+        if (!config.models.providers) config.models.providers = {};
+        if (!config.models.providers.anthropic) {
+          config.models.providers.anthropic = {
+            baseUrl: 'https://api.anthropic.com/v1',
+            api: 'anthropic-messages',
+            models: [
+              { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', contextWindow: 200000, input: ['text', 'image'] },
+              { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', contextWindow: 200000, input: ['text', 'image'] },
+              { id: 'claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', contextWindow: 200000, input: ['text', 'image'] },
+            ],
+          };
+        }
+
+        await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+      } catch (cfgErr) {
+        console.error('[Subscription] Config patch failed:', cfgErr.message);
+        // Auth profile was still saved — gateway may need restart
+      }
+
+      res.json({ ok: true, profileId, provider });
+    } catch (error) {
+      console.error('[Subscription] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ─── ClawHub Marketplace ──────────────────────────────────────────────────
 
   const CLAWHUB_API = 'https://clawhub.ai/api';
