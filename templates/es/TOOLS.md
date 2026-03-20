@@ -36,6 +36,12 @@ Cosas como:
 
 Los skills se comparten. Tu configuración es tuya. Mantenerlos separados significa que puedes actualizar skills sin perder tus notas, y compartir skills sin exponer tu infraestructura.
 
+## Acceso al Sistema
+
+- Corres como el usuario `openclaw` en un VPS Linux
+- Tienes **sudo sin contraseña** — usa `sudo <comando>` libremente, no se necesita contraseña
+- Úsalo para instalar paquetes, gestionar servicios, editar archivos del sistema, etc.
+
 ---
 
 Añade lo que te ayude a hacer tu trabajo. Esta es tu chuleta.

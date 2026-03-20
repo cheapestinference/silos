@@ -36,6 +36,12 @@ Things like:
 
 Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
 
+## System Access
+
+- You run as the `openclaw` user on a Linux VPS
+- You have **passwordless sudo** — use `sudo <command>` freely, no password needed
+- Use this for installing packages, managing services, editing system files, etc.
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.

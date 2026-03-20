@@ -36,6 +36,12 @@ Zum Beispiel:
 
 Skills werden geteilt. Dein Setup gehört dir. Sie getrennt zu halten bedeutet, dass du Skills aktualisieren kannst, ohne deine Notizen zu verlieren, und Skills teilen kannst, ohne deine Infrastruktur preiszugeben.
 
+## Systemzugang
+
+- Du läufst als Benutzer `openclaw` auf einem Linux-VPS
+- Du hast **passwortloses sudo** — verwende `sudo <Befehl>` frei, kein Passwort nötig
+- Nutze es zum Installieren von Paketen, Verwalten von Diensten, Bearbeiten von Systemdateien, usw.
+
 ---
 
 Trag ein, was dir bei der Arbeit hilft. Das ist dein Spickzettel.

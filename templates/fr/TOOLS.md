@@ -36,6 +36,12 @@ Des choses comme :
 
 Les skills sont partagés. Ta configuration est la tienne. Les garder séparés signifie que tu peux mettre à jour les skills sans perdre tes notes, et partager les skills sans exposer ton infrastructure.
 
+## Accès Système
+
+- Tu tournes en tant qu'utilisateur `openclaw` sur un VPS Linux
+- Tu as **sudo sans mot de passe** — utilise `sudo <commande>` librement, aucun mot de passe nécessaire
+- Utilise-le pour installer des paquets, gérer des services, modifier des fichiers système, etc.
+
 ---
 
 Ajoute tout ce qui t'aide à faire ton travail. C'est ton aide-mémoire.
