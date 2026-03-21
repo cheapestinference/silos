@@ -7,8 +7,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
-  #screen { width: 100%; height: 100%; display: flex; }
-  #screen canvas { width: 100% !important; height: 100% !important; object-fit: fill; }
+  #screen { width: 100%; height: 100%; }
   #status {
     position: fixed; bottom: 0; left: 0; right: 0;
     text-align: center; padding: 8px;
@@ -24,7 +23,6 @@
 <div id="screen"></div>
 <div id="status">Connecting...</div>
 <script type="module">
-  // noVNC lives on the same origin as this page (served from the container)
   import RFB from './core/rfb.js';
 
   const params = new URLSearchParams(window.location.search);
@@ -33,18 +31,25 @@
   const port = params.get('port') || window.location.port;
   const path = params.get('path') || 'websockify';
   const statusEl = document.getElementById('status');
+  const screenEl = document.getElementById('screen');
 
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const url = `${proto}://${host}${port ? ':' + port : ''}/${path}`;
 
-  const rfb = new RFB(document.getElementById('screen'), url, {
+  const rfb = new RFB(screenEl, url, {
     credentials: { password },
     wsProtocols: [],
   });
 
   rfb.scaleViewport = true;
-  rfb.clipViewport = false;
-  rfb.resizeSession = false;
+  rfb.resizeSession = true;
+
+  // Re-scale when the iframe container is resized (e.g., parent panel drag)
+  const ro = new ResizeObserver(() => {
+    // Trigger noVNC's internal resize handler
+    rfb._windowResize();
+  });
+  ro.observe(screenEl);
 
   rfb.addEventListener('connect', () => {
     statusEl.textContent = 'Connected';
