@@ -24,7 +24,7 @@
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 211 100% 50%;
-    --radius: 0.375rem;
+    --radius: 0.75rem;
 
     /* Sidebar - Light Professional */
     --sidebar-bg: 220 14% 96%;
@@ -40,6 +40,12 @@
     --warning-foreground: 220 13% 18%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+
+    /* Design Evolution tokens */
+    --accent-secondary: 210 80% 60%;
+    --glow: 211 100% 50%;
+    --surface-elevated: 0 0% 100%;
+    --surface-sunken: 220 13% 93%;
   }
 
   .dark {
@@ -78,6 +84,12 @@
     --warning-foreground: 222 47% 11%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+
+    /* Design Evolution tokens */
+    --accent-secondary: 210 80% 60%;
+    --glow: 211 100% 50%;
+    --surface-elevated: 222 47% 16%;
+    --surface-sunken: 222 47% 9%;
   }
 }
 
@@ -212,7 +224,7 @@
   display: inline-block;
   width: 2px;
   height: 1em;
-  background: linear-gradient(to top, #a855f6, #d946ef);
+  background: linear-gradient(to top, hsl(var(--glow)), hsl(var(--accent-secondary)));
   border-radius: 9999px;
   margin-left: 2px;
   vertical-align: text-bottom;
@@ -222,6 +234,23 @@
 @keyframes streaming-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.15; }
+}
+
+/* Ambient background glow — subtle theme-colored wash */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at top right, hsl(var(--glow) / 0.03), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark body::before {
+  background: radial-gradient(ellipse at top right, hsl(var(--glow) / 0.05), transparent 60%);
 }
 
 /* Gradient conic utility */
