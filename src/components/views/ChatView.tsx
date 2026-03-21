@@ -650,16 +650,7 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
 
   return (
     <div className="relative group w-9 h-9 flex-shrink-0">
-      {/* Animated outer ring for AI */}
-      <div className={cn(
-        "absolute -inset-[1px] rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-20 blur-[2px] transition-opacity",
-        isStreaming ? "animate-pulse opacity-40" : "group-hover:opacity-40"
-      )} />
-      {/* Inner rotating gradient (subtle) */}
-      {isStreaming && (
-        <div className="absolute -inset-[2px] rounded-lg bg-gradient-conic from-primary via-accent to-primary opacity-15 animate-spin-slow" />
-      )}
-      <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+      <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
         {emoji ? (
           <span className="text-lg">{emoji}</span>
         ) : (
@@ -956,13 +947,10 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
       "flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500",
       isComplete && "transition-opacity duration-150 opacity-0"
     )}>
-      {/* Animated Avatar */}
+      {/* Avatar */}
       <div className="relative w-9 h-9 flex-shrink-0">
-        {/* Pulsing outer rings */}
-        {!isComplete && <div className="absolute -inset-2 rounded-lg bg-gradient-to-br from-primary to-accent opacity-10 animate-ping" />}
-        {!isComplete && <div className="absolute -inset-[2px] rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-20 blur-[2px] animate-pulse" />}
-        <div className="relative w-9 h-9 rounded-lg flex-shrink-0 bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center shadow-elevation-1">
-          <Zap className="w-4 h-4 text-white animate-pulse" />
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-elevation-1">
+          <Zap className={cn("w-4 h-4 text-white", !isComplete && "animate-pulse")} />
         </div>
       </div>
 
@@ -1423,7 +1411,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <div className="sticky bottom-3 z-10 flex justify-center pointer-events-none -mt-12">
               <button
                 onClick={scrollToBottom}
-                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-primary hover:bg-primary/90 text-white text-xs font-medium shadow-lg shadow-elevation-1 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/80 hover:bg-foreground/90 text-background text-xs font-medium shadow-elevation-2 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
                 {t('chat.newMessages') || 'New messages'}
