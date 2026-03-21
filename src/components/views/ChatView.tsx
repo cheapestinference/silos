@@ -1093,7 +1093,6 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     browserDetached,
     browserAgentAction,
     setBrowserPanelOpen,
-    token,
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
