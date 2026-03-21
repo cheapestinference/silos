@@ -330,8 +330,8 @@ export function SkillsPanel() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={cn("text-xs font-semibold truncate", enabled ? "text-foreground" : "text-muted-foreground line-through")}>{skill.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">{t('agentDetail.skillsBuiltinTag')}</span>
-                          {!enabled && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">{t('agentDetail.skillsDisabledTag')}</span>}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">{t('agentDetail.skillsBuiltinTag')}</span>
+                          {!enabled && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">{t('agentDetail.skillsDisabledTag')}</span>}
                         </div>
                         <span className="text-[10px] text-muted-foreground truncate block">{skill.description}</span>
                       </div>
@@ -344,7 +344,7 @@ export function SkillsPanel() {
               {!categoryFilter && installed.length > 0 && (
                 <>
                   <div className="pt-3 pb-1 px-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{t('agentDetail.skillsClawHubInstalled')}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('agentDetail.skillsClawHubInstalled')}</span>
                   </div>
                   {installed.map(skill => (
                     <button
@@ -362,7 +362,7 @@ export function SkillsPanel() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-foreground truncate">{skill.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">{t('agentDetail.skillsClawHubTag')}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">{t('agentDetail.skillsClawHubTag')}</span>
                           </div>
                           <span className="text-[10px] text-muted-foreground truncate block">{skill.description || skill.slug}</span>
                         </div>
@@ -400,7 +400,7 @@ export function SkillsPanel() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-foreground truncate">{result.displayName || result.slug}</span>
                       {isInstalled && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">{t('agentDetail.skillsInstalledTag')}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">{t('agentDetail.skillsInstalledTag')}</span>
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground truncate block">{result.summary}</span>
@@ -429,8 +429,8 @@ export function SkillsPanel() {
                 <div>
                   <h3 className="text-base font-bold text-foreground">{selectedBuiltin.name}</h3>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">{t('agentDetail.skillsBuiltinTag')}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">{selectedBuiltin.category}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">{t('agentDetail.skillsBuiltinTag')}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">{selectedBuiltin.category}</span>
                   </div>
                 </div>
               </div>
@@ -447,7 +447,7 @@ export function SkillsPanel() {
                   {isSkillEnabled(selectedBuiltin) ? t('agentDetail.skillsEnabledForAgent') : t('agentDetail.skillsDisabledForAgent')}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {t('agentDetail.skillsControls')} <span className="font-mono text-[9px] bg-muted px-1 py-0.5 rounded">{selectedBuiltin.toolGroup}</span>
+                  {t('agentDetail.skillsControls')} <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">{selectedBuiltin.toolGroup}</span>
                   {BUILTIN_SKILLS.filter(s => s.toolGroup === selectedBuiltin.toolGroup).length > 1 && (
                     <> — {t('agentDetail.skillsAlsoAffects')} {BUILTIN_SKILLS.filter(s => s.toolGroup === selectedBuiltin.toolGroup && s.id !== selectedBuiltin.id).map(s => s.name).join(', ')}</>
                   )}
@@ -504,15 +504,15 @@ export function SkillsPanel() {
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className="text-center p-2 bg-background rounded-lg border border-border">
                     <div className="text-sm font-bold text-foreground">{(detail.skill.stats?.downloads || 0).toLocaleString()}</div>
-                    <div className="text-[9px] text-muted-foreground">Downloads</div>
+                    <div className="text-[10px] text-muted-foreground">Downloads</div>
                   </div>
                   <div className="text-center p-2 bg-background rounded-lg border border-border">
                     <div className="text-sm font-bold text-foreground">{detail.skill.stats?.stars || 0}</div>
-                    <div className="text-[9px] text-muted-foreground">Stars</div>
+                    <div className="text-[10px] text-muted-foreground">Stars</div>
                   </div>
                   <div className="text-center p-2 bg-background rounded-lg border border-border">
                     <div className="text-sm font-bold text-foreground">{new Date(detail.skill.updatedAt).toLocaleDateString()}</div>
-                    <div className="text-[9px] text-muted-foreground">Updated</div>
+                    <div className="text-[10px] text-muted-foreground">Updated</div>
                   </div>
                 </div>
 
@@ -555,7 +555,7 @@ export function SkillsPanel() {
                   <Package className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="text-base font-bold text-foreground">{selectedInstalled.name}</h3>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{t('agentDetail.skillsClawHubTag')}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{t('agentDetail.skillsClawHubTag')}</span>
                   </div>
                 </div>
                 <button onClick={() => setSelectedId(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">

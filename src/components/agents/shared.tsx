@@ -50,7 +50,7 @@ export function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
         <span className={cn("text-sm font-bold tabular-nums leading-none", styles.value)}>
           {value}
         </span>
-        <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
       </div>
     </div>
   );
@@ -80,7 +80,7 @@ export function TabButton({ active, onClick, icon, label, badge }: TabButtonProp
       {icon}
       <span>{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-[9px] font-bold text-white flex items-center justify-center animate-pulse">
+        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
           {badge}
         </span>
       )}

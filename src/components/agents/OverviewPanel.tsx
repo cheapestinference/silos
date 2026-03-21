@@ -236,22 +236,22 @@ export function OverviewPanel() {
           <div className="rounded-lg bg-card border border-border p-2.5 text-center">
             <Wrench className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
             <p className="text-sm font-bold text-foreground tabular-nums">{enabledToolGroups}</p>
-            <p className="text-[9px] text-muted-foreground">Tools</p>
+            <p className="text-[10px] text-muted-foreground">Tools</p>
           </div>
           <div className="rounded-lg bg-card border border-border p-2.5 text-center">
             <Sparkles className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
             <p className="text-sm font-bold text-foreground tabular-nums">{enabledBuiltinSkills + installedSkillsCount}</p>
-            <p className="text-[9px] text-muted-foreground">Skills</p>
+            <p className="text-[10px] text-muted-foreground">Skills</p>
           </div>
           <div className="rounded-lg bg-card border border-border p-2.5 text-center">
             <BookOpen className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
             <p className="text-sm font-bold text-foreground tabular-nums">{knowledgeCount}</p>
-            <p className="text-[9px] text-muted-foreground">Knowledge</p>
+            <p className="text-[10px] text-muted-foreground">Knowledge</p>
           </div>
           <div className="rounded-lg bg-card border border-border p-2.5 text-center">
             <FolderOpen className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
             <p className="text-sm font-bold text-foreground tabular-nums">{workspaceFiles.length}</p>
-            <p className="text-[9px] text-muted-foreground">{workspaceSize}</p>
+            <p className="text-[10px] text-muted-foreground">{workspaceSize}</p>
           </div>
         </div>
 

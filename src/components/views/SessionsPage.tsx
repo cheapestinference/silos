@@ -286,7 +286,7 @@ function SessionItem({
             <span className="h-2 w-2 rounded-full bg-red-500" />
           )}
           {isSubagentKey && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
               {t('sessions.subagent')}
             </Badge>
           )}

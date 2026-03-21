@@ -137,7 +137,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
             <h3 className="text-[11px] font-semibold text-foreground">
               {t('tasks.pipeline')}
             </h3>
-            <p className="text-[9px] text-muted-foreground tabular-nums">
+            <p className="text-[10px] text-muted-foreground tabular-nums">
               {totalTasks} {totalTasks === 1 ? 'task' : 'tasks'}
             </p>
           </div>
@@ -321,7 +321,7 @@ function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect, onNaviga
       </div>
 
       {/* Bottom: metrics */}
-      <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-0.5 tabular-nums">
           <Clock className="w-2 h-2" />
           {duration}

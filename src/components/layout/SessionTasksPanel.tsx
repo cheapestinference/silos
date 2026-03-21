@@ -96,7 +96,7 @@ export function SessionTasksPanel() {
             <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
               {runningTasks.length}
             </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
               {t('tasks.status.running')}
             </div>
           </div>
@@ -104,7 +104,7 @@ export function SessionTasksPanel() {
             <div className="text-sm font-semibold text-green-600 dark:text-green-400 tabular-nums">
               {completedTasks.length}
             </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
               {t('agentDetail.done')}
             </div>
           </div>
@@ -112,7 +112,7 @@ export function SessionTasksPanel() {
             <div className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">
               {failedTasks.length}
             </div>
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wide">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
               {t('agentDetail.failed')}
             </div>
           </div>
@@ -151,7 +151,7 @@ export function SessionTasksPanel() {
                       {task.status === 'running' && (
                         <button
                           onClick={() => handleAbort(task.runId)}
-                          className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                          className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                         >
                           {t('chat.abort')}
                         </button>

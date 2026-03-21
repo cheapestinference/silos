@@ -285,7 +285,7 @@ function SessionItem({
       )} />
       <span className="truncate flex-1">{displayName}</span>
       {parsed.type === 'subagent' && (
-        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
+        <Badge variant="outline" className="text-[10px] px-1 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
           sub
         </Badge>
       )}
@@ -360,7 +360,7 @@ function AgentSection({
             {displayName}
           </span>
           {isDefault && (
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
               default
             </Badge>
           )}
@@ -488,7 +488,7 @@ export function Sidebar() {
             </span>
           </div>
           {connected && (
-            <Badge variant="success" className="text-[9px] px-1.5 py-0">
+            <Badge variant="success" className="text-[10px] px-1.5 py-0">
               Live
             </Badge>
           )}

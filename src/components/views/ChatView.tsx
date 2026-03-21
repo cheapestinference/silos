@@ -500,7 +500,7 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
             <div className="w-2.5 h-2.5 border-[1.5px] border-amber-400 border-t-transparent rounded-full animate-spin" />
           )}
           {hasOutput && (
-            <span className="text-[9px] font-semibold px-1 py-px rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">ok</span>
+            <span className="text-[10px] font-semibold px-1 py-px rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">ok</span>
           )}
           <button className={cn("p-0.5 rounded", colors.chevron)}>
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -518,9 +518,9 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
           onClick={() => handleSectionClick('input', inputStr)}
         >
           <div className="flex items-center justify-between mb-0.5">
-            <span className="text-[9px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Input</span>
+            <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Input</span>
             {copiedField === 'input' && (
-              <span className="text-[9px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
+              <span className="text-[10px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
             )}
             {expanded && isInputOpen && copiedField !== 'input' && (
               <Copy className="w-2.5 h-2.5 text-muted-foreground/40" />
@@ -543,9 +543,9 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
           onClick={() => handleSectionClick('output', outputStr!)}
         >
           <div className="px-2.5 py-1 bg-emerald-500/5 flex items-center justify-between">
-            <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Output</span>
             {copiedField === 'output' && (
-              <span className="text-[9px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
+              <span className="text-[10px] text-emerald-500 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" /> Copied</span>
             )}
             {expanded && isOutputOpen && copiedField !== 'output' && (
               <Copy className="w-2.5 h-2.5 text-muted-foreground/40" />
@@ -1562,7 +1562,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Keyboard hint */}
           <p className="text-[10px] text-muted-foreground text-center mt-2">
-            <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Enter</kbd> {t('chat.keyHintSend')} <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[9px]">Shift+Enter</kbd> {t('chat.keyHintNewLine')}
+            <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">Enter</kbd> {t('chat.keyHintSend')} <kbd className="px-1.5 py-0.5 rounded bg-muted border font-mono text-[10px]">Shift+Enter</kbd> {t('chat.keyHintNewLine')}
           </p>
         </div>
         </div>

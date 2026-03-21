@@ -278,13 +278,13 @@ export function KnowledgeBrowser() {
                     )}
                     <span className="text-xs text-foreground flex-1 truncate">{item.name}</span>
                     {isInExtra && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded">indexed</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded">indexed</span>
                     )}
                     {item.type === 'directory' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); addExternalPath(item.path); }}
                         className={cn(
-                          "px-2 py-0.5 text-[9px] font-medium rounded border transition-colors opacity-0 group-hover:opacity-100",
+                          "px-2 py-0.5 text-[10px] font-medium rounded border transition-colors opacity-0 group-hover:opacity-100",
                           isInExtra
                             ? "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/20"
                             : "border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
@@ -448,8 +448,8 @@ export function KnowledgeBrowser() {
                     <FolderOpen className={cn("w-3.5 h-3.5", isMemoryDir ? "text-emerald-500" : isDirInExtra ? "text-blue-500" : "text-amber-500")} />
                     <span className="text-xs font-semibold text-foreground flex-1">{dirLabel}</span>
                     <span className="text-[10px] text-muted-foreground">{files.length}</span>
-                    {isMemoryDir && <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded">{t('agentDetail.knowledge.autoIndexed')}</span>}
-                    {isDirInExtra && !isMemoryDir && <span className="px-1.5 py-0.5 text-[9px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded">extra</span>}
+                    {isMemoryDir && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded">{t('agentDetail.knowledge.autoIndexed')}</span>}
+                    {isDirInExtra && !isMemoryDir && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded">extra</span>}
                     {!isMemoryDir && dir !== '.' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleExtraPath(dir); }}
@@ -491,7 +491,7 @@ export function KnowledgeBrowser() {
                         {status === 'none' && !file.path.includes('/') && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleMemoryDir(file.path); }}
-                            className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-border hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border border-border hover:border-emerald-500/50 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
                             title={t('agentDetail.knowledge.moveToMemory')}
                           >
                             Index
@@ -500,7 +500,7 @@ export function KnowledgeBrowser() {
                         {status === 'memory' && file.path.startsWith('memory/') && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleMemoryDir(file.path); }}
-                            className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
                             title={t('agentDetail.knowledge.moveFromMemory')}
                           >
                             Unindex
@@ -509,7 +509,7 @@ export function KnowledgeBrowser() {
                         {status === 'none' && file.path.includes('/') && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleExtraPath(file.path); }}
-                            className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-border hover:border-blue-500/40 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border border-border hover:border-blue-500/40 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
                             title={t('agentDetail.knowledge.addToExtraPaths')}
                           >
                             Index

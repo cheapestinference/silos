@@ -711,7 +711,7 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: NavItemProps) {
       <Icon className="w-3.5 h-3.5 shrink-0" />
       <span className="flex-1 text-left truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-semibold rounded-full flex items-center justify-center">
+        <span className="min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
