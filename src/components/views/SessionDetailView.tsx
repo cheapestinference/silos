@@ -73,7 +73,7 @@ interface StatCardProps {
 function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
   const colorClasses = {
     cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/25 dark:border-cyan-500/20',
-    violet: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/25 dark:border-violet-500/20',
+    violet: 'text-primary bg-primary/10 border-primary/20',
     emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25 dark:border-emerald-500/20',
     amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25 dark:border-amber-500/20',
   };
@@ -229,7 +229,7 @@ export function SessionDetailView() {
     <div className="h-full flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <header className="shrink-0 border-b bg-card">
-        <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
         <div className="px-6 py-4">
           <div className="flex items-center gap-4">
@@ -246,11 +246,11 @@ export function SessionDetailView() {
               <div className="flex items-center gap-4">
                 {/* Agent Avatar */}
                 <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                     {agentEmoji ? (
                       <span className="text-2xl">{agentEmoji}</span>
                     ) : (
-                      <Bot className="w-7 h-7 text-violet-500 dark:text-violet-400" />
+                      <Bot className="w-7 h-7 text-primary" />
                     )}
                   </div>
                   {isOnline && (
@@ -263,7 +263,7 @@ export function SessionDetailView() {
                 {/* Names & Info */}
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Hash className="w-5 h-5 text-violet-500 dark:text-violet-400 shrink-0" />
+                    <Hash className="w-5 h-5 text-primary shrink-0" />
                     <h1 className="text-xl font-bold text-foreground truncate">
                       {sessionName}
                     </h1>
@@ -333,7 +333,7 @@ export function SessionDetailView() {
                                     className={cn(
                                       "w-full text-left px-3 py-1.5 text-xs font-mono transition-colors flex items-center justify-between gap-2",
                                       isActive
-                                        ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                                        ? "bg-primary/10 text-primary"
                                         : "text-foreground/80 hover:bg-muted"
                                     )}
                                   >

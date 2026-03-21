@@ -164,8 +164,8 @@ function TaskCard({
         <div className="space-y-2.5">
           {/* Agent */}
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-purple-500" />
+            <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Bot className="w-3.5 h-3.5 text-primary" />
             </div>
             <span className="text-sm font-medium truncate flex-1">
               {task.agentId || 'Default Agent'}
@@ -199,9 +199,9 @@ function TaskCard({
           {/* Tokens */}
           {(task.inputTokens || task.outputTokens) && (
             <div className="flex items-center gap-2 pt-2 border-t border-border">
-              <Zap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <Zap className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs text-muted-foreground">
-                <span className="text-indigo-600 dark:text-indigo-400">{(task.inputTokens || 0).toLocaleString()}</span> in
+                <span className="text-primary">{(task.inputTokens || 0).toLocaleString()}</span> in
                 {' / '}
                 <span className="text-emerald-600 dark:text-emerald-400">{(task.outputTokens || 0).toLocaleString()}</span> out
               </span>
@@ -421,7 +421,7 @@ export function TasksPage() {
           {/* Left: Title + Tabs */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <ListTodo className="w-5 h-5 text-indigo-500" />
+              <ListTodo className="w-5 h-5 text-primary" />
               <h1 className="text-lg font-semibold">{t('tasks.title')}</h1>
             </div>
 
@@ -578,8 +578,8 @@ export function TasksPage() {
           filteredTasks.length === 0 && tasks.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto mb-4">
-                  <ListTodo className="w-10 h-10 text-indigo-500" />
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <ListTodo className="w-10 h-10 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-1">{t('tasks.noTasks')}</h3>
                 <p className="text-muted-foreground max-w-md">

@@ -267,7 +267,7 @@ function SessionItem({
         'rounded-full flex items-center justify-center shrink-0',
         isSubagentKey ? 'h-8 w-8 bg-cyan-500/10 text-cyan-500' :
         session.kind === 'direct' ? 'h-10 w-10 bg-blue-500/10 text-blue-500' :
-        session.kind === 'group' ? 'h-10 w-10 bg-purple-500/10 text-purple-500' :
+        session.kind === 'group' ? 'h-10 w-10 bg-primary/10 text-primary' :
         session.kind === 'global' ? 'h-10 w-10 bg-green-500/10 text-green-500' :
         'h-10 w-10 bg-muted text-muted-foreground'
       )}>
@@ -725,7 +725,7 @@ export function SessionsPage() {
                     <div className={cn(
                       'h-10 w-10 rounded-full flex items-center justify-center',
                       selectedSession.kind === 'direct' ? 'bg-blue-500/10 text-blue-500' :
-                      selectedSession.kind === 'group' ? 'bg-purple-500/10 text-purple-500' :
+                      selectedSession.kind === 'group' ? 'bg-primary/10 text-primary' :
                       'bg-green-500/10 text-green-500'
                     )}>
                       {selectedSession.kind === 'direct' && <UserIcon className="h-5 w-5" />}

@@ -423,7 +423,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                       className={cn(
                         "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                         editConfig[field.key] === opt.value
-                          ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
+                          ? "bg-primary/20 text-primary border-primary/40"
                           : "bg-muted text-muted-foreground border hover:border-foreground/20"
                       )}
                     >
@@ -440,7 +440,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                   placeholder={field.placeholder}
                   value={(editConfig[field.key] as string) || ''}
                   onChange={(e) => setEditConfig({ ...editConfig, [field.key]: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                 />
               )}
 
@@ -448,7 +448,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-1.5">
                     {((editConfig[field.key] as string[]) || []).map((phone, i) => (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-xs font-mono">
+                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-mono">
                         {phone}
                         <button
                           onClick={() => {
@@ -456,7 +456,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                             list.splice(i, 1);
                             setEditConfig({ ...editConfig, [field.key]: list });
                           }}
-                          className="ml-0.5 text-teal-600 dark:text-teal-500 hover:text-red-600 dark:text-red-400"
+                          className="ml-0.5 text-primary hover:text-red-600 dark:text-red-400"
                         >×</button>
                       </span>
                     ))}
@@ -474,7 +474,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                           setEditPhoneInput('');
                         }
                       }}
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                     />
                     <button
                       onClick={() => {
@@ -497,12 +497,12 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                   onClick={() => setEditConfig({ ...editConfig, [field.key]: !editConfig[field.key] })}
                   className={cn(
                     "w-10 h-5 rounded-full transition-colors relative",
-                    editConfig[field.key] ? "bg-teal-500/40" : "bg-muted"
+                    editConfig[field.key] ? "bg-primary/40" : "bg-muted"
                   )}
                 >
                   <span className={cn(
                     "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                    editConfig[field.key] ? "right-0.5 bg-teal-400" : "left-0.5 bg-muted-foreground"
+                    editConfig[field.key] ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"
                   )} />
                 </button>
               )}
@@ -544,10 +544,10 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
-                !editSaving ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 hover:bg-teal-500/40" : "bg-muted text-muted-foreground cursor-not-allowed"
+                !editSaving ? "bg-primary/30 text-primary hover:bg-primary/40" : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {editSaving && <div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" />}
+              {editSaving && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
               {editSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -566,8 +566,8 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 <img src={qrDataUrl} alt="WhatsApp QR Code" className="w-48 h-48" />
               </div>
               {waitingForScan && (
-                <div className="flex items-center gap-2 text-xs text-teal-600 dark:text-teal-400">
-                  <div className="w-3 h-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center gap-2 text-xs text-primary">
+                  <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   Waiting for scan...
                 </div>
               )}
@@ -589,7 +589,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               <span className="text-xs text-red-600 dark:text-red-400">{qrError}</span>
               <button
                 onClick={() => { setQrError(null); handleConnect(); }}
-                className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-600 dark:text-teal-300 font-semibold"
+                className="text-xs text-primary hover:text-primary/80 font-semibold"
               >
                 Try Again
               </button>
@@ -768,7 +768,7 @@ function ModelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddProvider
                 ? "bg-muted text-foreground"
-                : "bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
+                : "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
             )}
           >
             <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
@@ -877,7 +877,7 @@ function ModelsSection() {
 
       {/* Add Provider Form */}
       {showAddProvider && (
-        <div className="p-4 rounded-xl bg-card border border-purple-500/30 space-y-4">
+        <div className="p-4 rounded-xl bg-card border border-primary/30 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">{t('settings.providers.addNewProvider')}</h3>
           <div className="flex flex-wrap gap-2">
             {Object.keys(providerPresets).map((preset) => (
@@ -896,7 +896,7 @@ function ModelsSection() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                   newProvider.id === preset
-                    ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 border-purple-500/50"
+                    ? "bg-primary/30 text-primary border-primary/50"
                     : "bg-muted text-muted-foreground border hover:border-foreground/20"
                 )}
               >
@@ -911,7 +911,7 @@ function ModelsSection() {
               placeholder={t('settings.providers.providerId')}
               value={newProvider.id}
               onChange={(e) => setNewProvider({ ...newProvider, id: e.target.value })}
-              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm focus:outline-none focus:border-purple-500/50"
+              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm focus:outline-none focus:border-ring"
             />
             <input
               type="text"
@@ -919,7 +919,7 @@ function ModelsSection() {
               placeholder={t('settings.providers.baseUrl')}
               value={newProvider.baseUrl}
               onChange={(e) => { setNewProvider({ ...newProvider, baseUrl: e.target.value }); setTestResult(null); }}
-              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+              className="px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
             />
           </div>
           <input
@@ -928,7 +928,7 @@ function ModelsSection() {
             placeholder={t('settings.providers.apiKey')}
             value={newProvider.apiKey}
             onChange={(e) => { setNewProvider({ ...newProvider, apiKey: e.target.value }); setTestResult(null); }}
-            className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+            className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
           />
           {/* Test Connection */}
           <div className="flex items-center gap-2">
@@ -938,12 +938,12 @@ function ModelsSection() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                 newProvider.baseUrl && !testing
-                  ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                  ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
               {testing ? (
-                <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
+                <><div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
               ) : (
                 <><Zap className="w-3.5 h-3.5" /> {t('settings.providers.testConnection')}</>
               )}
@@ -1022,11 +1022,11 @@ function ModelsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                 newProvider.id && newProvider.baseUrl && !savingProvider && testResult?.ok
-                  ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/40"
+                  ? "bg-primary/30 text-primary hover:bg-primary/40"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {savingProvider && <div className="w-3 h-3 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />}
+              {savingProvider && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
               {savingProvider ? t('settings.providers.saving') : t('settings.providers.addProvider')}
             </button>
           </div>
@@ -1047,7 +1047,7 @@ function ModelsSection() {
       {/* Providers List */}
       {gatewayConfigLoading ? (
         <div className="p-8 text-center rounded-xl bg-card border">
-          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading providers...</p>
         </div>
       ) : (
@@ -1057,7 +1057,7 @@ function ModelsSection() {
             const silosModels = dynamicModels?.models?.filter(m => m.provider === 'silos') ?? [];
             const silosExpanded = expandedProvider === '__silos_default__';
             return (
-              <div className="rounded-xl border border-purple-500/30 overflow-hidden bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+              <div className="rounded-xl border border-primary/30 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
                 <button
                   onClick={() => setExpandedProvider(silosExpanded ? null : '__silos_default__')}
                   className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
@@ -1069,7 +1069,7 @@ function ModelsSection() {
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     {silosModels.length > 0 && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-primary/20 text-primary">
                         {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                       </span>
                     )}
@@ -1078,12 +1078,12 @@ function ModelsSection() {
                   </div>
                 </button>
                 {silosExpanded && silosModels.length > 0 && (
-                  <div className="border-t border-purple-500/20 px-4 py-3">
+                  <div className="border-t border-primary/20 px-4 py-3">
                     <div className="space-y-1 max-h-64 overflow-y-auto">
                       {silosModels.map((model) => (
                         <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
                           <div className="flex items-center gap-2">
-                            <Cpu className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                            <Cpu className="w-3.5 h-3.5 text-primary" />
                             <span className="text-sm text-foreground">{model.name || model.id}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1117,7 +1117,7 @@ function ModelsSection() {
                 const silosModels = fetchedModels.length > 0 ? fetchedModels : dynamicSilosModels.length > 0 ? dynamicSilosModels : staticModels;
                 const silosExpanded = expandedProvider === 'silos';
                 return (
-                  <div key={providerId} className="rounded-xl border border-purple-500/30 overflow-hidden bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+                  <div key={providerId} className="rounded-xl border border-primary/30 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
                     <button
                       onClick={() => setExpandedProvider(silosExpanded ? null : 'silos')}
                       className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
@@ -1128,7 +1128,7 @@ function ModelsSection() {
                         <p className="text-xs text-muted-foreground">Included with your Silos plan</p>
                       </div>
                       <div className="ml-auto flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-primary/20 text-primary">
                           {silosModels.length} model{silosModels.length !== 1 ? 's' : ''}
                         </span>
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Active</span>
@@ -1136,12 +1136,12 @@ function ModelsSection() {
                       </div>
                     </button>
                     {silosExpanded && silosModels.length > 0 && (
-                      <div className="border-t border-purple-500/20 px-4 py-3">
+                      <div className="border-t border-primary/20 px-4 py-3">
                         <div className="space-y-1 max-h-64 overflow-y-auto">
                           {silosModels.map((model) => (
                             <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
                               <div className="flex items-center gap-2">
-                                <Cpu className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                <Cpu className="w-3.5 h-3.5 text-primary" />
                                 <span className="text-sm text-foreground">{model.name || model.id}</span>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1173,7 +1173,7 @@ function ModelsSection() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-500/20 text-purple-600 dark:text-purple-300">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-primary/20 text-primary">
                         {modelCount} model{modelCount !== 1 ? 's' : ''}
                       </span>
                       <span className={cn(
@@ -1208,7 +1208,7 @@ function ModelsSection() {
                                   className={cn(
                                     "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                                     editProvider.api === opt.value
-                                      ? "bg-purple-500/20 text-purple-600 dark:text-purple-300 border-purple-500/40"
+                                      ? "bg-primary/20 text-primary border-primary/40"
                                       : "bg-muted text-muted-foreground border hover:border-foreground/20"
                                   )}
                                 >
@@ -1226,7 +1226,7 @@ function ModelsSection() {
                                 placeholder={t('settings.providers.baseUrl')}
                                 value={editProvider.baseUrl}
                                 onChange={(e) => { setEditProvider({ ...editProvider, baseUrl: e.target.value }); setEditTestResult(null); }}
-                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                               />
                             </div>
                             <div>
@@ -1237,7 +1237,7 @@ function ModelsSection() {
                                 placeholder={t('settings.providers.apiKey')}
                                 value={editProvider.apiKey}
                                 onChange={(e) => { setEditProvider({ ...editProvider, apiKey: e.target.value }); setEditTestResult(null); }}
-                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-purple-500/50"
+                                className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                               />
                             </div>
                           </div>
@@ -1291,12 +1291,12 @@ function ModelsSection() {
                               className={cn(
                                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                                 editProvider.baseUrl && !editTesting
-                                  ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                                  ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
                               {editTesting ? (
-                                <><div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" /> Testing...</>
+                                <><div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" /> Testing...</>
                               ) : (
                                 <><Zap className="w-3.5 h-3.5" /> Test Connection</>
                               )}
@@ -1346,11 +1346,11 @@ function ModelsSection() {
                               className={cn(
                                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                                 !editSaving && editTestResult?.ok
-                                  ? "bg-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-500/40"
+                                  ? "bg-primary/30 text-primary hover:bg-primary/40"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
-                              {editSaving && <div className="w-3 h-3 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />}
+                              {editSaving && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
                               {editSaving ? 'Saving...' : 'Save'}
                             </button>
                           </div>
@@ -1560,7 +1560,7 @@ function ChannelsSection() {
         <select
           value={defaultAgentId}
           onChange={(e) => setDefaultAgentId(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-teal-500/50"
+          className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-ring"
         >
           {agents?.agents.map(agent => (
             <option key={agent.id} value={agent.id}>
@@ -1580,7 +1580,7 @@ function ChannelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddChannel
                 ? "bg-muted text-foreground"
-                : "bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/30 hover:bg-teal-500/30"
+                : "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
             )}
           >
             <Plus className="w-3.5 h-3.5" /> {showAddChannel ? 'Cancel' : 'Add'}
@@ -1589,7 +1589,7 @@ function ChannelsSection() {
 
         {/* Add Channel Form */}
         {showAddChannel && (
-          <div className="p-4 rounded-xl bg-card border border-teal-500/30 space-y-4 mb-4">
+          <div className="p-4 rounded-xl bg-card border border-primary/30 space-y-4 mb-4">
             <h3 className="text-sm font-semibold text-foreground">Add Channel</h3>
 
             {/* Channel Type Selection */}
@@ -1611,7 +1611,7 @@ function ChannelsSection() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                     selectedChannelType === type
-                      ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 border-teal-500/50"
+                      ? "bg-primary/30 text-primary border-primary/50"
                       : "bg-muted text-muted-foreground border hover:border-foreground/20"
                   )}
                 >
@@ -1648,7 +1648,7 @@ function ChannelsSection() {
                             className={cn(
                               "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                               channelConfig[field.key] === opt.value
-                                ? "bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/40"
+                                ? "bg-primary/20 text-primary border-primary/40"
                                 : "bg-muted text-muted-foreground border hover:border-foreground/20"
                             )}
                           >
@@ -1665,7 +1665,7 @@ function ChannelsSection() {
                         placeholder={field.placeholder}
                         value={(channelConfig[field.key] as string) || ''}
                         onChange={(e) => setChannelConfig({ ...channelConfig, [field.key]: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                        className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                       />
                     )}
 
@@ -1674,7 +1674,7 @@ function ChannelsSection() {
                         {/* Existing numbers */}
                         <div className="flex flex-wrap gap-1.5">
                           {((channelConfig[field.key] as string[]) || []).map((phone, i) => (
-                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300 text-xs font-mono">
+                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-mono">
                               {phone}
                               <button
                                 onClick={() => {
@@ -1682,7 +1682,7 @@ function ChannelsSection() {
                                   list.splice(i, 1);
                                   setChannelConfig({ ...channelConfig, [field.key]: list });
                                 }}
-                                className="ml-0.5 text-teal-600 dark:text-teal-500 hover:text-red-600 dark:text-red-400"
+                                className="ml-0.5 text-primary hover:text-red-600 dark:text-red-400"
                               >×</button>
                             </span>
                           ))}
@@ -1701,7 +1701,7 @@ function ChannelsSection() {
                                 setPhoneInput('');
                               }
                             }}
-                            className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-teal-500/50"
+                            className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
                           />
                           <button
                             onClick={() => {
@@ -1724,12 +1724,12 @@ function ChannelsSection() {
                         onClick={() => setChannelConfig({ ...channelConfig, [field.key]: !channelConfig[field.key] })}
                         className={cn(
                           "w-10 h-5 rounded-full transition-colors relative",
-                          channelConfig[field.key] ? "bg-teal-500/40" : "bg-muted"
+                          channelConfig[field.key] ? "bg-primary/40" : "bg-muted"
                         )}
                       >
                         <span className={cn(
                           "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                          channelConfig[field.key] ? "right-0.5 bg-teal-400" : "left-0.5 bg-muted-foreground"
+                          channelConfig[field.key] ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"
                         )} />
                       </button>
                     )}
@@ -1800,11 +1800,11 @@ function ChannelsSection() {
                         className={cn(
                           "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                           !isDisabled
-                            ? "bg-teal-500/30 text-teal-600 dark:text-teal-300 hover:bg-teal-500/40"
+                            ? "bg-primary/30 text-primary hover:bg-primary/40"
                             : "bg-muted text-muted-foreground cursor-not-allowed"
                         )}
                       >
-                        {savingChannel && <div className="w-3 h-3 border-2 border-teal-300 border-t-transparent rounded-full animate-spin" />}
+                        {savingChannel && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
                         {savingChannel ? 'Adding...' : needsAllowFrom ? 'Add a phone number first' : `Add ${channelPresets[selectedChannelType]?.label || 'Channel'}`}
                       </button>
                     );
@@ -1963,7 +1963,7 @@ function AgentsSection() {
           </div>
           {saving && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="w-3 h-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               Saving...
             </div>
           )}
@@ -1980,7 +1980,7 @@ function AgentsSection() {
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   {providerNames.map((name) => (
                     <option key={name} value={name}>
@@ -2010,7 +2010,7 @@ function AgentsSection() {
                 <button
                   type="button"
                   onClick={() => { setModelSearchOpen(!modelSearchOpen); setModelSearch(''); }}
-                  className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                  className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <span className="truncate">{selectedModelName}</span>
                   <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", modelSearchOpen && "rotate-90")} />
@@ -2050,7 +2050,7 @@ function AgentsSection() {
                             )}
                           >
                             <span className="w-3.5 shrink-0">
-                              {parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />}
+                              {parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-primary" />}
                             </span>
                             <span className="truncate">{model.name || model.id}</span>
                             {model.contextWindow && (
@@ -2074,7 +2074,7 @@ function AgentsSection() {
         {currentModel && (
           <div className="flex items-center gap-2 mt-3">
             <span className="text-xs text-muted-foreground">{t('settings.agentsConfig.currentDefault')}</span>
-            <code className="text-xs text-teal-600 dark:text-teal-400 font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
+            <code className="text-xs text-primary font-mono bg-muted px-2 py-0.5 rounded">{currentModel}</code>
           </div>
         )}
       </div>
@@ -2356,7 +2356,7 @@ function SkillsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1.5",
                 searchQuery === cat.q
-                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30"
+                  ? "bg-primary/15 text-primary border-primary/30"
                   : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted border-border"
               )}
             >
@@ -2372,7 +2372,7 @@ function SkillsSection() {
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder={t('settings.skillsConfig.searchPlaceholder')}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {searching && <RefreshCw className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />}
         </div>
@@ -2389,7 +2389,7 @@ function SkillsSection() {
                     onClick={() => setSelectedSlug(isSelected ? null : result.slug)}
                     className={cn(
                       "w-full text-left p-4 rounded-xl border transition-colors",
-                      isSelected ? "bg-card border-teal-500/30 ring-1 ring-teal-500/20" : "bg-card hover:bg-muted/50"
+                      isSelected ? "bg-card border-primary/30 ring-1 ring-primary/20" : "bg-card hover:bg-muted/50"
                     )}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -2485,7 +2485,7 @@ function SkillsSection() {
                               <button
                                 onClick={() => handleInstall(result.slug)}
                                 disabled={installing === result.slug}
-                                className="px-4 py-2 text-sm font-semibold rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                                className="px-4 py-2 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                               >
                                 {installing === result.slug ? (
                                   <><RefreshCw className="w-4 h-4 inline mr-1.5 animate-spin" />Installing...</>
@@ -2526,7 +2526,7 @@ function SkillsSection() {
             {installed.map(skill => (
               <div key={skill.slug} className="flex items-center justify-between p-4 rounded-xl bg-card border">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Package className="w-5 h-5 text-teal-500 shrink-0" />
+                  <Package className="w-5 h-5 text-primary shrink-0" />
                   <div className="min-w-0">
                     <h4 className="font-semibold text-foreground">{skill.name}</h4>
                     <p className="text-xs text-muted-foreground truncate">{skill.description || skill.slug}</p>
@@ -2729,7 +2729,7 @@ function AppearanceSection() {
           </button>
           <button
             onClick={() => setDarkMode(true)}
-            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", darkMode ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" : "text-muted-foreground")}
+            className={cn("flex items-center gap-2 px-3 py-1.5 text-sm rounded-md", darkMode ? "bg-primary/20 text-primary" : "text-muted-foreground")}
           >
             <Moon className="w-4 h-4" /> {t('settings.appearance.darkMode')}
           </button>
@@ -2749,7 +2749,7 @@ function AppearanceSection() {
               onClick={() => setLocale(loc)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
-                locale === loc ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" : "text-muted-foreground hover:text-foreground"
+                locale === loc ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <span>{availableLocales[loc].flag}</span>
@@ -2762,17 +2762,17 @@ function AppearanceSection() {
       {/* About */}
       <div className="p-4 rounded-xl bg-card border space-y-3">
         <div className="flex items-center gap-3">
-          <Zap className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+          <Zap className="w-6 h-6 text-primary" />
           <p className="font-semibold text-foreground">{t('settings.aboutConfig.silosDashboard')}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.dashboardVersion')}</span>
-            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{silosVersion ? `v${silosVersion}` : '—'}</span>
+            <span className="text-xs font-mono text-primary">{silosVersion ? `v${silosVersion}` : '—'}</span>
           </div>
           <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.openclawVersion')}</span>
-            <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{displayOpenclawVersion ? `v${displayOpenclawVersion}` : '—'}</span>
+            <span className="text-xs font-mono text-primary">{displayOpenclawVersion ? `v${displayOpenclawVersion}` : '—'}</span>
           </div>
         </div>
       </div>
@@ -2826,7 +2826,7 @@ export function SettingsPage() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <span className={activeSection === section.id ? "text-teal-600 dark:text-teal-400" : ""}>{section.icon}</span>
+                <span className={activeSection === section.id ? "text-primary" : ""}>{section.icon}</span>
                 <div>
                   <p className="text-sm font-medium">{t(section.labelKey)}</p>
                   <p className="text-xs text-muted-foreground">{t(section.descriptionKey)}</p>
@@ -2839,7 +2839,7 @@ export function SettingsPage() {
         {/* Content */}
         <div className="flex-1 p-6 max-w-4xl overflow-y-auto">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
               {currentSection?.icon}
             </div>
             <div>

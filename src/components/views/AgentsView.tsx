@@ -152,8 +152,8 @@ export function AgentsView() {
         ) : filteredAgents.length === 0 ? (
           // Empty state
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-20 h-20 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-4">
-              <Bot className="w-10 h-10 text-indigo-500" />
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Bot className="w-10 h-10 text-primary" />
             </div>
             <h3 className="text-lg font-semibold mb-1">{t('agents.noAgents')}</h3>
             <p className="text-sm text-muted-foreground max-w-sm mb-6">
@@ -163,7 +163,7 @@ export function AgentsView() {
               }
             </p>
             {!search && (
-              <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+              <Button className="gap-2 bg-primary hover:bg-primary/90">
                 <Plus className="w-4 h-4" />
                 {t('agents.newAgent')}
               </Button>

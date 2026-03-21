@@ -66,7 +66,7 @@ function DashStatCard({ icon, value, label, color }: {
 }) {
   const colorMap: Record<string, { icon: string }> = {
     violet: {
-      icon: 'bg-violet-500/12 text-violet-500 dark:text-violet-400',
+      icon: 'bg-primary/10 text-primary',
     },
     blue: {
       icon: 'bg-blue-500/12 text-blue-500 dark:text-blue-400',
@@ -193,7 +193,7 @@ export function UnifiedDashboard() {
     <div className="flex flex-col h-full bg-background overflow-y-auto">
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div className="border-b bg-card/80 backdrop-blur-sm">
-        <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
         <div className="px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
@@ -263,7 +263,7 @@ export function UnifiedDashboard() {
                     }}
                     cursor={false}
                   />
-                  <Bar dataKey="tokens" fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="tokens" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                   {activityByDay.length > 14 && (
                     <Brush
                       dataKey="dateStr"
