@@ -91,7 +91,7 @@ const DialogOverlay = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        'fixed inset-0 z-50 bg-black/80 backdrop-blur-sm',
+        'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         className
@@ -126,7 +126,7 @@ const DialogContent = React.forwardRef<
         className={cn(
           'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
           'w-full max-w-lg max-h-[90vh] overflow-auto',
-          'bg-card border border-border rounded-xl shadow-2xl',
+          'bg-card border border-border rounded-2xl shadow-elevation-3',
           'animate-in fade-in-0 zoom-in-95 duration-200',
           className
         )}

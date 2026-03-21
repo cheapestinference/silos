@@ -70,7 +70,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
           'bg-muted px-3 py-2 text-sm text-foreground',
           'ring-offset-background transition-colors',
           'placeholder:text-muted-foreground',
-          'focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50',
+          'focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
@@ -130,8 +130,8 @@ const SelectContent = React.forwardRef<
     <div
       ref={contentRef}
       className={cn(
-        'absolute z-50 mt-1 w-full min-w-[8rem] overflow-hidden rounded-lg',
-        'border border-border bg-popover shadow-xl',
+        'absolute z-50 mt-1 w-full min-w-[8rem] overflow-hidden rounded-xl',
+        'border border-border bg-popover shadow-elevation-2',
         'animate-in fade-in-0 zoom-in-95 duration-100',
         className
       )}
@@ -175,7 +175,7 @@ const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
       >
         {isSelected && (
           <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-            <Check className="h-4 w-4 text-indigo-500" />
+            <Check className="h-4 w-4 text-primary" />
           </span>
         )}
         {children}

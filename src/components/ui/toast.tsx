@@ -102,7 +102,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   return (
     <div
       className={cn(
-        'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-lg border p-4 shadow-lg',
+        'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-xl border p-4 shadow-elevation-2',
         'animate-in slide-in-from-right-full duration-300',
         variants[variant]
       )}
