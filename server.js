@@ -86,14 +86,8 @@ app.use(createAdminRouter(GATEWAY_TOKEN));
 const { httpMiddleware, browserMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
 app.use('/openclaw', httpMiddleware);
 
-// Browser noVNC proxy — auth via ?token= query param (gateway token)
-app.use('/browser', (req, res, next) => {
-  const token = req.query.token || req.headers['authorization']?.replace('Bearer ', '');
-  if (token !== GATEWAY_TOKEN) {
-    return res.status(403).json({ error: 'Invalid browser token' });
-  }
-  next();
-}, browserMiddleware);
+// Browser noVNC: static files served from dist/browser/ by express.static above.
+// WebSocket upgrades for /browser/websockify are handled by upgradeHandler (server.on('upgrade')).
 
 // SPA catch-all
 app.use((req, res, next) => {
