@@ -469,8 +469,8 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
 
   // Color scheme: amber while running, cyan when done
   const colors = isRunning
-    ? { border: 'border-amber-500/20', bg: 'bg-amber-500/10', hover: 'hover:bg-amber-500/15', icon: 'bg-amber-500/15 text-amber-500 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-500 dark:text-amber-400 hover:bg-amber-500/15' }
-    : { border: 'border-cyan-500/20', bg: 'bg-cyan-500/10', hover: 'hover:bg-cyan-500/15', icon: 'bg-cyan-500/15 text-cyan-500 dark:text-cyan-400', ring: 'ring-cyan-500/20', chevron: 'text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/15' };
+    ? { border: 'border-amber-500/40', bg: 'bg-amber-50 dark:bg-amber-500/15', hover: 'hover:bg-amber-100 dark:hover:bg-amber-500/20', icon: 'bg-amber-500/20 text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20' }
+    : { border: 'border-cyan-500/40', bg: 'bg-cyan-50 dark:bg-cyan-500/15', hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-500/20', icon: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400', ring: 'ring-cyan-500/20', chevron: 'text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-500/20' };
 
   return (
     <div className={cn(
