@@ -197,7 +197,7 @@ function getAgentColor(agentId: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function AppSidebar({ onBrowserToggle, browserOpen }: { onBrowserToggle?: () => void; browserOpen?: boolean }) {
+export function AppSidebar() {
   const {
     agents,
     sessions,
@@ -215,6 +215,8 @@ export function AppSidebar({ onBrowserToggle, browserOpen }: { onBrowserToggle?:
     unreadCounts,
     gatewayUrl,
     token,
+    browserPanelOpen,
+    setBrowserPanelOpen,
   } = useDashboardStore();
   const { signOut } = useAuth();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
@@ -630,14 +632,14 @@ export function AppSidebar({ onBrowserToggle, browserOpen }: { onBrowserToggle?:
         </Tooltip>
 
         {/* Browser Viewer */}
-        {connected && onBrowserToggle && (
+        {connected && (
           <Tooltip>
             <TooltipTrigger>
               <button
-                onClick={onBrowserToggle}
+                onClick={() => setBrowserPanelOpen(!browserPanelOpen)}
                 className={cn(
                   "w-7 h-7 rounded flex items-center justify-center transition-colors",
-                  browserOpen
+                  browserPanelOpen
                     ? "bg-primary text-white"
                     : "text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover"
                 )}
