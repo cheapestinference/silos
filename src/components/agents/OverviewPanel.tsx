@@ -197,7 +197,7 @@ export function OverviewPanel() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-violet-500/12 text-violet-500 dark:text-violet-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center mb-2">
               <MessageSquare className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{sessions.length}</p>

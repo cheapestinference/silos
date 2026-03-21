@@ -122,7 +122,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
 
   const getFileIcon = (path: string) => {
     if (path.includes('personality') || path.includes('persona')) {
-      return { icon: Brain, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
+      return { icon: Brain, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' };
     }
     if (path.includes('long') || path.includes('memory')) {
       return { icon: Brain, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
@@ -137,7 +137,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <FolderOpen className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold">{t('memory.title')}</h3>
           </div>
           <Button
@@ -161,12 +161,12 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             className={cn(
               "w-full p-3 rounded-lg border transition-all text-left",
               selectedFile === null
-                ? "bg-purple-500/10 border-purple-500/30"
+                ? "bg-primary/10 border-primary/30"
                 : "bg-muted border-border hover:bg-muted"
             )}
           >
             <div className="flex items-center gap-2 mb-1">
-              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <Brain className="w-4 h-4 text-primary" />
               <span className="font-medium text-sm">{t('memory.contextMemory')}</span>
             </div>
             <p className="text-xs text-muted-foreground">{t('memory.workingMemory')}</p>
@@ -217,7 +217,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground px-1">{t('memory.quickStart')}</p>
                 {[
-                  { name: 'personality.md', desc: t('memory.personality'), icon: Brain, iconClass: 'text-purple-600 dark:text-purple-400' },
+                  { name: 'personality.md', desc: t('memory.personality'), icon: Brain, iconClass: 'text-primary' },
                   { name: 'long-term-memory.md', desc: t('memory.persistentKnowledge'), icon: Brain, iconClass: 'text-blue-600 dark:text-blue-400' },
                   { name: 'preferences.md', desc: t('memory.userPreferences'), icon: FileText, iconClass: 'text-green-600 dark:text-green-400' },
                 ].map((file) => (
@@ -269,11 +269,11 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
         </div>
 
         {/* Info Card */}
-        <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-3">
+        <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
           <div className="flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5" />
+            <HelpCircle className="w-4 h-4 text-primary mt-0.5" />
             <div className="text-xs text-muted-foreground">
-              <p className="font-medium text-purple-600 dark:text-purple-400 mb-1">{t('memory.infoTitle')}</p>
+              <p className="font-medium text-primary mb-1">{t('memory.infoTitle')}</p>
               <p>{t('memory.infoText')}</p>
             </div>
           </div>
@@ -292,7 +292,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
               </>
             ) : (
               <>
-                <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <Brain className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold">{t('agents.config.contextMemory')}</h3>
               </>
             )}

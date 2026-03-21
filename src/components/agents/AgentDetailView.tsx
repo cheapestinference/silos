@@ -62,8 +62,8 @@ export function AgentDetailView() {
     return (
       <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center animate-in fade-in zoom-in duration-300">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-600/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
-            <Bot className="w-10 h-10 text-violet-600 dark:text-violet-400/50" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+            <Bot className="w-10 h-10 text-primary/50" />
           </div>
           <p className="text-sm text-muted-foreground mb-1">{t('agentDetail.agentNotFound')}</p>
           <p className="text-xs text-muted-foreground">{t('agentDetail.agentNotFoundDescription')}</p>
@@ -96,7 +96,7 @@ export function AgentDetailView() {
     <div className="h-full flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <header className="shrink-0 border-b border-border bg-gradient-to-b from-muted/60 to-transparent">
-        <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         <div className="px-6 py-4">
           <div className="flex items-center gap-4 mb-4">
             <button
@@ -109,11 +109,11 @@ export function AgentDetailView() {
             <div className="flex-1">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20 border border-violet-500/30 flex items-center justify-center shadow-lg shadow-violet-500/10">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/15 to-accent/20 border border-primary/30 flex items-center justify-center shadow-lg shadow-elevation-1">
                     {agentEmoji ? (
                       <span className="text-2xl">{agentEmoji}</span>
                     ) : (
-                      <Bot className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+                      <Bot className="w-7 h-7 text-primary" />
                     )}
                   </div>
                   {isOnline && (

@@ -109,7 +109,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
               {agent.identity?.emoji || displayName.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -208,7 +208,7 @@ export function AgentConfigEditor({ agent, open, onOpenChange }: AgentConfigEdit
               <Button
                 onClick={handleSave}
                 disabled={!hasChanges || configSaving}
-                className="bg-indigo-600 hover:bg-indigo-700 min-w-[120px]"
+                className="bg-primary hover:bg-primary/90 min-w-[120px]"
               >
                 {configSaving ? (
                   <>

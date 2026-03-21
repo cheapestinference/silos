@@ -49,7 +49,7 @@ function InfoRow({ icon, label, value, mono, error }: { icon: React.ReactNode; l
 
 const roleConfig: Record<string, { icon: React.ReactNode; label: string; bg: string; text: string }> = {
   user: { icon: <User className="w-3 h-3" />, label: 'User', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
-  assistant: { icon: <Bot className="w-3 h-3" />, label: 'Assistant', bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400' },
+  assistant: { icon: <Bot className="w-3 h-3" />, label: 'Assistant', bg: 'bg-primary/10', text: 'text-primary' },
   system: { icon: <Zap className="w-3 h-3" />, label: 'System', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
   tool: { icon: <Wrench className="w-3 h-3" />, label: 'Tool', bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400' },
 };
@@ -183,7 +183,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
                       <span className="text-[10px] text-muted-foreground">in</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <ArrowUpRight className="w-3 h-3 text-violet-500" />
+                      <ArrowUpRight className="w-3 h-3 text-primary" />
                       <span className="text-sm tabular-nums text-foreground">{(task.outputTokens || 0).toLocaleString()}</span>
                       <span className="text-[10px] text-muted-foreground">out</span>
                     </div>
@@ -340,7 +340,7 @@ function MessageBubble({ role, content, isLong, toolName, timestamp, toolInput, 
             {toolInput && <CollapsibleBlock label="Input" content={toolInput} color="text-blue-500" />}
             {toolOutput && <CollapsibleBlock label="Output" content={toolOutput} color="text-emerald-500" />}
             {content && content.trim() && !toolOutput && (
-              <CollapsibleBlock label="Result" content={content} color="text-violet-500" />
+              <CollapsibleBlock label="Result" content={content} color="text-primary" />
             )}
           </div>
         ) : (

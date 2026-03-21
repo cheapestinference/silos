@@ -229,10 +229,10 @@ export function SkillsPanel() {
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <Sparkles className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">{t('agentDetail.skillsTitle')}</h3>
             </div>
-            <span className="text-[10px] px-2 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-300 font-semibold">
+            <span className="text-[10px] px-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-semibold">
               {BUILTIN_SKILLS.length} {t('agentDetail.skillsBuiltinCount')} · {installed.length} {t('agentDetail.skillsAddedCount')}
             </span>
           </div>
@@ -242,7 +242,7 @@ export function SkillsPanel() {
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder={t('agentDetail.skillsSearchPlaceholder')}
-              className={cn("w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50", searchQuery && "pr-9")}
+              className={cn("w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50", searchQuery && "pr-9")}
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
             {searching && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
@@ -261,7 +261,7 @@ export function SkillsPanel() {
               <>
                 <button
                   onClick={() => handleSearch('')}
-                  className="px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30"
+                  className="px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors bg-primary/15 text-primary border-primary/30"
                 >
                   {t('agentDetail.skillsBackToInstalled')}
                 </button>
@@ -271,7 +271,7 @@ export function SkillsPanel() {
                     onClick={() => handleSearch(q)}
                     className={cn(
                       "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                      searchQuery === q ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                      searchQuery === q ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                     )}
                   >
                     {q}
@@ -284,7 +284,7 @@ export function SkillsPanel() {
                   onClick={() => setCategoryFilter(null)}
                   className={cn(
                     "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                    !categoryFilter ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                    !categoryFilter ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                   )}
                 >
                   All
@@ -295,7 +295,7 @@ export function SkillsPanel() {
                     onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
                     className={cn(
                       "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                      categoryFilter === cat ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                      categoryFilter === cat ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                     )}
                   >
                     {cat}
@@ -320,8 +320,8 @@ export function SkillsPanel() {
                     className={cn(
                       "w-full p-2.5 rounded-lg border transition-all text-left",
                       selectedId === `builtin:${skill.id}`
-                        ? "bg-violet-500/10 border-violet-500/30"
-                        : "bg-card border-border hover:border-violet-500/20",
+                        ? "bg-primary/10 border-primary/30"
+                        : "bg-card border-border hover:border-primary/20",
                       !enabled && "opacity-50"
                     )}
                   >
@@ -353,16 +353,16 @@ export function SkillsPanel() {
                       className={cn(
                         "w-full p-2.5 rounded-lg border transition-all text-left",
                         selectedId === skill.slug
-                          ? "bg-violet-500/10 border-violet-500/30"
-                          : "bg-card border-border hover:border-violet-500/20"
+                          ? "bg-primary/10 border-primary/30"
+                          : "bg-card border-border hover:border-primary/20"
                       )}
                     >
                       <div className="flex items-center gap-2.5">
-                        <Package className="w-4 h-4 text-teal-500 shrink-0" />
+                        <Package className="w-4 h-4 text-primary shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-foreground truncate">{skill.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 shrink-0">{t('agentDetail.skillsClawHubTag')}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">{t('agentDetail.skillsClawHubTag')}</span>
                           </div>
                           <span className="text-[10px] text-muted-foreground truncate block">{skill.description || skill.slug}</span>
                         </div>
@@ -390,8 +390,8 @@ export function SkillsPanel() {
                 className={cn(
                   "w-full p-2.5 rounded-lg border transition-all text-left",
                   selectedId === result.slug
-                    ? "bg-violet-500/10 border-violet-500/30"
-                    : "bg-card border-border hover:border-violet-500/20"
+                    ? "bg-primary/10 border-primary/30"
+                    : "bg-card border-border hover:border-primary/20"
                 )}
               >
                 <div className="flex items-center gap-2.5">
@@ -536,7 +536,7 @@ export function SkillsPanel() {
                   </button>
                 ) : (
                   <button onClick={() => handleInstall(selectedId)} disabled={installing === selectedId}
-                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50">
+                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                     {installing === selectedId ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>{t('agentDetail.skillsInstalling')}</span></> : <><Download className="w-4 h-4" /><span>{t('agentDetail.skillsInstall')}</span></>}
                   </button>
                 )}
@@ -552,10 +552,10 @@ export function SkillsPanel() {
             <div className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <Package className="w-8 h-8 text-teal-500" />
+                  <Package className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="text-base font-bold text-foreground">{selectedInstalled.name}</h3>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">{t('agentDetail.skillsClawHubTag')}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{t('agentDetail.skillsClawHubTag')}</span>
                   </div>
                 </div>
                 <button onClick={() => setSelectedId(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
@@ -564,7 +564,7 @@ export function SkillsPanel() {
               </div>
               <p className="text-sm text-muted-foreground mb-4">{selectedInstalled.description || ''}</p>
               <a href={`https://clawhub.ai/${selectedInstalled.slug}`} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-teal-600 dark:text-teal-400 hover:underline mb-4">
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-4">
                 <ExternalLink className="w-3 h-3" /> {t('agentDetail.skillsViewOnClawHub')}
               </a>
               <button onClick={() => handleUninstall(selectedInstalled.slug)} disabled={uninstalling === selectedInstalled.slug}

@@ -212,7 +212,7 @@ export function ConfigPanel() {
         </div>
 
         {/* Agent-to-Agent Communication Section (hidden) */}
-        <div className="hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-2xl border border-blue-500/20 overflow-hidden">
+        <div className="hidden bg-gradient-to-br from-blue-500/10 to-primary/5 rounded-2xl border border-blue-500/20 overflow-hidden">
           <div className="px-5 py-4 border-b border-blue-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
@@ -369,7 +369,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                     <span className="text-blue-500 dark:text-blue-400">sessions_send</span>({'{'} agentId, message {'}'}) <span className="text-muted-foreground">// Send to another agent</span>
                   </div>
                   <div className="bg-muted rounded-lg p-2">
-                    <span className="text-purple-600 dark:text-purple-400">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground">// Spawn background subagent</span>
+                    <span className="text-primary">sessions_spawn</span>({'{'} task, label {'}'}) <span className="text-muted-foreground">// Spawn background subagent</span>
                   </div>
                 </div>
               </div>

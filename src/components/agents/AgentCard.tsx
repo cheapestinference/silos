@@ -35,19 +35,19 @@ export function AgentCard({
   // Generate gradient colors based on theme or agent id
   const gradientClass = React.useMemo(() => {
     const gradients = [
-      'from-indigo-500 to-purple-600',
+      'from-primary to-accent',
       'from-blue-500 to-cyan-500',
-      'from-emerald-500 to-teal-500',
+      'from-emerald-500 to-emerald-600',
       'from-orange-500 to-red-500',
       'from-pink-500 to-rose-500',
-      'from-violet-500 to-purple-500',
+      'from-primary to-accent',
     ];
     const hash = agent.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return gradients[hash % gradients.length];
   }, [agent.id]);
 
   return (
-    <div className="group relative bg-card border border-border rounded-xl p-5 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300">
+    <div className="group relative bg-card border border-border rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-elevation-1 hover:-translate-y-0.5 transition-all duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         {/* Avatar */}
@@ -123,7 +123,7 @@ export function AgentCard({
       <div className="flex gap-2">
         <Button
           onClick={onChat}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <MessageSquare className="w-4 h-4 mr-2" />
           {t('agents.chat')}

@@ -19,10 +19,10 @@ export function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
       value: 'text-cyan-700 dark:text-cyan-300',
     },
     violet: {
-      bg: 'bg-violet-500/10',
-      border: 'border-violet-500/20',
-      icon: 'text-violet-600 dark:text-violet-400',
-      value: 'text-violet-700 dark:text-violet-300',
+      bg: 'bg-primary/10',
+      border: 'border-primary/20',
+      icon: 'text-primary',
+      value: 'text-primary',
     },
     emerald: {
       bg: 'bg-emerald-500/10',
@@ -72,7 +72,7 @@ export function TabButton({ active, onClick, icon, label, badge }: TabButtonProp
       className={cn(
         "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 relative",
         active
-          ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-700 dark:text-violet-300 shadow-lg shadow-violet-500/5"
+          ? "bg-gradient-to-r from-primary/20 to-accent/20 text-primary shadow-lg shadow-elevation-1"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
       )}
       style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
@@ -99,7 +99,7 @@ export interface ConfigCardProps {
 export function ConfigCard({ title, icon, color, children }: ConfigCardProps) {
   const colorClasses = {
     cyan: { icon: 'text-cyan-600 dark:text-cyan-400' },
-    violet: { icon: 'text-violet-600 dark:text-violet-400' },
+    violet: { icon: 'text-primary' },
     amber: { icon: 'text-amber-600 dark:text-amber-400' },
     emerald: { icon: 'text-emerald-600 dark:text-emerald-400' },
   };

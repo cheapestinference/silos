@@ -16,13 +16,20 @@ import {
 } from 'lucide-react';
 import useTranslation from '../../i18n';
 
+// Color class maps for category theming
+const CATEGORY_COLOR_CLASSES: Record<string, { icon: string; selectedBg: string; selectedBorder: string; selectedIcon: string }> = {
+  primary: { icon: 'text-primary', selectedBg: 'bg-primary/20', selectedBorder: 'border-primary/30', selectedIcon: 'text-primary' },
+  emerald: { icon: 'text-emerald-400', selectedBg: 'bg-emerald-500/20', selectedBorder: 'border-emerald-500/30', selectedIcon: 'text-emerald-400' },
+  sky: { icon: 'text-sky-400', selectedBg: 'bg-sky-500/20', selectedBorder: 'border-sky-500/30', selectedIcon: 'text-sky-400' },
+};
+
 // File categories based on OpenClaw workspace structure
 export const FILE_CATEGORIES = [
   {
     id: 'identity',
     labelKey: 'agentDetail.identity' as const,
     icon: Sparkles,
-    color: 'violet',
+    color: 'primary',
     descriptionKey: 'agentDetail.identityDescription' as const,
     files: [
       { name: 'IDENTITY.md', descriptionKey: 'agentDetail.identityFileDescription' as const },
@@ -218,7 +225,7 @@ export function BrainPanel() {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <Brain className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 {t('agentDetail.memory')}
               </h3>
@@ -237,6 +244,7 @@ export function BrainPanel() {
               const CategoryIcon = category.icon;
               const isExpanded = expandedCategories.includes(category.id);
 
+              const catColors = CATEGORY_COLOR_CLASSES[category.color] || CATEGORY_COLOR_CLASSES.primary;
               return (
                 <div key={category.id} className="space-y-1">
                   {/* Category Header */}
@@ -247,7 +255,7 @@ export function BrainPanel() {
                       "hover:bg-muted text-left"
                     )}
                   >
-                    <CategoryIcon className={cn("w-4 h-4", `text-${category.color}-400`)} />
+                    <CategoryIcon className={cn("w-4 h-4", catColors.icon)} />
                     <span className="text-xs font-semibold text-foreground/80 flex-1">
                       {t(category.labelKey)}
                     </span>
@@ -274,14 +282,14 @@ export function BrainPanel() {
                             className={cn(
                               "w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200 group",
                               isSelected
-                                ? `bg-${category.color}-500/20 border border-${category.color}-500/30`
+                                ? `${catColors.selectedBg} border ${catColors.selectedBorder}`
                                 : "hover:bg-muted border border-transparent hover:border-border"
                             )}
                           >
                             <div className="flex items-center gap-2">
                               <FileText className={cn(
                                 "w-3.5 h-3.5",
-                                isSelected ? `text-${category.color}-400` : exists ? "text-muted-foreground" : "text-muted-foreground"
+                                isSelected ? catColors.selectedIcon : exists ? "text-muted-foreground" : "text-muted-foreground"
                               )} />
                               <span className={cn(
                                 "text-xs font-medium",
@@ -328,18 +336,25 @@ export function BrainPanel() {
             {/* Header */}
             <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-xl border flex items-center justify-center",
-                  selectedFileInfo?.category
-                    ? `bg-${selectedFileInfo.category.color}-500/10 border-${selectedFileInfo.category.color}-500/20`
-                    : "bg-muted border-border"
-                )}>
-                  {selectedFileInfo?.category ? (
-                    <selectedFileInfo.category.icon className={cn("w-5 h-5", `text-${selectedFileInfo.category.color}-400`)} />
-                  ) : (
-                    <FileText className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
+                {(() => {
+                  const selColors = selectedFileInfo?.category
+                    ? (CATEGORY_COLOR_CLASSES[selectedFileInfo.category.color] || CATEGORY_COLOR_CLASSES.primary)
+                    : null;
+                  return (
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl border flex items-center justify-center",
+                      selColors
+                        ? `${selColors.selectedBg} ${selColors.selectedBorder}`
+                        : "bg-muted border-border"
+                    )}>
+                      {selectedFileInfo?.category ? (
+                        <selectedFileInfo.category.icon className={cn("w-5 h-5", selColors?.icon)} />
+                      ) : (
+                        <FileText className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  );
+                })()}
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
                     {selectedFile.split('/').pop() || selectedFile}
@@ -388,7 +403,7 @@ export function BrainPanel() {
                 <textarea
                   value={editedContent}
                   onChange={(e) => handleContentChange(e.target.value)}
-                  className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none transition-all"
+                  className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-all"
                   placeholder={t('agentDetail.fileContentPlaceholder')}
                   spellCheck={false}
                 />

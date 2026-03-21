@@ -170,8 +170,8 @@ export function AgentToolsPanel() {
         <div className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
-                <Wrench className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 flex items-center justify-center">
+                <Wrench className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
