@@ -3,6 +3,7 @@ import { Monitor, X, RefreshCw, ExternalLink, PanelRightClose } from 'lucide-rea
 import { cn } from '../../lib/utils';
 import { buildNoVncUrl } from '../../lib/browser-utils';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { useBrowserStatus } from '../../hooks/useBrowserStatus';
 
 
 interface BrowserPanelProps {
@@ -24,7 +25,10 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const [connected, setConnected] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const url = buildNoVncUrl(token, { password: 'abc123', resize: true });
+  const status = useBrowserStatus(token, browserPanelOpen);
+  const url = status.active && status.password
+    ? buildNoVncUrl(token, { password: status.password, resize: true })
+    : null;
 
   const maximized = useRef(false);
 
@@ -46,11 +50,11 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const handleRefresh = () => {
     setLoading(true);
     setError(false);
-    if (iframeRef.current) iframeRef.current.src = url;
+    if (iframeRef.current && url) iframeRef.current.src = url;
   };
 
   const handlePopout = () => {
-    window.open(url, '_blank', 'width=1024,height=768');
+    if (url) window.open(url, '_blank', 'width=1024,height=768');
     setBrowserDetached('popout');
   };
 
@@ -91,7 +95,11 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
 
       {/* Body */}
       <div className="flex-1 relative bg-background min-h-0">
-        {error ? (
+        {!url ? (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            El browser se activará automáticamente cuando el agente lo necesite
+          </div>
+        ) : error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Monitor className="w-8 h-8 opacity-40" />
             <p className="text-sm">Browser not available</p>

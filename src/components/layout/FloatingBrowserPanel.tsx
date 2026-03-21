@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Monitor, X, RefreshCw, ExternalLink, PanelRightOpen, GripHorizontal } from 'lucide-react';
 import { buildNoVncUrl } from '../../lib/browser-utils';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { useBrowserStatus } from '../../hooks/useBrowserStatus';
 
 
 export function FloatingBrowserPanel() {
@@ -24,7 +25,11 @@ export function FloatingBrowserPanel() {
   const resizing = useRef(false);
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
-  const url = buildNoVncUrl(token, { password: 'abc123', resize: true });
+  const isOverlay = browserDetached === 'overlay';
+  const status = useBrowserStatus(token, browserPanelOpen && isOverlay);
+  const url = status.active && status.password
+    ? buildNoVncUrl(token, { password: status.password, resize: true })
+    : null;
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
@@ -63,14 +68,14 @@ export function FloatingBrowserPanel() {
   const handleReattach = () => setBrowserDetached('none');
 
   const handlePopout = () => {
-    window.open(url, '_blank', 'width=1024,height=768');
+    if (url) window.open(url, '_blank', 'width=1024,height=768');
     setBrowserDetached('popout');
   };
 
   const handleRefresh = () => {
     setLoading(true);
     setError(false);
-    if (iframeRef.current) iframeRef.current.src = url;
+    if (iframeRef.current && url) iframeRef.current.src = url;
   };
 
   return createPortal(
@@ -108,7 +113,11 @@ export function FloatingBrowserPanel() {
 
       {/* Body */}
       <div className="flex-1 relative bg-background min-h-0">
-        {error ? (
+        {!url ? (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            El browser se activará automáticamente cuando el agente lo necesite
+          </div>
+        ) : error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Monitor className="w-8 h-8 opacity-40" />
             <p className="text-sm">Browser not available</p>
