@@ -628,7 +628,7 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
       <div className="relative group w-11 h-11 flex-shrink-0">
         {/* Outer glow ring */}
         <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-foreground/20 to-foreground/40 opacity-20 blur-[2px] group-hover:opacity-40 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-foreground/90 dark:bg-foreground/15 flex items-center justify-center text-background dark:text-foreground shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+        <div className="relative w-11 h-11 rounded-xl bg-foreground/90 dark:bg-muted flex items-center justify-center text-background dark:text-foreground shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
           <User className="w-5 h-5" />
         </div>
       </div>
@@ -829,7 +829,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
           <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
             <span className={cn(
               "font-semibold text-xs tracking-wide",
-              isUser && !isSubagentSession ? "text-primary" :
+              isUser && !isSubagentSession ? "text-foreground/80" :
               isUser && isSubagentSession ? "text-cyan-600 dark:text-cyan-400" : "text-primary"
             )}>
               {getAgentName()}
@@ -874,7 +874,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   isUser && !isSubagentSession
                     ? [
                         // Human user messages - neutral dark, works across all themes
-                        "bg-foreground/90 dark:bg-foreground/15",
+                        "bg-foreground/90 dark:bg-muted",
                         "text-background dark:text-foreground rounded-br-md",
                         "shadow-elevation-1",
                         "hover:shadow-elevation-2 hover:translate-y-[-1px]",
@@ -894,7 +894,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                         "bg-card",
                         "border",
                         "text-foreground rounded-bl-md",
-                        "shadow-sm",
+                        "shadow-elevation-1",
                         "hover:translate-y-[-1px]"
                       ]
                 )}>
@@ -911,7 +911,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                 {isUser && (isSending || hasError) && (
                   <div className={cn(
                     "flex items-center justify-end gap-1.5 px-2 text-[10px] font-medium",
-                    isSending && "text-primary",
+                    isSending && "text-muted-foreground",
                     hasError && "text-rose-600 dark:text-rose-400"
                   )}>
                     {isSending && (
