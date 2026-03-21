@@ -3,9 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { CommandPalette } from './components/layout/CommandPalette';
-import { BrowserPanel } from './components/layout/BrowserPanel';
 import { FloatingBrowserPanel } from './components/layout/FloatingBrowserPanel';
-import { DragHandle } from './components/layout/DragHandle';
 import { ToastProvider, useToast } from './components/ui/toast';
 import { useDashboardStore } from './store/dashboard-store';
 import useTranslation from './i18n';
@@ -74,39 +72,20 @@ function ConnectionOverlay() {
 }
 
 export function MainShell() {
-  const { connected, token, browserPanelOpen, browserDetached, browserSplitRatio, setBrowserSplitRatio } = useDashboardStore();
-  const splitRef = useRef<HTMLDivElement>(null);
+  const { connected, token } = useDashboardStore();
 
   // No token at all → redirect to login
   if (!token) {
     return <Navigate to="/connect" replace />;
   }
 
-  const showSplit = browserPanelOpen && browserDetached === 'none';
-
   return (
     <ToastProvider>
       <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
         <AppSidebar />
-        <div ref={splitRef} className="flex-1 flex min-w-0">
-          <main
-            className="flex flex-col min-w-0 transition-all duration-200"
-            style={{ flex: showSplit ? `0 0 ${browserSplitRatio * 100}%` : '1 1 100%' }}
-          >
-            <Outlet />
-          </main>
-          {showSplit && (
-            <>
-              <DragHandle
-                containerRef={splitRef}
-                onResize={setBrowserSplitRatio}
-              />
-              <div style={{ flex: `0 0 ${(1 - browserSplitRatio) * 100}%` }} className="min-w-[320px]">
-                <BrowserPanel />
-              </div>
-            </>
-          )}
-        </div>
+        <main className="flex-1 flex flex-col min-w-0">
+          <Outlet />
+        </main>
         <FloatingBrowserPanel />
         <CommandPalette />
       </div>
