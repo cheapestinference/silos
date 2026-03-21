@@ -83,7 +83,7 @@ function DashStatCard({ icon, value, label, color }: {
   };
   const c = colorMap[color] || colorMap.violet;
   return (
-    <div className="rounded-xl bg-card border border-border p-4 flex flex-col gap-2">
+    <div className="rounded-xl bg-card border border-border p-4 flex flex-col gap-2 shadow-elevation-1">
       <div className={`w-8 h-8 rounded-lg ${c.icon} flex items-center justify-center`}>
         {icon}
       </div>
@@ -222,7 +222,7 @@ export function UnifiedDashboard() {
         </div>
 
         {/* ── Row 2: Chart ─────────────────────────────────────────────────────── */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-xl border bg-card overflow-hidden shadow-elevation-1">
           {hasActivity ? (
             <div className="px-4 pt-4 pb-2">
               <ResponsiveContainer width="100%" height={180}>
@@ -329,7 +329,7 @@ export function UnifiedDashboard() {
         {/* ── Channels ──────────────────────────────────────────────────────────── */}
         <button
           onClick={() => navigate('/settings/channels')}
-          className="rounded-xl border bg-card p-5 flex flex-col gap-3 min-w-[180px] hover:border-foreground/20 transition-colors justify-center"
+          className="rounded-xl border bg-card p-5 flex flex-col gap-3 min-w-[180px] hover:border-foreground/20 transition-colors justify-center shadow-elevation-1"
         >
           <div className="flex items-center justify-between w-full">
             <p className="text-sm font-semibold text-foreground">{t('unifiedDashboard.connectChannels')}</p>
