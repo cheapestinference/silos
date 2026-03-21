@@ -28,6 +28,10 @@ function copyNovncPlugin() {
         }
       }
 
+      if (!fs.existsSync(src)) {
+        console.warn('[copy-novnc] @novnc/novnc not found, skipping copy');
+        return;
+      }
       copyDir(src, dest);
     }
   };

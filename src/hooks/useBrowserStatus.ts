@@ -10,7 +10,10 @@ export function useBrowserStatus(token: string | null, enabled: boolean): Browse
   const [status, setStatus] = useState<BrowserStatus>({ active: false });
 
   useEffect(() => {
-    if (!enabled || !token) return;
+    if (!enabled || !token) {
+      setStatus({ active: false });
+      return;
+    }
     let cancelled = false;
     const poll = async () => {
       try {
