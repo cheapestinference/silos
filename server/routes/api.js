@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import net from 'net';
+import http from 'http';
 import { verifyFirebaseToken } from '../middleware/auth.js';
 
 import { isAllowedProxyUrl } from '../validation.js';
@@ -507,36 +508,40 @@ for line in out.splitlines():
   });
 
   // Browser status — checks if the sandbox browser container is running and noVNC is reachable
+  // Uses Docker Engine API via Unix socket (no docker CLI needed inside the container)
+  const dockerRequest = (path) => new Promise((resolve, reject) => {
+    const req = http.request({ socketPath: '/var/run/docker.sock', path, method: 'GET' }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch { resolve(data); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(3000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.end();
+  });
+
   router.get('/api/browser/status', authMiddleware, async (_req, res) => {
     try {
-      // Find a running container with the sandbox browser label
-      const { stdout: containers } = await execFileAsync('docker', [
-        'ps', '--filter', 'label=openclaw.sandboxBrowser=1',
-        '--format', '{{.Names}}\t{{.CreatedAt}}',
-      ]);
-      const firstLine = containers.trim().split('\n')[0] || '';
-      if (!firstLine) {
+      // Find running containers with the sandbox browser label via Docker Engine API
+      const containers = await dockerRequest(
+        '/containers/json?filters=' + encodeURIComponent('{"label":["openclaw.sandboxBrowser=1"]}')
+      );
+      if (!Array.isArray(containers) || containers.length === 0) {
         return res.json({ active: false });
       }
-      const [containerName, createdAt] = firstLine.split('\t');
+      const container = containers[0];
 
-      // Read the VNC password from the container's environment
+      // Read VNC password from container env
       let password;
       try {
-        const { stdout: envOut } = await execFileAsync('docker', [
-          'inspect', '--format',
-          '{{range .Config.Env}}{{println .}}{{end}}',
-          containerName,
-        ]);
-        const match = envOut.split('\n').find(l => l.startsWith('OPENCLAW_BROWSER_NOVNC_PASSWORD='));
-        if (match) {
-          password = match.slice('OPENCLAW_BROWSER_NOVNC_PASSWORD='.length);
-        }
-      } catch (_e) {
-        // Non-fatal: proceed without password
-      }
+        const inspect = await dockerRequest(`/containers/${container.Id}/json`);
+        const envLine = (inspect.Config?.Env || []).find(l => l.startsWith('OPENCLAW_BROWSER_NOVNC_PASSWORD='));
+        if (envLine) password = envLine.slice('OPENCLAW_BROWSER_NOVNC_PASSWORD='.length);
+      } catch { /* non-fatal */ }
 
-      // TCP probe: check if noVNC port 6080 is reachable
+      // TCP probe: check if noVNC port 6080 is reachable (socat bridge)
       const portReachable = await new Promise((resolve) => {
         const sock = new net.Socket();
         const done = (result) => { sock.destroy(); resolve(result); };
@@ -551,14 +556,12 @@ for line in out.splitlines():
         return res.json({ active: false });
       }
 
-      // Parse ISO timestamp from docker's CreatedAt field (e.g. "2026-03-21 12:00:00 +0000 UTC")
-      const since = createdAt ? new Date(createdAt).toISOString() : undefined;
-
+      const since = container.Created ? new Date(container.Created * 1000).toISOString() : undefined;
       const response = { active: true, since };
       if (password) response.password = password;
       res.json(response);
     } catch (e) {
-      res.status(502).json({ error: e.message });
+      res.json({ active: false });
     }
   });
 
