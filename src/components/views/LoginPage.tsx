@@ -51,14 +51,14 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
   return (
     <div className="dark min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: 'hsl(222, 47%, 11%)' }}>
       {/* Background */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-soft" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[hsl(var(--glow)_/_0.2)] blur-[120px] rounded-full animate-pulse-soft" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[hsl(var(--accent-secondary)_/_0.1)] blur-[150px] rounded-full" />
 
       <div className="w-full max-w-lg px-6 z-10">
         {/* Logo */}
         <div className="text-center mb-12">
           <div className="inline-flex relative">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-indigo-600 to-purple-600 border border-white/20 shadow-2xl">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-primary to-[hsl(var(--accent-secondary))] border border-white/20 shadow-2xl">
               <Shield className="h-12 w-12 text-white" />
             </div>
           </div>
@@ -93,7 +93,7 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
                 placeholder={t('login.emailPlaceholder')}
                 required
                 autoComplete="email"
-                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <input
                 type="password"
@@ -103,12 +103,12 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
                 required
                 autoComplete="current-password"
                 minLength={6}
-                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <button
                 type="submit"
                 disabled={signingIn || loading}
-                className="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base py-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-base py-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
               >
                 {signingIn ? (
                   <span className="flex items-center justify-center gap-2">

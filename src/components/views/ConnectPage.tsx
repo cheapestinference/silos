@@ -16,14 +16,14 @@ export function ConnectPage() {
   return (
     <div className="dark min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
       {/* Animated Background Elements */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full animate-pulse-soft" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full animate-float" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[hsl(var(--glow)_/_0.2)] blur-[120px] rounded-full animate-pulse-soft" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[hsl(var(--accent-secondary)_/_0.1)] blur-[150px] rounded-full animate-float" />
       
       <div className="w-full max-w-lg px-6 z-10">
         {/* Logo Section */}
         <div className="text-center mb-12 animate-message-in">
           <div className="inline-flex relative">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-indigo-600 to-purple-600 border border-white/20 shadow-2xl ai-glow">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-primary to-[hsl(var(--accent-secondary))] border border-white/20 shadow-2xl ai-glow">
               <Shield className="h-12 w-12 text-white" />
             </div>
             <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-background animate-pulse" />
@@ -41,14 +41,14 @@ export function ConnectPage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
-                <Server className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <Server className="h-4 w-4 text-primary" />
                 {t('connect.gatewayInterface')}
               </label>
               <div className="relative group">
                 <input
                   type="url"
                   placeholder="http://127.0.0.1:18789"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all placeholder:text-white/20"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder:text-white/20"
                   value={gatewayUrl}
                   onChange={(e) => setGatewayUrl(e.target.value)}
                   required
@@ -58,14 +58,14 @@ export function ConnectPage() {
 
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/50 flex items-center gap-3 px-1">
-                <Lock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <Lock className="h-4 w-4 text-primary" />
                 {t('connect.securityToken')}
               </label>
               <div className="relative group">
                 <input
                   type={showToken ? 'text' : 'password'}
                   placeholder={t('connect.tokenPlaceholder')}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-all placeholder:text-white/20"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder:text-white/20"
                   value={token || ''}
                   onChange={(e) => setToken(e.target.value || null)}
                 />
@@ -104,7 +104,7 @@ export function ConnectPage() {
                   </>
                 )}
               </div>
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-r from-primary via-[hsl(var(--accent-secondary))] to-pink-500 opacity-0 group-hover:opacity-10 transition-opacity" />
             </button>
           </form>
         </div>
