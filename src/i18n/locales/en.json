@@ -243,7 +243,7 @@
     "sendMessageTrigger": "Send a message to trigger an agent task",
     "standingBy": "Standing by",
     "abort": "Stop",
-    "operator": "Operator",
+    "operator": "You",
     "system": "System",
     "thinkingDeeply": "Thinking deeply...",
     "deleteSession": "Delete Session",

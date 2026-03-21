@@ -243,7 +243,7 @@
     "sendMessageTrigger": "Envía un mensaje para activar una tarea del agente",
     "standingBy": "En espera",
     "abort": "Detener",
-    "operator": "Operador",
+    "operator": "Tú",
     "system": "Sistema",
     "thinkingDeeply": "Pensando profundamente...",
     "deleteSession": "Eliminar Sesión",
