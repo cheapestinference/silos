@@ -625,11 +625,9 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
   // Show user avatar only for actual human users, not agent-to-agent messages
   if (isUser && !isAgentSender) {
     return (
-      <div className="relative group w-11 h-11 flex-shrink-0">
-        {/* Outer glow ring */}
-        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-zinc-500 to-zinc-700 dark:from-zinc-400 dark:to-zinc-600 opacity-20 blur-[2px] group-hover:opacity-40 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-800 dark:from-zinc-600 dark:to-zinc-700 flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
-          <User className="w-5 h-5" />
+      <div className="relative group w-9 h-9 flex-shrink-0">
+        <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-zinc-500 to-zinc-600 dark:from-zinc-500 dark:to-zinc-600 flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+          <User className="w-4 h-4" />
         </div>
       </div>
     );
@@ -638,11 +636,9 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
   // Agent-to-agent sender (user role but from an agent)
   if (isUser && isAgentSender) {
     return (
-      <div className="relative group w-11 h-11 flex-shrink-0">
-        {/* Outer glow ring - cyan for agent sender */}
-        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
-          <Bot className="w-5 h-5" />
+      <div className="relative group w-9 h-9 flex-shrink-0">
+        <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+          <Bot className="w-4 h-4" />
         </div>
       </div>
     );
@@ -653,21 +649,21 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
   const emoji = agent?.identity?.emoji;
 
   return (
-    <div className="relative group w-11 h-11 flex-shrink-0">
+    <div className="relative group w-9 h-9 flex-shrink-0">
       {/* Animated outer ring for AI */}
       <div className={cn(
-        "absolute -inset-[1px] rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-30 blur-[2px] transition-opacity",
-        isStreaming ? "animate-pulse opacity-50" : "group-hover:opacity-50"
+        "absolute -inset-[1px] rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-20 blur-[2px] transition-opacity",
+        isStreaming ? "animate-pulse opacity-40" : "group-hover:opacity-40"
       )} />
       {/* Inner rotating gradient (subtle) */}
       {isStreaming && (
-        <div className="absolute -inset-[2px] rounded-xl bg-gradient-conic from-primary via-accent to-primary opacity-20 animate-spin-slow" />
+        <div className="absolute -inset-[2px] rounded-lg bg-gradient-conic from-primary via-accent to-primary opacity-15 animate-spin-slow" />
       )}
-      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+      <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center text-white shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
         {emoji ? (
-          <span className="text-xl">{emoji}</span>
+          <span className="text-lg">{emoji}</span>
         ) : (
-          <Bot className="w-5 h-5" />
+          <Bot className="w-4 h-4" />
         )}
       </div>
     </div>
@@ -961,12 +957,12 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
       isComplete && "transition-opacity duration-150 opacity-0"
     )}>
       {/* Animated Avatar */}
-      <div className="relative w-11 h-11 flex-shrink-0">
+      <div className="relative w-9 h-9 flex-shrink-0">
         {/* Pulsing outer rings */}
-        {!isComplete && <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-primary to-accent opacity-10 animate-ping" />}
-        {!isComplete && <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-30 blur-[2px] animate-pulse" />}
-        <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center shadow-xl shadow-elevation-1">
-          <Zap className="w-5 h-5 text-white animate-pulse" />
+        {!isComplete && <div className="absolute -inset-2 rounded-lg bg-gradient-to-br from-primary to-accent opacity-10 animate-ping" />}
+        {!isComplete && <div className="absolute -inset-[2px] rounded-lg bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-20 blur-[2px] animate-pulse" />}
+        <div className="relative w-9 h-9 rounded-lg flex-shrink-0 bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center shadow-elevation-1">
+          <Zap className="w-4 h-4 text-white animate-pulse" />
         </div>
       </div>
 
