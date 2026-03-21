@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import net from 'net';
 import { verifyFirebaseToken } from '../middleware/auth.js';
 
 import { isAllowedProxyUrl } from '../validation.js';
@@ -500,6 +501,62 @@ for line in out.splitlines():
         'exec', name, 'python3', '-c', pyScript,
       ], { timeout: 5000 });
       res.json({ ok: true });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // Browser status — checks if the sandbox browser container is running and noVNC is reachable
+  router.get('/api/browser/status', authMiddleware, async (_req, res) => {
+    try {
+      // Find a running container with the sandbox browser label
+      const { stdout: containers } = await execFileAsync('docker', [
+        'ps', '--filter', 'label=openclaw.sandboxBrowser=1',
+        '--format', '{{.Names}}\t{{.CreatedAt}}',
+      ]);
+      const firstLine = containers.trim().split('\n')[0] || '';
+      if (!firstLine) {
+        return res.json({ active: false });
+      }
+      const [containerName, createdAt] = firstLine.split('\t');
+
+      // Read the VNC password from the container's environment
+      let password;
+      try {
+        const { stdout: envOut } = await execFileAsync('docker', [
+          'inspect', '--format',
+          '{{range .Config.Env}}{{println .}}{{end}}',
+          containerName,
+        ]);
+        const match = envOut.split('\n').find(l => l.startsWith('OPENCLAW_BROWSER_NOVNC_PASSWORD='));
+        if (match) {
+          password = match.slice('OPENCLAW_BROWSER_NOVNC_PASSWORD='.length);
+        }
+      } catch (_e) {
+        // Non-fatal: proceed without password
+      }
+
+      // TCP probe: check if noVNC port 6080 is reachable
+      const portReachable = await new Promise((resolve) => {
+        const sock = new net.Socket();
+        const done = (result) => { sock.destroy(); resolve(result); };
+        sock.setTimeout(2000);
+        sock.once('connect', () => done(true));
+        sock.once('timeout', () => done(false));
+        sock.once('error', () => done(false));
+        sock.connect(6080, '127.0.0.1');
+      });
+
+      if (!portReachable) {
+        return res.json({ active: false });
+      }
+
+      // Parse ISO timestamp from docker's CreatedAt field (e.g. "2026-03-21 12:00:00 +0000 UTC")
+      const since = createdAt ? new Date(createdAt).toISOString() : undefined;
+
+      const response = { active: true, since };
+      if (password) response.password = password;
+      res.json(response);
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
