@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light Theme - Compact Professional Console */
-    --background: 220 16% 93%;
+    --background: 220 14% 90%;
     --foreground: 220 13% 18%;
     --card: 0 0% 100%;
     --card-foreground: 220 13% 18%;
@@ -27,7 +27,7 @@
     --radius: 0.75rem;
 
     /* Sidebar - Light Professional */
-    --sidebar-bg: 220 16% 91%;
+    --sidebar-bg: 220 14% 88%;
     --sidebar-fg: 220 13% 18%;
     --sidebar-hover: 220 14% 86%;
     --sidebar-active: 211 100% 50%;
