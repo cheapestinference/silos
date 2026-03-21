@@ -338,14 +338,14 @@ export function AppSidebar() {
           setCreateChannelModalOpen(false);
         }}
       />
-      <aside className="w-56 flex flex-col h-screen bg-sidebar-bg border-r border-sidebar-border">
+      <aside className="w-56 flex flex-col h-screen bg-sidebar-bg border-r border-sidebar-border shadow-elevation-1">
       {/* Logo & Brand */}
       <div className="h-11 flex items-center px-3 border-b border-sidebar-border">
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+          <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
             S
           </div>
           <span className="text-sm font-semibold text-foreground">Silos</span>
@@ -704,7 +704,7 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: NavItemProps) {
       className={cn(
         "w-full px-2 py-1 rounded flex items-center gap-2 transition-colors text-xs",
         active
-          ? "bg-primary text-white shadow-sm"
+          ? "bg-primary/15 text-primary font-semibold relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-4 before:rounded-full before:bg-primary"
           : "text-sidebar-fg/80 hover:text-sidebar-fg hover:bg-sidebar-hover"
       )}
     >
@@ -916,7 +916,7 @@ function SessionItem({
         className={cn(
           "flex-1 px-2 py-0.5 rounded flex items-center gap-1.5 transition-colors min-w-0",
           active
-            ? "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium"
+            ? "bg-primary/10 text-primary font-medium"
             : "text-sidebar-fg/80 hover:text-sidebar-fg hover:bg-sidebar-hover",
         )}
       >
