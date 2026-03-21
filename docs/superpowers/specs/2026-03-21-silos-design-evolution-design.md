@@ -6,24 +6,35 @@
 
 **Tech Stack:** Tailwind CSS 3.4, CSS custom properties, existing shadcn/ui components.
 
+### Prerequisites
+- The codebase already uses `animate-in`, `fade-in`, `zoom-in-95`, `slide-in-from-*` classes (from `tailwindcss-animate` or equivalent keyframes in tailwind.config.js). Verify these work before adding new animation classes.
+- Implementation order matters: **config changes first** (tailwind.config.js, index.css, themes.ts), then component migrations. Easing curves, shadows, and tokens must exist before components reference them.
+
+### Accessibility Note
+After implementation, verify WCAG AA contrast ratios for:
+- `--muted-foreground` on `--background` (warm shift changes both)
+- Text at `/60` opacity on dark backgrounds
+- Dialog overlay change (`bg-black/80` → `bg-black/60`)
+
 ---
 
 ## 1. Color System — Token-Driven, No Hardcoded Colors
 
 ### Problem
-~70 instances of hardcoded `indigo-500`, `purple-600`, `violet-500` etc. across components. Changing the theme has almost no visual effect outside the sidebar.
+~183 instances of hardcoded `indigo-`, `purple-`, `violet-`, `fuchsia-`, `teal-` across 37 files. Changing the theme has almost no visual effect outside the sidebar.
 
 ### New CSS Tokens
 
-Add 5 new tokens to `ThemeColors` interface and all theme definitions in `themes.ts`, plus `:root` / `.dark` in `index.css`:
+Add 4 new tokens to `ThemeColors` interface and all theme definitions in `themes.ts`, plus `:root` / `.dark` in `index.css`:
 
 ```
---accent-secondary    Second accent for bi-color gradients
---glow                Shadow tint color (matches primary hue)
+--accent-secondary    Second accent for bi-color gradients & streaming cursor
+--glow                Shadow tint color + streaming cursor (matches primary hue)
 --surface-elevated    Elevated card surface (slightly lighter/darker than card)
 --surface-sunken      Sunken surface for inputs, progress bars
---streaming-cursor    Streaming cursor color (matches primary)
 ```
+
+Note: `--glow` also serves as the streaming cursor color. No separate `--streaming-cursor` token needed since the values are identical across all themes.
 
 #### Values per theme
 
@@ -33,7 +44,6 @@ Add 5 new tokens to `ThemeColors` interface and all theme definitions in `themes
 | `--glow` | `211 100% 50%` | `16 100% 60%` | `271 91% 65%` | `38 92% 50%` | `330 81% 60%` |
 | `--surface-elevated` light/dark | `0 0% 100%` / `222 47% 16%` | `0 0% 100%` / `248 16% 16%` | `275 35% 99%` / `270 50% 14%` | `35 35% 99%` / `28 45% 13%` | `345 30% 99%` / `340 40% 13%` |
 | `--surface-sunken` light/dark | `220 13% 93%` / `222 47% 9%` | `220 15% 93%` / `250 18% 7%` | `270 30% 91%` / `268 55% 6%` | `35 35% 90%` / `25 50% 5%` | `340 30% 91%` / `338 45% 6%` |
-| `--streaming-cursor` | `211 100% 50%` | `16 100% 60%` | `271 91% 65%` | `38 92% 50%` | `330 81% 60%` |
 
 #### Migration rules
 
@@ -42,21 +52,27 @@ Add 5 new tokens to `ThemeColors` interface and all theme definitions in `themes
 | `bg-indigo-600`, `bg-indigo-500` | `bg-primary` |
 | `bg-indigo-500/XX` | `bg-primary/XX` |
 | `text-indigo-600`, `dark:text-indigo-400` | `text-primary` |
+| `text-violet-600`, `dark:text-violet-400` | `text-primary` |
+| `text-purple-600`, `dark:text-purple-400` | `text-primary` |
 | `border-indigo-500/XX` | `border-primary/XX` |
 | `ring-indigo-500/50` | `ring-ring` |
-| `shadow-indigo-500/XX` | `shadow-[hsl(var(--glow)/0.XX)]` |
+| `shadow-indigo-500/XX` | use `shadow-elevation-*` system |
 | `from-indigo-500 to-indigo-600` | `from-primary to-accent` |
-| `from-purple-400 to-fuchsia-400` | via `--streaming-cursor` / `--accent-secondary` |
+| `from-purple-400 to-fuchsia-400` | via `--glow` / `--accent-secondary` |
 | `bg-violet-500/XX` (stat icons) | `bg-primary/XX` |
-| `#a855f6`, `#d946ef` (CSS) | `hsl(var(--streaming-cursor))`, `hsl(var(--accent-secondary))` |
-| `#7c3aed` (chart) | `hsl(var(--primary))` |
+| `bg-teal-500/XX`, `text-teal-600` | `bg-primary/XX`, `text-primary` |
+| `border-teal-500/XX` | `border-primary/XX` or `border-ring` (for focus) |
+| `#a855f6`, `#d946ef` (CSS) | `hsl(var(--glow))`, `hsl(var(--accent-secondary))` |
+| `#7c3aed` (chart fill) | `hsl(var(--primary))` |
+| `rgba(99, 102, 241, ...)` (glow keyframe) | `hsl(var(--glow) / 0.5)` / `hsl(var(--glow) / 0.8)` |
 
 #### Semantic exceptions (NOT migrated)
 These are universal status colors and remain hardcoded:
 - `green-500/600` — success, online
-- `red-500/600` — error, offline
+- `red-500/600` — error, offline, destructive buttons (no gradient on destructive)
 - `amber-500/600` — warning
 - `cyan-500/600` — subagent indicator (domain-specific semantic)
+- `blue-500` — "running/in-progress" status indicators (when not used as accent)
 
 ---
 
@@ -85,7 +101,7 @@ boxShadow: {
 | Dropdowns/select content | `shadow-xl` | `shadow-elevation-2` |
 | Dialogs/modals | `shadow-2xl` | `shadow-elevation-3` |
 | Command palette | `shadow-2xl` | `shadow-elevation-3` |
-| Sidebar | `border-r` only | `shadow-elevation-1` (remove border-r) |
+| Sidebar | `border-r` only | `shadow-elevation-1` + keep `border-r border-sidebar-border` in light mode for definition |
 
 ---
 
@@ -193,8 +209,9 @@ Applied to: agent list, session list, cron job list.
 
 ### 6.5 Focus glow — Inputs
 ```
-focus-visible:shadow-[0_0_12px_hsl(var(--glow)/0.15)]
+focus-visible:shadow-[0_0_12px_hsl(var(--glow)_/_0.15)]
 ```
+Note: Use underscores for spaces in Tailwind arbitrary values. The `_/_` ensures proper parsing of the CSS `/` alpha separator.
 
 ### 6.6 Sidebar active — Pill indicator
 ```css
@@ -254,13 +271,15 @@ Other themes (Default, Midnight, Sunset, Rose) remain unchanged — they already
 | `dialog.tsx` | `rounded-xl shadow-2xl` → `rounded-2xl shadow-elevation-3`, overlay `bg-black/80` → `bg-black/60` |
 | `toast.tsx` | `rounded-lg shadow-lg` → `rounded-xl shadow-elevation-2` |
 | `tabs.tsx` | list `rounded-lg` → `rounded-xl`, trigger `rounded-md` → `rounded-lg`, active `shadow-sm` → `shadow-elevation-1` |
-| `badge.tsx` | `warning: yellow-500/10` → `amber-500/10` (consistency) |
+| `badge.tsx` | `warning: yellow-500/10` → `amber-500/10` (consistency). Radius stays `rounded-full` (already correct) |
+| `tooltip.tsx` | `shadow-lg` → `shadow-elevation-2`. Radius stays `rounded-md` (appropriate for small popover) |
+| `switch.tsx` | Replace any hardcoded `indigo-` references → `primary` tokens |
 
 ### Layout components (`src/components/layout/`)
 
 | Component | Changes |
 |---|---|
-| `AppSidebar.tsx` | Remove `border-r`, add `shadow-elevation-1`. Nav active: `bg-primary text-white` → `bg-primary/15 text-primary font-semibold` + pill indicator. Session active: `bg-blue-100 dark:bg-blue-500/20` → `bg-primary/10 text-primary`. Logo: `rounded-md` → `rounded-xl` |
+| `AppSidebar.tsx` | Add `shadow-elevation-1` (keep `border-r` in light mode). Nav active: `bg-primary text-white` → `bg-primary/15 text-primary font-semibold` + pill indicator. Session active: `bg-blue-100 dark:bg-blue-500/20` → `bg-primary/10 text-primary`. Logo: `rounded-md` → `rounded-xl` |
 | `CommandPalette.tsx` | Selected: `bg-indigo-500/20` → `bg-primary/15`. Arrow: `text-indigo-600` → `text-primary`. Agent icon: `bg-purple-500/20` → `bg-primary/15`. Container: `rounded-xl` → `rounded-2xl`, `shadow-2xl` → `shadow-elevation-3` |
 
 ### View components (`src/components/views/`)
@@ -292,7 +311,8 @@ Other themes (Default, Midnight, Sunset, Rose) remain unchanged — they already
 
 | Change | Details |
 |---|---|
-| Streaming cursor | `#a855f6` → `hsl(var(--streaming-cursor))`, `#d946ef` → `hsl(var(--accent-secondary))` |
+| Streaming cursor | `#a855f6` → `hsl(var(--glow))`, `#d946ef` → `hsl(var(--accent-secondary))` |
+| Glow keyframe | `rgba(99, 102, 241, ...)` → `hsl(var(--glow) / 0.5)` / `hsl(var(--glow) / 0.8)` |
 | Ambient gradient | Add `body::before` pseudo-element with radial gradient using `--glow` |
 | Opacity scale | Standardize to `/5`, `/10`, `/20`, `/40`, `/60`, `/80` |
 
@@ -300,29 +320,34 @@ Other themes (Default, Midnight, Sunset, Rose) remain unchanged — they already
 
 ## 9. Opacity Scale (Standardized)
 
-Reduce from 10+ opacity levels to 6 perceptually distinct levels:
+Reduce from 10+ opacity levels to 7 perceptually distinct levels:
 
 | Level | Use |
 |---|---|
 | `/5` | Ambient background tints, very subtle washes |
 | `/10` | Status backgrounds, icon containers, stat cards |
-| `/20` | Borders, selected states, hover backgrounds |
+| `/15` | Selected states, subtle hover backgrounds, sidebar active |
+| `/20` | Borders, hover backgrounds, active states |
 | `/40` | Scrollbar hover, secondary borders |
 | `/60` | Footer icons, disabled text |
 | `/80` | Semi-muted text, secondary foreground |
 
-Eliminate: `/12`, `/15`, `/25`, `/30`, `/50` — replace with nearest standard level.
+Eliminate: `/12`, `/25`, `/30`, `/50` — replace with nearest standard level.
+- `/12` → `/10`
+- `/25` → `/20`
+- `/30` → `/20`
+- `/50` → `/40` or `/60` depending on context
 
 ---
 
 ## Files Modified (Summary)
 
-### Config
-- `tailwind.config.js` — elevation shadows, easing curves, `--radius` update
-- `src/index.css` — new tokens, streaming cursor vars, ambient gradient, opacity cleanup
-- `src/lib/themes.ts` — 5 new tokens per theme (light+dark), Silos dark warm shift
+### Config (3 files)
+- `tailwind.config.js` — elevation shadows, easing curves, `--radius` update, glow keyframe fix
+- `src/index.css` — new tokens, streaming cursor vars, ambient gradient, opacity cleanup, glow keyframe
+- `src/lib/themes.ts` — 4 new tokens per theme (light+dark), Silos dark warm shift
 
-### UI Base (10 files)
+### UI Base (11 files)
 - `src/components/ui/button.tsx`
 - `src/components/ui/card.tsx`
 - `src/components/ui/input.tsx`
@@ -333,12 +358,15 @@ Eliminate: `/12`, `/15`, `/25`, `/30`, `/50` — replace with nearest standard l
 - `src/components/ui/tabs.tsx`
 - `src/components/ui/badge.tsx`
 - `src/components/ui/tooltip.tsx`
+- `src/components/ui/switch.tsx`
 
-### Layout (2 files)
+### Layout (4 files)
 - `src/components/layout/AppSidebar.tsx`
 - `src/components/layout/CommandPalette.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/components/layout/BrowserPanel.tsx`
 
-### Views (6 files)
+### Views (8 files)
 - `src/components/views/ChatView.tsx`
 - `src/components/views/UnifiedDashboard.tsx`
 - `src/components/views/SessionDetailView.tsx`
@@ -346,11 +374,37 @@ Eliminate: `/12`, `/15`, `/25`, `/30`, `/50` — replace with nearest standard l
 - `src/components/views/LoginPage.tsx`
 - `src/components/views/ConnectPage.tsx`
 - `src/components/views/SettingsPage.tsx`
+- `src/components/views/TasksPage.tsx`
 
-### Components (4 files)
+### Agent components (11 files)
 - `src/components/agents/AgentCard.tsx`
 - `src/components/agents/shared.tsx`
+- `src/components/agents/AgentDetailView.tsx`
+- `src/components/agents/MemoryTab.tsx`
+- `src/components/agents/SkillsPanel.tsx`
+- `src/components/agents/TaskDetailModal.tsx`
+- `src/components/agents/SettingsTab.tsx`
+- `src/components/agents/PersonaTab.tsx`
+- `src/components/agents/AgentConfigEditor.tsx`
+- `src/components/agents/BrainPanel.tsx`
+- `src/components/agents/AgentToolsPanel.tsx`
+- `src/components/agents/OverviewPanel.tsx`
+- `src/components/agents/ConfigPanel.tsx`
+
+### Dashboard components (2 files)
 - `src/components/dashboard/AgentAvatar.tsx`
 - `src/components/dashboard/SessionSelector.tsx`
 
-**Total: ~24 files modified, 0 new files created.**
+### Cron components (1 file)
+- `src/components/cron/CronJobCard.tsx`
+
+### Modals (2 files)
+- `src/components/modals/AddMemberModal.tsx`
+- `src/components/modals/CreateChannelModal.tsx`
+
+### Root (1 file)
+- `src/App.tsx`
+
+**Total: ~37 files modified, 0 new files created.**
+
+All files follow the same migration rules from Section 1. Files listed in Section 8 have specific change details; remaining files apply the generic migration rules (hardcoded color → theme token, radius bump, shadow system).
