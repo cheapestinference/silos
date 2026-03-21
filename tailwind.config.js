@@ -127,8 +127,8 @@ export default {
           '50%': { transform: 'translateY(-5%)' },
         },
         'glow': {
-          '0%, 100%': { boxShadow: '0 0 5px rgba(99, 102, 241, 0.5)' },
-          '50%': { boxShadow: '0 0 20px rgba(99, 102, 241, 0.8)' },
+          '0%, 100%': { boxShadow: '0 0 5px hsl(var(--glow) / 0.5)' },
+          '50%': { boxShadow: '0 0 20px hsl(var(--glow) / 0.8)' },
         },
       },
       animation: {
@@ -152,8 +152,18 @@ export default {
       transitionDuration: {
         '400': '400ms',
       },
+      transitionTimingFunction: {
+        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
       backdropBlur: {
         xs: '2px',
+      },
+      boxShadow: {
+        'elevation-0': 'inset 0 1px 2px hsl(var(--foreground) / 0.06)',
+        'elevation-1': '0 1px 3px hsl(var(--foreground) / 0.06), 0 1px 2px hsl(var(--foreground) / 0.04)',
+        'elevation-2': '0 4px 12px hsl(var(--glow) / 0.08), 0 2px 4px hsl(var(--foreground) / 0.04)',
+        'elevation-3': '0 12px 40px hsl(var(--glow) / 0.15), 0 4px 12px hsl(var(--foreground) / 0.08)',
       },
     },
   },
