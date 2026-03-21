@@ -140,7 +140,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
 
                       {/* Agent Info */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-6 h-6 rounded bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-xs">
+                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/30 flex items-center justify-center text-xs">
                           {agent.identity?.emoji || '🤖'}
                         </div>
                         <span className="text-sm text-foreground font-medium truncate">

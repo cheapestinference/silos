@@ -153,7 +153,7 @@ function App() {
     return (
       <div key="auth-loading" className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">
             {verifying ? t('app.verifyingAccess') : t('app.loading')}
           </p>
@@ -185,7 +185,7 @@ function App() {
             <p className="text-white font-medium mb-4">{user.email}</p>
 
             <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-white/40 text-sm">{t('app.waitingVerification')}</p>
             </div>
 
@@ -231,7 +231,7 @@ function App() {
     return (
       <div key="connecting" className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">{t('app.connecting')}</p>
         </div>
       </div>

@@ -198,8 +198,8 @@ export function CronJobCard({
               </CardDescription>
               {showAgentInfo && job.agentId && (
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Bot className="h-3 w-3 text-violet-600 dark:text-violet-400" />
-                  <span className="text-xs text-violet-600 dark:text-violet-400">{agentName || job.agentId}</span>
+                  <Bot className="h-3 w-3 text-primary" />
+                  <span className="text-xs text-primary">{agentName || job.agentId}</span>
                 </div>
               )}
             </div>

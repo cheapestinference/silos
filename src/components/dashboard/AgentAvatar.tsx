@@ -22,7 +22,7 @@ export function AgentAvatar({ name, isBusy, activeTask, imageUrl, className }: A
             {imageUrl ? (
               <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
                 <User className="w-12 h-12 text-white/40" />
               </div>
             )}
@@ -63,7 +63,7 @@ export function AgentAvatar({ name, isBusy, activeTask, imageUrl, className }: A
       {/* Background Glow */}
       <div className={cn(
         "absolute -inset-4 rounded-[2rem] -z-10 opacity-0 transition-opacity duration-700 blur-2xl pointer-events-none",
-        isBusy ? "bg-blue-500/10 opacity-100" : "group-hover:bg-purple-500/5 group-hover:opacity-100"
+        isBusy ? "bg-blue-500/10 opacity-100" : "group-hover:bg-accent/5 group-hover:opacity-100"
       )} />
     </div>
   );

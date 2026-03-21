@@ -21,14 +21,14 @@ export function SessionSelector() {
             className={cn(
               "w-full text-left p-4 rounded-xl transition-all duration-300 group relative overflow-hidden",
               selectedSessionKey === session.key 
-                ? "bg-white/10 border-l-2 border-indigo-500 ai-glow" 
+                ? "bg-white/10 border-l-2 border-primary ai-glow"
                 : "hover:bg-white/5 border border-transparent hover:border-white/10"
             )}
           >
             <div className="flex items-start gap-4">
               <div className={cn(
                 "p-2 rounded-lg transition-colors",
-                selectedSessionKey === session.key ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400" : "bg-white/5 text-white/40 group-hover:text-indigo-600 dark:text-indigo-400/60"
+                selectedSessionKey === session.key ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40 group-hover:text-primary/60"
               )}>
                 <MessageSquare className="w-5 h-5" />
               </div>
@@ -58,7 +58,7 @@ export function SessionSelector() {
               </div>
             </div>
             {selectedSessionKey === session.key && (
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
             )}
           </button>
         ))}

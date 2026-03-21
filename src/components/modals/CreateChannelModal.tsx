@@ -95,7 +95,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
         {/* Header */}
         <div className="px-6 py-4 border-b border bg-card flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-blue-500/20 to-primary/20 border border-blue-500/30 rounded-lg">
               <Hash className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
@@ -172,7 +172,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
 
                       {/* Agent Info */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-6 h-6 rounded bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-xs">
+                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/30 flex items-center justify-center text-xs">
                           {agent.identity?.emoji || '🤖'}
                         </div>
                         <span className="text-sm text-foreground font-medium truncate">
@@ -213,7 +213,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
           <button
             onClick={handleCreate}
             disabled={creating || !channelName.trim() || selectedAgents.size === 0}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-400 hover:to-indigo-400 text-zinc-950 text-xs font-bold uppercase tracking-wider rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-primary hover:from-blue-400 hover:to-primary/80 text-zinc-950 text-xs font-bold uppercase tracking-wider rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             style={{ fontFamily: 'IBM Plex Mono, monospace' }}
           >
             {creating ? (

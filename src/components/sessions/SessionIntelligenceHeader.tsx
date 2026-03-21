@@ -47,7 +47,7 @@ export function SessionIntelligenceHeader({
             </span>
           )}
           {session.surface && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase tracking-wide font-semibold border border-indigo-500/20">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wide font-semibold border border-primary/20">
               {session.surface}
             </span>
           )}
@@ -82,7 +82,7 @@ export function SessionIntelligenceHeader({
               {session.totalTokens !== undefined && session.totalTokens > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">{t('chat.context')}:</span>
-                  <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                  <span className="font-mono font-semibold text-primary">
                     {formatNumber(session.totalTokens)}
                     {session.contextTokens ? ` / ${formatNumber(session.contextTokens)}` : ''}
                   </span>
