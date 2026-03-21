@@ -198,7 +198,7 @@ export function CommandPalette() {
       {/* Palette */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
         <div
-          className="w-full max-w-xl bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-zoom-in"
+          className="w-full max-w-xl bg-card rounded-2xl border border-border shadow-elevation-3 overflow-hidden animate-zoom-in"
           onClick={e => e.stopPropagation()}
         >
           {/* Search Input */}
@@ -246,15 +246,15 @@ export function CommandPalette() {
                         className={cn(
                           'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
                           isSelected
-                            ? 'bg-indigo-500/20 text-foreground'
+                            ? 'bg-primary/15 text-foreground'
                             : 'text-foreground hover:bg-muted'
                         )}
                       >
                         <div className={cn(
                           'w-8 h-8 rounded-lg flex items-center justify-center',
                           item.type === 'page' && 'bg-muted',
-                          item.type === 'agent' && 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
-                          item.type === 'session' && 'bg-blue-500/20 text-blue-500 dark:text-blue-400'
+                          item.type === 'agent' && 'bg-primary/15 text-primary',
+                          item.type === 'session' && 'bg-primary/15 text-primary'
                         )}>
                           <Icon className="w-4 h-4" />
                         </div>
@@ -274,7 +274,7 @@ export function CommandPalette() {
                           </div>
                         )}
                         {isSelected && (
-                          <ArrowRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <ArrowRight className="w-4 h-4 text-primary" />
                         )}
                       </button>
                     );

@@ -68,7 +68,7 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
         <div className="flex items-center gap-1.5">
           <div className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-green-500" : "bg-red-500")} />
           {loading && (
-            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           )}
         </div>
         <div className="flex items-center gap-0.5">

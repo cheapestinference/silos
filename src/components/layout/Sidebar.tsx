@@ -280,8 +280,8 @@ function SessionItem({
         parsed.type === 'subagent' && 'text-cyan-500',
         parsed.type === 'whatsapp' && 'text-green-500',
         parsed.type === 'telegram' && 'text-blue-500',
-        parsed.type === 'slack' && 'text-purple-500',
-        parsed.type === 'discord' && 'text-indigo-500',
+        parsed.type === 'slack' && 'text-primary',
+        parsed.type === 'discord' && 'text-primary',
       )} />
       <span className="truncate flex-1">{displayName}</span>
       {parsed.type === 'subagent' && (
@@ -462,7 +462,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center border-b px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold text-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white font-bold text-sm">
             S
           </div>
           <div>

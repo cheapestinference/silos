@@ -87,7 +87,7 @@ export function FloatingBrowserPanel() {
           <GripHorizontal className="w-3 h-3 text-muted-foreground" />
           <span className="text-xs font-semibold text-foreground">Remote Browser</span>
           {loading && (
-            <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           )}
         </div>
         <div className="flex items-center gap-1">
