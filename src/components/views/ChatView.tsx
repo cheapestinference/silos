@@ -627,8 +627,8 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
     return (
       <div className="relative group w-11 h-11 flex-shrink-0">
         {/* Outer glow ring */}
-        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-primary to-accent opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
+        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-foreground/20 to-foreground/40 opacity-20 blur-[2px] group-hover:opacity-40 transition-opacity" />
+        <div className="relative w-11 h-11 rounded-xl bg-foreground/90 dark:bg-foreground/15 flex items-center justify-center text-background dark:text-foreground shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
           <User className="w-5 h-5" />
         </div>
       </div>
@@ -873,13 +873,13 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   "relative px-4 py-3.5 rounded-2xl leading-relaxed transition-all duration-200 overflow-hidden",
                   isUser && !isSubagentSession
                     ? [
-                        // Human user messages - indigo
-                        "bg-gradient-to-br from-primary via-primary to-accent",
-                        "text-white rounded-br-md",
-                        "shadow-xl shadow-elevation-1",
+                        // Human user messages - neutral dark, works across all themes
+                        "bg-foreground/90 dark:bg-foreground/15",
+                        "text-background dark:text-foreground rounded-br-md",
+                        "shadow-elevation-1",
                         "hover:shadow-elevation-2 hover:translate-y-[-1px]",
                         // Error state
-                        hasError && "from-rose-500 via-rose-500 to-rose-600 shadow-rose-500/15"
+                        hasError && "!bg-rose-500 dark:!bg-rose-500/80 !text-white shadow-rose-500/15"
                       ]
                     : isUser && isSubagentSession
                     ? [

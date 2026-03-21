@@ -287,6 +287,8 @@ function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect, onNaviga
       className={cn(
         "group w-full text-left p-2 rounded-md border border-l-2 transition-all duration-150 cursor-pointer",
         "hover:shadow-sm",
+        task.status === 'aborted' ? 'border-l-amber-400' :
+        task.status === 'error' ? 'border-l-rose-400' :
         s.border,
         task.status === 'running'
           ? "bg-cyan-500/10 dark:bg-cyan-500/15 border-cyan-500/40 hover:bg-cyan-500/20"
