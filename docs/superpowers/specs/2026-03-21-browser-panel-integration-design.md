@@ -86,25 +86,32 @@ Silos dashboard needs an integrated browser panel so users can:
 ```
 Agent executing browser actions
   └─ User clicks PAUSE
-      └─ Dashboard sends pause signal to agent (via chat message or API)
-      └─ Status bar → amber, "Paused — you have control"
+      └─ Dashboard sends a plain chat message: "pause" (or localized equivalent)
+      └─ Status bar → amber immediately (optimistic UI)
+      └─ Agent acknowledges pause in its response (soft pause — not guaranteed instant)
       └─ User interacts with browser freely (login, scroll, etc.)
       └─ User clicks RESUME
-          └─ Dashboard sends resume signal to agent
+          └─ Dashboard sends a plain chat message: "resume" / "continue"
           └─ Agent resumes from current browser state
 ```
 
-The pause/resume mechanism uses the existing OpenClaw chat channel — the dashboard sends a control message that the agent interprets as "stop browser actions and wait." Resume sends a follow-up message.
+**Mechanism:** Soft pause via plain chat messages. The dashboard sends a regular user message (e.g., "pause") through the existing OpenClaw chat channel. The agent interprets this as "stop browser actions and wait for further instructions." This is a cooperative pause — the agent may finish its current action before stopping. The UI shows "Paused" optimistically on click, without waiting for agent acknowledgment.
+
+**Why not a hard/RPC pause:** OpenClaw has no built-in pause/resume API for agent runs. A plain chat message is the simplest mechanism that works today. If a future OpenClaw version adds a pause RPC, we can upgrade the UI to use it without changing the UX.
 
 ### 6. Store Changes
 
+**Migration note:** `browserOpen` currently lives as `useState` in `MainShell.tsx` (line 76). It must be moved to the Zustand store as `browserPanelOpen` so that auto-open from agent events and sidebar toggle both share the same state.
+
+`browserSplitRatio` uses the store's existing Zustand `persist` middleware (already configured for other fields), not a separate localStorage key.
+
 ```typescript
-// Additions to useDashboardStore
+// Additions to useDashboardStore (Zustand, persisted)
 browserPanelOpen: boolean          // panel visible in split view
 browserDetached: 'none' | 'overlay' | 'popout'  // detach mode
-browserSplitRatio: number          // 0.5 default, persisted to localStorage
+browserSplitRatio: number          // 0.5 default
 browserAgentAction: string | null  // current action text from agent events
-browserAgentPaused: boolean        // pause state
+browserAgentPaused: boolean        // pause state (optimistic UI)
 ```
 
 ### 7. Component Tree
@@ -133,14 +140,17 @@ window.open() → noVNC URL (existing browser.html)
 
 ### 8. Agent Event Integration
 
-The dashboard already receives streaming events from OpenClaw via WebSocket. Browser-related events to handle:
+The dashboard already receives streaming events from OpenClaw via WebSocket. There are no dedicated browser events — we detect browser activity by parsing existing tool-use events from the chat stream.
 
-- **`browser_action_start`**: set `browserAgentAction` to action description, auto-open panel if closed
-- **`browser_action_end`**: clear `browserAgentAction`
-- **`browser_session_start`**: auto-open panel
-- **`browser_session_end`**: clear status bar (don't auto-close panel)
+**Detection logic:** When the agent calls the `browser` tool, the chat event stream includes tool-use events with `tool_name` (or equivalent field) indicating the tool being invoked and the action parameters. The dashboard should:
 
-These events are derived from the existing chat event stream — when the agent calls the browser tool, the tool-use events contain the action details.
+1. **Detect browser tool calls** by checking if `tool_name === 'browser'` (or starts with `browser_`) in incoming tool-use chat events
+2. **Extract action description** from the tool call parameters (e.g., `action: "click"`, `ref: 12` → "clicking element 12...")
+3. **Set `browserAgentAction`** with a human-readable description of the action
+4. **Auto-open panel** if `browserPanelOpen` is false when a browser tool call is detected
+5. **Clear `browserAgentAction`** when the tool-use result event arrives (action completed)
+
+The exact event payload structure depends on the OpenClaw chat event format. During implementation, inspect the actual `EventFrame` types in the codebase to determine the correct field names for tool name and parameters.
 
 ### 9. noVNC Connection
 
