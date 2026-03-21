@@ -110,7 +110,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
       return <CodeBlock language={match?.[1] || 'text'} code={text} />;
     }
     return (
-      <code className="px-1.5 py-0.5 rounded bg-muted text-indigo-500 dark:text-indigo-400 text-xs font-mono">
+      <code className="px-1.5 py-0.5 rounded bg-muted text-primary text-xs font-mono">
         {children}
       </code>
     );
@@ -138,7 +138,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
     </a>
   ),
   blockquote: ({ children }: any) => (
-    <blockquote className="border-l-2 border-indigo-500/30 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+    <blockquote className="border-l-2 border-primary/30 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
   ),
   hr: () => <hr className="my-3 border-border/50" />,
 };
@@ -627,8 +627,8 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
     return (
       <div className="relative group w-11 h-11 flex-shrink-0">
         {/* Outer glow ring */}
-        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 transition-all group-hover:scale-105 group-hover:shadow-indigo-500/40">
+        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-primary to-accent opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
+        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
           <User className="w-5 h-5" />
         </div>
       </div>
@@ -640,8 +640,8 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
     return (
       <div className="relative group w-11 h-11 flex-shrink-0">
         {/* Outer glow ring - cyan for agent sender */}
-        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-cyan-400 to-teal-600 opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white shadow-xl shadow-cyan-500/25 transition-all group-hover:scale-105 group-hover:shadow-cyan-500/40">
+        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 opacity-30 blur-[2px] group-hover:opacity-50 transition-opacity" />
+        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
           <Bot className="w-5 h-5" />
         </div>
       </div>
@@ -656,14 +656,14 @@ function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAge
     <div className="relative group w-11 h-11 flex-shrink-0">
       {/* Animated outer ring for AI */}
       <div className={cn(
-        "absolute -inset-[1px] rounded-xl bg-gradient-to-br from-purple-400 via-violet-500 to-fuchsia-500 opacity-30 blur-[2px] transition-opacity",
+        "absolute -inset-[1px] rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-30 blur-[2px] transition-opacity",
         isStreaming ? "animate-pulse opacity-50" : "group-hover:opacity-50"
       )} />
       {/* Inner rotating gradient (subtle) */}
       {isStreaming && (
-        <div className="absolute -inset-[2px] rounded-xl bg-gradient-conic from-purple-500 via-violet-500 to-purple-500 opacity-20 animate-spin-slow" />
+        <div className="absolute -inset-[2px] rounded-xl bg-gradient-conic from-primary via-accent to-primary opacity-20 animate-spin-slow" />
       )}
-      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-600 flex items-center justify-center text-white shadow-xl shadow-purple-500/25 transition-all group-hover:scale-105 group-hover:shadow-purple-500/40">
+      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center text-white shadow-xl shadow-elevation-1 transition-all group-hover:scale-105 group-hover:shadow-elevation-2">
         {emoji ? (
           <span className="text-xl">{emoji}</span>
         ) : (
@@ -810,7 +810,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
   return (
     <div className={cn(
       "flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300 min-w-0",
-      isUser && "flex-row-reverse"
+      isUser && "flex-row-reverse zoom-in-95"
     )}>
       {showAvatar ? (
         <MessageAvatar
@@ -829,8 +829,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
           <div className={cn("flex items-center gap-2 mb-1.5 px-1", isUser && "flex-row-reverse")}>
             <span className={cn(
               "font-semibold text-xs tracking-wide",
-              isUser && !isSubagentSession ? "text-indigo-600 dark:text-indigo-400" :
-              isUser && isSubagentSession ? "text-cyan-600 dark:text-cyan-400" : "text-purple-600 dark:text-purple-400"
+              isUser && !isSubagentSession ? "text-primary" :
+              isUser && isSubagentSession ? "text-cyan-600 dark:text-cyan-400" : "text-primary"
             )}>
               {getAgentName()}
             </span>
@@ -874,17 +874,17 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                   isUser && !isSubagentSession
                     ? [
                         // Human user messages - indigo
-                        "bg-gradient-to-br from-indigo-500 via-indigo-500 to-indigo-600",
+                        "bg-gradient-to-br from-primary via-primary to-accent",
                         "text-white rounded-br-md",
-                        "shadow-xl shadow-indigo-500/15",
-                        "hover:shadow-indigo-500/25 hover:translate-y-[-1px]",
+                        "shadow-xl shadow-elevation-1",
+                        "hover:shadow-elevation-2 hover:translate-y-[-1px]",
                         // Error state
                         hasError && "from-rose-500 via-rose-500 to-rose-600 shadow-rose-500/15"
                       ]
                     : isUser && isSubagentSession
                     ? [
                         // Agent-to-agent messages (user role but from agent) - cyan/teal
-                        "bg-gradient-to-br from-cyan-600 via-teal-600 to-teal-700",
+                        "bg-gradient-to-br from-cyan-600 via-cyan-600 to-cyan-700",
                         "text-white rounded-br-md",
                         "shadow-xl shadow-cyan-500/15",
                         "hover:shadow-cyan-500/25 hover:translate-y-[-1px]"
@@ -911,7 +911,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                 {isUser && (isSending || hasError) && (
                   <div className={cn(
                     "flex items-center justify-end gap-1.5 px-2 text-[10px] font-medium",
-                    isSending && "text-indigo-600 dark:text-indigo-400",
+                    isSending && "text-primary",
                     hasError && "text-rose-600 dark:text-rose-400"
                   )}>
                     {isSending && (
@@ -963,20 +963,20 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
       {/* Animated Avatar */}
       <div className="relative w-11 h-11 flex-shrink-0">
         {/* Pulsing outer rings */}
-        {!isComplete && <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-500 opacity-10 animate-ping" />}
-        {!isComplete && <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-500 opacity-30 blur-[2px] animate-pulse" />}
-        <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-purple-500 via-violet-500 to-fuchsia-600 flex items-center justify-center shadow-xl shadow-purple-500/30">
+        {!isComplete && <div className="absolute -inset-2 rounded-xl bg-gradient-to-br from-primary to-accent opacity-10 animate-ping" />}
+        {!isComplete && <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] opacity-30 blur-[2px] animate-pulse" />}
+        <div className="relative w-11 h-11 rounded-xl flex-shrink-0 bg-gradient-to-br from-primary via-accent to-[hsl(var(--accent-secondary))] flex items-center justify-center shadow-xl shadow-elevation-1">
           <Zap className="w-5 h-5 text-white animate-pulse" />
         </div>
       </div>
 
       <div className={cn("flex flex-col max-w-[70%] min-w-0", text && "w-full")}>
         <div className="flex items-center gap-2 mb-1.5 px-1">
-          <span className="font-semibold text-xs text-purple-500 dark:text-purple-400 tracking-wide flex items-center gap-1.5">
+          <span className="font-semibold text-xs text-primary tracking-wide flex items-center gap-1.5">
             {!isComplete && (
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
               </span>
             )}
             {t('chat.processing')}
@@ -986,11 +986,11 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
         <div className={cn(
           "relative px-5 py-4 rounded-2xl rounded-bl-md overflow-hidden",
           "bg-card",
-          "border border-purple-500/20",
+          "border border-primary/20",
           "shadow-sm",
           "transition-all duration-150 ease-out"
         )}>
-          <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-r from-purple-500/5 via-fuchsia-500/5 to-purple-500/5 animate-gradient-x" />
+          <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 animate-gradient-x" />
 
           <div className="relative text-foreground min-h-[1.5rem]">
             {text ? (
@@ -1002,7 +1002,7 @@ function TypingIndicator({ streamingContent, isComplete }: { streamingContent?: 
                   {[0, 1, 2, 3, 4].map((i) => (
                     <span
                       key={i}
-                      className="w-1 bg-gradient-to-t from-purple-400 to-fuchsia-400 rounded-full animate-wave"
+                      className="w-1 bg-primary/60 rounded-full animate-wave"
                       style={{
                         height: '12px',
                         animationDelay: `${i * 100}ms`,
@@ -1053,11 +1053,11 @@ function AgentStatusDot({ isWorking }: { isWorking: boolean }) {
   return (
     <span className="relative flex h-2 w-2">
       {isWorking && (
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75" />
       )}
       <span className={cn(
         "relative inline-flex rounded-full h-2 w-2 transition-colors duration-300",
-        isWorking ? "bg-indigo-500" : "bg-emerald-500"
+        isWorking ? "bg-primary" : "bg-emerald-500"
       )} />
     </span>
   );
@@ -1359,9 +1359,9 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               {/* Animated icon container */}
               <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-2xl animate-pulse" />
                 <div className="relative w-28 h-28 rounded-3xl bg-card border flex items-center justify-center shadow-sm">
-                  <Sparkles className="w-14 h-14 text-indigo-600 dark:text-indigo-400/70 animate-float" />
+                  <Sparkles className="w-14 h-14 text-primary animate-float" />
                 </div>
               </div>
 
@@ -1383,7 +1383,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                     }}
                     className="px-4 py-2 rounded-full bg-muted border text-sm text-foreground/80 hover:bg-muted/80 hover:text-foreground transition-all duration-200 flex items-center gap-2"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
                     {suggestion}
                   </button>
                 ))}
@@ -1427,7 +1427,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <div className="sticky bottom-3 z-10 flex justify-center pointer-events-none -mt-12">
               <button
                 onClick={scrollToBottom}
-                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-lg shadow-indigo-500/25 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-primary hover:bg-primary/90 text-white text-xs font-medium shadow-lg shadow-elevation-1 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
                 {t('chat.newMessages') || 'New messages'}
@@ -1457,7 +1457,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             "bg-card",
             "border shadow-sm",
             inputFocused
-              ? "border-indigo-500/40 shadow-indigo-500/10 ring-2 ring-indigo-500/10"
+              ? "border-primary/40 shadow-primary/10 ring-2 ring-primary/10"
               : ""
           )}>
             {/* Inner highlight */}
@@ -1547,9 +1547,9 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                     size="sm"
                     className={cn(
                       "gap-2 px-4 transition-all duration-200",
-                      "bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400",
-                      "shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40",
-                      "border border-indigo-400/20"
+                      "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90",
+                      "shadow-lg shadow-elevation-1 hover:shadow-elevation-2",
+                      "border border-primary/20"
                     )}
                   >
                     {t('chat.send')}
@@ -1592,7 +1592,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <div className="flex border-b border-border shrink-0">
               {([
                 { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
-                { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-purple-500' },
+                { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-primary' },
               ]).map(tab => (
                 <button
                   key={tab.id}
