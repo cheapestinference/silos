@@ -227,6 +227,21 @@ interface DashboardStore {
   // Internal queue dispatch
   _dispatchNextQueued: (sessionKey: string) => Promise<void>;
 
+  // Browser panel state
+  browserPanelOpen: boolean;
+  browserDetached: 'none' | 'overlay' | 'popout';
+  browserSplitRatio: number;
+  browserAgentAction: string | null;
+  browserAgentPaused: boolean;
+
+  // Browser panel actions
+  setBrowserPanelOpen: (open: boolean) => void;
+  setBrowserDetached: (mode: 'none' | 'overlay' | 'popout') => void;
+  setBrowserSplitRatio: (ratio: number) => void;
+  setBrowserAgentAction: (action: string | null) => void;
+  setBrowserAgentPaused: (paused: boolean) => void;
+  sendBrowserInterrupt: (text: string) => Promise<void>;
+
   // Event handlers
   handleEvent: (event: EventFrame) => void;
   handleHello: (hello: HelloOk) => void;
@@ -270,6 +285,22 @@ function stripInboundMeta(content: unknown): string {
   text = text.replace(/^\[(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+)?\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+[^\]]*\]\s*/i, '');
 
   return text.trim();
+}
+
+function describeBrowserAction(input: Record<string, unknown>): string {
+  const action = (input?.action as string) || (input?.command as string) || 'working';
+  const url = input?.url as string;
+  const ref = input?.ref;
+  const text = input?.text as string;
+
+  if (action === 'navigate' && url) return `navigating to ${url}...`;
+  if (action === 'click' && ref) return `clicking element ${ref}...`;
+  if (action === 'type' && ref) return `typing in element ${ref}...`;
+  if (action === 'snapshot') return 'reading page...';
+  if (action === 'screenshot') return 'taking screenshot...';
+  if (action === 'evaluate') return 'running script...';
+  if (text) return `${action}: "${text.slice(0, 40)}"...`;
+  return `${action}...`;
 }
 
 export const useDashboardStore = create<DashboardStore>()(
@@ -337,6 +368,13 @@ export const useDashboardStore = create<DashboardStore>()(
       workspaceFiles: [],
       workspaceContent: '',
       workspaceLoading: false,
+
+      // Browser panel
+      browserPanelOpen: false,
+      browserDetached: 'none' as const,
+      browserSplitRatio: 0.5,
+      browserAgentAction: null,
+      browserAgentPaused: false,
 
       client: null,
 
@@ -1713,6 +1751,23 @@ export const useDashboardStore = create<DashboardStore>()(
         set({ unreadCounts: new Map() });
       },
 
+      // Browser panel actions
+      setBrowserPanelOpen: (open) => set({ browserPanelOpen: open }),
+      setBrowserDetached: (mode) => set({ browserDetached: mode }),
+      setBrowserSplitRatio: (ratio) => set({ browserSplitRatio: ratio }),
+      setBrowserAgentAction: (action) => set({ browserAgentAction: action }),
+      setBrowserAgentPaused: (paused) => set({ browserAgentPaused: paused }),
+      sendBrowserInterrupt: async (text: string) => {
+        // Bypass the message queue — sends immediately even during active runs.
+        const { client, selectedSessionKey } = get();
+        if (!client || !selectedSessionKey) return;
+        try {
+          await client.sendChat(selectedSessionKey, text);
+        } catch (e) {
+          console.error('[browser-interrupt] failed:', e);
+        }
+      },
+
       // Event handlers
       handleEvent: (event) => {
         const { selectedSessionKey } = get();
@@ -1780,6 +1835,20 @@ export const useDashboardStore = create<DashboardStore>()(
             flushStreamingBuffer(); // Ensure buffered content is flushed before tool processing
             const toolName = payload?.data?.name || payload?.data?.toolName;
             const phase = payload?.data?.phase;
+
+            // Browser tool detection: auto-open browser panel and show action description
+            if (toolName && (toolName === 'browser' || (toolName as string).startsWith('browser'))) {
+              if (phase === 'call' || phase === 'input' || phase === 'start') {
+                const toolInput = payload?.data?.input || payload?.data?.args || {};
+                const description = describeBrowserAction(toolInput as Record<string, unknown>);
+                set({ browserAgentAction: description });
+                if (!get().browserPanelOpen) {
+                  set({ browserPanelOpen: true });
+                }
+              } else if (phase === 'result') {
+                set({ browserAgentAction: null });
+              }
+            }
 
             // Handle tool call start - show what tool is being called
             if ((phase === 'call' || phase === 'input' || phase === 'start') && toolName) {
@@ -2374,6 +2443,7 @@ export const useDashboardStore = create<DashboardStore>()(
         gatewayUrl: state.gatewayUrl,
         token: state.token,
         darkMode: state.darkMode,
+        browserSplitRatio: state.browserSplitRatio,
       }),
     }
   )
