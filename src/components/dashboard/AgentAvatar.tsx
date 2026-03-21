@@ -15,7 +15,7 @@ export function AgentAvatar({ name, isBusy, activeTask, imageUrl, className }: A
     <div className={cn("relative group", className)}>
       <div className={cn(
         "relative rounded-2xl overflow-hidden glass-card p-4 transition-all duration-500",
-        isBusy ? "ai-glow-blue scale-[1.02] border-blue-500/50" : "hover:scale-[1.01]"
+        isBusy ? "ai-glow-blue scale-[1.02] border-blue-500/40" : "hover:scale-[1.01]"
       )}>
         <div className="flex flex-col items-center gap-4">
           <div className="relative w-32 h-32 rounded-xl overflow-hidden bg-white/5 border border-white/10">

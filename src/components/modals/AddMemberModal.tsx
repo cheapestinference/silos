@@ -82,7 +82,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
         {/* Header */}
         <div className="px-6 py-4 border-b border bg-card flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20 rounded-lg">
               <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
             <div>
@@ -124,7 +124,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                         isSelected
-                          ? "bg-green-500/20 border border-green-500/30"
+                          ? "bg-green-500/20 border border-green-500/20"
                           : "bg-muted border border-transparent hover:bg-muted hover:border"
                       )}
                     >
@@ -140,7 +140,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
 
                       {/* Agent Info */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/30 flex items-center justify-center text-xs">
+                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/20 flex items-center justify-center text-xs">
                           {agent.identity?.emoji || '🤖'}
                         </div>
                         <span className="text-sm text-foreground font-medium truncate">
@@ -161,7 +161,7 @@ export function AddMemberModal({ isOpen, sessionKey, currentMembers, onClose, on
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
               <p className="text-xs text-red-600 dark:text-red-400 font-mono">{error}</p>
             </div>

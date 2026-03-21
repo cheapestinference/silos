@@ -255,7 +255,7 @@ export function KnowledgeBrowser() {
               {parentPath !== null && (
                 <button
                   onClick={() => loadBrowsePath(parentPath)}
-                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted transition-colors border-b border-border/30"
+                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted transition-colors border-b border-border/20"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">..</span>
@@ -287,7 +287,7 @@ export function KnowledgeBrowser() {
                           "px-2 py-0.5 text-[9px] font-medium rounded border transition-colors opacity-0 group-hover:opacity-100",
                           isInExtra
                             ? "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/20"
-                            : "border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                            : "border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
                         )}
                       >
                         {isInExtra ? t('agentDetail.knowledge.removeIndex') : t('agentDetail.knowledge.addIndex')}
@@ -358,13 +358,13 @@ export function KnowledgeBrowser() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('agentDetail.knowledge.searchPlaceholder')}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40"
             />
           </div>
           <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> memory/</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> extraPath</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/30" /> {t('agentDetail.knowledge.notIndexed')}</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/20" /> {t('agentDetail.knowledge.notIndexed')}</span>
           </div>
         </div>
 
@@ -383,7 +383,7 @@ export function KnowledgeBrowser() {
 
         {/* Create new .md */}
         {creating && (
-          <div className="p-2 border-b border-border bg-muted/50">
+          <div className="p-2 border-b border-border bg-muted/40">
             <div className="flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <input
@@ -392,7 +392,7 @@ export function KnowledgeBrowser() {
                 onChange={(e) => setNewFileName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false); }}
                 placeholder="filename.md"
-                className="flex-1 text-xs bg-card border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                className="flex-1 text-xs bg-card border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40"
               />
               <button onClick={handleCreate} className="p-1 hover:bg-muted rounded"><Check className="w-3.5 h-3.5 text-emerald-500" /></button>
               <button onClick={() => setCreating(false)} className="p-1 hover:bg-muted rounded"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
@@ -403,13 +403,13 @@ export function KnowledgeBrowser() {
 
         {/* ExtraPaths summary */}
         {extraPaths.length > 0 && (
-          <div className="px-3 py-2 border-b border-border/50">
+          <div className="px-3 py-2 border-b border-border/40">
             <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">{t('agentDetail.knowledge.externalSources')}</p>
             {extraPaths.map(ep => (
               <div key={ep} className="flex items-center gap-1.5 py-0.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                 <span className="text-[10px] text-foreground/70 font-mono truncate flex-1">{ep}</span>
-                <button onClick={() => toggleExtraPath(ep)} className="text-red-500/50 hover:text-red-500 shrink-0">
+                <button onClick={() => toggleExtraPath(ep)} className="text-red-500/60 hover:text-red-500 shrink-0">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -442,7 +442,7 @@ export function KnowledgeBrowser() {
                 <div key={dir}>
                   <button
                     onClick={() => toggleDir(dir)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors border-b border-border/50"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted transition-colors border-b border-border/40"
                   >
                     {isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
                     <FolderOpen className={cn("w-3.5 h-3.5", isMemoryDir ? "text-emerald-500" : isDirInExtra ? "text-blue-500" : "text-amber-500")} />
@@ -457,7 +457,7 @@ export function KnowledgeBrowser() {
                           "w-5 h-5 rounded flex items-center justify-center border transition-colors",
                           isDirInExtra
                             ? "bg-blue-500 border-blue-500 text-white"
-                            : "border-border hover:border-primary/50"
+                            : "border-border hover:border-primary/40"
                         )}
                         title={isDirInExtra ? t('agentDetail.knowledge.removeFromKb') : t('agentDetail.knowledge.addToKb')}
                       >
@@ -482,7 +482,7 @@ export function KnowledgeBrowser() {
                       >
                         <span className={cn(
                           "w-2 h-2 rounded-full shrink-0",
-                          status === 'memory' ? "bg-emerald-500" : status === 'extra' ? "bg-blue-500" : "bg-muted-foreground/30"
+                          status === 'memory' ? "bg-emerald-500" : status === 'extra' ? "bg-blue-500" : "bg-muted-foreground/20"
                         )} />
                         <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="text-xs text-foreground flex-1 truncate">{fileName}</span>
@@ -509,7 +509,7 @@ export function KnowledgeBrowser() {
                         {status === 'none' && file.path.includes('/') && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleExtraPath(file.path); }}
-                            className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-border hover:border-blue-500/50 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
+                            className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-border hover:border-blue-500/40 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
                             title={t('agentDetail.knowledge.addToExtraPaths')}
                           >
                             Index

@@ -18,9 +18,9 @@ import useTranslation from '../../i18n';
 
 // Color class maps for category theming
 const CATEGORY_COLOR_CLASSES: Record<string, { icon: string; selectedBg: string; selectedBorder: string; selectedIcon: string }> = {
-  primary: { icon: 'text-primary', selectedBg: 'bg-primary/20', selectedBorder: 'border-primary/30', selectedIcon: 'text-primary' },
-  emerald: { icon: 'text-emerald-400', selectedBg: 'bg-emerald-500/20', selectedBorder: 'border-emerald-500/30', selectedIcon: 'text-emerald-400' },
-  sky: { icon: 'text-sky-400', selectedBg: 'bg-sky-500/20', selectedBorder: 'border-sky-500/30', selectedIcon: 'text-sky-400' },
+  primary: { icon: 'text-primary', selectedBg: 'bg-primary/20', selectedBorder: 'border-primary/20', selectedIcon: 'text-primary' },
+  emerald: { icon: 'text-emerald-400', selectedBg: 'bg-emerald-500/20', selectedBorder: 'border-emerald-500/20', selectedIcon: 'text-emerald-400' },
+  sky: { icon: 'text-sky-400', selectedBg: 'bg-sky-500/20', selectedBorder: 'border-sky-500/20', selectedIcon: 'text-sky-400' },
 };
 
 // File categories based on OpenClaw workspace structure
@@ -221,7 +221,7 @@ export function BrainPanel() {
   return (
     <div className="h-full flex animate-in fade-in duration-300">
       {/* Files Sidebar - Organized by Category */}
-      <div className="w-80 border-r border-border bg-muted/50 flex flex-col">
+      <div className="w-80 border-r border-border bg-muted/40 flex flex-col">
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
@@ -403,7 +403,7 @@ export function BrainPanel() {
                 <textarea
                   value={editedContent}
                   onChange={(e) => handleContentChange(e.target.value)}
-                  className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-all"
+                  className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 resize-none transition-all"
                   placeholder={t('agentDetail.fileContentPlaceholder')}
                   spellCheck={false}
                 />
@@ -413,7 +413,7 @@ export function BrainPanel() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-sm">
-              <Database className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <Database className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground mb-2">{t('agentDetail.selectFileToEdit')}</p>
               <p className="text-xs text-muted-foreground">
                 {t('agentDetail.workspaceExplanation')}

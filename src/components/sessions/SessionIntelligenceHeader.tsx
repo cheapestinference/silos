@@ -23,11 +23,11 @@ export function SessionIntelligenceHeader({
   const totalTokens = session.totalTokens || 0;
 
   return (
-    <div className="bg-card border-b border-border/50">
+    <div className="bg-card border-b border-border/40">
       {/* Trigger (always visible) */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-6 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+        className="w-full px-6 py-3 flex items-center justify-between hover:bg-muted/20 transition-colors group"
       >
         <div className="flex items-center gap-3">
           {expanded ? (
@@ -64,7 +64,7 @@ export function SessionIntelligenceHeader({
 
       {/* Expandable Content */}
       {expanded && (
-        <div className="px-6 py-4 bg-muted/10 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
+        <div className="px-6 py-4 bg-muted/10 border-t border-border/20 animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             {/* Model & Provider */}
             {session.model && (

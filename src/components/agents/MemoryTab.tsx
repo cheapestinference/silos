@@ -161,7 +161,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
             className={cn(
               "w-full p-3 rounded-lg border transition-all text-left",
               selectedFile === null
-                ? "bg-primary/10 border-primary/30"
+                ? "bg-primary/10 border-primary/20"
                 : "bg-muted border-border hover:bg-muted"
             )}
           >
@@ -227,7 +227,7 @@ export function MemoryTab({ agentId, value, onChange, lastUpdated }: MemoryTabPr
                       setNewFileName(file.name);
                       handleCreateFile();
                     }}
-                    className="w-full p-2.5 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-all text-left group"
+                    className="w-full p-2.5 rounded-lg border border-border bg-muted/40 hover:bg-muted transition-all text-left group"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <file.icon className={cn("w-3.5 h-3.5", file.iconClass)} />

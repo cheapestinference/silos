@@ -129,7 +129,7 @@ export interface ConfigRowProps {
 
 export function ConfigRow({ label, value, mono, small }: ConfigRowProps) {
   return (
-    <div className="flex items-center justify-between text-xs py-1.5 border-b border-border/50 last:border-0">
+    <div className="flex items-center justify-between text-xs py-1.5 border-b border-border/40 last:border-0">
       <span className="text-muted-foreground font-medium">{label}</span>
       <span className={cn(
         "text-foreground truncate max-w-[60%] text-right",

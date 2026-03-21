@@ -95,7 +95,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
         {/* Header */}
         <div className="px-6 py-4 border-b border bg-card flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500/20 to-primary/20 border border-blue-500/30 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-blue-500/20 to-primary/20 border border-blue-500/20 rounded-lg">
               <Hash className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
@@ -128,7 +128,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 placeholder="general"
-                className="w-full pl-10 pr-3 py-2 bg-background border border rounded-lg text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full pl-10 pr-3 py-2 bg-background border border rounded-lg text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 disabled={creating}
                 autoFocus
               />
@@ -156,7 +156,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                         isSelected
-                          ? "bg-blue-500/20 border border-blue-500/30"
+                          ? "bg-blue-500/20 border border-blue-500/20"
                           : "bg-muted border border-transparent hover:bg-muted hover:border"
                       )}
                     >
@@ -172,7 +172,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
 
                       {/* Agent Info */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/30 flex items-center justify-center text-xs">
+                        <div className="w-6 h-6 rounded bg-primary/20 border border-primary/20 flex items-center justify-center text-xs">
                           {agent.identity?.emoji || '🤖'}
                         </div>
                         <span className="text-sm text-foreground font-medium truncate">
@@ -193,7 +193,7 @@ export function CreateChannelModal({ isOpen, onClose, onSuccess }: CreateChannel
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
               <p className="text-xs text-red-600 dark:text-red-400 font-mono">{error}</p>
             </div>

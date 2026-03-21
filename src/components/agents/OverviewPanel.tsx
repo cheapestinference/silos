@@ -56,7 +56,7 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
           ? 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10'
           : isFailed
             ? 'border-red-500/15 bg-red-500/5 hover:bg-red-500/8'
-            : 'border-border hover:bg-muted/50'
+            : 'border-border hover:bg-muted/40'
       }`}
     >
       <p className="text-[11px] font-medium text-foreground truncate">{task.runId || task.id}</p>
@@ -197,7 +197,7 @@ export function OverviewPanel() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
               <MessageSquare className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{sessions.length}</p>
@@ -205,7 +205,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
               <Database className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{formatTokens(totalTokens)}</p>
@@ -213,7 +213,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/12 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2">
               <Activity className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{tasks.length}</p>
@@ -223,7 +223,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{successRate}%</p>
@@ -322,7 +322,7 @@ export function OverviewPanel() {
             {visibleColumns.map((col) => (
               <div key={col.key} className="flex-1 flex flex-col border-r border-border last:border-r-0 overflow-hidden min-w-[140px]">
                 {/* Column header */}
-                <div className="px-3 py-2 border-b border-border bg-muted/30 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                <div className="px-3 py-2 border-b border-border bg-muted/20 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                   <span className={col.color}>{col.icon}</span>
                   <span className={`text-[11px] font-medium ${col.color} truncate`}>{col.label}</span>
                   <span className="text-[10px] text-muted-foreground ml-auto tabular-nums shrink-0">{col.count}</span>

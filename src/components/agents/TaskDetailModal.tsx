@@ -111,7 +111,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
 
       <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         {/* Header */}
@@ -208,7 +208,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           <div className="border-t border-border">
             <button
               onClick={() => setShowMessages(!showMessages)}
-              className="w-full px-5 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+              className="w-full px-5 py-3 flex items-center justify-between hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
@@ -279,7 +279,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border bg-muted/30 flex justify-end shrink-0">
+        <div className="px-5 py-3 border-t border-border bg-muted/20 flex justify-end shrink-0">
           <button onClick={onClose} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
             {t('common.close') || 'Close'}
           </button>
@@ -294,7 +294,7 @@ function CollapsibleBlock({ label, content, color }: { label: string; content: s
   return (
     <div className="mt-1.5">
       <p className={`text-[10px] font-semibold ${color} uppercase tracking-wider mb-1`}>{label}</p>
-      <pre className={`text-[11px] text-foreground whitespace-pre-wrap break-words font-mono leading-relaxed bg-muted/50 rounded p-2 ${!expanded ? 'max-h-20 overflow-hidden' : ''}`}>
+      <pre className={`text-[11px] text-foreground whitespace-pre-wrap break-words font-mono leading-relaxed bg-muted/40 rounded p-2 ${!expanded ? 'max-h-20 overflow-hidden' : ''}`}>
         {content}
       </pre>
       {content.length > 300 && (

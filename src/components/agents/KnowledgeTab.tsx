@@ -113,7 +113,7 @@ export function KnowledgeTab({ files, onAdd, onUpdate, onDelete }: KnowledgeTabP
 
       {/* Add New File Form */}
       {isAdding && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-emerald-600 dark:text-emerald-400">{t('agents.config.addFile')}</h4>
             <Button

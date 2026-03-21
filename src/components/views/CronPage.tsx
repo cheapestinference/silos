@@ -91,7 +91,7 @@ function CronJobCard({
     <Card className={cn(
       'transition-all',
       !job.enabled && 'opacity-60',
-      isRunning && 'border-blue-500/50'
+      isRunning && 'border-blue-500/40'
     )}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">

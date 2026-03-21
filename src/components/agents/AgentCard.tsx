@@ -47,7 +47,7 @@ export function AgentCard({
   }, [agent.id]);
 
   return (
-    <div className="group relative bg-card border border-border rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-elevation-1 hover:-translate-y-0.5 transition-all duration-200">
+    <div className="group relative bg-card border border-border rounded-2xl p-5 hover:border-primary/20 hover:shadow-lg hover:shadow-elevation-1 hover:-translate-y-0.5 transition-all duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         {/* Avatar */}

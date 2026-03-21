@@ -69,16 +69,16 @@ function DashStatCard({ icon, value, label, color }: {
       icon: 'bg-primary/10 text-primary',
     },
     blue: {
-      icon: 'bg-blue-500/12 text-blue-500 dark:text-blue-400',
+      icon: 'bg-blue-500/10 text-blue-500 dark:text-blue-400',
     },
     amber: {
-      icon: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
+      icon: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
     },
     cyan: {
-      icon: 'bg-cyan-500/12 text-cyan-600 dark:text-cyan-400',
+      icon: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
     },
     emerald: {
-      icon: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
+      icon: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
   };
   const c = colorMap[color] || colorMap.violet;
@@ -282,19 +282,19 @@ export function UnifiedDashboard() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8">
-              <Activity className="w-8 h-8 text-muted-foreground/30 mb-3" />
+              <Activity className="w-8 h-8 text-muted-foreground/20 mb-3" />
               <p className="text-sm text-muted-foreground">{t('unifiedDashboard.noActivityYet')}</p>
             </div>
           )}
         </div>
 
-        <p className="text-[10px] text-muted-foreground/50 px-1 -mt-1">{t('unifiedDashboard.dataDisclaimer')}</p>
+        <p className="text-[10px] text-muted-foreground/40 px-1 -mt-1">{t('unifiedDashboard.dataDisclaimer')}</p>
 
         {/* ── Bottom row: OpenClaw + Channels link ─────────────────────────── */}
         <div className="flex gap-3 items-stretch">
 
         {/* ── OpenClaw Control UI ──────────────────────────────────────────────── */}
-        <div className="relative rounded-xl overflow-hidden border border-red-500/30 dark:border-red-800/40 max-w-md">
+        <div className="relative rounded-xl overflow-hidden border border-red-500/20 dark:border-red-800/40 max-w-md">
           <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50/30 to-rose-50 dark:from-red-950/30 dark:via-orange-950/10 dark:to-rose-950/20" />
           <div className="relative p-5">
             <div className="flex items-start gap-4">

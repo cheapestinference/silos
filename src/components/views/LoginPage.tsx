@@ -93,7 +93,7 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
                 placeholder={t('login.emailPlaceholder')}
                 required
                 autoComplete="email"
-                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/20 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <input
                 type="password"
@@ -103,7 +103,7 @@ export function LoginPage({ error: externalError, onRetry }: LoginPageProps) {
                 required
                 autoComplete="current-password"
                 minLength={6}
-                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/30 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-2xl bg-white/10 border border-white/10 text-white placeholder-white/20 px-4 py-3 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <button
                 type="submit"

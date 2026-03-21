@@ -72,10 +72,10 @@ interface StatCardProps {
 
 function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
   const colorClasses = {
-    cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/25 dark:border-cyan-500/20',
+    cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20 dark:border-cyan-500/20',
     violet: 'text-primary bg-primary/10 border-primary/20',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25 dark:border-emerald-500/20',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25 dark:border-amber-500/20',
+    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20 dark:border-emerald-500/20',
+    amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20 dark:border-amber-500/20',
   };
 
   return (
@@ -307,7 +307,7 @@ export function SessionDetailView() {
                               value={modelSearch}
                               onChange={(e) => setModelSearch(e.target.value)}
                               placeholder={t('common.search')}
-                              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+                              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40"
                               autoFocus
                             />
                           </div>

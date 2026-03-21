@@ -128,19 +128,19 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
       <table className="min-w-full text-xs">{children}</table>
     </div>
   ),
-  thead: ({ children }: any) => <thead className="bg-muted/50 border-b">{children}</thead>,
+  thead: ({ children }: any) => <thead className="bg-muted/40 border-b">{children}</thead>,
   th: ({ children }: any) => <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground">{children}</th>,
-  td: ({ children }: any) => <td className="px-3 py-1.5 border-t border-border/50">{children}</td>,
+  td: ({ children }: any) => <td className="px-3 py-1.5 border-t border-border/40">{children}</td>,
   a: ({ href, children }: any) => (
     <a href={href} target="_blank" rel="noopener noreferrer"
-      className="text-white/90 hover:text-white underline underline-offset-2 decoration-white/50 hover:decoration-white/80">
+      className="text-white/90 hover:text-white underline underline-offset-2 decoration-white/40 hover:decoration-white/80">
       {children}
     </a>
   ),
   blockquote: ({ children }: any) => (
-    <blockquote className="border-l-2 border-primary/30 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+    <blockquote className="border-l-2 border-primary/20 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
   ),
-  hr: () => <hr className="my-3 border-border/50" />,
+  hr: () => <hr className="my-3 border-border/40" />,
 };
 
 function renderMarkdown(text: string | undefined | null): React.ReactNode {
@@ -336,7 +336,7 @@ function CompactSystemMessage({ content }: CompactSystemMessageProps) {
             "w-full flex items-center justify-between px-3 py-2 transition-colors",
             meta.type === 'cron' ? "bg-amber-500/5 hover:bg-amber-500/10" :
             meta.type === 'event' ? "bg-blue-500/5 hover:bg-blue-500/10" :
-            "hover:bg-muted/50"
+            "hover:bg-muted/40"
           )}
         >
           <div className="flex items-center gap-2">
@@ -469,7 +469,7 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
 
   // Color scheme: amber while running, cyan when done
   const colors = isRunning
-    ? { border: 'border-amber-500/30', bg: 'bg-amber-500/5', hover: 'hover:bg-amber-500/10', icon: 'bg-amber-500/10 text-amber-500 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-500 dark:text-amber-400 hover:bg-amber-500/10' }
+    ? { border: 'border-amber-500/20', bg: 'bg-amber-500/5', hover: 'hover:bg-amber-500/10', icon: 'bg-amber-500/10 text-amber-500 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-500 dark:text-amber-400 hover:bg-amber-500/10' }
     : { border: 'border-cyan-500/20', bg: 'bg-cyan-500/5', hover: 'hover:bg-cyan-500/10', icon: 'bg-cyan-500/10 text-cyan-500 dark:text-cyan-400', ring: 'ring-cyan-500/20', chevron: 'text-cyan-500 dark:text-cyan-400 hover:bg-cyan-500/10' };
 
   return (
@@ -775,7 +775,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
       return (
         <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 px-2">
           <div className="w-full max-w-2xl mx-auto">
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm p-4 space-y-2">
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm p-4 space-y-2">
               <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <Clock className="w-5 h-5 flex-shrink-0" />
                 <span className="font-semibold text-sm">{t('chat.rateLimitError')}</span>
@@ -887,7 +887,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
                         "bg-gradient-to-br from-cyan-600 via-cyan-600 to-cyan-700",
                         "text-white rounded-br-md",
                         "shadow-xl shadow-cyan-500/15",
-                        "hover:shadow-cyan-500/25 hover:translate-y-[-1px]"
+                        "hover:shadow-cyan-500/20 hover:translate-y-[-1px]"
                       ]
                     : [
                         // Assistant messages
@@ -1466,7 +1466,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             <form onSubmit={handleSend} className="relative flex flex-col">
               <textarea
                 ref={inputRef}
-                className="w-full bg-transparent px-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/50 font-medium resize-none min-h-[56px] max-h-[150px]"
+                className="w-full bg-transparent px-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/40 font-medium resize-none min-h-[56px] max-h-[150px]"
                 placeholder={isRateLimited ? t('chat.rateLimitWait') : chatSending ? 'Agent is processing...' : t('chat.placeholder')}
                 disabled={isRateLimited}
                 onKeyDown={handleKeyDown}
@@ -1512,7 +1512,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                         )}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Info className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground cursor-help transition-colors" />
+                            <Info className="w-3 h-3 text-muted-foreground/40 hover:text-muted-foreground cursor-help transition-colors" />
                           </TooltipTrigger>
                           <TooltipContent side="right" className="w-56 text-xs leading-relaxed">
                             {t('chat.contextInfo')}
@@ -1570,7 +1570,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
         {/* Resize Handle */}
         <div
-          className="w-1 shrink-0 cursor-col-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors"
+          className="w-1 shrink-0 cursor-col-resize group relative hover:bg-primary/20 active:bg-primary/20 transition-colors"
           onMouseDown={(e) => {
             e.preventDefault();
             isDragging.current = true;
@@ -1581,7 +1581,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           }}
         >
           <div className="absolute inset-y-0 -left-1 -right-1" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
         </div>
 
         {/* RIGHT: Top tabs (Pipeline / Browser) + Bottom Tools */}
@@ -1632,7 +1632,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
           {/* Horizontal resize handle */}
           <div
-            className="h-1 shrink-0 cursor-row-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors border-y border-border/30"
+            className="h-1 shrink-0 cursor-row-resize group relative hover:bg-primary/20 active:bg-primary/20 transition-colors border-y border-border/20"
             onMouseDown={(e) => {
               e.preventDefault();
               isSplitDragging.current = true;
@@ -1641,12 +1641,12 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             }}
           >
             <div className="absolute inset-x-0 -top-1 -bottom-1" />
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
           </div>
 
           {/* Bottom: Tools (always visible) */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/50 shrink-0">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 shrink-0">
               <Wrench className="h-3 w-3 text-cyan-500" />
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tools</span>
             </div>

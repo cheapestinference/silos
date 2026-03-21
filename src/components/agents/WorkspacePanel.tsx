@@ -298,7 +298,7 @@ export function WorkspacePanel() {
   return (
     <div className="h-full flex animate-in fade-in duration-300">
       {/* File Tree Sidebar */}
-      <div className="w-72 border-r border-border bg-muted/30 flex flex-col">
+      <div className="w-72 border-r border-border bg-muted/20 flex flex-col">
         <div className="p-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-amber-500" />
@@ -323,7 +323,7 @@ export function WorkspacePanel() {
 
         {/* Create input */}
         {creating && (
-          <div className="p-2 border-b border-border bg-muted/50">
+          <div className="p-2 border-b border-border bg-muted/40">
             <div className="flex items-center gap-1.5">
               {creating === 'folder' ? <FolderPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <FilePlus className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
               <input
@@ -332,7 +332,7 @@ export function WorkspacePanel() {
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(null); }}
                 placeholder={creating === 'folder' ? 'folder name' : 'filename.ext'}
-                className="flex-1 text-xs bg-card border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                className="flex-1 text-xs bg-card border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40"
               />
               <button onClick={handleCreate} className="p-1 hover:bg-muted rounded"><Check className="w-3.5 h-3.5 text-emerald-500" /></button>
               <button onClick={() => setCreating(null)} className="p-1 hover:bg-muted rounded"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
@@ -348,7 +348,7 @@ export function WorkspacePanel() {
             </div>
           ) : tree.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground">
-              <FolderOpen className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+              <FolderOpen className="w-8 h-8 mx-auto mb-2 text-muted-foreground/20" />
               {t('agentDetail.emptyWorkspace')}
             </div>
           ) : (
@@ -393,7 +393,7 @@ export function WorkspacePanel() {
                 <textarea
                   value={editContent}
                   onChange={(e) => handleContentChange(e.target.value)}
-                  className="w-full h-full p-3 bg-muted border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none transition-all"
+                  className="w-full h-full p-3 bg-muted border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 resize-none transition-all"
                   spellCheck={false}
                 />
               )}
@@ -422,7 +422,7 @@ export function WorkspacePanel() {
       {/* Rename Modal */}
       {renaming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setRenaming(null)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRenaming(null)} />
           <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl w-96 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-sm font-bold text-foreground mb-3">Rename</h3>
             <input
@@ -430,7 +430,7 @@ export function WorkspacePanel() {
               value={renameName}
               onChange={(e) => setRenameName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(null); }}
-              className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:border-primary/50"
+              className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:border-primary/40"
             />
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setRenaming(null)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors">Cancel</button>
@@ -443,7 +443,7 @@ export function WorkspacePanel() {
       {/* Delete Confirm Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
           <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl w-96 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="w-5 h-5 text-red-500" />

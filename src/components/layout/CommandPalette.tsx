@@ -210,7 +210,7 @@ export function CommandPalette() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('common.search')}
-              className="flex-1 h-14 bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none text-base"
+              className="flex-1 h-14 bg-transparent text-foreground placeholder:text-muted-foreground/40 outline-none text-base"
             />
             <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-muted text-muted-foreground text-xs font-mono">
               <Command className="w-3 h-3" />K

@@ -32,7 +32,7 @@ export function CronStatsWidget({ jobs, onViewAll, className }: CronStatsWidgetP
     <button
       onClick={onViewAll}
       className={cn(
-        'w-full text-left p-4 rounded-xl border border-border bg-card/30 hover:bg-muted/30 hover:border-border transition-all group',
+        'w-full text-left p-4 rounded-xl border border-border bg-card/20 hover:bg-muted/20 hover:border-border transition-all group',
         className
       )}
     >

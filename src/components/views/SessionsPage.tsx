@@ -234,8 +234,8 @@ function SessionItem({
         'group relative flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-all',
         isSelected
           ? 'bg-primary/10 border-l-2 border-primary'
-          : 'hover:bg-muted/50',
-        isSubagent && 'ml-6 border-l border-dashed border-cyan-500/30'
+          : 'hover:bg-muted/40',
+        isSubagent && 'ml-6 border-l border-dashed border-cyan-500/20'
       )}
       onClick={onSelect}
     >
@@ -246,7 +246,7 @@ function SessionItem({
             e.stopPropagation();
             onToggleExpand?.();
           }}
-          className="shrink-0 p-0.5 rounded hover:bg-muted/50 text-muted-foreground"
+          className="shrink-0 p-0.5 rounded hover:bg-muted/40 text-muted-foreground"
         >
           {isExpanded ? (
             <ChevronDown className="h-4 w-4" />
@@ -286,7 +286,7 @@ function SessionItem({
             <span className="h-2 w-2 rounded-full bg-red-500" />
           )}
           {isSubagentKey && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
               {t('sessions.subagent')}
             </Badge>
           )}
@@ -486,7 +486,7 @@ function ChatPanel({ sessionKey }: { sessionKey: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="rounded-2xl rounded-tl-none bg-muted px-4 py-2.5">
                     <p className="text-sm whitespace-pre-wrap">{streamingContent}</p>
-                    <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+                    <span className="inline-block w-2 h-4 bg-foreground/40 animate-pulse ml-0.5" />
                   </div>
                 </div>
               </div>
@@ -742,7 +742,7 @@ export function SessionsPage() {
                     </h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {isSubagentSession(selectedSession.key) ? (
-                        <Badge variant="outline" className="text-xs bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
+                        <Badge variant="outline" className="text-xs bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
                           {t('sessions.subagent')}
                         </Badge>
                       ) : (

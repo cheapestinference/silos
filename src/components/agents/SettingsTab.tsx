@@ -245,7 +245,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                       value={modelSearch}
                       onChange={(e) => setModelSearch(e.target.value)}
                       placeholder={t('agentDetail.searchModels')}
-                      className="flex-1 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
+                      className="flex-1 bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none"
                     />
                     {modelSearch && (
                       <span className="text-xs text-muted-foreground">{filteredModels.length}</span>

@@ -47,7 +47,7 @@ export function ConnectPage() {
               <div className="relative group">
                 <input
                   type="url"
-                  placeholder="http://127.0.0.1:18789"
+                  placeholder="http://107.0.0.1:18789"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder:text-white/20"
                   value={gatewayUrl}
                   onChange={(e) => setGatewayUrl(e.target.value)}

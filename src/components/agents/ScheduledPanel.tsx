@@ -98,7 +98,7 @@ export function ScheduledPanel() {
         <div className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/20 flex items-center justify-center">
                 <CalendarClock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
@@ -112,7 +112,7 @@ export function ScheduledPanel() {
             </div>
             <button
               onClick={() => { setEditingJob(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
             >
               <Plus className="w-3 h-3" />
               {t('agentDetail.newTask')}

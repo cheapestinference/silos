@@ -126,7 +126,7 @@ export function CronJobCard({
         className={cn(
           'p-3 rounded-lg border transition-all',
           !job.enabled && 'opacity-60',
-          isRunning ? 'border-blue-500/50 bg-blue-500/5' : 'border-border bg-card/30'
+          isRunning ? 'border-blue-500/40 bg-blue-500/5' : 'border-border bg-card/20'
         )}
       >
         <div className="flex items-center gap-3">
@@ -170,7 +170,7 @@ export function CronJobCard({
     <Card className={cn(
       'transition-all',
       !job.enabled && 'opacity-60',
-      isRunning && 'border-blue-500/50'
+      isRunning && 'border-blue-500/40'
     )}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -385,7 +385,7 @@ export function CronJobCard({
                   {runs.slice(0, 5).map((run, idx) => (
                     <div
                       key={`${run.ts}-${idx}`}
-                      className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/30"
+                      className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/20"
                     >
                       <div className="flex items-center gap-2">
                         {run.status === 'ok' && <CheckCircle className="h-3 w-3 text-green-500" />}

@@ -242,7 +242,7 @@ export function SkillsPanel() {
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder={t('agentDetail.skillsSearchPlaceholder')}
-              className={cn("w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50", searchQuery && "pr-9")}
+              className={cn("w-full px-3 py-2 pl-9 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40", searchQuery && "pr-9")}
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
             {searching && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
@@ -261,7 +261,7 @@ export function SkillsPanel() {
               <>
                 <button
                   onClick={() => handleSearch('')}
-                  className="px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors bg-primary/15 text-primary border-primary/30"
+                  className="px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors bg-primary/15 text-primary border-primary/20"
                 >
                   {t('agentDetail.skillsBackToInstalled')}
                 </button>
@@ -271,7 +271,7 @@ export function SkillsPanel() {
                     onClick={() => handleSearch(q)}
                     className={cn(
                       "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                      searchQuery === q ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                      searchQuery === q ? "bg-primary/15 text-primary border-primary/20" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                     )}
                   >
                     {q}
@@ -284,7 +284,7 @@ export function SkillsPanel() {
                   onClick={() => setCategoryFilter(null)}
                   className={cn(
                     "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                    !categoryFilter ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                    !categoryFilter ? "bg-primary/15 text-primary border-primary/20" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                   )}
                 >
                   All
@@ -295,7 +295,7 @@ export function SkillsPanel() {
                     onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
                     className={cn(
                       "px-2 py-1 text-[10px] font-medium rounded-lg border transition-colors",
-                      categoryFilter === cat ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                      categoryFilter === cat ? "bg-primary/15 text-primary border-primary/20" : "bg-muted text-muted-foreground border-transparent hover:border-border hover:text-foreground"
                     )}
                   >
                     {cat}
@@ -320,7 +320,7 @@ export function SkillsPanel() {
                     className={cn(
                       "w-full p-2.5 rounded-lg border transition-all text-left",
                       selectedId === `builtin:${skill.id}`
-                        ? "bg-primary/10 border-primary/30"
+                        ? "bg-primary/10 border-primary/20"
                         : "bg-card border-border hover:border-primary/20",
                       !enabled && "opacity-50"
                     )}
@@ -353,7 +353,7 @@ export function SkillsPanel() {
                       className={cn(
                         "w-full p-2.5 rounded-lg border transition-all text-left",
                         selectedId === skill.slug
-                          ? "bg-primary/10 border-primary/30"
+                          ? "bg-primary/10 border-primary/20"
                           : "bg-card border-border hover:border-primary/20"
                       )}
                     >
@@ -390,7 +390,7 @@ export function SkillsPanel() {
                 className={cn(
                   "w-full p-2.5 rounded-lg border transition-all text-left",
                   selectedId === result.slug
-                    ? "bg-primary/10 border-primary/30"
+                    ? "bg-primary/10 border-primary/20"
                     : "bg-card border-border hover:border-primary/20"
                 )}
               >
@@ -458,7 +458,7 @@ export function SkillsPanel() {
                 disabled={togglingSkill}
                 className={cn(
                   "w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0",
-                  isSkillEnabled(selectedBuiltin) ? "bg-emerald-500/30" : "bg-muted"
+                  isSkillEnabled(selectedBuiltin) ? "bg-emerald-500/20" : "bg-muted"
                 )}
               >
                 <span className={cn(
@@ -516,7 +516,7 @@ export function SkillsPanel() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-4">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div>

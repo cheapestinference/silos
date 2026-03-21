@@ -188,7 +188,7 @@ function AgentDetails({ agent }: { agent: AgentSummary }) {
               {agentSessions.slice(0, 5).map((session) => (
                 <div
                   key={session.key}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/40"
                 >
                   <div>
                     <p className="font-medium text-sm">

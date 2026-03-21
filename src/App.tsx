@@ -181,7 +181,7 @@ function App() {
               </svg>
             </div>
             <h2 className="text-xl font-bold text-white mb-2">{t('app.verifyEmail')}</h2>
-            <p className="text-white/50 text-sm mb-1">{t('app.verificationNeeded')}</p>
+            <p className="text-white/60 text-sm mb-1">{t('app.verificationNeeded')}</p>
             <p className="text-white font-medium mb-4">{user.email}</p>
 
             <div className="flex items-center justify-center gap-2 mb-6">
@@ -198,14 +198,14 @@ function App() {
             <div className="space-y-2">
               <button
                 onClick={handleResend}
-                className="text-white/30 hover:text-white/60 text-sm transition-colors"
+                className="text-white/20 hover:text-white/60 text-sm transition-colors"
               >
                 {t('app.resendEmail')}
               </button>
               <span className="text-white/10 mx-2">·</span>
               <button
                 onClick={async () => { await signOut(); setEmailNotVerified(false); }}
-                className="text-white/30 hover:text-white/60 text-sm transition-colors"
+                className="text-white/20 hover:text-white/60 text-sm transition-colors"
               >
                 {t('app.signOut')}
               </button>

@@ -248,7 +248,7 @@ export function ConfigPanel() {
                 value={a2aAllowedAgents}
                 onChange={(e) => setA2aAllowedAgents(e.target.value)}
                 placeholder={otherAgents.length > 0 ? otherAgents.map(a => a.id).join(', ') : 'agent2, agent3, *'}
-                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 font-mono"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20 font-mono"
               />
               {otherAgents.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -295,7 +295,7 @@ export function ConfigPanel() {
                     </p>
                     <button
                       onClick={onNavigateToMemory}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-lg transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-lg transition-all"
                     >
                       <Brain className="w-3.5 h-3.5" />
                       {t('agentDetail.goToMemoryTab')}
@@ -350,8 +350,8 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                       className={cn(
                         "flex items-center gap-2 px-3 py-1.5 text-xs font-medium border rounded-lg transition-all",
                         copiedPrompt
-                          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                          : "bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-300 border-blue-500/30"
+                          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                          : "bg-blue-500/20 hover:bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/20"
                       )}
                     >
                       {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -362,7 +362,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
               </div>
 
               {/* Available tools reference */}
-              <div className="bg-muted/50 rounded-xl p-4 border border-border">
+              <div className="bg-muted/40 rounded-xl p-4 border border-border">
                 <p className="text-xs font-semibold text-foreground/80 mb-3">{t('agentDetail.availableToolsReference')}</p>
                 <div className="space-y-2 text-[11px] font-mono text-muted-foreground">
                   <div className="bg-muted rounded-lg p-2">
@@ -379,7 +379,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
 
 
         {/* Raw JSON Preview (hidden) */}
-        <div className="hidden bg-muted/50 border border-border rounded-2xl overflow-hidden">
+        <div className="hidden bg-muted/40 border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Terminal className="w-4 h-4 text-muted-foreground" />
@@ -398,7 +398,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
         </div>
 
         {/* Danger Zone */}
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 overflow-hidden">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 overflow-hidden">
           <div className="px-5 py-4 border-b border-red-500/20">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
@@ -417,7 +417,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
           <div className="px-5 py-4">
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30 hover:bg-red-500/25 hover:border-red-500/50 transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
             >
               <Trash2 className="w-4 h-4" />
               {isMainAgent ? t('agentDetail.resetAgent') : t('agentDetail.deleteAgent')}
@@ -442,7 +442,7 @@ ${a2aAllowedAgents ? `- Allowed agents: ${a2aAllowedAgents}` : '- [Add your rule
                   <p className="text-xs text-muted-foreground">{t('agentDetail.deleteWarning')}</p>
                 </div>
               </div>
-              <div className="bg-muted/50 rounded-xl p-4 mb-6">
+              <div className="bg-muted/40 rounded-xl p-4 mb-6">
                 <p className="text-sm text-foreground mb-2">
                   {t('agentDetail.confirmDelete')} <span className="font-bold">{agent.identity?.name || agent.name || agent.id}</span>?
                 </p>

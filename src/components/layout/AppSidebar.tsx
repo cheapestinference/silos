@@ -450,7 +450,7 @@ export function AppSidebar() {
 
                     {/* Cron job sessions (more indented, like subagents) */}
                     {cronSessions.length > 0 && (
-                      <div className="ml-2 mt-0.5 space-y-0.5 border-l border-cyan-500/30 pl-2">
+                      <div className="ml-2 mt-0.5 space-y-0.5 border-l border-cyan-500/20 pl-2">
                         {cronSessions.map(({ session, parsed }) => (
                           <SessionItem
                             key={session.key}
@@ -485,7 +485,7 @@ export function AppSidebar() {
                             }
                           }}
                           placeholder="session-name"
-                          className="flex-1 text-sm px-2.5 py-1.5 bg-sidebar-hover border border-primary/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg"
+                          className="flex-1 text-sm px-2.5 py-1.5 bg-sidebar-hover border border-primary/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg"
                           autoFocus
                         />
                         <button
@@ -760,7 +760,7 @@ function AgentItem({ agentId, name, emoji, onClick, onCreateSession, sessionLimi
       {/* Create session button */}
       {sessionLimitReached ? (
         <span
-          className="p-1.5 opacity-0 group-hover:opacity-100 text-muted-foreground/50 cursor-not-allowed"
+          className="p-1.5 opacity-0 group-hover:opacity-100 text-muted-foreground/40 cursor-not-allowed"
           title={t('sidebar.sessionLimitReached')}
         >
           <Plus className="w-4 h-4" />
@@ -891,7 +891,7 @@ function SessionItem({
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
-          className="flex-1 text-sm px-2 py-1 bg-sidebar-hover border border-primary/50 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg min-w-0"
+          className="flex-1 text-sm px-2 py-1 bg-sidebar-hover border border-primary/40 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg min-w-0"
         />
         <button
           onClick={handleSave}

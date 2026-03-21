@@ -119,7 +119,7 @@ export function AgentToolsPanel() {
         <div className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center">
                 <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
@@ -156,7 +156,7 @@ export function AgentToolsPanel() {
             <textarea
               value={toolsContent}
               onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 resize-none transition-all"
+              className="w-full h-full p-4 bg-muted border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 resize-none transition-all"
               placeholder="# Tools\n\n### SSH\n- home-server → 192.168.1.100, user: admin\n\n### Cameras\n- living-room → Main area, wide angle\n\n### TTS\n- Preferred voice: Nova"
               spellCheck={false}
             />
@@ -170,7 +170,7 @@ export function AgentToolsPanel() {
         <div className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/20 flex items-center justify-center">
                 <Wrench className="w-4 h-4 text-primary" />
               </div>
               <div>
@@ -191,7 +191,7 @@ export function AgentToolsPanel() {
           {AGENT_TOOL_GROUPS.map((group) => {
             const enabled = isGroupEnabled(group.id);
             return (
-              <div key={group.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors">
+              <div key={group.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="text-base shrink-0">{group.icon}</span>
                   <div className="min-w-0">
@@ -203,7 +203,7 @@ export function AgentToolsPanel() {
                   onClick={() => toggleGroup(group.id)}
                   className={cn(
                     "w-10 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 ml-2",
-                    enabled ? "bg-emerald-500/30" : "bg-muted"
+                    enabled ? "bg-emerald-500/20" : "bg-muted"
                   )}
                 >
                   <span className={cn(
@@ -216,7 +216,7 @@ export function AgentToolsPanel() {
           })}
 
           {/* Lobster */}
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors">
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="text-base shrink-0">🦞</span>
               <div className="min-w-0">
@@ -228,7 +228,7 @@ export function AgentToolsPanel() {
               onClick={toggleLobster}
               className={cn(
                 "w-10 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 ml-2",
-                lobsterEnabled ? "bg-emerald-500/30" : "bg-muted"
+                lobsterEnabled ? "bg-emerald-500/20" : "bg-muted"
               )}
             >
               <span className={cn(

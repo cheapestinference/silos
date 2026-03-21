@@ -377,7 +377,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
             }}
             className={cn(
               "flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold rounded-lg",
-              editing ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/30"
+              editing ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/20"
             )}
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -544,10 +544,10 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
-                !editSaving ? "bg-primary/30 text-primary hover:bg-primary/40" : "bg-muted text-muted-foreground cursor-not-allowed"
+                !editSaving ? "bg-primary/20 text-primary hover:bg-primary/40" : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {editSaving && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
+              {editSaving && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
               {editSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -757,7 +757,7 @@ function ModelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddSubscription
                 ? "bg-muted text-foreground"
-                : "bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30"
+                : "bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
             )}
           >
             <Zap className="w-3.5 h-3.5" /> Add Subscription
@@ -768,7 +768,7 @@ function ModelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddProvider
                 ? "bg-muted text-foreground"
-                : "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                : "bg-primary/20 text-primary border border-primary/20 hover:bg-primary/20"
             )}
           >
             <Plus className="w-3.5 h-3.5" /> {t('settings.providers.addProvider')}
@@ -778,7 +778,7 @@ function ModelsSection() {
 
       {/* Add Subscription Form */}
       {showAddSubscription && (
-        <div className="p-4 rounded-xl bg-card border border-amber-500/30 space-y-4">
+        <div className="p-4 rounded-xl bg-card border border-amber-500/20 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">Add Claude Subscription</h3>
           <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-2">
             <p className="text-xs text-muted-foreground font-medium">How to get your setup token:</p>
@@ -797,11 +797,11 @@ function ModelsSection() {
               placeholder="sk-ant-oat01-..."
               value={setupToken}
               onChange={(e) => { setSetupToken(e.target.value); setSubscriptionError(null); }}
-              className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-amber-500/50"
+              className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-amber-500/40"
             />
           </div>
           {subscriptionError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
               {subscriptionError}
             </div>
           )}
@@ -853,7 +853,7 @@ function ModelsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                 setupToken.trim() && !subscriptionSaving
-                  ? "bg-amber-500/30 text-amber-600 dark:text-amber-300 hover:bg-amber-500/40"
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-300 hover:bg-amber-500/40"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
@@ -866,7 +866,7 @@ function ModelsSection() {
 
       {/* Subscription Success */}
       {subscriptionSuccess && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
           <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           <div>
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Claude subscription added!</p>
@@ -877,7 +877,7 @@ function ModelsSection() {
 
       {/* Add Provider Form */}
       {showAddProvider && (
-        <div className="p-4 rounded-xl bg-card border border-primary/30 space-y-4">
+        <div className="p-4 rounded-xl bg-card border border-primary/20 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">{t('settings.providers.addNewProvider')}</h3>
           <div className="flex flex-wrap gap-2">
             {Object.keys(providerPresets).map((preset) => (
@@ -896,7 +896,7 @@ function ModelsSection() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                   newProvider.id === preset
-                    ? "bg-primary/30 text-primary border-primary/50"
+                    ? "bg-primary/20 text-primary border-primary/40"
                     : "bg-muted text-muted-foreground border hover:border-foreground/20"
                 )}
               >
@@ -938,12 +938,12 @@ function ModelsSection() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                 newProvider.baseUrl && !testing
-                  ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                  ? "bg-primary/20 text-primary border border-primary/20 hover:bg-primary/20"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
               {testing ? (
-                <><div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
+                <><div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" /> {t('settings.providers.testing')}</>
               ) : (
                 <><Zap className="w-3.5 h-3.5" /> {t('settings.providers.testConnection')}</>
               )}
@@ -955,7 +955,7 @@ function ModelsSection() {
 
           {/* Test Result - Fetched Models */}
           {testResult?.ok && (
-            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-2">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
@@ -975,7 +975,7 @@ function ModelsSection() {
           )}
 
           {saveError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
               {saveError}
             </div>
           )}
@@ -1022,11 +1022,11 @@ function ModelsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                 newProvider.id && newProvider.baseUrl && !savingProvider && testResult?.ok
-                  ? "bg-primary/30 text-primary hover:bg-primary/40"
+                  ? "bg-primary/20 text-primary hover:bg-primary/40"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {savingProvider && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
+              {savingProvider && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
               {savingProvider ? t('settings.providers.saving') : t('settings.providers.addProvider')}
             </button>
           </div>
@@ -1035,7 +1035,7 @@ function ModelsSection() {
 
       {/* Success Message */}
       {saveSuccess && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
           <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           <div>
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Provider added successfully!</p>
@@ -1057,10 +1057,10 @@ function ModelsSection() {
             const silosModels = dynamicModels?.models?.filter(m => m.provider === 'silos') ?? [];
             const silosExpanded = expandedProvider === '__silos_default__';
             return (
-              <div className="rounded-xl border border-primary/30 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
+              <div className="rounded-xl border border-primary/20 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
                 <button
                   onClick={() => setExpandedProvider(silosExpanded ? null : '__silos_default__')}
-                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
                 >
                   <span className="text-2xl">{getProviderIcon('silos')}</span>
                   <div className="text-left">
@@ -1081,7 +1081,7 @@ function ModelsSection() {
                   <div className="border-t border-primary/20 px-4 py-3">
                     <div className="space-y-1 max-h-64 overflow-y-auto">
                       {silosModels.map((model) => (
-                        <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
+                        <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/40">
                           <div className="flex items-center gap-2">
                             <Cpu className="w-3.5 h-3.5 text-primary" />
                             <span className="text-sm text-foreground">{model.name || model.id}</span>
@@ -1117,10 +1117,10 @@ function ModelsSection() {
                 const silosModels = fetchedModels.length > 0 ? fetchedModels : dynamicSilosModels.length > 0 ? dynamicSilosModels : staticModels;
                 const silosExpanded = expandedProvider === 'silos';
                 return (
-                  <div key={providerId} className="rounded-xl border border-primary/30 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
+                  <div key={providerId} className="rounded-xl border border-primary/20 overflow-hidden bg-gradient-to-r from-primary/5 to-primary/3">
                     <button
                       onClick={() => setExpandedProvider(silosExpanded ? null : 'silos')}
-                      className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
+                      className="w-full flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
                     >
                       <span className="text-2xl">{getProviderIcon('silos')}</span>
                       <div className="text-left">
@@ -1139,7 +1139,7 @@ function ModelsSection() {
                       <div className="border-t border-primary/20 px-4 py-3">
                         <div className="space-y-1 max-h-64 overflow-y-auto">
                           {silosModels.map((model) => (
-                            <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
+                            <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/40">
                               <div className="flex items-center gap-2">
                                 <Cpu className="w-3.5 h-3.5 text-primary" />
                                 <span className="text-sm text-foreground">{model.name || model.id}</span>
@@ -1291,12 +1291,12 @@ function ModelsSection() {
                               className={cn(
                                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
                                 editProvider.baseUrl && !editTesting
-                                  ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                                  ? "bg-primary/20 text-primary border border-primary/20 hover:bg-primary/20"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
                               {editTesting ? (
-                                <><div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" /> Testing...</>
+                                <><div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" /> Testing...</>
                               ) : (
                                 <><Zap className="w-3.5 h-3.5" /> Test Connection</>
                               )}
@@ -1346,11 +1346,11 @@ function ModelsSection() {
                               className={cn(
                                 "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                                 !editSaving && editTestResult?.ok
-                                  ? "bg-primary/30 text-primary hover:bg-primary/40"
+                                  ? "bg-primary/20 text-primary hover:bg-primary/40"
                                   : "bg-muted text-muted-foreground cursor-not-allowed"
                               )}
                             >
-                              {editSaving && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
+                              {editSaving && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
                               {editSaving ? 'Saving...' : 'Save'}
                             </button>
                           </div>
@@ -1580,7 +1580,7 @@ function ChannelsSection() {
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors",
               showAddChannel
                 ? "bg-muted text-foreground"
-                : "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                : "bg-primary/20 text-primary border border-primary/20 hover:bg-primary/20"
             )}
           >
             <Plus className="w-3.5 h-3.5" /> {showAddChannel ? 'Cancel' : 'Add'}
@@ -1589,7 +1589,7 @@ function ChannelsSection() {
 
         {/* Add Channel Form */}
         {showAddChannel && (
-          <div className="p-4 rounded-xl bg-card border border-primary/30 space-y-4 mb-4">
+          <div className="p-4 rounded-xl bg-card border border-primary/20 space-y-4 mb-4">
             <h3 className="text-sm font-semibold text-foreground">Add Channel</h3>
 
             {/* Channel Type Selection */}
@@ -1611,7 +1611,7 @@ function ChannelsSection() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
                     selectedChannelType === type
-                      ? "bg-primary/30 text-primary border-primary/50"
+                      ? "bg-primary/20 text-primary border-primary/40"
                       : "bg-muted text-muted-foreground border hover:border-foreground/20"
                   )}
                 >
@@ -1737,7 +1737,7 @@ function ChannelsSection() {
                 ))}
 
                 {saveChannelError && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-600 dark:text-red-400">
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
                     {saveChannelError}
                   </div>
                 )}
@@ -1800,11 +1800,11 @@ function ChannelsSection() {
                         className={cn(
                           "px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5",
                           !isDisabled
-                            ? "bg-primary/30 text-primary hover:bg-primary/40"
+                            ? "bg-primary/20 text-primary hover:bg-primary/40"
                             : "bg-muted text-muted-foreground cursor-not-allowed"
                         )}
                       >
-                        {savingChannel && <div className="w-3 h-3 border-2 border-primary/50 border-t-transparent rounded-full animate-spin" />}
+                        {savingChannel && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
                         {savingChannel ? 'Adding...' : needsAllowFrom ? 'Add a phone number first' : `Add ${channelPresets[selectedChannelType]?.label || 'Channel'}`}
                       </button>
                     );
@@ -2066,7 +2066,7 @@ function AgentsSection() {
             </div>
           </div>
         ) : (
-          <div className="p-4 text-center rounded-lg bg-muted/50 border border-dashed">
+          <div className="p-4 text-center rounded-lg bg-muted/40 border border-dashed">
             <p className="text-xs text-muted-foreground">{t('settings.agentsConfig.noProviders')}</p>
           </div>
         )}
@@ -2153,7 +2153,7 @@ function ToolsSection() {
                   <p className="text-xs text-muted-foreground">{t(group.descKey)}</p>
                 </div>
               </div>
-              <button onClick={() => toggleGroup(group.id)} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", enabled ? "bg-emerald-500/30" : "bg-muted")}>
+              <button onClick={() => toggleGroup(group.id)} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", enabled ? "bg-emerald-500/20" : "bg-muted")}>
                 <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", enabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
               </button>
             </div>
@@ -2169,7 +2169,7 @@ function ToolsSection() {
               <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.lobsterDesc')}</p>
             </div>
           </div>
-          <button onClick={toggleLobster} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", lobsterEnabled ? "bg-emerald-500/30" : "bg-muted")}>
+          <button onClick={toggleLobster} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", lobsterEnabled ? "bg-emerald-500/20" : "bg-muted")}>
             <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", lobsterEnabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
           </button>
         </div>
@@ -2183,7 +2183,7 @@ function ToolsSection() {
               <p className="text-xs text-muted-foreground">{t('settings.toolsConfig.loopDetectionDesc')}</p>
             </div>
           </div>
-          <button onClick={toggleLoopDetection} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", loopEnabled ? "bg-emerald-500/30" : "bg-muted")}>
+          <button onClick={toggleLoopDetection} className={cn("w-12 h-6 rounded-full transition-colors relative cursor-pointer", loopEnabled ? "bg-emerald-500/20" : "bg-muted")}>
             <span className={cn("absolute top-1 w-4 h-4 rounded-full transition-all", loopEnabled ? "right-1 bg-emerald-400" : "left-1 bg-muted-foreground")} />
           </button>
         </div>
@@ -2356,7 +2356,7 @@ function SkillsSection() {
               className={cn(
                 "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1.5",
                 searchQuery === cat.q
-                  ? "bg-primary/15 text-primary border-primary/30"
+                  ? "bg-primary/15 text-primary border-primary/20"
                   : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted border-border"
               )}
             >
@@ -2389,7 +2389,7 @@ function SkillsSection() {
                     onClick={() => setSelectedSlug(isSelected ? null : result.slug)}
                     className={cn(
                       "w-full text-left p-4 rounded-xl border transition-colors",
-                      isSelected ? "bg-card border-primary/30 ring-1 ring-primary/20" : "bg-card hover:bg-muted/50"
+                      isSelected ? "bg-card border-primary/20 ring-1 ring-primary/20" : "bg-card hover:bg-muted/40"
                     )}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -2418,7 +2418,7 @@ function SkillsSection() {
 
                   {/* Expanded detail panel */}
                   {isSelected && (
-                    <div className="mt-1 p-5 rounded-xl bg-muted/30 border border-border space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="mt-1 p-5 rounded-xl bg-muted/20 border border-border space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                       {loadingDetail ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground py-4 justify-center">
                           <RefreshCw className="w-4 h-4 animate-spin" /> Loading details...
@@ -2453,7 +2453,7 @@ function SkillsSection() {
 
                           {/* Changelog */}
                           {detail.latestVersion?.changelog && (
-                            <div className="text-xs text-muted-foreground bg-background/50 rounded-lg p-3 border">
+                            <div className="text-xs text-muted-foreground bg-background/40 rounded-lg p-3 border">
                               <p className="font-medium text-foreground mb-1">Changelog</p>
                               <p className="whitespace-pre-wrap">{detail.latestVersion.changelog}</p>
                             </div>
@@ -2605,7 +2605,7 @@ function GatewaySection() {
           disabled={connecting}
           className={cn(
             "px-4 py-2 text-sm font-semibold rounded-xl",
-            connected ? "bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30" : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
+            connected ? "bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/20" : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/20"
           )}
         >
           {connected ? t('settings.connection.disconnect') : connecting ? t('common.loading') : t('settings.connection.reconnect')}
@@ -2621,7 +2621,7 @@ function GatewaySection() {
             placeholder="ws://localhost:18789"
             value={localUrl}
             onChange={(e) => setLocalUrl(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/50"
+            className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/40"
           />
         </div>
         <div>
@@ -2632,7 +2632,7 @@ function GatewaySection() {
               placeholder={t('settings.gatewayConfig.optional')}
               value={localToken}
               onChange={(e) => setLocalToken(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/50 pr-12"
+              className="w-full px-3 py-2 rounded-lg bg-card border text-foreground text-sm focus:outline-none focus:border-blue-500/40 pr-12"
             />
             <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
               {showToken ? t('connect.hide') : t('connect.show')}
@@ -2696,11 +2696,11 @@ function AppearanceSection() {
                   "flex flex-col items-center gap-1.5 p-2.5 rounded-lg border-2 transition-all",
                   isActive
                     ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-                    : "border-transparent hover:border-border hover:bg-muted/50"
+                    : "border-transparent hover:border-border hover:bg-muted/40"
                 )}
               >
                 {/* Color preview */}
-                <div className="w-full aspect-[4/3] rounded-md overflow-hidden border border-border/50 relative" style={{ backgroundColor: darkMode ? '#111' : '#f5f5f5' }}>
+                <div className="w-full aspect-[4/3] rounded-md overflow-hidden border border-border/40 relative" style={{ backgroundColor: darkMode ? '#111' : '#f5f5f5' }}>
                   <div className="absolute inset-x-0 top-0 h-2" style={{ backgroundColor: colors.primary }} />
                   <div className="absolute left-1 top-3 right-1 bottom-1 rounded-sm" style={{ backgroundColor: colors.bg }} />
                   <div className="absolute left-2 top-4 w-3 h-1 rounded-full" style={{ backgroundColor: colors.primary }} />
@@ -2766,11 +2766,11 @@ function AppearanceSection() {
           <p className="font-semibold text-foreground">{t('settings.aboutConfig.silosDashboard')}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.dashboardVersion')}</span>
             <span className="text-xs font-mono text-primary">{silosVersion ? `v${silosVersion}` : '—'}</span>
           </div>
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40">
             <span className="text-xs text-muted-foreground">{t('settings.aboutConfig.openclawVersion')}</span>
             <span className="text-xs font-mono text-primary">{displayOpenclawVersion ? `v${displayOpenclawVersion}` : '—'}</span>
           </div>

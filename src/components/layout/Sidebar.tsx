@@ -285,7 +285,7 @@ function SessionItem({
       )} />
       <span className="truncate flex-1">{displayName}</span>
       {parsed.type === 'subagent' && (
-        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
+        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
           sub
         </Badge>
       )}
@@ -547,7 +547,7 @@ export function Sidebar() {
               const orphaned = getOrphanedSessions(sessions?.sessions || [], sortedAgents);
               if (orphaned.length === 0) return null;
               return (
-                <div className="mt-4 pt-4 border-t border-border/50">
+                <div className="mt-4 pt-4 border-t border-border/40">
                   <div className="px-2 py-1 mb-2">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       Other Sessions

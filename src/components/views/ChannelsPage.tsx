@@ -122,7 +122,7 @@ function ChannelCard({
             {accounts.map((account) => (
               <div
                 key={account.accountId}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/40"
               >
                 <div className="flex items-center gap-3">
                   <div

@@ -209,17 +209,17 @@ interface TaskColumnProps {
 }
 
 const colStyles = {
-  amber:   { text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30', accent: 'bg-amber-500',   border: 'border-l-amber-400',   progress: '' },
-  cyan:    { text: 'text-cyan-600 dark:text-cyan-400',    badge: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30', accent: 'bg-cyan-500',    border: 'border-l-cyan-400',    progress: 'from-cyan-400 via-blue-500 to-cyan-400' },
-  emerald: { text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30', accent: 'bg-emerald-500', border: 'border-l-emerald-400', progress: '' },
-  rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
+  amber:   { text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20', accent: 'bg-amber-500',   border: 'border-l-amber-400',   progress: '' },
+  cyan:    { text: 'text-cyan-600 dark:text-cyan-400',    badge: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20', accent: 'bg-cyan-500',    border: 'border-l-cyan-400',    progress: 'from-cyan-400 via-blue-500 to-cyan-400' },
+  emerald: { text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20', accent: 'bg-emerald-500', border: 'border-l-emerald-400', progress: '' },
+  rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
 };
 
 function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort, onSelect, onNavigate, parentSessionKey }: TaskColumnProps) {
   const s = colStyles[color];
 
   return (
-    <div className="flex flex-col rounded-lg border border-border overflow-hidden bg-muted/30">
+    <div className="flex flex-col rounded-lg border border-border overflow-hidden bg-muted/20">
       {/* Column header */}
       <div className="px-2.5 py-1.5 border-b border-border flex items-center gap-1.5 shrink-0 whitespace-nowrap bg-muted/40">
         <span className={cn("shrink-0", s.text)}>{icon}</span>

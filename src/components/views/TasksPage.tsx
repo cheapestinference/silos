@@ -59,7 +59,7 @@ const columns: KanbanColumn[] = [
     icon: Clock,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
+    borderColor: 'border-amber-500/20',
   },
   {
     id: 'in-progress',
@@ -68,7 +68,7 @@ const columns: KanbanColumn[] = [
     icon: Play,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/30',
+    borderColor: 'border-blue-500/20',
   },
   {
     id: 'done',
@@ -77,7 +77,7 @@ const columns: KanbanColumn[] = [
     icon: CheckCircle,
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
+    borderColor: 'border-emerald-500/20',
   },
 ];
 
@@ -116,14 +116,14 @@ function TaskCard({
       onClick={onNavigate}
       className={cn(
         'group relative bg-card rounded-xl border shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer',
-        isRunning && 'border-blue-500/50 ring-1 ring-blue-500/20',
-        isError && 'border-red-500/30',
-        isCompleted && 'border-emerald-500/30'
+        isRunning && 'border-blue-500/40 ring-1 ring-blue-500/20',
+        isError && 'border-red-500/20',
+        isCompleted && 'border-emerald-500/20'
       )}
     >
       {/* Running indicator */}
       {isRunning && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500/30 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500/20 overflow-hidden">
           <div className="h-full bg-blue-500 animate-shimmer w-1/2" style={{
             animation: 'shimmer 1.5s infinite linear',
             background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent)',
@@ -241,7 +241,7 @@ function KanbanColumnComponent({
           <Icon className={cn('w-5 h-5', column.color)} />
           <h3 className="font-semibold">{t(column.titleKey as any)}</h3>
         </div>
-        <Badge variant="secondary" className="bg-background/50">
+        <Badge variant="secondary" className="bg-background/40">
           {tasks.length}
         </Badge>
       </div>
@@ -426,7 +426,7 @@ export function TasksPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-lg">
               <button
                 onClick={() => setActiveTab('tasks')}
                 className={cn(

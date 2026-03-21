@@ -232,7 +232,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={handleClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={handleClose} />
 
       <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         {/* Header */}
@@ -388,7 +388,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border bg-muted/30 flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-end gap-2 shrink-0">
           <button
             onClick={handleClose}
             disabled={creating || waitingReconnect}

@@ -75,7 +75,7 @@ function RecentSessionsList() {
       {recentSessions.map((session) => (
         <div
           key={session.key}
-          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -120,7 +120,7 @@ function CronJobsList() {
       {activeJobs.map((job) => (
         <div
           key={job.id}
-          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted transition-colors"
         >
           <div className="flex items-center gap-3">
             {job.state?.lastStatus === 'ok' ? (
@@ -163,19 +163,19 @@ function TasksOverview() {
 
   return (
     <div className="grid grid-cols-4 gap-4">
-      <div className="text-center p-4 rounded-lg bg-muted/50">
+      <div className="text-center p-4 rounded-lg bg-muted/40">
         <div className="text-2xl font-bold text-yellow-500">{pending}</div>
         <div className="text-xs text-muted-foreground">{t('dashboard.pending')}</div>
       </div>
-      <div className="text-center p-4 rounded-lg bg-muted/50">
+      <div className="text-center p-4 rounded-lg bg-muted/40">
         <div className="text-2xl font-bold text-blue-500">{running}</div>
         <div className="text-xs text-muted-foreground">{t('dashboard.running')}</div>
       </div>
-      <div className="text-center p-4 rounded-lg bg-muted/50">
+      <div className="text-center p-4 rounded-lg bg-muted/40">
         <div className="text-2xl font-bold text-green-500">{completed}</div>
         <div className="text-xs text-muted-foreground">{t('dashboard.completed')}</div>
       </div>
-      <div className="text-center p-4 rounded-lg bg-muted/50">
+      <div className="text-center p-4 rounded-lg bg-muted/40">
         <div className="text-2xl font-bold text-red-500">{failed}</div>
         <div className="text-xs text-muted-foreground">{t('dashboard.failed')}</div>
       </div>
