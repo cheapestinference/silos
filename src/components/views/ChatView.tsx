@@ -1531,9 +1531,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                     size="sm"
                     className={cn(
                       "gap-2 px-4 transition-all duration-200",
-                      "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90",
-                      "shadow-lg shadow-elevation-1 hover:shadow-elevation-2",
-                      "border border-primary/20"
+                      "bg-foreground/90 hover:bg-foreground text-background",
+                      "shadow-elevation-1 hover:shadow-elevation-2",
                     )}
                   >
                     {t('chat.send')}
