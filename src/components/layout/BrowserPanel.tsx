@@ -130,7 +130,6 @@ export function BrowserPanel({ open, onClose }: BrowserPanelProps) {
             onLoad={() => setLoading(false)}
             onError={() => { setLoading(false); setError(true); }}
             allow="clipboard-read; clipboard-write"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
         )}
       </div>
