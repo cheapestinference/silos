@@ -66,19 +66,19 @@ function DashStatCard({ icon, value, label, color }: {
 }) {
   const colorMap: Record<string, { icon: string }> = {
     violet: {
-      icon: 'bg-primary/10 text-primary',
+      icon: 'bg-muted dark:bg-muted text-primary',
     },
     blue: {
-      icon: 'bg-blue-500/10 text-blue-500 dark:text-blue-400',
+      icon: 'bg-muted dark:bg-muted text-blue-500 dark:text-blue-400',
     },
     amber: {
-      icon: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+      icon: 'bg-muted dark:bg-muted text-amber-600 dark:text-amber-400',
     },
     cyan: {
-      icon: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+      icon: 'bg-muted dark:bg-muted text-cyan-600 dark:text-cyan-400',
     },
     emerald: {
-      icon: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      icon: 'bg-muted dark:bg-muted text-emerald-600 dark:text-emerald-400',
     },
   };
   const c = colorMap[color] || colorMap.violet;
@@ -88,7 +88,7 @@ function DashStatCard({ icon, value, label, color }: {
         {icon}
       </div>
       <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{value}</p>
-      <p className="text-[11px] font-medium text-muted-foreground leading-tight">{label}</p>
+      <p className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wide leading-tight">{label}</p>
     </div>
   );
 }

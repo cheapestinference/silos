@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light Theme - Compact Professional Console */
-    --background: 220 14% 95%;
+    --background: 0 0% 98%;
     --foreground: 220 13% 18%;
     --card: 0 0% 100%;
     --card-foreground: 220 13% 18%;
@@ -13,25 +13,25 @@
     --popover-foreground: 220 13% 18%;
     --primary: 211 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 91%;
+    --secondary: 220 13% 95%;
     --secondary-foreground: 220 13% 18%;
-    --muted: 220 14% 91%;
-    --muted-foreground: 220 9% 40%;
+    --muted: 220 13% 95%;
+    --muted-foreground: 220 9% 36%;
     --accent: 211 100% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 14% 82%;
-    --input: 220 14% 82%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 211 100% 50%;
     --radius: 0.75rem;
 
     /* Sidebar - Light Professional */
-    --sidebar-bg: 220 14% 93%;
+    --sidebar-bg: 220 14% 96%;
     --sidebar-fg: 220 13% 18%;
-    --sidebar-hover: 220 14% 86%;
+    --sidebar-hover: 220 13% 91%;
     --sidebar-active: 211 100% 50%;
-    --sidebar-border: 220 14% 82%;
+    --sidebar-border: 220 13% 89%;
 
     /* Status Colors */
     --success: 142 71% 45%;

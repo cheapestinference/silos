@@ -107,7 +107,7 @@ export function FloatingBrowserPanel() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 relative bg-black min-h-0">
+      <div className="flex-1 relative bg-background min-h-0">
         {error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Monitor className="w-8 h-8 opacity-40" />

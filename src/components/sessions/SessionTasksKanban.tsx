@@ -126,7 +126,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
       <div className="relative px-4 py-2.5 border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="relative">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-muted dark:bg-muted border border-border flex items-center justify-center">
               <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
             </div>
             {runningTasks.length > 0 && (
@@ -209,10 +209,10 @@ interface TaskColumnProps {
 }
 
 const colStyles = {
-  amber:   { text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20', accent: 'bg-amber-500',   border: 'border-l-amber-400',   progress: '' },
-  cyan:    { text: 'text-cyan-600 dark:text-cyan-400',    badge: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20', accent: 'bg-cyan-500',    border: 'border-l-cyan-400',    progress: 'from-cyan-400 via-blue-500 to-cyan-400' },
-  emerald: { text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20', accent: 'bg-emerald-500', border: 'border-l-emerald-400', progress: '' },
-  rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
+  amber:   { text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-muted dark:bg-muted text-amber-700 dark:text-amber-300 border-border', accent: 'bg-amber-500',   border: 'border-l-amber-400',   progress: '' },
+  cyan:    { text: 'text-cyan-600 dark:text-cyan-400',    badge: 'bg-muted dark:bg-muted text-cyan-700 dark:text-cyan-300 border-border', accent: 'bg-cyan-500',    border: 'border-l-cyan-400',    progress: 'from-cyan-400 via-blue-500 to-cyan-400' },
+  emerald: { text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-muted dark:bg-muted text-emerald-700 dark:text-emerald-300 border-border', accent: 'bg-emerald-500', border: 'border-l-emerald-400', progress: '' },
+  rose:    { text: 'text-rose-600 dark:text-rose-400',    badge: 'bg-muted dark:bg-muted text-rose-700 dark:text-rose-300 border-border', accent: 'bg-rose-500',    border: 'border-l-rose-400',    progress: '' },
 };
 
 function TaskColumn({ label, icon, count, color, tasks, formatDuration, onAbort, onSelect, onNavigate, parentSessionKey }: TaskColumnProps) {

@@ -48,10 +48,10 @@ function InfoRow({ icon, label, value, mono, error }: { icon: React.ReactNode; l
 }
 
 const roleConfig: Record<string, { icon: React.ReactNode; label: string; bg: string; text: string }> = {
-  user: { icon: <User className="w-3 h-3" />, label: 'User', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
-  assistant: { icon: <Bot className="w-3 h-3" />, label: 'Assistant', bg: 'bg-primary/10', text: 'text-primary' },
-  system: { icon: <Zap className="w-3 h-3" />, label: 'System', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
-  tool: { icon: <Wrench className="w-3 h-3" />, label: 'Tool', bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400' },
+  user: { icon: <User className="w-3 h-3" />, label: 'User', bg: 'bg-muted dark:bg-muted', text: 'text-blue-600 dark:text-blue-400' },
+  assistant: { icon: <Bot className="w-3 h-3" />, label: 'Assistant', bg: 'bg-muted dark:bg-muted', text: 'text-primary' },
+  system: { icon: <Zap className="w-3 h-3" />, label: 'System', bg: 'bg-muted dark:bg-muted', text: 'text-amber-600 dark:text-amber-400' },
+  tool: { icon: <Wrench className="w-3 h-3" />, label: 'Tool', bg: 'bg-muted dark:bg-muted', text: 'text-cyan-600 dark:text-cyan-400' },
 };
 
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {

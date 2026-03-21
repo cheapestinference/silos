@@ -197,7 +197,7 @@ export function OverviewPanel() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-muted dark:bg-muted text-primary flex items-center justify-center mb-2">
               <MessageSquare className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{sessions.length}</p>
@@ -205,7 +205,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-muted dark:bg-muted text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
               <Database className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{formatTokens(totalTokens)}</p>
@@ -213,7 +213,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-muted dark:bg-muted text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2">
               <Activity className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{tasks.length}</p>
@@ -223,7 +223,7 @@ export function OverviewPanel() {
           </div>
 
           <div className="rounded-xl bg-card border border-border p-3">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
+            <div className="w-7 h-7 rounded-lg bg-muted dark:bg-muted text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
             <p className="text-xl font-bold text-foreground tabular-nums">{successRate}%</p>

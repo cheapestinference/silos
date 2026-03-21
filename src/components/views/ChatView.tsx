@@ -138,7 +138,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
     </a>
   ),
   blockquote: ({ children }: any) => (
-    <blockquote className="border-l-2 border-primary/20 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
+    <blockquote className="border-l-2 border-muted-foreground/20 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>
   ),
   hr: () => <hr className="my-3 border-border/40" />,
 };
@@ -469,8 +469,8 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
 
   // Color scheme: amber while running, cyan when done
   const colors = isRunning
-    ? { border: 'border-amber-500/40', bg: 'bg-amber-50 dark:bg-amber-500/15', hover: 'hover:bg-amber-100 dark:hover:bg-amber-500/20', icon: 'bg-amber-500/20 text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/20', chevron: 'text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20' }
-    : { border: 'border-cyan-500/40', bg: 'bg-cyan-50 dark:bg-cyan-500/15', hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-500/20', icon: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400', ring: 'ring-cyan-500/20', chevron: 'text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-500/20' };
+    ? { border: 'border-amber-300', bg: 'bg-amber-200 dark:bg-amber-500/20', hover: 'hover:bg-amber-300 dark:hover:bg-amber-500/30', icon: 'bg-amber-500/20 text-amber-700 dark:text-amber-400', ring: 'ring-amber-400/40', chevron: 'text-amber-700 dark:text-amber-400 hover:bg-amber-300 dark:hover:bg-amber-500/30' }
+    : { border: 'border-zinc-300 dark:border-zinc-600', bg: 'bg-zinc-800 dark:bg-zinc-700', hover: 'hover:bg-zinc-700 dark:hover:bg-zinc-600', icon: 'bg-zinc-600 text-emerald-400', ring: 'ring-zinc-400', chevron: 'text-zinc-300 hover:bg-zinc-700 dark:hover:bg-zinc-600' };
 
   return (
     <div className={cn(
@@ -493,14 +493,14 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
           <div className={cn("w-5 h-5 rounded flex items-center justify-center shrink-0", colors.icon)}>
             {getToolIcon(toolName)}
           </div>
-          <p className="text-[11px] font-semibold font-mono text-foreground truncate">{toolName || 'unknown'}</p>
+          <p className={cn("text-[11px] font-semibold font-mono truncate", isRunning ? "text-foreground" : "text-white")}>{toolName || 'unknown'}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isRunning && (
             <div className="w-2.5 h-2.5 border-[1.5px] border-amber-400 border-t-transparent rounded-full animate-spin" />
           )}
           {hasOutput && (
-            <span className="text-[10px] font-semibold px-1 py-px rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">ok</span>
+            <span className={cn("text-[10px] font-semibold px-1 py-px rounded", isRunning ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-emerald-500/20 text-emerald-400")}>ok</span>
           )}
           <button className={cn("p-0.5 rounded", colors.chevron)}>
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -582,7 +582,7 @@ function ToolsPanel({ messages }: ToolsPanelProps) {
   if (toolMessages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-        <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
+        <div className="w-12 h-12 rounded-xl bg-muted dark:bg-muted border border-border flex items-center justify-center mb-4">
           <Wrench className="w-6 h-6 text-cyan-500/50" />
         </div>
         <p className="text-sm font-medium text-muted-foreground mb-1">{t('chat.noToolActivity')}</p>
@@ -1077,6 +1077,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     browserDetached,
     browserAgentAction,
     setBrowserPanelOpen,
+    sessionCumulativeTokens,
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
@@ -1502,6 +1503,19 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
                             {t('chat.contextInfo')}
                           </TooltipContent>
                         </Tooltip>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Session cumulative tokens */}
+                  {(() => {
+                    const cumulative = sessionCumulativeTokens.get(effectiveKey);
+                    const total = cumulative?.total || (currentSession?.inputTokens || 0) + (currentSession?.outputTokens || 0);
+                    if (!total) return null;
+                    return (
+                      <div className="flex items-center gap-1.5 pl-2 border-l text-[10px] text-muted-foreground font-mono">
+                        <Zap className="w-2.5 h-2.5" />
+                        <span>{formatNumber(total)} total</span>
                       </div>
                     );
                   })()}

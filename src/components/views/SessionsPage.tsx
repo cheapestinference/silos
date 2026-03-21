@@ -265,10 +265,10 @@ function SessionItem({
 
       <div className={cn(
         'rounded-full flex items-center justify-center shrink-0',
-        isSubagentKey ? 'h-8 w-8 bg-cyan-500/10 text-cyan-500' :
-        session.kind === 'direct' ? 'h-10 w-10 bg-blue-500/10 text-blue-500' :
-        session.kind === 'group' ? 'h-10 w-10 bg-primary/10 text-primary' :
-        session.kind === 'global' ? 'h-10 w-10 bg-green-500/10 text-green-500' :
+        isSubagentKey ? 'h-8 w-8 bg-muted dark:bg-muted text-cyan-500' :
+        session.kind === 'direct' ? 'h-10 w-10 bg-muted dark:bg-muted text-blue-500' :
+        session.kind === 'group' ? 'h-10 w-10 bg-muted dark:bg-muted text-primary' :
+        session.kind === 'global' ? 'h-10 w-10 bg-muted dark:bg-muted text-green-500' :
         'h-10 w-10 bg-muted text-muted-foreground'
       )}>
         <KindIcon className={isSubagentKey ? "h-4 w-4" : "h-5 w-5"} />
@@ -286,7 +286,7 @@ function SessionItem({
             <span className="h-2 w-2 rounded-full bg-red-500" />
           )}
           {isSubagentKey && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted dark:bg-muted border-border text-cyan-600 dark:text-cyan-400">
               {t('sessions.subagent')}
             </Badge>
           )}
@@ -718,15 +718,15 @@ export function SessionsPage() {
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <div className="flex items-center gap-3">
                   {isSubagentSession(selectedSession.key) ? (
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-cyan-500/10 text-cyan-500">
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-muted dark:bg-muted text-cyan-500">
                       <Bot className="h-5 w-5" />
                     </div>
                   ) : (
                     <div className={cn(
                       'h-10 w-10 rounded-full flex items-center justify-center',
-                      selectedSession.kind === 'direct' ? 'bg-blue-500/10 text-blue-500' :
-                      selectedSession.kind === 'group' ? 'bg-primary/10 text-primary' :
-                      'bg-green-500/10 text-green-500'
+                      selectedSession.kind === 'direct' ? 'bg-muted dark:bg-muted text-blue-500' :
+                      selectedSession.kind === 'group' ? 'bg-muted dark:bg-muted text-primary' :
+                      'bg-muted dark:bg-muted text-green-500'
                     )}>
                       {selectedSession.kind === 'direct' && <UserIcon className="h-5 w-5" />}
                       {selectedSession.kind === 'group' && <UsersIcon className="h-5 w-5" />}
@@ -742,7 +742,7 @@ export function SessionsPage() {
                     </h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {isSubagentSession(selectedSession.key) ? (
-                        <Badge variant="outline" className="text-xs bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400">
+                        <Badge variant="outline" className="text-xs bg-muted dark:bg-muted border-border text-cyan-600 dark:text-cyan-400">
                           {t('sessions.subagent')}
                         </Badge>
                       ) : (

@@ -72,10 +72,10 @@ interface StatCardProps {
 
 function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
   const colorClasses = {
-    cyan: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20 dark:border-cyan-500/20',
-    violet: 'text-primary bg-primary/10 border-primary/20',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20 dark:border-emerald-500/20',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20 dark:border-amber-500/20',
+    cyan: 'text-cyan-600 dark:text-cyan-400 bg-muted dark:bg-muted border-border',
+    violet: 'text-primary bg-muted dark:bg-muted border-border',
+    emerald: 'text-emerald-600 dark:text-emerald-400 bg-muted dark:bg-muted border-border',
+    amber: 'text-amber-600 dark:text-amber-400 bg-muted dark:bg-muted border-border',
   };
 
   return (
@@ -361,28 +361,6 @@ export function SessionDetailView() {
               </div>
             </div>
 
-            {/* Live Stats */}
-            <div className="flex items-center gap-3 shrink-0">
-              <StatCard
-                icon={<Activity className="w-3.5 h-3.5" />}
-                value={runningTasks}
-                label={t('sessionDetail.active')}
-                color="cyan"
-                pulse={runningTasks > 0}
-              />
-              <StatCard
-                icon={<MessageSquare className="w-3.5 h-3.5" />}
-                value={formatNumber(sessionCumulativeTokens.get(sessionKey!)?.total || (session?.inputTokens || 0) + (session?.outputTokens || 0))}
-                label={t('sessionDetail.totalSession')}
-                color="violet"
-              />
-              <StatCard
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                value={completedTasks}
-                label={t('sessionDetail.done')}
-                color="emerald"
-              />
-            </div>
           </div>
         </div>
       </header>

@@ -13,20 +13,20 @@ export interface StatCardProps {
 export function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
   const colorClasses = {
     cyan: {
-      bg: 'bg-cyan-500/10',
-      border: 'border-cyan-500/20',
+      bg: 'bg-muted dark:bg-muted',
+      border: 'border-border',
       icon: 'text-cyan-600 dark:text-cyan-400',
       value: 'text-cyan-700 dark:text-cyan-300',
     },
     violet: {
-      bg: 'bg-primary/10',
-      border: 'border-primary/20',
+      bg: 'bg-muted dark:bg-muted',
+      border: 'border-border',
       icon: 'text-primary',
       value: 'text-primary',
     },
     emerald: {
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
+      bg: 'bg-muted dark:bg-muted',
+      border: 'border-border',
       icon: 'text-emerald-600 dark:text-emerald-400',
       value: 'text-emerald-700 dark:text-emerald-300',
     },

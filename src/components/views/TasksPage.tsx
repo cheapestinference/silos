@@ -58,8 +58,8 @@ const columns: KanbanColumn[] = [
     statuses: ['pending'],
     icon: Clock,
     color: 'text-amber-500',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/20',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border',
   },
   {
     id: 'in-progress',
@@ -67,8 +67,8 @@ const columns: KanbanColumn[] = [
     statuses: ['running'],
     icon: Play,
     color: 'text-blue-500',
-    bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/20',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border',
   },
   {
     id: 'done',
@@ -76,8 +76,8 @@ const columns: KanbanColumn[] = [
     statuses: ['completed', 'error', 'aborted'],
     icon: CheckCircle,
     color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/20',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border',
   },
 ];
 
@@ -101,11 +101,11 @@ function TaskCard({
     : Date.now() - task.startedAt;
 
   const statusConfig: Record<TaskStatus, { bg: string; text: string; icon: React.ElementType }> = {
-    pending: { bg: 'bg-amber-500/10', text: 'text-amber-500', icon: Clock },
-    running: { bg: 'bg-blue-500/10', text: 'text-blue-500', icon: Play },
-    completed: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', icon: CheckCircle },
-    error: { bg: 'bg-red-500/10', text: 'text-red-500', icon: XCircle },
-    aborted: { bg: 'bg-orange-500/10', text: 'text-orange-500', icon: AlertTriangle },
+    pending: { bg: 'bg-muted dark:bg-muted', text: 'text-amber-500', icon: Clock },
+    running: { bg: 'bg-muted dark:bg-muted', text: 'text-blue-500', icon: Play },
+    completed: { bg: 'bg-muted dark:bg-muted', text: 'text-emerald-500', icon: CheckCircle },
+    error: { bg: 'bg-muted dark:bg-muted', text: 'text-red-500', icon: XCircle },
+    aborted: { bg: 'bg-muted dark:bg-muted', text: 'text-orange-500', icon: AlertTriangle },
   };
 
   const config = statusConfig[task.status];
