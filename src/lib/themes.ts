@@ -29,6 +29,10 @@ export interface ThemeColors {
   '--warning-foreground': string;
   '--info': string;
   '--info-foreground': string;
+  '--accent-secondary': string;
+  '--glow': string;
+  '--surface-elevated': string;
+  '--surface-sunken': string;
 }
 
 export interface Theme {
@@ -75,6 +79,10 @@ const defaultTheme: Theme = {
     '--warning-foreground': '220 13% 18%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '210 80% 60%',
+    '--glow': '211 100% 50%',
+    '--surface-elevated': '0 0% 100%',
+    '--surface-sunken': '220 13% 93%',
   },
   dark: {
     '--background': '222 47% 11%',
@@ -107,6 +115,10 @@ const defaultTheme: Theme = {
     '--warning-foreground': '222 47% 11%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '210 80% 60%',
+    '--glow': '211 100% 50%',
+    '--surface-elevated': '222 47% 16%',
+    '--surface-sunken': '222 47% 9%',
   },
 };
 
@@ -146,6 +158,10 @@ const midnightTheme: Theme = {
     '--warning-foreground': '265 30% 15%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '300 70% 65%',
+    '--glow': '271 91% 65%',
+    '--surface-elevated': '275 35% 99%',
+    '--surface-sunken': '270 30% 91%',
   },
   dark: {
     '--background': '268 55% 8%',
@@ -178,6 +194,10 @@ const midnightTheme: Theme = {
     '--warning-foreground': '268 55% 8%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '300 70% 65%',
+    '--glow': '271 91% 65%',
+    '--surface-elevated': '270 50% 14%',
+    '--surface-sunken': '268 55% 6%',
   },
 };
 
@@ -217,38 +237,46 @@ const silosTheme: Theme = {
     '--warning-foreground': '240 10% 10%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '30 90% 55%',
+    '--glow': '16 100% 60%',
+    '--surface-elevated': '0 0% 100%',
+    '--surface-sunken': '220 15% 93%',
   },
   dark: {
-    '--background': '240 20% 10%',
-    '--foreground': '220 20% 95%',
-    '--card': '240 18% 14%',
-    '--card-foreground': '220 20% 95%',
-    '--popover': '240 18% 14%',
-    '--popover-foreground': '220 20% 95%',
+    '--background': '250 18% 9%',
+    '--foreground': '240 10% 95%',
+    '--card': '248 16% 13%',
+    '--card-foreground': '240 10% 95%',
+    '--popover': '248 16% 13%',
+    '--popover-foreground': '240 10% 95%',
     '--primary': '16 100% 60%',
     '--primary-foreground': '0 0% 100%',
-    '--secondary': '240 15% 18%',
-    '--secondary-foreground': '220 20% 95%',
-    '--muted': '240 15% 18%',
-    '--muted-foreground': '220 15% 55%',
+    '--secondary': '248 14% 17%',
+    '--secondary-foreground': '240 10% 95%',
+    '--muted': '248 14% 17%',
+    '--muted-foreground': '245 10% 58%',
     '--accent': '20 95% 65%',
     '--accent-foreground': '0 0% 100%',
     '--destructive': '0 63% 31%',
-    '--destructive-foreground': '220 20% 95%',
-    '--border': '240 15% 19%',
-    '--input': '240 15% 19%',
+    '--destructive-foreground': '240 10% 95%',
+    '--border': '248 12% 20%',
+    '--input': '248 12% 20%',
     '--ring': '16 100% 60%',
-    '--sidebar-bg': '240 20% 12%',
-    '--sidebar-fg': '220 20% 95%',
-    '--sidebar-hover': '240 15% 18%',
+    '--sidebar-bg': '250 18% 11%',
+    '--sidebar-fg': '240 10% 95%',
+    '--sidebar-hover': '248 14% 17%',
     '--sidebar-active': '16 100% 60%',
-    '--sidebar-border': '240 15% 16%',
+    '--sidebar-border': '248 12% 16%',
     '--success': '160 84% 39%',
     '--success-foreground': '0 0% 100%',
     '--warning': '38 92% 50%',
-    '--warning-foreground': '240 20% 10%',
+    '--warning-foreground': '250 18% 9%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '30 90% 55%',
+    '--glow': '16 100% 60%',
+    '--surface-elevated': '248 16% 16%',
+    '--surface-sunken': '250 18% 7%',
   },
 };
 
@@ -288,6 +316,10 @@ const sunsetTheme: Theme = {
     '--warning-foreground': '25 35% 12%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '25 95% 53%',
+    '--glow': '38 92% 50%',
+    '--surface-elevated': '35 35% 99%',
+    '--surface-sunken': '35 35% 90%',
   },
   dark: {
     '--background': '25 50% 6%',
@@ -320,6 +352,10 @@ const sunsetTheme: Theme = {
     '--warning-foreground': '25 50% 6%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '25 95% 53%',
+    '--glow': '38 92% 50%',
+    '--surface-elevated': '28 45% 13%',
+    '--surface-sunken': '25 50% 5%',
   },
 };
 
@@ -359,6 +395,10 @@ const roseTheme: Theme = {
     '--warning-foreground': '335 30% 12%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '350 80% 65%',
+    '--glow': '330 81% 60%',
+    '--surface-elevated': '345 30% 99%',
+    '--surface-sunken': '340 30% 91%',
   },
   dark: {
     '--background': '338 45% 7%',
@@ -391,6 +431,10 @@ const roseTheme: Theme = {
     '--warning-foreground': '338 45% 7%',
     '--info': '199 89% 48%',
     '--info-foreground': '0 0% 100%',
+    '--accent-secondary': '350 80% 65%',
+    '--glow': '330 81% 60%',
+    '--surface-elevated': '340 40% 13%',
+    '--surface-sunken': '338 45% 6%',
   },
 };
 
