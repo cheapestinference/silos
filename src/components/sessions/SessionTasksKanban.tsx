@@ -285,9 +285,12 @@ function MiniTaskCard({ task, color, formatDuration, onAbort, onSelect, onNaviga
       onClick={() => onSelect(task)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(task); } }}
       className={cn(
-        "group w-full text-left p-2 rounded-md bg-card border border-l-2 transition-all duration-150 cursor-pointer",
-        "hover:bg-muted/60 hover:shadow-sm",
-        s.border
+        "group w-full text-left p-2 rounded-md border border-l-2 transition-all duration-150 cursor-pointer",
+        "hover:shadow-sm",
+        s.border,
+        task.status === 'running'
+          ? "bg-cyan-500/10 dark:bg-cyan-500/15 border-cyan-500/40 hover:bg-cyan-500/20"
+          : "bg-card hover:bg-muted/60"
       )}
     >
       {/* Top: label + runId */}

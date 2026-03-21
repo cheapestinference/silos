@@ -14,5 +14,8 @@ export function buildNoVncUrl(token: string | null, opts: { password?: string; r
     params.set('path', `browser/websockify?token=${token}`);
   }
 
+  // Cache-bust to ensure updated browser.html is loaded
+  params.set('_cb', '7');
+
   return `${baseUrl}/browser.html?${params.toString()}`;
 }

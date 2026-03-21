@@ -40,6 +40,7 @@ import { cn } from '../../lib/utils';
 import useTranslation, { t as tStatic } from '../../i18n';
 import type { Locale, TranslationKey } from '../../i18n';
 import type { ChannelsStatusSnapshot } from '../../types/openclaw';
+import { themes } from '../../lib/themes';
 import { formatDistanceToNow } from 'date-fns';
 
 function formatDate(ts: number): string {
@@ -2653,7 +2654,7 @@ function GatewaySection() {
 }
 
 function AppearanceSection() {
-  const { darkMode, setDarkMode, gatewayConfig } = useDashboardStore();
+  const { darkMode, setDarkMode, theme, setTheme, gatewayConfig } = useDashboardStore();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
   const [silosVersion, setSilosVersion] = useState<string | null>(null);
   const [openclawVersion, setOpenclawVersion] = useState<string | null>(null);
@@ -2677,10 +2678,47 @@ function AppearanceSection() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t('settings.subtitle')}</p>
 
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+      {/* Theme picker */}
+      <div className="p-4 rounded-xl bg-card border space-y-3">
         <div>
           <p className="font-semibold text-foreground">{t('settings.appearance.theme')}</p>
           <p className="text-xs text-muted-foreground">{t('settings.appearanceConfig.themeDesc')}</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {themes.map((th) => {
+            const isActive = theme === th.id;
+            const colors = darkMode ? th.preview : th.preview;
+            return (
+              <button
+                key={th.id}
+                onClick={() => setTheme(th.id)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 p-2.5 rounded-lg border-2 transition-all",
+                  isActive
+                    ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                    : "border-transparent hover:border-border hover:bg-muted/50"
+                )}
+              >
+                {/* Color preview */}
+                <div className="w-full aspect-[4/3] rounded-md overflow-hidden border border-border/50 relative" style={{ backgroundColor: darkMode ? '#111' : '#f5f5f5' }}>
+                  <div className="absolute inset-x-0 top-0 h-2" style={{ backgroundColor: colors.primary }} />
+                  <div className="absolute left-1 top-3 right-1 bottom-1 rounded-sm" style={{ backgroundColor: colors.bg }} />
+                  <div className="absolute left-2 top-4 w-3 h-1 rounded-full" style={{ backgroundColor: colors.primary }} />
+                  <div className="absolute left-2 top-6 right-2 h-0.5 rounded-full" style={{ backgroundColor: colors.accent, opacity: 0.5 }} />
+                  <div className="absolute left-2 top-7.5 right-4 h-0.5 rounded-full" style={{ backgroundColor: colors.accent, opacity: 0.3 }} />
+                </div>
+                <span className={cn("text-[10px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>{th.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Light/Dark toggle */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+        <div>
+          <p className="font-semibold text-foreground">Mode</p>
+          <p className="text-xs text-muted-foreground">Light or dark appearance</p>
         </div>
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
           <button

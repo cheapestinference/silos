@@ -6,8 +6,9 @@
 <title>Browser</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
-  #screen { width: 100%; height: 100%; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  #screen { width: 100%; height: 100%; overflow: hidden; }
+  #screen canvas { width: 100% !important; }
   #status {
     position: fixed; bottom: 0; left: 0; right: 0;
     text-align: center; padding: 8px;
@@ -41,19 +42,47 @@
     wsProtocols: [],
   });
 
-  rfb.scaleViewport = true;
-  rfb.resizeSession = true;
+  rfb.scaleViewport = false;
+  rfb.resizeSession = false;
 
-  // Re-scale when the iframe container is resized (e.g., parent panel drag)
-  const ro = new ResizeObserver(() => {
-    // Trigger noVNC's internal resize handler
-    rfb._windowResize();
-  });
-  ro.observe(screenEl);
+  const display = rfb._display;
+
+  // Override noVNC's _rescale — it fights our fitToWidth by setting
+  // inline width/height on the canvas. We keep _scale for internal use only.
+  display._rescale = function(factor) {
+    this._scale = factor;
+  };
+
+  // Fit canvas to container width, maintain aspect ratio for height.
+  function fitToWidth() {
+    const canvas = screenEl.querySelector('canvas');
+    if (!canvas) return;
+    const fbW = display._fbWidth || canvas.width;
+    const fbH = display._fbHeight || canvas.height;
+    if (!fbW || !fbH) return;
+    const containerW = screenEl.clientWidth;
+    canvas.style.width = containerW + 'px';
+    canvas.style.height = Math.round(containerW * fbH / fbW) + 'px';
+  }
+
+  new ResizeObserver(fitToWidth).observe(screenEl);
+
+  // Patch mouse coordinate mapping to use actual rendered canvas size.
+  display.absX = function(x) {
+    const rect = this._target.getBoundingClientRect();
+    if (rect.width === 0) return 0;
+    return Math.round(x / rect.width * this._fbWidth + this._viewportLoc.x);
+  };
+  display.absY = function(y) {
+    const rect = this._target.getBoundingClientRect();
+    if (rect.height === 0) return 0;
+    return Math.round(y / rect.height * this._fbHeight + this._viewportLoc.y);
+  };
 
   rfb.addEventListener('connect', () => {
     statusEl.textContent = 'Connected';
     statusEl.classList.add('connected');
+    fitToWidth();
   });
 
   rfb.addEventListener('disconnect', (e) => {

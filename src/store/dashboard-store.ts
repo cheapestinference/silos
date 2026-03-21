@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GatewayClient, createGatewayClient } from '../lib/gateway-client';
+import { applyTheme } from '../lib/themes';
 import type {
   AgentsListResult,
   SessionsListResult,
@@ -88,6 +89,7 @@ interface DashboardStore {
   gatewayUrl: string;
   token: string | null;
   darkMode: boolean;
+  theme: string;
 
   // Data
   agents: AgentsListResult | null;
@@ -139,6 +141,7 @@ interface DashboardStore {
   setGatewayUrl: (url: string) => void;
   setToken: (token: string | null) => void;
   setDarkMode: (dark: boolean) => void;
+  setTheme: (themeId: string) => void;
   connect: () => void;
   disconnect: () => void;
 
@@ -230,17 +233,12 @@ interface DashboardStore {
   // Browser panel state
   browserPanelOpen: boolean;
   browserDetached: 'none' | 'overlay' | 'popout';
-  browserSplitRatio: number;
   browserAgentAction: string | null;
-  browserAgentPaused: boolean;
 
   // Browser panel actions
   setBrowserPanelOpen: (open: boolean) => void;
   setBrowserDetached: (mode: 'none' | 'overlay' | 'popout') => void;
-  setBrowserSplitRatio: (ratio: number) => void;
   setBrowserAgentAction: (action: string | null) => void;
-  setBrowserAgentPaused: (paused: boolean) => void;
-  sendBrowserInterrupt: (text: string) => Promise<void>;
 
   // Event handlers
   handleEvent: (event: EventFrame) => void;
@@ -317,6 +315,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
       token: null,
       darkMode: false,
+      theme: 'default',
 
       agents: null,
       sessions: null,
@@ -372,9 +371,7 @@ export const useDashboardStore = create<DashboardStore>()(
       // Browser panel
       browserPanelOpen: false,
       browserDetached: 'none' as const,
-      browserSplitRatio: 0.5,
       browserAgentAction: null,
-      browserAgentPaused: false,
 
       client: null,
 
@@ -388,6 +385,11 @@ export const useDashboardStore = create<DashboardStore>()(
         } else {
           document.documentElement.classList.remove('dark');
         }
+        applyTheme(get().theme, dark);
+      },
+      setTheme: (themeId) => {
+        set({ theme: themeId });
+        applyTheme(themeId, get().darkMode);
       },
 
       // Connection actions
@@ -1752,21 +1754,12 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       // Browser panel actions
-      setBrowserPanelOpen: (open) => set({ browserPanelOpen: open }),
+      setBrowserPanelOpen: (open) => set({
+        browserPanelOpen: open,
+        ...(open === false ? { browserDetached: 'none' as const } : {}),
+      }),
       setBrowserDetached: (mode) => set({ browserDetached: mode }),
-      setBrowserSplitRatio: (ratio) => set({ browserSplitRatio: ratio }),
       setBrowserAgentAction: (action) => set({ browserAgentAction: action }),
-      setBrowserAgentPaused: (paused) => set({ browserAgentPaused: paused }),
-      sendBrowserInterrupt: async (text: string) => {
-        // Bypass the message queue — sends immediately even during active runs.
-        const { client, selectedSessionKey } = get();
-        if (!client || !selectedSessionKey) return;
-        try {
-          await client.sendChat(selectedSessionKey, text);
-        } catch (e) {
-          console.error('[browser-interrupt] failed:', e);
-        }
-      },
 
       // Event handlers
       handleEvent: (event) => {
@@ -2443,25 +2436,30 @@ export const useDashboardStore = create<DashboardStore>()(
         gatewayUrl: state.gatewayUrl,
         token: state.token,
         darkMode: state.darkMode,
-        browserSplitRatio: state.browserSplitRatio,
+        theme: state.theme,
       }),
     }
   )
 );
 
-// Initialize dark mode on load — default is always light unless user explicitly enabled dark
+// Initialize dark mode and theme on load
 if (typeof window !== 'undefined') {
   const stored = localStorage.getItem('silos-dashboard');
   let isDark = false;
+  let themeId = 'default';
   if (stored) {
     try {
       const { state } = JSON.parse(stored);
       isDark = state?.darkMode === true;
+      themeId = state?.theme || 'default';
     } catch {
       isDark = false;
     }
   }
   if (isDark) {
     document.documentElement.classList.add('dark');
+  }
+  if (themeId !== 'default') {
+    applyTheme(themeId, isDark);
   }
 }

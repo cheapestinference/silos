@@ -23,7 +23,6 @@ import {
   X,
   Pencil,
   ExternalLink,
-  Monitor,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
@@ -215,8 +214,6 @@ export function AppSidebar() {
     unreadCounts,
     gatewayUrl,
     token,
-    browserPanelOpen,
-    setBrowserPanelOpen,
   } = useDashboardStore();
   const { signOut } = useAuth();
   const { t, locale, setLocale, locales: availableLocales } = useTranslation();
@@ -348,7 +345,7 @@ export function AppSidebar() {
           onClick={() => navigate('/')}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
             S
           </div>
           <span className="text-sm font-semibold text-foreground">Silos</span>
@@ -631,27 +628,6 @@ export function AppSidebar() {
           </TooltipContent>
         </Tooltip>
 
-        {/* Browser Viewer */}
-        {connected && (
-          <Tooltip>
-            <TooltipTrigger>
-              <button
-                onClick={() => setBrowserPanelOpen(!browserPanelOpen)}
-                className={cn(
-                  "w-7 h-7 rounded flex items-center justify-center transition-colors",
-                  browserPanelOpen
-                    ? "bg-primary text-white"
-                    : "text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover"
-                )}
-              >
-                <Monitor className="w-3.5 h-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <span className="text-xs">Remote Browser</span>
-            </TooltipContent>
-          </Tooltip>
-        )}
 
         {/* OpenClaw Control UI */}
         {connected && (

@@ -3,7 +3,7 @@ import { Monitor, X, RefreshCw, ExternalLink, PanelRightClose } from 'lucide-rea
 import { cn } from '../../lib/utils';
 import { buildNoVncUrl } from '../../lib/browser-utils';
 import { useDashboardStore } from '../../store/dashboard-store';
-import { AgentStatusBar } from './AgentStatusBar';
+
 
 interface BrowserPanelProps {
   /** When true, renders without outer chrome (border, min-width) for embedding in a tab container */
@@ -26,15 +26,22 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
 
   const url = buildNoVncUrl(token, { password: 'abc123', resize: true });
 
+  const maximized = useRef(false);
+
   useEffect(() => {
     if (browserPanelOpen) {
       setLoading(true);
       setError(false);
+      // Maximize Chromium window via CDP (one-shot, idempotent)
+      if (!maximized.current) {
+        maximized.current = true;
+        fetch('/api/browser/maximize', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      }
     }
-  }, [browserPanelOpen]);
+  }, [browserPanelOpen, token]);
 
-  // In embedded mode, visibility is controlled by the parent tab container
-  if (!embedded && (!browserPanelOpen || browserDetached !== 'none')) return null;
+  // Hide when not open or when detached (overlay/popout renders elsewhere)
+  if (!browserPanelOpen || browserDetached !== 'none') return null;
 
   const handleRefresh = () => {
     setLoading(true);
@@ -68,11 +75,9 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
           <button onClick={handleRefresh} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Refresh">
             <RefreshCw className="w-3 h-3" />
           </button>
-          {!embedded && (
-            <button onClick={handleDetachOverlay} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Detach to overlay">
-              <PanelRightClose className="w-3 h-3" />
-            </button>
-          )}
+          <button onClick={handleDetachOverlay} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Detach to overlay">
+            <PanelRightClose className="w-3 h-3" />
+          </button>
           <button onClick={handlePopout} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Pop out to window">
             <ExternalLink className="w-3 h-3" />
           </button>
@@ -106,8 +111,6 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
         )}
       </div>
 
-      {/* Agent status bar */}
-      <AgentStatusBar />
     </div>
   );
 }

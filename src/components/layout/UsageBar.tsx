@@ -49,7 +49,7 @@ export function UsageBar() {
   const pct = Math.min((spent / limit) * 100, 100);
 
   const timeLeft = resets_at ? formatTimeLeft(resets_at) : null;
-  const barColor = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-violet-500';
+  const barColor = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-orange-500';
   const planLabel = usage.plan?.slug
     ? usage.plan.slug.charAt(0).toUpperCase() + usage.plan.slug.slice(1)
     : 'Plan';
@@ -57,7 +57,7 @@ export function UsageBar() {
   return (
     <div className="px-3 py-2 border-t border-sidebar-border">
       <div className="flex items-center gap-1.5 mb-1.5">
-        <Zap className="w-3 h-3 text-violet-500" />
+        <Zap className="w-3 h-3 text-orange-500" />
         <span className="text-[10px] font-semibold text-sidebar-fg/70 uppercase tracking-wide">
           {planLabel}
         </span>

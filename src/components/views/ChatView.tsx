@@ -133,7 +133,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
   td: ({ children }: any) => <td className="px-3 py-1.5 border-t border-border/50">{children}</td>,
   a: ({ href, children }: any) => (
     <a href={href} target="_blank" rel="noopener noreferrer"
-      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+      className="text-white/90 hover:text-white underline underline-offset-2 decoration-white/50 hover:decoration-white/80">
       {children}
     </a>
   ),
@@ -1090,6 +1090,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     loadSessions,
     connected,
     browserPanelOpen,
+    browserDetached,
     browserAgentAction,
     setBrowserPanelOpen,
     token,
@@ -1097,15 +1098,45 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Right panel tab state
-  const [activeRightTab, setActiveRightTab] = useState<'tasks' | 'tools' | 'browser'>('tasks');
+  // Right panel: top section tabs (Pipeline / Browser), Tools always at bottom
+  const [activeTopTab, setActiveTopTab] = useState<'tasks' | 'browser'>('tasks');
 
-  // Auto-switch to browser tab when agent starts using browser or user opens via sidebar
+  // Vertical split between top tabs and bottom Tools (percentage for top section)
+  const [toolsSplit, setToolsSplit] = useState(() => {
+    const saved = localStorage.getItem('silos-chat-tools-split');
+    return saved ? Math.max(15, Math.min(85, Number(saved))) : 50;
+  });
+  const isSplitDragging = useRef(false);
+
   useEffect(() => {
-    if (browserPanelOpen) {
-      setActiveRightTab('browser');
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isSplitDragging.current || !splitContainerRef.current) return;
+      e.preventDefault();
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      setToolsSplit(Math.max(15, Math.min(85, pct)));
+    };
+    const onMouseUp = () => {
+      if (!isSplitDragging.current) return;
+      isSplitDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('silos-chat-tools-split', String(toolsSplit));
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [toolsSplit]);
+
+  // Auto-switch to browser tab when agent starts using browser
+  useEffect(() => {
+    if (browserPanelOpen && browserDetached === 'none') {
+      setActiveTopTab('browser');
     }
-  }, [browserPanelOpen]);
+  }, [browserPanelOpen, browserDetached]);
 
   // Resizable right panel (width)
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -1554,53 +1585,75 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
         </div>
 
-        {/* RIGHT: Tabbed Panel (Tasks / Tools / Browser) */}
+        {/* RIGHT: Top tabs (Pipeline / Browser) + Bottom Tools */}
         <div ref={splitContainerRef} className="flex flex-col shrink-0" style={{ width: panelWidth }}>
-          {/* Tab bar */}
-          <div className="flex border-b border-border shrink-0">
-            {([
-              { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
-              { id: 'tools' as const, icon: Wrench, label: 'Tools', color: 'text-cyan-500' },
-              { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-purple-500' },
-            ]).map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveRightTab(tab.id);
-                  if (tab.id === 'browser' && !browserPanelOpen) setBrowserPanelOpen(true);
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors relative",
-                  activeRightTab === tab.id
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground/70"
-                )}
-              >
-                <tab.icon className={cn("h-3 w-3", activeRightTab === tab.id ? tab.color : "")} />
-                {tab.label}
-                {tab.id === 'browser' && browserAgentAction && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                )}
-                {activeRightTab === tab.id && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                )}
-              </button>
-            ))}
+          {/* Top section: tab bar + content */}
+          <div className="flex flex-col min-h-0 overflow-hidden" style={{ height: `${toolsSplit}%` }}>
+            {/* Tab bar */}
+            <div className="flex border-b border-border shrink-0">
+              {([
+                { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
+                { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-purple-500' },
+              ]).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTopTab(tab.id);
+                    if (tab.id === 'browser' && !browserPanelOpen) setBrowserPanelOpen(true);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors relative",
+                    activeTopTab === tab.id
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground/70"
+                  )}
+                >
+                  <tab.icon className={cn("h-3 w-3", activeTopTab === tab.id ? tab.color : "")} />
+                  {tab.label}
+                  {tab.id === 'browser' && browserAgentAction && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  )}
+                  {activeTopTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {activeTopTab === 'tasks' && (
+                <SessionTasksKanban sessionKey={effectiveKey} />
+              )}
+              {activeTopTab === 'browser' && (
+                <BrowserPanel embedded />
+              )}
+            </div>
           </div>
 
-          {/* Tab content */}
+          {/* Horizontal resize handle */}
+          <div
+            className="h-1 shrink-0 cursor-row-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors border-y border-border/30"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isSplitDragging.current = true;
+              document.body.style.cursor = 'row-resize';
+              document.body.style.userSelect = 'none';
+            }}
+          >
+            <div className="absolute inset-x-0 -top-1 -bottom-1" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/50 transition-colors" />
+          </div>
+
+          {/* Bottom: Tools (always visible) */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            {activeRightTab === 'tasks' && (
-              <SessionTasksKanban sessionKey={effectiveKey} />
-            )}
-            {activeRightTab === 'tools' && (
-              <div className="h-full">
-                <ToolsPanel messages={chatMessages} />
-              </div>
-            )}
-            {activeRightTab === 'browser' && (
-              <BrowserPanel embedded />
-            )}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/50 shrink-0">
+              <Wrench className="h-3 w-3 text-cyan-500" />
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tools</span>
+            </div>
+            <div className="h-[calc(100%-28px)]">
+              <ToolsPanel messages={chatMessages} />
+            </div>
           </div>
         </div>
       </div>

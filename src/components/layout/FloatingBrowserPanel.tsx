@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Monitor, X, RefreshCw, ExternalLink, PanelRightOpen, GripHorizontal } from 'lucide-react';
 import { buildNoVncUrl } from '../../lib/browser-utils';
 import { useDashboardStore } from '../../store/dashboard-store';
-import { AgentStatusBar } from './AgentStatusBar';
+
 
 export function FloatingBrowserPanel() {
   const {
@@ -128,7 +128,6 @@ export function FloatingBrowserPanel() {
         )}
       </div>
 
-      <AgentStatusBar />
 
       {/* Resize handle (bottom-right corner) */}
       <div
