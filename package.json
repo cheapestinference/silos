@@ -17,6 +17,7 @@
     "server": "node server.js"
   },
   "dependencies": {
+    "@novnc/novnc": "^1.6.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "express": "^5.2.1",

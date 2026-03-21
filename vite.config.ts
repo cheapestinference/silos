@@ -6,9 +6,36 @@ import path from 'path'
 const isLocalDev = !!process.env.DEV_PROXY_VPS;
 const VPS_ORIGIN = process.env.DEV_PROXY_VPS || 'https://localhost:5174';
 
+// Plugin to copy @novnc/novnc lib files to dist/browser/lib/ during build
+function copyNovncPlugin() {
+  return {
+    name: 'copy-novnc',
+    closeBundle() {
+      const src = path.resolve(__dirname, 'node_modules/@novnc/novnc/lib');
+      const dest = path.resolve(__dirname, 'dist/browser/lib');
+
+      function copyDir(srcDir: string, destDir: string) {
+        fs.mkdirSync(destDir, { recursive: true });
+        for (const entry of fs.readdirSync(srcDir)) {
+          const srcPath = path.join(srcDir, entry);
+          const destPath = path.join(destDir, entry);
+          const stat = fs.statSync(srcPath);
+          if (stat.isDirectory()) {
+            copyDir(srcPath, destPath);
+          } else {
+            fs.copyFileSync(srcPath, destPath);
+          }
+        }
+      }
+
+      copyDir(src, dest);
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), copyNovncPlugin()],
   server: {
     host: '0.0.0.0',
     port: isLocalDev ? 5174 : 3001,

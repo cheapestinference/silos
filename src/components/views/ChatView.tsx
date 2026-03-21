@@ -617,7 +617,7 @@ interface MessageAvatarProps {
   isAgentSender?: boolean; // True when user role message was actually sent by an agent (in subagent sessions)
 }
 
-function MessageAvatar({ isUser, agentId, agents, showAvatar, isStreaming, isAgentSender }: MessageAvatarProps) {
+function MessageAvatar({ isUser, agentId, agents, showAvatar, isAgentSender }: MessageAvatarProps) {
   if (!showAvatar) {
     return null;
   }

@@ -24,7 +24,7 @@
 <div id="screen"></div>
 <div id="status">Connecting...</div>
 <script type="module">
-  import RFB from './core/rfb.js';
+  import RFB from './lib/rfb.js';
 
   const params = new URLSearchParams(window.location.search);
   const password = params.get('password') || '';

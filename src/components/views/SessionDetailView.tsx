@@ -1,15 +1,12 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
-import { cn, formatNumber } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import {
   ArrowLeft,
   Bot,
-  Activity,
-  MessageSquare,
   Cpu,
-  Sparkles,
   Hash,
   Clock,
   ChevronDown,
@@ -62,40 +59,6 @@ function getSessionDisplayName(sessionKey: string, session?: { displayName?: str
   return parts[parts.length - 1] || sessionKey;
 }
 
-interface StatCardProps {
-  icon: React.ReactNode;
-  value: number | string;
-  label: string;
-  color: 'cyan' | 'violet' | 'emerald' | 'amber';
-  pulse?: boolean;
-}
-
-function StatCard({ icon, value, label, color, pulse }: StatCardProps) {
-  const colorClasses = {
-    cyan: 'text-cyan-600 dark:text-cyan-400 bg-muted dark:bg-muted border-border',
-    violet: 'text-primary bg-muted dark:bg-muted border-border',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-muted dark:bg-muted border-border',
-    amber: 'text-amber-600 dark:text-amber-400 bg-muted dark:bg-muted border-border',
-  };
-
-  return (
-    <div className={cn(
-      "flex items-center gap-2 px-3 py-2 rounded-xl border",
-      colorClasses[color]
-    )}>
-      <div className="relative">
-        {icon}
-        {pulse && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
-        )}
-      </div>
-      <div className="text-right">
-        <div className="text-sm font-bold">{value}</div>
-        <div className="text-[10px] opacity-60 uppercase tracking-wide">{label}</div>
-      </div>
-    </div>
-  );
-}
 
 export function SessionDetailView() {
   const { t } = useTranslation();
@@ -104,13 +67,11 @@ export function SessionDetailView() {
   const {
     agents,
     sessions,
-    tasks,
     loadAgents,
     loadSessions,
     connected,
     loadAgentConfig,
     gatewayConfig,
-    sessionCumulativeTokens,
     availableModels,
     loadAvailableModels,
   } = useDashboardStore();
@@ -135,11 +96,6 @@ export function SessionDetailView() {
   const agent = agentId ? agents?.agents.find(a => a.id === agentId) : null;
   const session = sessions?.sessions.find(s => s.key === sessionKey);
   const sessionName = getSessionDisplayName(sessionKey, session);
-
-  // Get tasks for this session
-  const sessionTasks = tasks.filter(t => t.sessionKey === sessionKey);
-  const runningTasks = sessionTasks.filter(t => t.status === 'running').length;
-  const completedTasks = sessionTasks.filter(t => t.status === 'completed').length;
 
   const agentName = agent?.identity?.name || agent?.name || agent?.id || 'Unknown Agent';
   const agentEmoji = agent?.identity?.emoji;
