@@ -265,7 +265,10 @@
     "output": "Ausgabe",
     "total": "Gesamt",
     "messagesQueued": "in Warteschlange",
-    "removeQueued": "Entfernen"
+    "removeQueued": "Entfernen",
+    "suggestion1": "Wobei kannst du mir helfen?",
+    "suggestion2": "Erzähl mir von deinen Fähigkeiten",
+    "suggestion3": "Hilf mir loszulegen"
   },
   "tasks": {
     "title": "Aufgaben",

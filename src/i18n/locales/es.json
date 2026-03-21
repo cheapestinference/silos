@@ -265,7 +265,10 @@
     "output": "Salida",
     "total": "Total",
     "messagesQueued": "en cola",
-    "removeQueued": "Quitar"
+    "removeQueued": "Quitar",
+    "suggestion1": "¿En qué puedes ayudarme?",
+    "suggestion2": "Cuéntame sobre tus capacidades",
+    "suggestion3": "Ayúdame a empezar"
   },
   "tasks": {
     "title": "Tareas",

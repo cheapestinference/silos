@@ -110,7 +110,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
       return <CodeBlock language={match?.[1] || 'text'} code={text} />;
     }
     return (
-      <code className="px-1.5 py-0.5 rounded bg-muted text-primary text-xs font-mono">
+      <code className="px-1.5 py-0.5 rounded bg-muted text-foreground text-xs font-mono">
         {children}
       </code>
     );
@@ -1356,7 +1356,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
               {/* Quick start suggestions */}
               <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-                {['What can you help me with?', 'Tell me about your capabilities', 'Help me get started'].map((suggestion, i) => (
+                {[t('chat.suggestion1'), t('chat.suggestion2'), t('chat.suggestion3')].map((suggestion, i) => (
                   <button
                     key={i}
                     onClick={() => {
@@ -1441,7 +1441,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
             "bg-card",
             "border shadow-sm",
             inputFocused
-              ? "border-primary/40 shadow-primary/10 ring-2 ring-primary/10"
+              ? "border-foreground/20 shadow-foreground/5 ring-2 ring-foreground/10"
               : ""
           )}>
             {/* Inner highlight */}

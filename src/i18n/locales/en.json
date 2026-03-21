@@ -265,7 +265,10 @@
     "output": "Output",
     "total": "Total",
     "messagesQueued": "queued",
-    "removeQueued": "Remove"
+    "removeQueued": "Remove",
+    "suggestion1": "What can you help me with?",
+    "suggestion2": "Tell me about your capabilities",
+    "suggestion3": "Help me get started"
   },
   "tasks": {
     "title": "Tasks",

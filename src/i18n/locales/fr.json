@@ -265,7 +265,10 @@
     "output": "Sortie",
     "total": "Total",
     "messagesQueued": "en attente",
-    "removeQueued": "Retirer"
+    "removeQueued": "Retirer",
+    "suggestion1": "Comment pouvez-vous m'aider ?",
+    "suggestion2": "Parlez-moi de vos capacités",
+    "suggestion3": "Aidez-moi à commencer"
   },
   "tasks": {
     "title": "Tâches",
