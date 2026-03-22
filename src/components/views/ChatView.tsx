@@ -1091,6 +1091,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     return saved ? Math.max(15, Math.min(85, Number(saved))) : 50;
   });
   const isSplitDragging = useRef(false);
+  const toolsSplitRef = useRef(toolsSplit);
+  toolsSplitRef.current = toolsSplit;
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -1105,7 +1107,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       isSplitDragging.current = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      localStorage.setItem('silos-chat-tools-split', String(toolsSplit));
+      localStorage.setItem('silos-chat-tools-split', String(toolsSplitRef.current));
     };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
@@ -1113,7 +1115,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [toolsSplit]);
+  }, []);
 
   // Auto-switch to browser tab when agent starts using browser
   useEffect(() => {
@@ -1132,6 +1134,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const dragStartWidth = useRef(0);
+  const panelWidthRef = useRef(panelWidth);
+  panelWidthRef.current = panelWidth;
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -1146,7 +1150,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       isDragging.current = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      localStorage.setItem('silos-chat-panel-width', String(panelWidth));
+      localStorage.setItem('silos-chat-panel-width', String(panelWidthRef.current));
     };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
@@ -1154,7 +1158,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [panelWidth]);
+  }, []);
 
 
   // Translate sessionKey to effective key for backend matching

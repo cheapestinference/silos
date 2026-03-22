@@ -83,7 +83,7 @@ app.use(createAdminRouter(GATEWAY_TOKEN));
 
 // Gateway proxy (HTTP for /openclaw control UI)
 // Redirect logic for /openclaw → /openclaw/ is inside httpMiddleware (proxy.js)
-const { httpMiddleware, browserMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
+const { httpMiddleware, upgradeHandler } = createGatewayProxy('127.0.0.1', parseInt(OPENCLAW_PORT));
 app.use('/openclaw', httpMiddleware);
 
 // Browser noVNC: static files served from dist/browser/ by express.static above.

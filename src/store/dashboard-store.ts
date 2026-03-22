@@ -924,8 +924,11 @@ export const useDashboardStore = create<DashboardStore>()(
             result: m.result,
             runId: m.runId,
           }));
+          // Guard: user may have switched sessions while the request was in flight
+          if (get().selectedSessionKey !== key) return;
           set({ chatMessages: messages, chatLoading: false });
         } catch (error) {
+          if (get().selectedSessionKey !== key) return;
           // If it's a DM session that doesn't exist yet, just show empty history
           if (key.startsWith('dm-')) {
             set({ chatMessages: [], chatLoading: false });

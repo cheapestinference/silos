@@ -15,13 +15,19 @@ export function useBrowserStatus(token: string | null, enabled: boolean): Browse
       return;
     }
     let cancelled = false;
+    let failCount = 0;
     const poll = async () => {
       try {
         const res = await fetch('/api/browser/status', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!cancelled && res.ok) setStatus(await res.json());
-      } catch { /* ignore */ }
+        if (!cancelled && res.ok) {
+          failCount = 0;
+          setStatus(await res.json());
+        }
+      } catch {
+        if (!cancelled && ++failCount >= 3) setStatus({ active: false });
+      }
     };
     poll();
     const id = setInterval(poll, 5000);

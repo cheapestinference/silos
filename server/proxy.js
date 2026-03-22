@@ -41,13 +41,6 @@ export function createGatewayProxy(gatewayHost, gatewayPort) {
     proxy.web(req, res);
   };
 
-  // HTTP middleware for /browser — proxies noVNC static files
-  const browserMiddleware = (req, res) => {
-    // Strip /browser prefix so noVNC sees clean paths
-    req.url = req.url || '/';
-    novncProxy.web(req, res);
-  };
-
   // WebSocket upgrade handler for /gateway, /openclaw, and /browser
   const upgradeHandler = (req, socket, head, gatewayToken) => {
     if (req.url && req.url.startsWith('/gateway')) {
@@ -71,5 +64,5 @@ export function createGatewayProxy(gatewayHost, gatewayPort) {
     }
   };
 
-  return { proxy, httpMiddleware, browserMiddleware, upgradeHandler };
+  return { proxy, httpMiddleware, upgradeHandler };
 }
