@@ -68,10 +68,11 @@ app.use('/api/', rateLimit({
   legacyHeaders: false,
 }));
 
-// Static files (hashed assets immutable, HTML never cached)
+// Static files (hashed assets immutable, HTML never cached, browser/lib not hashed so short cache)
 app.use(express.static(path.join(__dirname, 'dist'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    else if (filePath.includes('/browser/')) res.setHeader('Cache-Control', 'public, max-age=3600');
     else if (filePath.match(/\.(js|css)$/)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   }
 }));

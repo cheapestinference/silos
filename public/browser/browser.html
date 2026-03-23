@@ -24,7 +24,7 @@
 <div id="screen"></div>
 <div id="status">Connecting...</div>
 <script type="module">
-  import RFB from './lib/rfb.js';
+  import RFB from './lib/rfb.js?v=2';
 
   const params = new URLSearchParams(window.location.search);
   const password = params.get('password') || '';
@@ -39,7 +39,7 @@
 
   const rfb = new RFB(screenEl, url, {
     credentials: { password },
-    wsProtocols: [],
+    wsProtocols: ['binary'],
   });
 
   rfb.scaleViewport = false;
