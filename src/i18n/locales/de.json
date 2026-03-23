@@ -961,6 +961,8 @@
     "reconnected": "Wiederverbunden",
     "reconnecting": "Wiederverbinden... (Versuch {count})",
     "connecting": "Verbinden...",
+    "initializing": "Initialisierung, bitte warten...",
+    "initializingHint": "Die Ersteinrichtung kann einen Moment dauern",
     "sessionResume": "Ihre Sitzung wird automatisch fortgesetzt",
     "connectionLost": "Verbindung verloren",
     "reconnect": "Erneut Verbinden"
@@ -980,5 +982,11 @@
     "infoText": "Speichern Sie Persönlichkeit, Präferenzen und Langzeitkontext für den Agenten.",
     "editPlaceholder": "Speicherdateiinhalt bearbeiten...",
     "autoSaveHint": "Änderungen werden automatisch mit der Konfiguration gespeichert"
+  },
+  "browser": {
+    "inactive": "Browser inaktiv",
+    "autoActivate": "Wird automatisch aktiviert, wenn der Agent ihn benötigt",
+    "notAvailable": "Browser nicht verfügbar",
+    "retry": "Erneut versuchen"
   }
 }

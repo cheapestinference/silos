@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Monitor, X, RefreshCw, ExternalLink, PanelRightClose } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { buildNoVncUrl } from '../../lib/browser-utils';
@@ -25,6 +26,8 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const [connected, setConnected] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const { t } = useTranslation();
+
   const status = useBrowserStatus(token, browserPanelOpen);
   const url = status.active && status.password
     ? buildNoVncUrl(token, { password: status.password, resize: true })
@@ -33,7 +36,7 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const maximized = useRef(false);
 
   useEffect(() => {
-    if (browserPanelOpen) {
+    if (browserPanelOpen && url) {
       setLoading(true);
       setError(false);
       // Maximize Chromium window via CDP (one-shot, idempotent)
@@ -42,7 +45,7 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
         fetch('/api/browser/maximize', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
       }
     }
-  }, [browserPanelOpen, token]);
+  }, [browserPanelOpen, url, token]);
 
   // Hide when not open or when detached (overlay/popout renders elsewhere)
   if (!browserPanelOpen || browserDetached !== 'none') return null;
@@ -70,8 +73,11 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
       {/* Header — compact toolbar with connection status */}
       <div className="flex items-center justify-between px-2 py-1 border-b border-border/40 bg-card/40 flex-shrink-0">
         <div className="flex items-center gap-1.5">
-          <div className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-green-500" : "bg-red-500")} />
-          {loading && (
+          <div className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            !url ? "bg-muted-foreground/30" : connected ? "bg-green-500" : "bg-amber-400"
+          )} />
+          {url && loading && (
             <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           )}
         </div>
@@ -96,15 +102,17 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
       {/* Body */}
       <div className="flex-1 relative bg-background min-h-0">
         {!url ? (
-          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-            El browser se activará automáticamente cuando el agente lo necesite
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/60">
+            <Monitor className="w-8 h-8" />
+            <p className="text-sm">{t('browser.inactive', 'Browser inactive')}</p>
+            <p className="text-xs text-muted-foreground/40">{t('browser.autoActivate', 'Activates automatically when the agent needs it')}</p>
           </div>
         ) : error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Monitor className="w-8 h-8 opacity-40" />
-            <p className="text-sm">Browser not available</p>
+            <p className="text-sm">{t('browser.notAvailable', 'Browser not available')}</p>
             <button onClick={handleRefresh} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-muted hover:bg-accent transition-colors">
-              <RefreshCw className="w-3 h-3" /> Retry
+              <RefreshCw className="w-3 h-3" /> {t('browser.retry', 'Retry')}
             </button>
           </div>
         ) : (
