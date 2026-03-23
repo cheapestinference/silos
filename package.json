@@ -1,7 +1,7 @@
 {
   "name": "silos",
   "description": "Dashboard for managing OpenClaw AI agents, sessions, and channels",
-  "version": "2.13.4",
+  "version": "2.13.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,10 +24,12 @@
     "express-rate-limit": "^8.3.0",
     "firebase": "^12.9.0",
     "http-proxy": "^1.18.1",
+    "i18next": "^25.10.5",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^16.6.2",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.8.0",
