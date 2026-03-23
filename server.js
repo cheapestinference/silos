@@ -72,7 +72,10 @@ app.use('/api/', rateLimit({
 app.use(express.static(path.join(__dirname, 'dist'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    else if (filePath.includes('/browser/')) res.setHeader('Cache-Control', 'public, max-age=3600');
+    else if (filePath.includes('/browser/')) {
+      res.setHeader('Cache-Control', 'public, no-transform, max-age=3600');
+      if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+    }
     else if (filePath.match(/\.(js|css)$/)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   }
 }));
