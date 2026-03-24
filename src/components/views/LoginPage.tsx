@@ -3,57 +3,6 @@ import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import useTranslation from '../../i18n';
 
-// ─── Logo options (swap to test) ───────────────────────────────────────────────
-
-// Option 1: Three silos/cylinders with pulse dot
-function SilosLogo1({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect x="8" y="28" width="14" height="28" rx="4" fill="white" opacity="0.5" />
-      <rect x="25" y="16" width="14" height="40" rx="4" fill="white" opacity="0.75" />
-      <rect x="42" y="22" width="14" height="34" rx="4" fill="white" opacity="0.5" />
-      <ellipse cx="15" cy="28" rx="7" ry="3" fill="white" opacity="0.7" />
-      <ellipse cx="32" cy="16" rx="7" ry="3" fill="white" />
-      <ellipse cx="49" cy="22" rx="7" ry="3" fill="white" opacity="0.7" />
-      <circle cx="53" cy="12" r="4" fill="#34d399" />
-    </svg>
-  );
-}
-
-// Option 2: Dashboard grid — 4 tiles, one highlighted
-function SilosLogo2({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect x="8" y="8" width="22" height="22" rx="5" fill="white" />
-      <rect x="34" y="8" width="22" height="12" rx="4" fill="white" opacity="0.4" />
-      <rect x="34" y="24" width="22" height="6" rx="3" fill="white" opacity="0.4" />
-      <rect x="8" y="34" width="22" height="8" rx="4" fill="white" opacity="0.4" />
-      <rect x="8" y="46" width="22" height="10" rx="4" fill="white" opacity="0.4" />
-      <rect x="34" y="34" width="22" height="22" rx="5" fill="white" opacity="0.6" />
-      <circle cx="45" cy="45" r="5" fill="white" opacity="0.3" />
-      <path d="M43 45L45 47L48 43" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// Option 3: S integrated into a rounded container/silo shape
-function SilosLogo3({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      {/* Silo container outline */}
-      <path d="M16 18C16 12 22 8 32 8C42 8 48 12 48 18V50C48 54 42 58 32 58C22 58 16 54 16 50V18Z" stroke="white" strokeWidth="2.5" opacity="0.35" />
-      {/* S path inside */}
-      <path d="M38 24C38 24 36.5 21 32 21C27 21 24 23.5 24 26.5C24 29.5 27 31 32 32.5C37 34 40 35.5 40 38.5C40 41.5 37 44 32 44C27 44 25.5 41 25.5 41" stroke="white" strokeWidth="4" strokeLinecap="round" />
-      {/* Connector dots */}
-      <circle cx="32" cy="12" r="2" fill="white" opacity="0.5" />
-      <circle cx="32" cy="53" r="2" fill="white" opacity="0.5" />
-    </svg>
-  );
-}
-
-// ← Change this to test: SilosLogo1, SilosLogo2, SilosLogo3
-const SilosLogo = SilosLogo1;
-
 interface LoginPageProps {
   error?: string;
   onRetry?: () => void;
