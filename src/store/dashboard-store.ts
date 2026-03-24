@@ -82,6 +82,7 @@ interface DashboardStore {
   // Connection state
   connected: boolean;
   connecting: boolean;
+  initialLoading: boolean;
   error: string | null;
   reconnectAttempt: number;
 
@@ -307,6 +308,7 @@ export const useDashboardStore = create<DashboardStore>()(
       // Initial state
       connected: false,
       connecting: false,
+      initialLoading: false,
       error: null,
       reconnectAttempt: 0,
 
@@ -435,10 +437,10 @@ export const useDashboardStore = create<DashboardStore>()(
             }
             if (code !== 1000) {
               // Non-normal close: gateway client will auto-reconnect, keep connecting: true
-              set({ connected: false, connecting: true, error: `Connection closed: ${reason || code}` });
+              set({ connected: false, connecting: true, initialLoading: false, error: `Connection closed: ${reason || code}` });
             } else {
               // Normal close (user disconnected)
-              set({ connected: false, connecting: false });
+              set({ connected: false, connecting: false, initialLoading: false });
             }
           },
           onError: (error) => {
@@ -467,6 +469,7 @@ export const useDashboardStore = create<DashboardStore>()(
           client: null,
           connected: false,
           connecting: false,
+          initialLoading: false,
           error: null,
           token: null,
         });
@@ -2416,12 +2419,14 @@ export const useDashboardStore = create<DashboardStore>()(
           streamingContent: '',
           streamingRunId: null,
           streamingComplete: false,
+          initialLoading: true,
         });
 
         // Load initial data after connection.
         // The gateway may still be initializing (providers/models can take >60s on cold start).
         // If models or gateway config come back empty, retry once after a short delay.
         get().loadAll().then(() => {
+          set({ initialLoading: false });
           const { models, gatewayConfig } = get();
           const hasModels = models?.models && models.models.length > 0;
           const cfg = gatewayConfig?.config as Record<string, unknown> | undefined;
@@ -2430,6 +2435,8 @@ export const useDashboardStore = create<DashboardStore>()(
           if (!hasModels || !hasProviders) {
             setTimeout(() => get().loadAll(), 5000);
           }
+        }).catch(() => {
+          set({ initialLoading: false });
         });
       },
     }),

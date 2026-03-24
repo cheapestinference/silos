@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wifi, Lock, Server, AlertCircle, Shield } from 'lucide-react';
+import { Wifi, Lock, Server, AlertCircle } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import useTranslation from '../../i18n';
 
@@ -24,7 +24,9 @@ export function ConnectPage() {
         <div className="text-center mb-12 animate-message-in">
           <div className="inline-flex relative">
             <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-tr from-primary to-[hsl(var(--accent-secondary))] border border-white/20 shadow-2xl ai-glow">
-              <Shield className="h-12 w-12 text-white" />
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-12 w-12">
+                <path d="M40 19C40 19 38 16 32 16C25 16 21 20 21 24.5C21 29 25 30.5 32 32C39 33.5 43 35 43 39.5C43 44 39 48 32 48C25 48 23 45 23 45" stroke="white" strokeWidth="6" strokeLinecap="round" />
+              </svg>
             </div>
             <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-background animate-pulse" />
           </div>

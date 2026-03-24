@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Wrench, RefreshCw, CheckCircle2, AlertTriangle, Edit3, FileText } from 'lucide-react';
+import { Wrench, RefreshCw, CheckCircle2, AlertTriangle, Edit3, FileText, Info } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import { useDashboardStore } from '../../store/dashboard-store';
@@ -122,13 +122,29 @@ export function AgentToolsPanel() {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center">
                 <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <div>
+              <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
                   {t('agentDetail.toolsEditorTitle')}
                 </h3>
-                <p className="text-[10px] text-muted-foreground">
-                  {t('agentDetail.toolsEditorSubtitle')}
-                </p>
+                <div className="relative group">
+                  <Info className="w-3.5 h-3.5 text-muted-foreground/50 hover:text-muted-foreground cursor-help transition-colors" />
+                  <div className="absolute left-0 top-full mt-2 w-80 p-3.5 rounded-xl bg-popover border border-border shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+                    {t('agentDetail.toolsEditorHint').split('\n\n').map((block, i) => {
+                      if (i === 0) return <p key={i} className="text-xs text-foreground leading-relaxed mb-2.5">{block}</p>;
+                      const lines = block.split('\n');
+                      const heading = lines[0]?.replace(/^##\s*/, '');
+                      const items = lines.slice(1).filter(l => l.startsWith('- ')).map(l => l.replace(/^-\s*/, ''));
+                      return (
+                        <div key={i} className="mb-2">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">{heading}</p>
+                          {items.map((item, j) => (
+                            <p key={j} className="text-xs text-muted-foreground/80 leading-relaxed pl-2">{item}</p>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
             {/* Save status */}
@@ -141,9 +157,6 @@ export function AgentToolsPanel() {
               )}
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground/70 leading-relaxed mt-2">
-            {t('agentDetail.toolsEditorHint')}
-          </p>
         </div>
 
         {/* Editor */}

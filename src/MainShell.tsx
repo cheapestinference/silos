@@ -35,15 +35,21 @@ function ReconnectToast() {
 }
 
 function ConnectionOverlay() {
-  const { connected, connecting, reconnectAttempt, connect } = useDashboardStore();
+  const { connected, connecting, initialLoading, reconnectAttempt, connect } = useDashboardStore();
   const { t } = useTranslation();
 
-  if (connected) return null;
+  if (connected && !initialLoading) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card/95 px-8 py-6 shadow-2xl">
-        {connecting ? (
+        {connected && initialLoading ? (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+            <p className="text-sm font-medium text-foreground">{t('mainShell.initializing')}</p>
+            <p className="text-xs text-muted-foreground">{t('mainShell.initializingHint')}</p>
+          </>
+        ) : connecting ? (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
             <p className="text-sm font-medium text-foreground">
@@ -72,7 +78,7 @@ function ConnectionOverlay() {
 }
 
 export function MainShell() {
-  const { connected, token } = useDashboardStore();
+  const { connected, initialLoading, token } = useDashboardStore();
 
   // No token at all → redirect to login
   if (!token) {
@@ -89,8 +95,8 @@ export function MainShell() {
         <FloatingBrowserPanel />
         <CommandPalette />
       </div>
-      {/* Overlay when disconnected but have token (reconnecting) */}
-      {!connected && <ConnectionOverlay />}
+      {/* Overlay when disconnected or initial data loading */}
+      {(!connected || initialLoading) && <ConnectionOverlay />}
       <ReconnectToast />
     </ToastProvider>
   );

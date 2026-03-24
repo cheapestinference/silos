@@ -644,7 +644,7 @@
     "toolsFileDescription": "Tools documentation",
     "toolsEditorTitle": "TOOLS.md",
     "toolsEditorSubtitle": "Environment-specific guidance for this agent's tools",
-    "toolsEditorHint": "This file is injected into the agent's prompt alongside enabled tools. Use it to document your setup: device names, SSH hosts, API endpoints, preferred voices, camera locations — anything that helps the agent use its tools in your environment.",
+    "toolsEditorHint": "Sent to the agent at the start of each session. Write anything that helps the agent use its tools in your environment.\n\n## SSH\n- home-server → 192.168.1.50, user: admin\n- nas → 192.168.1.100, user: root\n\n## Cameras\n- front-door → entrance, motion-triggered\n- garden → backyard, wide angle\n\n## TTS\n- Preferred voice: Nova (warm)\n- Default speaker: Kitchen HomePod",
     "toolsCapabilities": "Capabilities",
     "behavior": "Behavior",
     "behaviorDescription": "Startup and periodic behavior",

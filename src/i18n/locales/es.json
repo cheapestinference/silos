@@ -644,7 +644,7 @@
     "toolsFileDescription": "Documentación de herramientas",
     "toolsEditorTitle": "TOOLS.md",
     "toolsEditorSubtitle": "Guía específica del entorno para las herramientas del agente",
-    "toolsEditorHint": "Este archivo se inyecta en el prompt del agente junto con las herramientas habilitadas. Úsalo para documentar tu entorno: nombres de dispositivos, hosts SSH, endpoints de API, voces preferidas, ubicaciones de cámaras — cualquier cosa que ayude al agente a usar sus herramientas.",
+    "toolsEditorHint": "Se envía al agente al inicio de cada sesión. Escribe lo que ayude al agente a usar sus herramientas en tu entorno.\n\n## SSH\n- servidor-casa → 192.168.1.50, usuario: admin\n- nas → 192.168.1.100, usuario: root\n\n## Cámaras\n- puerta-principal → entrada, con movimiento\n- jardín → trasera, gran angular\n\n## TTS\n- Voz preferida: Nova (cálida)\n- Altavoz por defecto: HomePod cocina",
     "toolsCapabilities": "Capacidades",
     "behavior": "Comportamiento",
     "behaviorDescription": "Arranque y comportamiento periódico",
