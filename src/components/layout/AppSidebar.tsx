@@ -22,7 +22,6 @@ import {
   User,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
 import { CreateChannelModal } from '../modals/CreateChannelModal';
 import { UsageBar } from './UsageBar';

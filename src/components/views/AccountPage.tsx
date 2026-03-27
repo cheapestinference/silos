@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useDashboardStore } from '../../store/dashboard-store';
-import useTranslation from '../../i18n';
 import { User, Mail, Calendar, CreditCard, Zap, Shield, Clock } from 'lucide-react';
 
 interface UsageData {
@@ -41,7 +40,6 @@ function formatDateTime(dateStr: string | undefined | null): string {
 export function AccountPage() {
   const { user } = useAuth();
   const { connected, token } = useDashboardStore();
-  const { t } = useTranslation();
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
 

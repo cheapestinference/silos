@@ -28,7 +28,7 @@ import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { useTranslation } from '../../i18n';
-import { cn, formatDuration, truncateText, formatTimestamp } from '../../lib/utils';
+import { cn, formatDuration, truncateText } from '../../lib/utils';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -375,12 +375,7 @@ export function TasksPage() {
   };
 
   // Cron jobs stats
-  const enabledCronJobs = cronJobs.filter((j) => j.enabled).length;
   const runningCronJobs = cronJobs.filter((j) => j.state?.runningAtMs).length;
-  const nextCronRun = cronJobs
-    .filter((j) => j.enabled && j.state?.nextRunAtMs)
-    .map((j) => j.state!.nextRunAtMs!)
-    .sort((a, b) => a - b)[0];
 
   // Get agent name helper
   const getAgentName = (agentId: string) => {
