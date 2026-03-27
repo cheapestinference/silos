@@ -4,15 +4,18 @@ import { useDashboardStore } from '../../store/dashboard-store';
 import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import {
-  ArrowLeft,
   Bot,
   Cpu,
-  Hash,
   Clock,
   ChevronDown,
   Check,
   Loader2,
   Search,
+  X,
+  Brain,
+  Wrench,
+  Sparkles,
+  Settings,
 } from 'lucide-react';
 import { ChatView } from './ChatView';
 import { formatDistanceToNow } from 'date-fns';
@@ -111,6 +114,7 @@ export function SessionDetailView() {
 
   // Model dropdown
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [agentTab, setAgentTab] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState('');
   const [optimisticModel, setOptimisticModel] = useState<string | null>(null);
 
@@ -126,13 +130,26 @@ export function SessionDetailView() {
   const modelSearchRef = useRef<HTMLInputElement>(null);
 
   const currentProvider = session?.modelProvider;
+  const [selectedProvider, setSelectedProvider] = useState('');
+
+  // All available providers with their models
+  const allProviders = useMemo(() => {
+    const map = new Map<string, Array<{ id: string; name: string; contextWindow?: number }>>();
+    if (availableModels) {
+      for (const [pId, models] of Object.entries(availableModels)) {
+        if (models.length) map.set(pId, models);
+      }
+    }
+    return map;
+  }, [availableModels]);
+
+  const activeProvider = selectedProvider || currentProvider || (allProviders.keys().next().value ?? '');
   const providerModels = useMemo(() => {
-    if (!currentProvider || !availableModels) return [];
-    const all = availableModels[currentProvider] || [];
+    const all = allProviders.get(activeProvider) || [];
     if (!modelSearch.trim()) return all;
     const q = modelSearch.toLowerCase();
     return all.filter(m => m.id.toLowerCase().includes(q) || (m.name && m.name.toLowerCase().includes(q)));
-  }, [currentProvider, availableModels, modelSearch]);
+  }, [activeProvider, allProviders, modelSearch]);
 
   // Close on outside click
   useEffect(() => {
@@ -148,11 +165,13 @@ export function SessionDetailView() {
 
   const { patchGatewayConfig, loadGatewayConfig } = useDashboardStore();
 
-  const handleModelChange = useCallback(async (newModelId: string) => {
-    if (!currentProvider || !agentId) return;
-    const fullModel = `${currentProvider}/${newModelId}`;
+  const handleModelChange = useCallback(async (newModelId: string, provider?: string) => {
+    const effectiveProvider = provider || activeProvider;
+    if (!effectiveProvider || !agentId) return;
+    const fullModel = `${effectiveProvider}/${newModelId}`;
     setOptimisticModel(fullModel);
     setModelDropdownOpen(false);
+    setSelectedProvider('');
     try {
       const currentList: Array<Record<string, unknown>> = (agentsCfg?.list || []).map(a => ({ ...a }));
       const existingIdx = currentList.findIndex(a => a.id === agentId);
@@ -168,13 +187,13 @@ export function SessionDetailView() {
         loadGatewayConfig();
         loadSessions();
       } else {
-        setOptimisticModel(null); // revert on failure
+        setOptimisticModel(null);
       }
     } catch (err) {
       console.error('Failed to change model:', err);
-      setOptimisticModel(null); // revert on error
+      setOptimisticModel(null);
     }
-  }, [currentProvider, agentId, agentsCfg, patchGatewayConfig, loadGatewayConfig, loadSessions]);
+  }, [activeProvider, agentId, agentsCfg, patchGatewayConfig, loadGatewayConfig, loadSessions]);
 
   // Format last activity
   const lastActivity = session?.updatedAt
@@ -189,90 +208,107 @@ export function SessionDetailView() {
 
         <div className="px-6 py-4">
           <div className="flex items-center gap-4">
-            {/* Back Button */}
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-xl border bg-muted hover:bg-muted/80 transition-all text-muted-foreground hover:text-foreground group"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-
-            {/* Session & Agent Identity */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-4">
-                {/* Agent Avatar */}
-                <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    {agentEmoji ? (
-                      <span className="text-2xl">{agentEmoji}</span>
-                    ) : (
-                      <Bot className="w-7 h-7 text-primary" />
-                    )}
-                  </div>
-                  {isOnline && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-400 rounded-full border-2 border-card flex items-center justify-center">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping absolute" />
-                    </div>
-                  )}
+            {/* Avatar — same style as agent detail */}
+            <div className="relative shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/15 to-accent/20 border border-primary/20 flex items-center justify-center shadow-lg shadow-elevation-1">
+                {agentEmoji ? (
+                  <span className="text-2xl">{agentEmoji}</span>
+                ) : (
+                  <Bot className="w-7 h-7 text-primary" />
+                )}
+              </div>
+              {isOnline && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-400 rounded-full border-2 border-card flex items-center justify-center">
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping absolute" />
                 </div>
+              )}
+            </div>
 
-                {/* Names & Info */}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Hash className="w-5 h-5 text-primary shrink-0" />
-                    <h1 className="text-xl font-bold text-foreground truncate">
-                      {sessionName}
-                    </h1>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span
-                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                      onClick={() => agentId && navigate(`/agents/${agentId}`)}
-                    >
-                      {agentEmoji ? (
-                        <span className="text-xs">{agentEmoji}</span>
-                      ) : (
-                        <Bot className="w-3.5 h-3.5" />
-                      )}
-                      <span className="font-medium">{agentName}</span>
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-border" />
-                    <div className="relative" ref={modelDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!availableModels) loadAvailableModels();
-                          setModelDropdownOpen(!modelDropdownOpen);
-                          setModelSearch('');
-                        }}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono hover:text-foreground transition-colors cursor-pointer"
-                      >
-                        <Cpu className="w-3 h-3" />
-                        <span>{model.includes('/') ? model.split('/').slice(1).join('/') : model}</span>
-                        <ChevronDown className={cn("w-3 h-3 transition-transform", modelDropdownOpen && "rotate-180")} />
-                      </button>
+            {/* Name + meta */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-foreground truncate mb-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                #{sessionName}
+              </h1>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span
+                  className="group/agent flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  onClick={() => agentId && navigate(`/agents/${agentId}`)}
+                >
+                  {agentEmoji ? <span className="text-[10px]">{agentEmoji}</span> : <Bot className="w-3 h-3" />}
+                  <span className="font-medium">{agentName}</span>
+                </span>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                <div className="relative" ref={modelDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!availableModels) loadAvailableModels();
+                      setModelDropdownOpen(!modelDropdownOpen);
+                      setModelSearch('');
+                      setSelectedProvider('');
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs font-mono transition-all cursor-pointer",
+                      modelDropdownOpen
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Cpu className="w-3 h-3" />
+                    <span>{model.includes('/') ? model.split('/').slice(1).join('/') : model}</span>
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", modelDropdownOpen && "rotate-180")} />
+                  </button>
 
                       {modelDropdownOpen && (
-                        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg border bg-popover shadow-xl z-50 overflow-hidden">
+                        <div className="absolute top-full left-0 mt-2 w-80 rounded-xl border bg-popover/95 backdrop-blur-sm shadow-2xl z-50 overflow-hidden flex flex-col">
+                          {/* Provider tabs */}
+                          {allProviders.size > 1 && (
+                            <div className="flex gap-1.5 px-3 py-2.5 border-b bg-muted/30">
+                              {Array.from(allProviders.keys()).map(pId => {
+                                const count = allProviders.get(pId)?.length || 0;
+                                return (
+                                  <button
+                                    key={pId}
+                                    type="button"
+                                    onClick={() => { setSelectedProvider(pId); setModelSearch(''); }}
+                                    className={cn(
+                                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
+                                      activeProvider === pId
+                                        ? "bg-muted text-foreground border border-border"
+                                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                                    )}
+                                  >
+                                    {pId}
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono bg-muted/60 text-muted-foreground">{count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                           {/* Search input */}
-                          <div className="flex items-center gap-2 px-3 py-2 border-b">
+                          <div className="flex items-center gap-2 px-3 py-2.5 border-b">
                             <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                             <input
                               ref={modelSearchRef}
                               type="text"
                               value={modelSearch}
                               onChange={(e) => setModelSearch(e.target.value)}
-                              placeholder={t('common.search')}
+                              placeholder={`Search ${activeProvider} models...`}
                               className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40"
                               autoFocus
                             />
+                            {modelSearch && (
+                              <button type="button" onClick={() => setModelSearch('')} className="text-muted-foreground hover:text-foreground">
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                           {/* Model list */}
-                          <div className="max-h-56 overflow-y-auto py-1 custom-scrollbar">
+                          <div className="max-h-64 overflow-y-auto p-1.5 custom-scrollbar">
                             {providerModels.length === 0 ? (
-                              <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                              <div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
                                 {!availableModels ? (
-                                  <><Loader2 className="w-3 h-3 animate-spin" />{t('common.loading')}</>
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t('common.loading')}</>
                                 ) : (
                                   t('common.noResults')
                                 )}
@@ -280,21 +316,25 @@ export function SessionDetailView() {
                             ) : (
                               providerModels.map(m => {
                                 const modelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
-                                const isActive = m.id === modelId;
+                                const isActive = m.id === modelId && activeProvider === currentProvider;
                                 return (
                                   <button
                                     key={m.id}
                                     type="button"
-                                    onClick={() => !isActive && handleModelChange(m.id)}
+                                    onClick={() => handleModelChange(m.id, activeProvider)}
                                     className={cn(
-                                      "w-full text-left px-3 py-1.5 text-xs font-mono transition-colors flex items-center justify-between gap-2",
+                                      "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors",
                                       isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-foreground/80 hover:bg-muted"
+                                        ? "bg-primary/10 text-primary font-medium"
+                                        : "text-foreground/80 hover:bg-muted/80"
                                     )}
                                   >
-                                    <span className="truncate">{m.name || m.id}</span>
-                                    {isActive && <Check className="w-3 h-3 shrink-0" />}
+                                    <Cpu className={cn("w-3 h-3 flex-shrink-0", isActive ? "text-primary" : "text-muted-foreground/40")} />
+                                    <span className="truncate flex-1 font-mono">{m.name || m.id}</span>
+                                    {m.contextWindow ? (
+                                      <span className="text-[10px] text-muted-foreground/50 flex-shrink-0 font-mono">{Math.round(m.contextWindow / 1000)}k</span>
+                                    ) : null}
+                                    {isActive && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                                   </button>
                                 );
                               })
@@ -302,18 +342,48 @@ export function SessionDetailView() {
                           </div>
                         </div>
                       )}
-                    </div>
-                    {lastActivity && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-border" />
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {lastActivity}
-                        </span>
-                      </>
-                    )}
-                  </div>
                 </div>
+                {lastActivity && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      {lastActivity}
+                    </span>
+                  </>
+                )}
+                {agentId && (
+                  <>
+                    <span className="w-px h-3.5 bg-border mx-0.5" />
+                    {([
+                      { id: 'brain', icon: Brain, label: t('agentDetail.memory') },
+                      { id: 'tools', icon: Wrench, label: t('agentDetail.tools') },
+                      { id: 'skills', icon: Sparkles, label: t('agentDetail.skills') },
+                    ] as const).map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setAgentTab(agentTab === item.id ? null : item.id)}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
+                          agentTab === item.id
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <item.icon className="w-3 h-3" />
+                        {item.label}
+                      </button>
+                    ))}
+                    <span className="w-px h-3.5 bg-border mx-1" />
+                    <span
+                      onClick={() => navigate(`/agents/${agentId}`)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors underline-offset-2 hover:underline"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Agent Settings ↗
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -321,9 +391,9 @@ export function SessionDetailView() {
         </div>
       </header>
 
-      {/* Chat Content */}
+      {/* Content: Chat or Agent Tab */}
       <div className="flex-1 overflow-hidden">
-        <ChatView sessionKey={sessionKey} />
+        <ChatView sessionKey={sessionKey} agentPanel={agentTab} onCloseAgentPanel={() => setAgentTab(null)} />
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ const OPENCLAW_BASE = process.env.OPENCLAW_BASE || '/home/openclaw/.openclaw';
 const OPENCLAW_PORT = process.env.OPENCLAW_PORT || '18789';
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || '';
 const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
 const USER_LOCALE = process.env.USER_LOCALE || '';
 
@@ -34,6 +35,7 @@ const config = {
   appVersion: pkg.version,
   openclawVersion,
   ownerEmail: OWNER_EMAIL,
+  adminEmails: ADMIN_EMAILS,
   gatewayToken: GATEWAY_TOKEN,
   openclawPort: OPENCLAW_PORT,
   firebaseProjectId: FIREBASE_PROJECT_ID,

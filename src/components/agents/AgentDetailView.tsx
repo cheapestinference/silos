@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
 import {
-  ArrowLeft,
   Bot,
   Brain,
   Wrench,
@@ -99,13 +98,6 @@ export function AgentDetailView() {
         <div className="h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
         <div className="px-6 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={() => navigate('/')}
-              className="p-2 rounded-xl bg-muted border border-border hover:border-border hover:bg-muted transition-all text-muted-foreground hover:text-foreground group"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-
             <div className="flex-1">
               <div className="flex items-center gap-4">
                 <div className="relative">

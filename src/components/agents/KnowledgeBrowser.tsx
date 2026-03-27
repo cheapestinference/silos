@@ -24,8 +24,9 @@ import {
 type FileEntry = { path: string; size: number; mtime: number; type: 'file' | 'directory' };
 type BrowseItem = { name: string; path: string; type: 'file' | 'directory' };
 
-export function KnowledgeBrowser() {
-  const { id: agentId } = useParams<{ id: string }>();
+export function KnowledgeBrowser({ agentId: agentIdProp }: { agentId?: string } = {}) {
+  const { id: routeAgentId } = useParams<{ id: string }>();
+  const agentId = agentIdProp || routeAgentId;
   const { t } = useTranslation();
   const {
     workspaceFiles, workspaceLoading, workspaceContent,

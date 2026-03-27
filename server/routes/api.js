@@ -21,7 +21,7 @@ function parseRelaxedJson(text) {
 
 export function createApiRouter(config, authMiddleware, openclawBase) {
   const router = Router();
-  const { appVersion, openclawVersion, ownerEmail, gatewayToken, openclawPort, firebaseProjectId } = config;
+  const { appVersion, openclawVersion, ownerEmail, adminEmails = [], gatewayToken, openclawPort, firebaseProjectId } = config;
 
   // Health check — no auth, for watchdog/monitoring
   router.get('/api/health', (_req, res) => {
@@ -55,7 +55,10 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
       const decoded = await verifyFirebaseToken(idToken, firebaseProjectId);
       const email = decoded.email;
 
-      if (!email || email.toLowerCase() !== ownerEmail.toLowerCase()) {
+      const emailLower = (email || '').toLowerCase();
+      const isOwner = emailLower && emailLower === ownerEmail.toLowerCase();
+      const isAdmin = emailLower && adminEmails.includes(emailLower);
+      if (!isOwner && !isAdmin) {
         return res.status(403).json({ authorized: false, reason: 'WRONG_OWNER', error: 'Access denied. You are not the owner of this instance.' });
       }
       if (!decoded.email_verified) {
@@ -164,13 +167,42 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
           apiKey: process.env.LLM_PROXY_KEY || '',
         };
       }
+      // Also read statically configured models from openclaw.json (for providers
+      // whose /models endpoint is incompatible, like Anthropic)
+      const staticModels = {};
+      try {
+        const configPath = path.join(openclawBase, 'openclaw.json');
+        const raw = await fs.readFile(configPath, 'utf8');
+        const config = parseRelaxedJson(raw);
+        const cfgProviders = config?.models?.providers;
+        if (cfgProviders && typeof cfgProviders === 'object') {
+          for (const [name, p] of Object.entries(cfgProviders)) {
+            if (p?.models && Array.isArray(p.models) && p.models.length > 0) {
+              staticModels[name] = p.models.map(m => ({
+                id: m.id,
+                name: m.name || m.id,
+                contextWindow: m.contextWindow || null,
+              }));
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
       const results = {};
       await Promise.all(Object.entries(providers).map(async ([name, provider]) => {
         try {
           const baseUrl = (provider.baseUrl || '').replace(/\/+$/, '');
           if (!baseUrl) return;
+          const isAnthropic = baseUrl.includes('anthropic.com');
           const headers = {};
-          if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
+          if (provider.apiKey) {
+            if (isAnthropic) {
+              headers['x-api-key'] = provider.apiKey;
+              headers['anthropic-version'] = '2023-06-01';
+            } else {
+              headers['Authorization'] = `Bearer ${provider.apiKey}`;
+            }
+          }
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 10000);
           const response = await fetch(`${baseUrl}/models`, { headers, signal: controller.signal });
@@ -178,9 +210,21 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
           if (!response.ok) return;
           const data = await response.json();
           const models = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-          results[name] = models.map(m => ({ id: m.id, name: m.id, contextWindow: m.context_window || 128000 }));
+          results[name] = models.map(m => ({
+            id: m.id,
+            name: m.display_name || m.id,
+            contextWindow: m.max_input_tokens || m.context_window || m.context_length || m.max_model_len || null,
+          }));
         } catch { /* skip failed providers */ }
       }));
+
+      // Merge static models for providers that didn't return from the API
+      for (const [name, models] of Object.entries(staticModels)) {
+        if (!results[name]) {
+          results[name] = models;
+        }
+      }
+
       res.json(results);
     } catch (error) {
       console.error('[Provider Models] Error:', error.message);
@@ -264,7 +308,9 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
         };
 
         // Ensure anthropic provider exists in models.providers
-        // Anthropic /models endpoint doesn't support setup-tokens, so we must list models explicitly
+        // Setup-tokens can't call /v1/models endpoint directly.
+        // These IDs are verified working with setup-tokens via the gateway (2026-03-27).
+        // TODO: replace with dynamic fetch from gateway models.list via WebSocket
         if (!config.models) config.models = {};
         if (!config.models.providers) config.models.providers = {};
         if (!config.models.providers.anthropic) {
@@ -272,9 +318,9 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
             baseUrl: 'https://api.anthropic.com/v1',
             api: 'anthropic-messages',
             models: [
-              { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', contextWindow: 200000, input: ['text', 'image'] },
-              { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', contextWindow: 200000, input: ['text', 'image'] },
-              { id: 'claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', contextWindow: 200000, input: ['text', 'image'] },
+              { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 1000000, input: ['text', 'image'] },
+              { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 1000000, input: ['text', 'image'] },
+              { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', contextWindow: 200000, input: ['text', 'image'] },
             ],
           };
         }

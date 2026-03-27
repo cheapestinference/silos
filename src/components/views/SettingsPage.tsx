@@ -649,6 +649,16 @@ function ModelsSection() {
   };
 
   type ModelDef = { id: string; name: string; contextWindow: number; reasoning?: boolean };
+
+  // Resolve context window from gateway's model catalog (authoritative source).
+  // Falls back to the value stored in config, then 0 (unknown).
+  const resolveContextWindow = (providerId: string, modelId: string, fallback?: number): number => {
+    const catalogEntry = dynamicModels?.models?.find(
+      m => m.id === modelId && m.provider?.toLowerCase() === providerId.toLowerCase()
+    );
+    return catalogEntry?.contextWindow || fallback || 0;
+  };
+
   const providerPresets: Record<string, { baseUrl: string; api: string }> = {
     anthropic: { baseUrl: 'https://api.anthropic.com/v1', api: 'anthropic-messages' },
     openai: { baseUrl: 'https://api.openai.com/v1', api: 'openai-completions' },
@@ -659,18 +669,28 @@ function ModelsSection() {
     ollama: { baseUrl: 'http://localhost:11434/v1', api: 'openai-completions' },
   };
 
-  const getProviderIcon = (id: string): string | React.ReactElement => {
+  const getProviderIcon = (id: string, size: 'sm' | 'md' = 'md'): string | React.ReactElement => {
     const lower = id.toLowerCase();
-    if (lower.includes('silos')) return <img src="/icons/silos.svg" alt="Silos" className="w-7 h-7" />;
-    if (lower.includes('anthropic') || lower.includes('claude')) return <img src="/icons/claude.svg" alt="Claude" className="w-7 h-7" />;
-    if (lower.includes('openai') || lower.includes('gpt')) return '🟢';
-    if (lower.includes('google') || lower.includes('gemini')) return '🔵';
-    if (lower.includes('bedrock') || lower.includes('aws')) return '🟠';
-    if (lower.includes('together')) return '🟡';
-    if (lower.includes('groq')) return '⚡';
-    if (lower.includes('ollama')) return '🦙';
-    if (lower.includes('deepseek')) return '🔷';
-    return '🤖';
+    const cls = size === 'sm' ? 'w-4 h-4' : 'w-7 h-7';
+    const icons: Record<string, { src: string; alt: string }> = {
+      silos: { src: '/icons/silos.svg', alt: 'Silos' },
+      anthropic: { src: '/icons/claude.svg', alt: 'Claude' },
+      claude: { src: '/icons/claude.svg', alt: 'Claude' },
+      openai: { src: '/icons/openai.svg', alt: 'OpenAI' },
+      gpt: { src: '/icons/openai.svg', alt: 'OpenAI' },
+      google: { src: '/icons/google.svg', alt: 'Google' },
+      gemini: { src: '/icons/google.svg', alt: 'Google' },
+      bedrock: { src: '/icons/aws.svg', alt: 'AWS' },
+      aws: { src: '/icons/aws.svg', alt: 'AWS' },
+      together: { src: '/icons/together.svg', alt: 'Together' },
+      groq: { src: '/icons/groq.svg', alt: 'Groq' },
+      ollama: { src: '/icons/ollama.svg', alt: 'Ollama' },
+      deepseek: { src: '/icons/deepseek.svg', alt: 'DeepSeek' },
+    };
+    for (const [key, icon] of Object.entries(icons)) {
+      if (lower.includes(key)) return <img src={icon.src} alt={icon.alt} className={cn(cls, 'inline-block flex-shrink-0')} />;
+    }
+    return <img src="/icons/provider-generic.svg" alt="Provider" className={cn(cls, 'inline-block flex-shrink-0 opacity-60')} />;
   };
 
   const testConnection = async () => {
@@ -715,14 +735,14 @@ function ModelsSection() {
       const data = JSON.parse(result.body);
 
       // Parse models from response (OpenAI format: { data: [...] })
-      const rawModels: Array<{ id: string; created?: number; context_window?: number }> =
+      const rawModels: Array<{ id: string; created?: number; context_window?: number; context_length?: number; max_model_len?: number }> =
         Array.isArray(data?.data) ? data.data :
         Array.isArray(data) ? data : [];
 
       const fetchedModels: ModelDef[] = rawModels.map(m => ({
         id: m.id,
         name: m.id,
-        contextWindow: m.context_window || 128000,
+        contextWindow: m.context_window || m.context_length || m.max_model_len || 0,
         reasoning: /^o[0-9]|reason|think/i.test(m.id),
       }));
 
@@ -760,7 +780,7 @@ function ModelsSection() {
                 : "bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
             )}
           >
-            <Zap className="w-3.5 h-3.5" /> Add Subscription
+            <Zap className="w-3.5 h-3.5" /> Add Claude Subscription
           </button>
           <button
             onClick={() => { setShowAddProvider(!showAddProvider); setShowAddSubscription(false); }}
@@ -796,7 +816,7 @@ function ModelsSection() {
               autoComplete="off"
               placeholder="sk-ant-oat01-..."
               value={setupToken}
-              onChange={(e) => { setSetupToken(e.target.value); setSubscriptionError(null); }}
+              onChange={(e) => { setSetupToken(e.target.value.replace(/\s/g, '')); setSubscriptionError(null); }}
               className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-amber-500/40"
             />
           </div>
@@ -858,7 +878,7 @@ function ModelsSection() {
               )}
             >
               {subscriptionSaving && <div className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />}
-              {subscriptionSaving ? 'Saving...' : 'Add Subscription'}
+              {subscriptionSaving ? 'Saving...' : 'Add Claude Subscription'}
             </button>
           </div>
         </div>
@@ -900,7 +920,7 @@ function ModelsSection() {
                     : "bg-muted text-muted-foreground border hover:border-foreground/20"
                 )}
               >
-                {getProviderIcon(preset)} {preset}
+                {getProviderIcon(preset, 'sm')} {preset}
               </button>
             ))}
           </div>
@@ -1062,7 +1082,7 @@ function ModelsSection() {
                   onClick={() => setExpandedProvider(silosExpanded ? null : '__silos_default__')}
                   className="w-full flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
                 >
-                  <span className="text-2xl">{getProviderIcon('silos')}</span>
+                  <span className="flex items-center justify-center w-8 h-8">{getProviderIcon('silos')}</span>
                   <div className="text-left">
                     <h3 className="font-semibold text-foreground">{defaultProvider.name}</h3>
                     <p className="text-xs text-muted-foreground">{defaultProvider.description}</p>
@@ -1087,9 +1107,7 @@ function ModelsSection() {
                             <span className="text-sm text-foreground">{model.name || model.id}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {model.contextWindow && (
-                              <span className="text-[10px] text-muted-foreground">{Math.round(model.contextWindow / 1000)}k ctx</span>
-                            )}
+                            {(() => { const ctx = resolveContextWindow('silos', model.id, model.contextWindow); return ctx ? <span className="text-[10px] text-muted-foreground">{Math.round(ctx / 1000)}k ctx</span> : null; })()}
                             <code className="text-[10px] text-muted-foreground font-mono">{model.id}</code>
                           </div>
                         </div>
@@ -1122,7 +1140,7 @@ function ModelsSection() {
                       onClick={() => setExpandedProvider(silosExpanded ? null : 'silos')}
                       className="w-full flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
                     >
-                      <span className="text-2xl">{getProviderIcon('silos')}</span>
+                      <span className="flex items-center justify-center w-8 h-8">{getProviderIcon('silos')}</span>
                       <div className="text-left">
                         <h3 className="font-semibold text-foreground">Silos Subscription</h3>
                         <p className="text-xs text-muted-foreground">Included with your Silos plan</p>
@@ -1166,7 +1184,7 @@ function ModelsSection() {
                     className="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getProviderIcon(providerId)}</span>
+                      <span className="flex items-center justify-center w-8 h-8">{getProviderIcon(providerId)}</span>
                       <div className="text-left">
                         <h3 className="font-semibold text-foreground">{providersWithAuthProfile.has(providerId.toLowerCase()) && providerId.toLowerCase() === 'anthropic' ? 'Claude Subscription' : providerId}</h3>
                         <p className="text-xs text-muted-foreground">{provider.baseUrl || 'Default'}</p>
@@ -1271,11 +1289,11 @@ function ModelsSection() {
                                   if (result.error) throw new Error(result.error);
                                   if (!result.ok) throw new Error(`HTTP ${result.status}: ${(result.body || '').slice(0, 200)}`);
                                   const data = JSON.parse(result.body);
-                                  const rawModels: Array<{ id: string; context_window?: number }> =
+                                  const rawModels: Array<{ id: string; context_window?: number; context_length?: number; max_model_len?: number }> =
                                     Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
                                   const fetchedModels: ModelDef[] = rawModels.map(m => ({
                                     id: m.id, name: m.id,
-                                    contextWindow: m.context_window || 128000,
+                                    contextWindow: m.context_window || m.context_length || m.max_model_len || 0,
                                     reasoning: /^o[0-9]|reason|think/i.test(m.id),
                                   }));
                                   if (fetchedModels.length > 0) {
@@ -1391,7 +1409,7 @@ function ModelsSection() {
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm text-foreground">{model.name || model.id}</span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground">{model.contextWindow ? `${Math.round(model.contextWindow / 1000)}K` : ''}</span>
+                                    <span className="text-xs text-muted-foreground">{(() => { const ctx = resolveContextWindow(providerId, model.id, model.contextWindow); return ctx ? `${Math.round(ctx / 1000)}K` : ''; })()}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1412,7 +1430,7 @@ function ModelsSection() {
                                   models: provider.models?.map(m => ({
                                     id: m.id,
                                     name: m.name || m.id,
-                                    contextWindow: m.contextWindow || 128000,
+                                    contextWindow: m.contextWindow || 0,
                                     reasoning: m.reasoning,
                                   })),
                                 });
@@ -2053,9 +2071,7 @@ function AgentsSection() {
                               {parsedModel.modelId === model.id && <Check className="h-3.5 w-3.5 text-primary" />}
                             </span>
                             <span className="truncate">{model.name || model.id}</span>
-                            {model.contextWindow && (
-                              <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{Math.round(model.contextWindow / 1000)}k</span>
-                            )}
+                            {model.contextWindow ? <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{Math.round(model.contextWindow / 1000)}k</span> : null}
                           </button>
                         ))
                       )}

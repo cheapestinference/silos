@@ -111,6 +111,7 @@ interface DashboardStore {
   chatLoading: boolean;
   chatSending: Map<string, boolean>; // Per-session sending state
   activeRunId: Map<string, string>; // Per-session active run ID
+  runHadTools: Map<string, boolean>; // Per-session: did current run use tools?
   messageQueue: Map<string, Array<{ id: string; text: string }>>; // Per-session unsent message queue
   streamingContent: string;
   streamingRunId: string | null; // RunId associated with current streaming content
@@ -280,6 +281,16 @@ function stripInboundMeta(content: unknown): string {
   // Remove inbound context system blocks if present
   text = text.replace(/## Inbound Context \(trusted metadata\)[\s\S]*?```\n*/g, '');
 
+  // Remove OpenClaw runtime context blocks (subagent completion events, internal task results).
+  // These are prepended to user messages by the gateway and are AI-facing only.
+  // Pattern: "OpenClaw runtime context (internal):" followed by everything up to the end,
+  // since the entire message body IS the runtime context (no user text follows).
+  text = text.replace(/OpenClaw runtime context \(internal\):[\s\S]*/g, '');
+
+  // Remove "Untrusted context (metadata, ...)" trailing blocks
+  text = text.replace(/Untrusted context \(metadata[^)]*\):[\s\S]*/g, '');
+
+
   // Remove date/time prefix like "[Wed 2026-02-25 14:30 GMT+1]" or "[2026-03-11 21:47:32 GMT+1]" that gateway adds
   text = text.replace(/^\[(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+)?\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+[^\]]*\]\s*/i, '');
 
@@ -337,6 +348,7 @@ export const useDashboardStore = create<DashboardStore>()(
       chatLoading: false,
       chatSending: new Map(),
       activeRunId: new Map(),
+      runHadTools: new Map(),
       messageQueue: new Map(),
       streamingContent: '',
       streamingRunId: null,
@@ -344,7 +356,16 @@ export const useDashboardStore = create<DashboardStore>()(
       subagentParents: new Map(),
       pendingSpawnParent: null,
       unreadCounts: new Map(),
-      sessionCumulativeTokens: new Map(),
+      sessionCumulativeTokens: (() => {
+        try {
+          const raw = localStorage.getItem('silos:cumTokens');
+          if (raw) {
+            const entries = JSON.parse(raw) as [string, { total: number; lastInput: number; lastOutput: number }][];
+            return new Map(entries);
+          }
+        } catch { /* ignore corrupt data */ }
+        return new Map();
+      })(),
 
       agentsLoading: false,
       sessionsLoading: false,
@@ -427,12 +448,24 @@ export const useDashboardStore = create<DashboardStore>()(
           onEvent: (event) => {
             handleEvent(event);
           },
+          onGap: ({ expected, received }: { expected: number; received: number }) => {
+            console.warn(`[gateway] Event gap: expected seq ${expected}, got ${received}`);
+            const sk = get().selectedSessionKey;
+            if (sk) {
+              get().loadChatHistory(sk);
+            }
+          },
           onClose: ({ code, reason }) => {
             if (code === 1008 && reason?.includes('token mismatch')) {
               // Token mismatch: clear cached token so Firebase re-auth can provide a fresh one
               const { client } = get();
               client?.stop();
               set({ connected: false, connecting: false, token: null, client: null, error: 'Session expired. Please sign in again.' });
+              return;
+            }
+            // Service restart (e.g. config save) — reconnect silently, no error
+            if (code === 1012) {
+              set({ connected: false, connecting: true, error: null });
               return;
             }
             if (code !== 1000) {
@@ -545,6 +578,7 @@ export const useDashboardStore = create<DashboardStore>()(
             }
           }
 
+          try { localStorage.setItem('silos:cumTokens', JSON.stringify([...cumTokens])); } catch { /* quota */ }
           set({ sessions: mergedSessions, sessionsLoading: false, sessionCumulativeTokens: cumTokens });
         } catch (error) {
           set({ sessionsLoading: false, error: String(error) });
@@ -672,8 +706,8 @@ export const useDashboardStore = create<DashboardStore>()(
             reasoning: m.reasoning ?? false,
             input: ['text'] as ('text' | 'image')[],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            contextWindow: m.contextWindow,
-            maxTokens: Math.min(m.contextWindow, 16384),
+            contextWindow: m.contextWindow || undefined,
+            maxTokens: m.contextWindow ? Math.min(m.contextWindow, 16384) : 16384,
             compat: { supportsUsageInStreaming: true },
           }));
 
@@ -926,10 +960,16 @@ export const useDashboardStore = create<DashboardStore>()(
             toolCall: m.toolCall,
             result: m.result,
             runId: m.runId,
-          }));
+          })).filter((m) => {
+            // Hide user messages that became empty after stripping runtime context / metadata
+            if (m.role === 'user' && (!m.content || !m.content.trim())) return false;
+            return true;
+          });
           // Guard: user may have switched sessions while the request was in flight
           if (get().selectedSessionKey !== key) return;
-          set({ chatMessages: messages, chatLoading: false });
+          // Preserve locally queued messages (they only exist client-side)
+          const queued = get().chatMessages.filter(m => m.status === 'queued');
+          set({ chatMessages: queued.length > 0 ? [...messages, ...queued] : messages, chatLoading: false });
         } catch (error) {
           if (get().selectedSessionKey !== key) return;
           // If it's a DM session that doesn't exist yet, just show empty history
@@ -1049,11 +1089,31 @@ export const useDashboardStore = create<DashboardStore>()(
           const newChatSending = new Map(chatSending);
           newChatSending.delete(selectedSessionKey);
 
+          const newRunHadTools = new Map(get().runHadTools);
+          newRunHadTools.delete(selectedSessionKey);
+
+          // Save partial streaming content as assistant message before clearing
+          flushStreamingBuffer();
+          const partialContent = get().streamingContent;
+          if (partialContent && partialContent.trim()) {
+            const partialMessage: ChatMessage = {
+              id: generateId(),
+              role: 'assistant',
+              content: partialContent,
+              timestamp: Date.now(),
+              runId,
+            };
+            set((state) => ({
+              chatMessages: [...state.chatMessages, partialMessage],
+            }));
+          }
+
           // Also update the task status to aborted
           cancelStreamingBuffer();
           set({
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
+            runHadTools: newRunHadTools,
             tasks: tasks.map((t) =>
               (runId && t.runId === runId) ? { ...t, status: 'aborted', completedAt: Date.now() } : t
             ),
@@ -1072,10 +1132,29 @@ export const useDashboardStore = create<DashboardStore>()(
           newActiveRunId.delete(selectedSessionKey);
           const newChatSending = new Map(get().chatSending);
           newChatSending.delete(selectedSessionKey);
+          const newRunHadTools = new Map(get().runHadTools);
+          newRunHadTools.delete(selectedSessionKey);
+
+          // Save partial content before clearing
+          flushStreamingBuffer();
+          const partialContent = get().streamingContent;
+          if (partialContent && partialContent.trim()) {
+            set((state) => ({
+              chatMessages: [...state.chatMessages, {
+                id: generateId(),
+                role: 'assistant' as const,
+                content: partialContent,
+                timestamp: Date.now(),
+                runId,
+              }],
+            }));
+          }
+
           cancelStreamingBuffer();
           set({
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
+            runHadTools: newRunHadTools,
             streamingContent: '',
             streamingRunId: null,
             streamingComplete: false,
@@ -1776,20 +1855,6 @@ export const useDashboardStore = create<DashboardStore>()(
           ? `agent:${selectedSessionKey.replace(/^dm-/, '')}:dm-operator`
           : selectedSessionKey;
 
-        // Helper: check if the dashboard has user-initiated work on the current session.
-        // Used to filter out events from external triggers (cron jobs, etc.) that target
-        // the same session but should not appear in the chat display.
-        const hasUserInitiatedWork = () => {
-          const sk = get().selectedSessionKey;
-          if (!sk) return false;
-          return (
-            get().chatSending.get(sk) === true ||
-            get().activeRunId.has(sk) ||
-            get().chatMessages.some(m => m.role === 'user' && (m.status === 'queued' || m.status === 'sending')) ||
-            !!get().streamingContent
-          );
-        };
-
         // Handle streaming text from 'agent' events (stream: 'assistant')
         if (event.event === 'agent') {
           const payload = event.payload as any;
@@ -1823,9 +1888,11 @@ export const useDashboardStore = create<DashboardStore>()(
           // Only process display events (streaming, tool calls) for the current session, not subagent events
           const isCurrentSessionEvent = eventSessionKey === currentEffectiveKey || !eventSessionKey;
 
-          // Skip display events from external triggers (cron jobs, scheduled tasks, etc.)
-          // that target the same session. Only show events for user-initiated runs.
-          const shouldShowInChat = isCurrentSessionEvent && hasUserInitiatedWork();
+          // Show events for the current session. The hasUserInitiatedWork() check was
+          // previously used to filter cron/external triggers, but this caused legitimate
+          // events to be invisible. Instead, always show events for the current session —
+          // external triggers on the same session ARE relevant to the user watching it.
+          const shouldShowInChat = isCurrentSessionEvent;
 
           // agent:stream='assistant' — IGNORED for display.
           // Streaming text comes exclusively from chat:state='delta' events (accumulated/replace semantics).
@@ -1851,6 +1918,15 @@ export const useDashboardStore = create<DashboardStore>()(
 
             // Handle tool call start - show what tool is being called
             if ((phase === 'call' || phase === 'input' || phase === 'start') && toolName) {
+              // Mark that this run used tools — history will be reloaded on completion
+              const sk = get().selectedSessionKey;
+              const rid = payload?.runId;
+              if (sk && rid) {
+                const newRunHadTools = new Map(get().runHadTools);
+                newRunHadTools.set(sk, true);
+                set({ runHadTools: newRunHadTools });
+              }
+
               // First, save any accumulated streaming content as an assistant message
               set((state) => {
                 const messages = [...state.chatMessages];
@@ -2086,6 +2162,79 @@ export const useDashboardStore = create<DashboardStore>()(
           // ── TOOL CALLS from chat events — SKIPPED ──
           // Tool calls are handled by agent:stream='tool' which has granular call/result phases.
 
+          // ── ABORTED (save partial content) ──
+          if (payload?.state === 'aborted') {
+            flushStreamingBuffer();
+            const sessionKey = get().selectedSessionKey;
+
+            set((state) => {
+              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
+              const newActiveRunId = new Map(state.activeRunId);
+              if (state.selectedSessionKey) {
+                newActiveRunId.delete(state.selectedSessionKey);
+              }
+
+              // Save partial streaming content if present
+              const partialContent = state.streamingContent?.trim();
+              let messages = state.chatMessages;
+              if (partialContent) {
+                const alreadySaved = messages.some(m => m.role === 'assistant' && m.runId === runId && m.content === partialContent);
+                if (!alreadySaved) {
+                  messages = [...messages, {
+                    id: generateId(),
+                    role: 'assistant' as const,
+                    content: partialContent,
+                    timestamp: Date.now(),
+                    runId,
+                  }];
+                }
+              }
+
+              const newChatSending = new Map(state.chatSending);
+              if (state.selectedSessionKey) {
+                newChatSending.delete(state.selectedSessionKey);
+              }
+
+              return {
+                chatMessages: messages,
+                activeRunId: newActiveRunId,
+                chatSending: newChatSending,
+                streamingContent: '',
+                streamingRunId: null,
+                streamingComplete: false,
+              };
+            });
+
+            if (sessionKey) {
+              setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
+            }
+          }
+
+          // ── CHAT ERROR ──
+          if (payload?.state === 'error') {
+            const sessionKey = get().selectedSessionKey;
+            cancelStreamingBuffer();
+            set((state) => {
+              const newActiveRunId = new Map(state.activeRunId);
+              const newChatSending = new Map(state.chatSending);
+              if (state.selectedSessionKey) {
+                newActiveRunId.delete(state.selectedSessionKey);
+                newChatSending.delete(state.selectedSessionKey);
+              }
+              return {
+                activeRunId: newActiveRunId,
+                chatSending: newChatSending,
+                streamingContent: '',
+                streamingRunId: null,
+                streamingComplete: false,
+                error: payload?.errorMessage || 'Chat error',
+              };
+            });
+            if (sessionKey) {
+              setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
+            }
+          }
+
           // ── COMPLETION (sole handler for message creation + state cleanup) ──
           if (payload?.status === 'ok' || payload?.status === 'done' || payload?.state === 'final' || payload?.state === 'done') {
             flushStreamingBuffer(); // Ensure buffered content is flushed before completion
@@ -2230,6 +2379,20 @@ export const useDashboardStore = create<DashboardStore>()(
             if (sessionKey) {
               // Use setTimeout to ensure the set() above is fully applied
               setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
+            }
+
+            // Reload history after tool-using runs to get authoritative tool results
+            const hadTools = get().runHadTools.get(sessionKey || '');
+            if (hadTools && sessionKey) {
+              const newRunHadTools = new Map(get().runHadTools);
+              newRunHadTools.delete(sessionKey);
+              set({ runHadTools: newRunHadTools });
+              // Small delay so the final message is visible before reload replaces it
+              setTimeout(() => {
+                if (get().selectedSessionKey === sessionKey) {
+                  get().loadChatHistory(sessionKey);
+                }
+              }, 300);
             }
 
             // Refresh sessions to update token counts
@@ -2413,13 +2576,17 @@ export const useDashboardStore = create<DashboardStore>()(
         // Reset orphaned in-flight state from before disconnect.
         // Any run's final event was lost during the disconnect window.
         cancelStreamingBuffer();
+        // Only show full-screen loading overlay on first connection (no data yet).
+        // On reconnects, data is already in the store — just refresh silently.
+        const isFirstLoad = !get().agents && !get().sessions;
         set({
           chatSending: new Map(),
           activeRunId: new Map(),
+          runHadTools: new Map(),
           streamingContent: '',
           streamingRunId: null,
           streamingComplete: false,
-          initialLoading: true,
+          initialLoading: isFirstLoad,
         });
 
         // Load initial data after connection.
@@ -2427,6 +2594,11 @@ export const useDashboardStore = create<DashboardStore>()(
         // If models or gateway config come back empty, retry once after a short delay.
         get().loadAll().then(() => {
           set({ initialLoading: false });
+          // Reload chat history for the current session (recover messages lost during disconnect)
+          const sk = get().selectedSessionKey;
+          if (sk) {
+            get().loadChatHistory(sk);
+          }
           const { models, gatewayConfig } = get();
           const hasModels = models?.models && models.models.length > 0;
           const cfg = gatewayConfig?.config as Record<string, unknown> | undefined;

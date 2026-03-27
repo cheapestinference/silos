@@ -873,7 +873,8 @@
     "tokens": "Tokens",
     "totalSession": "Gesamt Sitzung",
     "done": "Erledigt",
-    "notConfigured": "Nicht konfiguriert"
+    "notConfigured": "Nicht konfiguriert",
+    "chat": "Chat"
   },
   "channelsPage": {
     "description": "Messaging-Kanalverbindungen verwalten",

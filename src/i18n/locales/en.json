@@ -873,7 +873,8 @@
     "tokens": "Tokens",
     "totalSession": "Total Session",
     "done": "Done",
-    "notConfigured": "Not configured"
+    "notConfigured": "Not configured",
+    "chat": "Chat"
   },
   "channelsPage": {
     "description": "Manage messaging channel connections",

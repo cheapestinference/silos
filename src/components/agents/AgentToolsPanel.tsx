@@ -17,8 +17,9 @@ const AGENT_TOOL_GROUPS = [
   { id: 'group:nodes', nameKey: 'settings.toolsConfig.groups.devices', icon: '📱', descKey: 'settings.toolsConfig.groups.devicesDesc' },
 ];
 
-export function AgentToolsPanel() {
-  const { id: agentId } = useParams<{ id: string }>();
+export function AgentToolsPanel({ agentId: agentIdProp }: { agentId?: string } = {}) {
+  const { id: routeAgentId } = useParams<{ id: string }>();
+  const agentId = agentIdProp || routeAgentId;
   const { t } = useTranslation();
   const {
     gatewayConfig, patchGatewayConfig,

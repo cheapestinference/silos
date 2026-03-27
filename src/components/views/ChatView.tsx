@@ -3,6 +3,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { useTranslation } from '../../i18n';
 import {
+  ArrowLeft,
   Clock,
   Zap,
   Bot,
@@ -26,6 +27,7 @@ import {
   Wrench,
   Info,
   Monitor,
+  FolderOpen,
 } from 'lucide-react';
 import { formatTimestamp, cn, formatNumber } from '../../lib/utils';
 import { Button } from '../ui/button';
@@ -33,6 +35,10 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import type { ChatMessage, AgentSummary } from '../../types/openclaw';
 import { SessionTasksKanban } from '../sessions/SessionTasksKanban';
 import { BrowserPanel } from '../layout/BrowserPanel';
+import { WorkspacePanel } from '../agents/WorkspacePanel';
+import { BrainPanel } from '../agents/BrainPanel';
+import { AgentToolsPanel } from '../agents/AgentToolsPanel';
+import { SkillsPanel } from '../agents/SkillsPanel';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 // WorkspaceExplorer removed for now
@@ -698,15 +704,26 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
   // Get agent name for display
   const getAgentName = () => {
     if (isUser) {
-      // If this is a subagent session, the "user" messages were sent by another agent
       if (isSubagentSession) {
-        // In subagent sessions, messages marked as "user" come from the parent agent/session
-        return `🤖 Agent`;
+        // In subagent sessions, "user" messages come from the parent agent.
+        // sessionAgentId is the parent (e.g. "opus" from "agent:opus:subagent:...").
+        if (sessionAgentId) {
+          const agent = agents.find(a => a.id === sessionAgentId);
+          if (agent?.name || agent?.identity?.name) {
+            return agent.name || agent.identity?.name || sessionAgentId;
+          }
+          return sessionAgentId;
+        }
+        return `Agent`;
       }
       return t('chat.operator');
     }
     if (isSystem) return t('chat.system');
-    // For assistant messages, show the agent name if available
+    // For assistant messages in subagent sessions, the responder is the subagent (not the parent)
+    if (isSubagentSession) {
+      return 'Subagent';
+    }
+    // For regular sessions, show the agent name
     if (sessionAgentId) {
       const agent = agents.find(a => a.id === sessionAgentId);
       if (agent?.name || agent?.identity?.name) {
@@ -785,7 +802,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               <span className="font-semibold text-sm">{t('chat.providerError')}</span>
             </div>
-            <p className="text-xs text-rose-300/80 leading-relaxed pl-7">
+            <p className="text-xs text-rose-600/80 dark:text-rose-300/80 leading-relaxed pl-7">
               {t('chat.providerErrorHint')}
             </p>
           </div>
@@ -1049,10 +1066,11 @@ function AgentStatusDot({ isWorking }: { isWorking: boolean }) {
 
 // ============== Main ChatView Component (Premium) ==============
 
-export function ChatView({ sessionKey }: { sessionKey: string }) {
+export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessionKey: string; agentPanel?: string | null; onCloseAgentPanel?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
+  const scrollRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userScrolledUp = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1082,8 +1100,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Right panel: top section tabs (Pipeline / Browser), Tools always at bottom
-  const [activeTopTab, setActiveTopTab] = useState<'tasks' | 'browser'>('tasks');
+  // Right panel: top section tabs
+  const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
 
   // Vertical split between top tabs and bottom Tools (percentage for top section)
   const [toolsSplit, setToolsSplit] = useState(() => {
@@ -1124,10 +1142,19 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     }
   }, [browserPanelOpen, browserDetached]);
 
+  // Auto-resize panel when agent panel opens
+  useEffect(() => {
+    if (agentPanel && panelWidth < widePanelWidth) {
+      setPanelWidth(widePanelWidth);
+    }
+  }, [agentPanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resizable right panel (width)
+  const defaultPanelWidth = 384;
+  const widePanelWidth = 525;
   const [panelWidth, setPanelWidth] = useState(() => {
     const saved = localStorage.getItem('silos-chat-panel-width');
-    return saved ? Math.max(260, Math.min(800, Number(saved))) : 384;
+    return saved ? Math.max(260, Math.min(900, Number(saved))) : defaultPanelWidth;
   });
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
@@ -1142,7 +1169,7 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
       if (!isDragging.current) return;
       e.preventDefault();
       const delta = dragStartX.current - e.clientX;
-      const newWidth = Math.max(260, Math.min(800, dragStartWidth.current + delta));
+      const newWidth = Math.max(260, Math.min(900, dragStartWidth.current + delta));
       setPanelWidth(newWidth);
     };
     const onMouseUp = () => {
@@ -1165,6 +1192,12 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
   const effectiveKey = sessionKey.startsWith('dm-')
     ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
     : sessionKey;
+
+  // Extract agentId from sessionKey for workspace panel
+  const chatAgentId = useMemo(() => {
+    const m = sessionKey.match(/^(?:agent:|dm-)([^:]+)/);
+    return m ? m[1] : null;
+  }, [sessionKey]);
 
   // Find current session for token counts
   const currentSession = sessions?.sessions?.find(s => s.key === effectiveKey || s.key === sessionKey);
@@ -1248,8 +1281,8 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     const el = scrollRef.current;
     if (!el) return;
     const onScroll = () => {
-      // Consider "at bottom" if within 80px of the end
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      // Consider "at bottom" if within 450px of the end (matches OpenClaw)
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 450;
       userScrolledUp.current = !atBottom;
       setShowScrollButton(!atBottom);
     };
@@ -1264,15 +1297,29 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     if (scrollRafRef.current !== null) {
       cancelAnimationFrame(scrollRafRef.current);
     }
+    if (scrollRetryRef.current !== null) {
+      clearTimeout(scrollRetryRef.current);
+      scrollRetryRef.current = null;
+    }
 
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          top: scrollRef.current.scrollHeight,
-          behavior: streamingContent ? 'smooth' : 'instant',
-        });
-      }
+      const el = scrollRef.current;
+      if (!el) return;
+
+      // Respect prefers-reduced-motion
+      const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const behavior = streamingContent && !prefersReduced ? 'smooth' : 'instant';
+
+      el.scrollTo({ top: el.scrollHeight, behavior });
+
+      // Retry after 120ms to handle layout shifts (code blocks, images rendering)
+      scrollRetryRef.current = setTimeout(() => {
+        scrollRetryRef.current = null;
+        if (!userScrolledUp.current && scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 120);
     });
   }, [chatMessages, streamingContent, chatSending]);
 
@@ -1284,10 +1331,11 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
     }
   }, [chatSending]);
 
-  // Cleanup RAF on unmount
+  // Cleanup RAF + scroll retry on unmount
   useEffect(() => {
     return () => {
       if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+      if (scrollRetryRef.current !== null) clearTimeout(scrollRetryRef.current);
     };
   }, []);
 
@@ -1587,48 +1635,77 @@ export function ChatView({ sessionKey }: { sessionKey: string }) {
 
         {/* RIGHT: Top tabs (Pipeline / Browser) + Bottom Tools */}
         <div ref={splitContainerRef} className="flex flex-col shrink-0" style={{ width: panelWidth }}>
-          {/* Top section: tab bar + content */}
+          {/* Top section */}
           <div className="flex flex-col min-h-0 overflow-hidden" style={{ height: `${toolsSplit}%` }}>
-            {/* Tab bar */}
-            <div className="flex border-b border-border shrink-0">
-              {([
-                { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
-                { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-primary' },
-              ]).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTopTab(tab.id);
-                    if (tab.id === 'browser' && !browserPanelOpen) setBrowserPanelOpen(true);
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors relative",
-                    activeTopTab === tab.id
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground/70"
+            {agentPanel && chatAgentId ? (
+              <>
+                {/* Agent panel header */}
+                <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border shrink-0">
+                  <button
+                    onClick={() => onCloseAgentPanel?.()}
+                    className="p-1 rounded-md text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                    {agentPanel === 'brain' ? 'Brain' : agentPanel === 'tools' ? 'Tools' : 'Skills'}
+                  </span>
+                </div>
+                {/* Agent panel content */}
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {agentPanel === 'brain' && <BrainPanel agentId={chatAgentId} />}
+                  {agentPanel === 'tools' && <AgentToolsPanel agentId={chatAgentId} />}
+                  {agentPanel === 'skills' && <SkillsPanel agentId={chatAgentId} />}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Normal tab bar */}
+                <div className="flex border-b border-border shrink-0">
+                  {([
+                    { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
+                    { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-primary' },
+                    { id: 'workspace' as const, icon: FolderOpen, label: 'Workspace', color: 'text-emerald-500' },
+                  ]).map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTopTab(tab.id);
+                        if (tab.id === 'browser' && !browserPanelOpen) setBrowserPanelOpen(true);
+                        if (panelWidth < widePanelWidth) setPanelWidth(widePanelWidth);
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors relative",
+                        activeTopTab === tab.id
+                          ? "text-foreground"
+                          : "text-muted-foreground hover:text-foreground/70"
+                      )}
+                    >
+                      <tab.icon className={cn("h-3 w-3", activeTopTab === tab.id ? tab.color : "")} />
+                      {tab.label}
+                      {tab.id === 'browser' && browserAgentAction && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      )}
+                      {activeTopTab === tab.id && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {/* Normal tab content */}
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {activeTopTab === 'tasks' && (
+                    <SessionTasksKanban sessionKey={effectiveKey} />
                   )}
-                >
-                  <tab.icon className={cn("h-3 w-3", activeTopTab === tab.id ? tab.color : "")} />
-                  {tab.label}
-                  {tab.id === 'browser' && browserAgentAction && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  {activeTopTab === 'browser' && (
+                    <BrowserPanel embedded />
                   )}
-                  {activeTopTab === tab.id && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  {activeTopTab === 'workspace' && chatAgentId && (
+                    <WorkspacePanel agentId={chatAgentId} />
                   )}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              {activeTopTab === 'tasks' && (
-                <SessionTasksKanban sessionKey={effectiveKey} />
-              )}
-              {activeTopTab === 'browser' && (
-                <BrowserPanel embedded />
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Horizontal resize handle */}

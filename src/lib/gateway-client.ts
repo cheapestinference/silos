@@ -15,6 +15,7 @@ export type GatewayClientOptions = {
   onClose?: (info: { code: number; reason: string }) => void;
   onError?: (error: Error) => void;
   onReconnecting?: (attempt: number) => void;
+  onGap?: (info: { expected: number; received: number }) => void;
 };
 
 type PendingRequest = {
@@ -61,6 +62,7 @@ export class GatewayClient {
 
   private connect(): void {
     if (this.closed) return;
+    this.lastSeq = null;
 
     try {
       this.ws = new WebSocket(this.opts.url);
@@ -176,7 +178,7 @@ export class GatewayClient {
       const seq = typeof event.seq === 'number' ? event.seq : null;
       if (seq !== null) {
         if (this.lastSeq !== null && seq > this.lastSeq + 1) {
-          console.warn(`[gateway] Event gap detected: expected ${this.lastSeq + 1}, got ${seq}`);
+          this.opts.onGap?.({ expected: this.lastSeq + 1, received: seq });
         }
         this.lastSeq = seq;
       }

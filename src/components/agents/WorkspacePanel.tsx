@@ -167,8 +167,9 @@ function FileTreeItem({
   );
 }
 
-export function WorkspacePanel() {
-  const { id: agentId } = useParams<{ id: string }>();
+export function WorkspacePanel({ agentId: agentIdProp }: { agentId?: string } = {}) {
+  const { id: routeAgentId } = useParams<{ id: string }>();
+  const agentId = agentIdProp || routeAgentId;
   const { t } = useTranslation();
   const {
     workspaceFiles, workspaceContent, workspaceLoading,
@@ -186,6 +187,9 @@ export function WorkspacePanel() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameName, setRenameName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ path: string; type: 'file' | 'directory' } | null>(null);
+  const [treePanelWidth, setTreePanelWidth] = useState(216);
+  const treeResizing = useRef(false);
+  const treeResizeStart = useRef({ x: 0, w: 0 });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +204,19 @@ export function WorkspacePanel() {
       lastSavedRef.current = workspaceContent;
     }
   }, [workspaceContent, selectedPath, selectedType]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!treeResizing.current) return;
+      e.preventDefault();
+      const delta = e.clientX - treeResizeStart.current.x;
+      setTreePanelWidth(Math.max(140, Math.min(400, treeResizeStart.current.w + delta)));
+    };
+    const onMouseUp = () => { treeResizing.current = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); };
+  }, []);
 
   if (!agentId) return null;
 
@@ -298,11 +315,11 @@ export function WorkspacePanel() {
   return (
     <div className="h-full flex animate-in fade-in duration-300">
       {/* File Tree Sidebar */}
-      <div className="w-72 border-r border-border bg-muted/20 flex flex-col">
+      <div className="border-r border-border bg-muted/20 flex flex-col shrink-0" style={{ width: treePanelWidth }}>
         <div className="p-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-amber-500" />
-            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Workspace</h3>
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Files</h3>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setCreating('file'); setNewName(''); }} className="p-1 hover:bg-muted rounded transition-colors" title="New file">
@@ -367,6 +384,20 @@ export function WorkspacePanel() {
             ))
           )}
         </div>
+      </div>
+
+      {/* Resize handle */}
+      <div
+        className="w-1 shrink-0 cursor-col-resize group relative hover:bg-primary/20 active:bg-primary/30 transition-colors"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          treeResizing.current = true;
+          treeResizeStart.current = { x: e.clientX, w: treePanelWidth };
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+        }}
+      >
+        <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-primary/10" />
       </div>
 
       {/* Content Area */}
