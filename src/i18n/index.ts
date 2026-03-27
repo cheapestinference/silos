@@ -8,11 +8,11 @@ import de from './locales/de.json';
 
 export type Locale = 'en' | 'es' | 'fr' | 'de';
 
-export const locales: Record<Locale, { label: string; flag: string }> = {
-  en: { label: 'English', flag: '🇺🇸' },
-  es: { label: 'Español', flag: '🇪🇸' },
-  fr: { label: 'Français', flag: '🇫🇷' },
-  de: { label: 'Deutsch', flag: '🇩🇪' },
+export const locales: Record<Locale, { label: string; nativeName: string }> = {
+  en: { label: 'English', nativeName: 'English' },
+  es: { label: 'Spanish', nativeName: 'Español' },
+  fr: { label: 'French', nativeName: 'Français' },
+  de: { label: 'German', nativeName: 'Deutsch' },
 };
 
 const translations: Record<Locale, typeof en> = {

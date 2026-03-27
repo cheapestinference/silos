@@ -2,17 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from '../../i18n';
-import type { Locale } from '../../i18n';
 import { cn } from '../../lib/utils';
 import {
   Home,
   Settings,
   Bot,
   ListTodo,
-  Moon,
-  Sun,
   LogOut,
-  Globe,
   Hash,
   Plus,
   BotMessageSquare,
@@ -23,6 +19,7 @@ import {
   X,
   Pencil,
   ExternalLink,
+  User,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
@@ -200,11 +197,8 @@ export function AppSidebar() {
   const {
     agents,
     sessions,
-    setDarkMode,
-    darkMode,
     connected,
     tasks,
-    disconnect,
     selectedSessionKey,
     loadAgents,
     loadSessions,
@@ -212,18 +206,13 @@ export function AppSidebar() {
     deleteSession,
     addSessionOptimistic,
     unreadCounts,
-    gatewayUrl,
-    token,
   } = useDashboardStore();
-  const { signOut } = useAuth();
-  const { t, locale, setLocale, locales: availableLocales } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [createAgentModalOpen, setCreateAgentModalOpen] = useState(false);
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false);
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const langMenuRef = useRef<HTMLDivElement>(null);
 
   // Load agents and sessions when sidebar mounts
   useEffect(() => {
@@ -243,7 +232,6 @@ export function AppSidebar() {
 
   // Parse all sessions and group by agent
   const sessionsByAgent = new Map<string, { session: typeof sessionList[0]; parsed: ParsedSession }[]>();
-  const orphanedSessions: { session: typeof sessionList[0]; parsed: ParsedSession }[] = [];
 
   sessionList.forEach(session => {
     const parsed = parseSessionKey(session.key, agentList);
@@ -251,8 +239,6 @@ export function AppSidebar() {
       const existing = sessionsByAgent.get(parsed.agentId) || [];
       existing.push({ session, parsed });
       sessionsByAgent.set(parsed.agentId, existing);
-    } else {
-      orphanedSessions.push({ session, parsed });
     }
   });
 
@@ -299,19 +285,6 @@ export function AppSidebar() {
     // Reload agents list after creation
     loadAgents();
   };
-
-  // Close language menu on click outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
-        setLangMenuOpen(false);
-      }
-    }
-    if (langMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [langMenuOpen]);
 
 
   return (
@@ -367,7 +340,12 @@ export function AppSidebar() {
           onClick={() => navigate('/tasks')}
           badge={runningTasksCount > 0 ? runningTasksCount : undefined}
         />
-        {/* Removed Agents nav item - now accessed via sidebar list */}
+        <NavItem
+          icon={Settings}
+          label={t('nav.settings')}
+          active={location.pathname.startsWith('/settings')}
+          onClick={() => navigate('/settings')}
+        />
       </div>
 
       {/* Scrollable Sessions Area */}
@@ -524,168 +502,122 @@ export function AppSidebar() {
           </div>
         </div>
 
-        {/* Orphaned Sessions (sessions without matching agents) */}
-        {orphanedSessions.length > 0 && (
-          <div className="py-2 border-t border-sidebar-border">
-            <div className="w-full px-3 py-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              <Hash className="w-3 h-3" />
-              <span className="flex-1">Other Sessions</span>
-            </div>
-            <div className="mt-0.5 space-y-0.5 px-2">
-              {orphanedSessions.map(({ session, parsed }) => (
-                <SessionItem
-                  key={session.key}
-                  sessionKey={session.key}
-                  sessionType={parsed.sessionType}
-                  label={session.label}
-                  displayName={session.displayName}
-                  defaultLabel={parsed.displayLabel}
-                  active={isSessionActive(session.key)}
-                  onClick={() => navigate(`/session/${session.key}`)}
-                  onRename={(newLabel) => handleRenameSession(session.key, newLabel)}
-                  onDelete={() => handleDeleteSession(session.key)}
-                  unreadCount={unreadCounts.get(session.key) || 0}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Usage Bar */}
       <UsageBar />
 
-      {/* Footer Actions */}
-      <div className="px-2 py-2 flex items-center gap-1 border-t border-sidebar-border">
-        {/* Language Selector */}
-        <div className="relative" ref={langMenuRef}>
-          <Tooltip>
-            <TooltipTrigger>
-              <button
-                onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover transition-colors"
-              >
-                <Globe className="w-3.5 h-3.5" />
-              </button>
-            </TooltipTrigger>
-            {!langMenuOpen && (
-              <TooltipContent side="right">
-                <span className="text-xs">{availableLocales[locale].label}</span>
-              </TooltipContent>
-            )}
-          </Tooltip>
-          {langMenuOpen && (
-            <div className="absolute bottom-full left-0 mb-1 py-1 min-w-[140px] bg-popover border border-border rounded-md shadow-lg z-50">
-              {(Object.keys(availableLocales) as Locale[]).map((loc) => (
-                <button
-                  key={loc}
-                  onClick={() => { setLocale(loc); setLangMenuOpen(false); }}
-                  className={cn(
-                    "w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 hover:bg-accent transition-colors",
-                    locale === loc && "bg-accent font-medium"
-                  )}
-                >
-                  <span>{availableLocales[loc].flag}</span>
-                  <span>{availableLocales[loc].label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Theme Toggle */}
-        <Tooltip>
-          <TooltipTrigger>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover transition-colors"
-            >
-              {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <span className="text-xs">{darkMode ? t('settings.appearance.lightMode') : t('settings.appearance.darkMode')}</span>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Settings */}
-        <Tooltip>
-          <TooltipTrigger>
-            <button
-              onClick={() => navigate('/settings')}
-              className={cn(
-                "w-7 h-7 rounded flex items-center justify-center transition-colors",
-                isActive('/settings')
-                  ? "bg-primary text-white"
-                  : "text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover"
-              )}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <span className="text-xs">{t('nav.settings')}</span>
-          </TooltipContent>
-        </Tooltip>
-
-
-        {/* OpenClaw Control UI */}
-        {connected && (
-          <Tooltip>
-            <TooltipTrigger>
-              <button
-                onClick={() => {
-                  const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
-                  const isHttps = window.location.protocol === 'https:';
-                  const suffix = token ? `#token=${encodeURIComponent(token)}` : '';
-                  if (isLocal && isHttps) {
-                    window.open(`${window.location.origin}/openclaw/${suffix}`, '_blank');
-                  } else {
-                    let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
-                    if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
-                    window.open(`${httpUrl}/openclaw/${suffix}`, '_blank');
-                  }
-                }}
-                className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-sidebar-fg hover:bg-sidebar-hover transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <span className="text-xs">OpenClaw UI</span>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* Disconnect */}
-        {connected && (
-          <Tooltip>
-            <TooltipTrigger>
-              <button
-                onClick={() => { disconnect(); signOut(); }}
-                className="w-7 h-7 rounded flex items-center justify-center text-sidebar-fg/60 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <span className="text-xs">{t('settings.connection.disconnect')}</span>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* Connection Indicator */}
-        <div className="ml-auto">
-          <div
-            className={cn(
-              "w-1.5 h-1.5 rounded-full",
-              connected ? "bg-green-500" : "bg-gray-400"
-            )}
-          />
-        </div>
+      {/* Footer */}
+      <div className="px-2 py-2 border-t border-sidebar-border">
+        <ProfileMenu />
       </div>
     </aside>
     </>
+  );
+}
+
+function ProfileMenu() {
+  const { user } = useAuth();
+  const { connected, disconnect, gatewayUrl, token } = useDashboardStore();
+  const { signOut } = useAuth();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors",
+          open ? "bg-sidebar-hover" : "hover:bg-sidebar-hover"
+        )}
+      >
+        {user?.photoURL ? (
+          <img
+            src={user.photoURL}
+            alt=""
+            className="w-6 h-6 rounded-full object-cover shrink-0"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-semibold text-primary">
+              {firstName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
+        <span className="text-xs font-medium text-sidebar-fg/80 truncate flex-1 text-left">{firstName}</span>
+        <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", connected ? "bg-green-500" : "bg-gray-400")} />
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 mb-1 py-1 bg-popover border border-border rounded-lg shadow-lg z-50">
+          <button
+            onClick={() => { navigate('/account'); setOpen(false); }}
+            className={cn(
+              "w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors",
+              location.pathname === '/account' && "bg-accent font-medium"
+            )}
+          >
+            <User className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>My account</span>
+          </button>
+          <button
+            onClick={() => { navigate('/settings'); setOpen(false); }}
+            className={cn(
+              "w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors",
+              location.pathname.startsWith('/settings') && "bg-accent font-medium"
+            )}
+          >
+            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>{t('nav.settings')}</span>
+          </button>
+          {connected && (
+            <button
+              onClick={() => {
+                const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
+                const isHttps = window.location.protocol === 'https:';
+                const suffix = token ? `#token=${encodeURIComponent(token)}` : '';
+                if (isLocal && isHttps) {
+                  window.open(`${window.location.origin}/openclaw/${suffix}`, '_blank');
+                } else {
+                  let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
+                  if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
+                  window.open(`${httpUrl}/openclaw/${suffix}`, '_blank');
+                }
+                setOpen(false);
+              }}
+              className="w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>OpenClaw UI</span>
+            </button>
+          )}
+          <div className="my-1 border-t border-border" />
+          <button
+            onClick={() => { disconnect(); signOut(); setOpen(false); }}
+            className="w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign out</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

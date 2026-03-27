@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Trash2 } from 'lucide-react';
+import { Clock, Trash2, CalendarClock } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { CronJobCard } from './CronJobCard';
@@ -62,13 +62,15 @@ export function CronJobList({
 
   if (jobs.length === 0) {
     return (
-      <Card className="py-16">
+      <div className="py-8 flex items-center justify-center">
         <div className="text-center">
-          <Clock className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-          <h3 className="text-lg font-medium">No Periodic Tasks</h3>
-          <p className="text-muted-foreground mt-1">{emptyMessage}</p>
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <CalendarClock className="w-8 h-8 text-primary" />
+          </div>
+          <h3 className="text-sm font-semibold mb-1">No Periodic Tasks</h3>
+          <p className="text-xs text-muted-foreground max-w-md">{emptyMessage}</p>
         </div>
-      </Card>
+      </div>
     );
   }
 

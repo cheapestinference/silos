@@ -516,6 +516,13 @@ export const useDashboardStore = create<DashboardStore>()(
         set({ agentsLoading: true });
         try {
           const agents = await client.listAgents();
+          // Don't overwrite a populated agents list with an empty one —
+          // the gateway may still be initializing after a restart.
+          const current = get().agents;
+          if (agents.agents.length === 0 && current?.agents && current.agents.length > 0) {
+            set({ agentsLoading: false });
+            return;
+          }
           set({ agents, agentsLoading: false });
         } catch (error) {
           set({ agentsLoading: false, error: String(error) });
@@ -2599,12 +2606,13 @@ export const useDashboardStore = create<DashboardStore>()(
           if (sk) {
             get().loadChatHistory(sk);
           }
-          const { models, gatewayConfig } = get();
+          const { agents, models, gatewayConfig } = get();
+          const hasAgents = agents?.agents && agents.agents.length > 0;
           const hasModels = models?.models && models.models.length > 0;
           const cfg = gatewayConfig?.config as Record<string, unknown> | undefined;
           const providers = (cfg?.models as Record<string, unknown>)?.providers as Record<string, unknown> | undefined;
           const hasProviders = providers && Object.keys(providers).length > 0;
-          if (!hasModels || !hasProviders) {
+          if (!hasAgents || !hasModels || !hasProviders) {
             setTimeout(() => get().loadAll(), 5000);
           }
         }).catch(() => {

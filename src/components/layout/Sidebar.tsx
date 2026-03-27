@@ -238,15 +238,6 @@ function getSubagents(sessions: GatewaySessionRow[], agentId: string, agents?: A
   });
 }
 
-// Get sessions that don't match any agent (orphaned)
-function getOrphanedSessions(sessions: GatewaySessionRow[], agents: AgentSummary[]): GatewaySessionRow[] {
-  const agentIds = new Set(agents.map(a => a.id));
-  return sessions.filter((s) => {
-    const parsed = parseSessionKey(s.key, agents);
-    return !parsed.agentId || !agentIds.has(parsed.agentId);
-  });
-}
-
 // Session item component
 function SessionItem({
   session,
@@ -542,28 +533,6 @@ export function Sidebar() {
               />
             ))}
 
-            {/* Orphaned sessions that don't match any agent */}
-            {(() => {
-              const orphaned = getOrphanedSessions(sessions?.sessions || [], sortedAgents);
-              if (orphaned.length === 0) return null;
-              return (
-                <div className="mt-4 pt-4 border-t border-border/40">
-                  <div className="px-2 py-1 mb-2">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      Other Sessions
-                    </span>
-                  </div>
-                  {orphaned.map((session) => (
-                    <SessionItem
-                      key={session.key}
-                      session={session}
-                      isSelected={session.key === selectedSessionKey}
-                      onSelect={() => handleSelectSession(session.key)}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
 
             {sortedAgents.length === 0 && (
               <div className="text-center py-8">

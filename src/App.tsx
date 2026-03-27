@@ -20,6 +20,7 @@ import { TasksPage } from './components/views/TasksPage';
 import { SettingsPage } from './components/views/SettingsPage';
 import { UnifiedDashboard } from './components/views/UnifiedDashboard';
 import { CronPage } from './components/views/CronPage';
+import { AccountPage } from './components/views/AccountPage';
 import useTranslation from './i18n';
 
 function PageTracker() {
@@ -260,6 +261,7 @@ function App() {
             </Route>
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/cron" element={<CronPage />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/:tab" element={<SettingsPage />} />
         </Route>

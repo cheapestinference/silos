@@ -274,8 +274,6 @@ function KanbanColumnComponent({
   );
 }
 
-type TabType = 'tasks' | 'periodic';
-
 export function TasksPage() {
   const navigate = useNavigate();
   const {
@@ -302,7 +300,6 @@ export function TasksPage() {
   }, [loadCronJobs]);
   const { t } = useTranslation();
 
-  const [activeTab, setActiveTab] = React.useState<TabType>('tasks');
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState<FilterOption>('all');
   const [sort, setSort] = React.useState<SortOption>('date');
@@ -418,196 +415,135 @@ export function TasksPage() {
       {/* Compact Header */}
       <header className="flex-shrink-0 px-6 py-3 border-b border-border">
         <div className="flex items-center justify-between">
-          {/* Left: Title + Tabs */}
+          {/* Left: Title + Search */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <ListTodo className="w-5 h-5 text-primary" />
               <h1 className="text-lg font-semibold">{t('tasks.title')}</h1>
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-lg">
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                  activeTab === 'tasks'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <ListTodo className="w-3.5 h-3.5" />
-                {t('tasks.tasksTab')}
-              </button>
-              <button
-                onClick={() => setActiveTab('periodic')}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                  activeTab === 'periodic'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <CalendarClock className="w-3.5 h-3.5" />
-                {t('tasks.periodicTasks')}
-                {cronJobs.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">
-                    {cronJobs.length}
-                  </Badge>
-                )}
-              </button>
+            <div className="relative w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('common.search')}
+                className="pl-8 h-8 text-sm"
+              />
             </div>
-
-            {/* Search - only for tasks tab */}
-            {activeTab === 'tasks' && (
-              <div className="relative w-48">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('common.search')}
-                  className="pl-8 h-8 text-sm"
-                />
-              </div>
-            )}
           </div>
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
-            {activeTab === 'tasks' ? (
-              <>
-                {/* Filter */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-                      <Filter className="w-3.5 h-3.5" />
-                      {filter !== 'all' && <span className="text-xs">{t(`tasks.filters.${filter}` as any)}</span>}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setFilter('all')}>
-                      {t('tasks.filters.all')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilter('running')}>
-                      {t('tasks.filters.running')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilter('completed')}>
-                      {t('tasks.filters.completed')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilter('failed')}>
-                      {t('tasks.filters.failed')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Sort */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
-                      <ArrowUpDown className="w-3.5 h-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setSort('date')}>
-                      {t('tasks.sortOptions.date')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSort('duration')}>
-                      {t('tasks.sortOptions.duration')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSort('agent')}>
-                      {t('tasks.sortOptions.agent')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Divider */}
-                <div className="w-px h-5 bg-border" />
-
-                {/* Load History - Primary action */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={() => loadTaskHistory()}
-                  disabled={taskHistoryLoading}
-                >
-                  <History className={cn("w-3.5 h-3.5", taskHistoryLoading && "animate-spin")} />
-                  {taskHistoryLoading ? t('common.loading') : t('tasks.loadHistory')}
+            {/* Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
+                  <Filter className="w-3.5 h-3.5" />
+                  {filter !== 'all' && <span className="text-xs">{t(`tasks.filters.${filter}` as any)}</span>}
                 </Button>
-              </>
-            ) : (
-              <>
-                {/* Running count for periodic tasks */}
-                {runningCronJobs > 0 && (
-                  <Badge variant="default" className="bg-blue-500 animate-pulse">
-                    <Play className="h-3 w-3 mr-1" />
-                    {runningCronJobs} {t('tasks.running')}
-                  </Badge>
-                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setFilter('all')}>
+                  {t('tasks.filters.all')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter('running')}>
+                  {t('tasks.filters.running')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter('completed')}>
+                  {t('tasks.filters.completed')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter('failed')}>
+                  {t('tasks.filters.failed')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-                {/* Scheduler status */}
-                <Badge variant={cronStatus?.enabled ? 'default' : 'secondary'} className={cronStatus?.enabled ? 'bg-emerald-500' : ''}>
-                  {cronStatus?.enabled ? t('tasks.schedulerActive') : t('tasks.schedulerPaused')}
-                </Badge>
-
-                {/* Divider */}
-                <div className="w-px h-5 bg-border" />
-
-                {/* Create button */}
-                <Button
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  onClick={() => {
-                    setEditingCronJob(null);
-                    setShowCronForm(true);
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t('tasks.createTask')}
+            {/* Sort */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
+                  <ArrowUpDown className="w-3.5 h-3.5" />
                 </Button>
-              </>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSort('date')}>
+                  {t('tasks.sortOptions.date')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('duration')}>
+                  {t('tasks.sortOptions.duration')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('agent')}>
+                  {t('tasks.sortOptions.agent')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="w-px h-5 bg-border" />
+
+            {/* Load History */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => loadTaskHistory()}
+              disabled={taskHistoryLoading}
+            >
+              <History className={cn("w-3.5 h-3.5", taskHistoryLoading && "animate-spin")} />
+              {taskHistoryLoading ? t('common.loading') : t('tasks.loadHistory')}
+            </Button>
+
           </div>
         </div>
       </header>
 
-      {/* Content Area */}
-      <div className="flex-1 p-6 overflow-x-auto">
-        {activeTab === 'tasks' ? (
-          /* Kanban Board */
-          filteredTasks.length === 0 && tasks.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Kanban */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('tasks.tasksTab')}</h2>
+              {tasks.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5">
+                  {tasks.length}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+          {filteredTasks.length === 0 && tasks.length === 0 ? (
+            <div className="py-8 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <ListTodo className="w-10 h-10 text-primary" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <ListTodo className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-1">{t('tasks.noTasks')}</h3>
-                <p className="text-muted-foreground max-w-md">
-                  {t('tasks.tasksAppearHint')}
-                </p>
+                <h3 className="text-sm font-semibold mb-1">{t('tasks.noTasks')}</h3>
+                <p className="text-xs text-muted-foreground max-w-md">{t('tasks.tasksAppearHint')}</p>
               </div>
             </div>
           ) : filteredTasks.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
+            <div className="py-8 flex items-center justify-center">
               <div className="text-center">
-                <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-30" />
-                <h3 className="text-lg font-semibold mb-1">{t('common.noResults')}</h3>
-                <p className="text-muted-foreground">
-                  {t('tasks.adjustFilters')}
-                </p>
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Search className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1">{t('common.noResults')}</h3>
+                <p className="text-xs text-muted-foreground">{t('tasks.adjustFilters')}</p>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-4"
+                  className="mt-3"
                   onClick={() => { setSearch(''); setFilter('all'); }}
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                   {t('tasks.clearFilters')}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex gap-6 h-full">
+            <div className="flex gap-6 min-h-[280px]">
               {columns.map((column) => (
                 <KanbanColumnComponent
                   key={column.id}
@@ -619,57 +555,59 @@ export function TasksPage() {
                 />
               ))}
             </div>
-          )
-        ) : (
-          /* Periodic Tasks Tab */
-          <div className="max-w-5xl mx-auto">
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-4 mb-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{cronJobs.length}</div>
-                  <p className="text-xs text-muted-foreground">{t('tasks.totalJobs')}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-green-500">{enabledCronJobs}</div>
-                  <p className="text-xs text-muted-foreground">{t('cron.active')}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-muted-foreground">
-                    {cronJobs.length - enabledCronJobs}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t('cron.paused')}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">
-                    {nextCronRun ? formatTimestamp(nextCronRun) : 'N/A'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{t('tasks.nextRun')}</p>
-                </CardContent>
-              </Card>
+          )}
+          </div>
+        </section>
+
+        {/* Periodic Tasks */}
+        <section className="border-t border-border pt-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('tasks.periodicTasks')}</h2>
+                {cronJobs.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5">
+                    {cronJobs.length}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {runningCronJobs > 0 && (
+                  <Badge variant="default" className="bg-blue-500 animate-pulse">
+                    <Play className="h-3 w-3 mr-1" />
+                    {runningCronJobs} {t('tasks.running')}
+                  </Badge>
+                )}
+                <Badge variant={cronStatus?.enabled ? 'default' : 'secondary'} className={cronStatus?.enabled ? 'bg-emerald-500' : ''}>
+                  {cronStatus?.enabled ? t('tasks.schedulerActive') : t('tasks.schedulerPaused')}
+                </Badge>
+                <Button
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => {
+                    setEditingCronJob(null);
+                    setShowCronForm(true);
+                  }}
+                >
+                  <Plus className="w-3 h-3" />
+                  {t('tasks.createTask')}
+                </Button>
+              </div>
             </div>
 
-            {/* Cron Jobs List */}
-            <CronJobList
-              jobs={cronJobs}
-              onToggle={(id, enabled) => toggleCronJob(id, enabled)}
-              onRun={runCronJob}
-              onEdit={handleCronEdit}
-              onDelete={deleteCronJob}
-              onLoadRuns={getCronRuns}
-              showAgentInfo={true}
-              getAgentName={getAgentName}
-              loading={cronLoading}
-              emptyMessage={t('tasks.configurePeriodicTasks')}
-            />
-          </div>
-        )}
+          <CronJobList
+            jobs={cronJobs}
+            onToggle={(id, enabled) => toggleCronJob(id, enabled)}
+            onRun={runCronJob}
+            onEdit={handleCronEdit}
+            onDelete={deleteCronJob}
+            onLoadRuns={getCronRuns}
+            showAgentInfo={true}
+            getAgentName={getAgentName}
+            loading={cronLoading}
+            emptyMessage={t('tasks.configurePeriodicTasks')}
+          />
+        </section>
       </div>
 
       {/* Cron Job Form Modal */}

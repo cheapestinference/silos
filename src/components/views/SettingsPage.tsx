@@ -2753,23 +2753,28 @@ function AppearanceSection() {
       </div>
 
       {/* Language */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border">
+      <div className="p-4 rounded-xl bg-card border space-y-3">
         <div>
           <p className="font-semibold text-foreground">{t('settings.appearance.language')}</p>
           <p className="text-xs text-muted-foreground">{t('settings.appearance.languageDesc')}</p>
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(Object.keys(availableLocales) as Locale[]).map((loc) => (
             <button
               key={loc}
               onClick={() => setLocale(loc)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
-                locale === loc ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+                "flex items-center justify-between px-3 py-2.5 rounded-lg border-2 transition-all text-left",
+                locale === loc
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-transparent bg-muted/40 hover:border-border hover:bg-muted/60"
               )}
             >
-              <span>{availableLocales[loc].flag}</span>
-              <span className="hidden sm:inline">{availableLocales[loc].label}</span>
+              <div className="flex flex-col">
+                <span className={cn("text-sm font-medium", locale === loc ? "text-primary" : "text-foreground")}>{availableLocales[loc].nativeName}</span>
+                <span className="text-[10px] text-muted-foreground">{availableLocales[loc].label}</span>
+              </div>
+              <span className={cn("text-[10px] font-mono uppercase", locale === loc ? "text-primary/60" : "text-muted-foreground/50")}>{loc}</span>
             </button>
           ))}
         </div>
