@@ -457,10 +457,15 @@ export const useDashboardStore = create<DashboardStore>()(
           },
           onClose: ({ code, reason }) => {
             if (code === 1008 && reason?.includes('token mismatch')) {
-              // Token mismatch: clear cached token so Firebase re-auth can provide a fresh one
+              // Token mismatch: server was likely reset — clear all stale data
               const { client } = get();
               client?.stop();
-              set({ connected: false, connecting: false, token: null, client: null, error: 'Session expired. Please sign in again.' });
+              set({
+                connected: false, connecting: false, token: null, client: null,
+                agents: null, sessions: null, tasks: [], cronJobs: [], cronStatus: null,
+                channels: null, models: null, availableModels: null, gatewayConfig: null,
+                error: 'Session expired. Please sign in again.',
+              });
               return;
             }
             // Service restart (e.g. config save) — reconnect silently, no error
