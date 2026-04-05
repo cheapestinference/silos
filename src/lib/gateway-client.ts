@@ -243,6 +243,14 @@ export class GatewayClient {
     return null;
   }
 
+  async createAgent(params: { name: string; model?: string; emoji?: string; avatar?: string }) {
+    return this.request<{ ok: boolean; agentId: string; name: string; workspace: string }>('agents.create', params);
+  }
+
+  async updateAgent(agentId: string, params: { name?: string; model?: string; workspace?: string }) {
+    return this.request<{ ok: boolean; agentId: string }>('agents.update', { agentId, ...params });
+  }
+
   async updateAgentConfig(agentId: string, config: Partial<import('../types/openclaw').AgentConfiguration>) {
     return this.request<import('../types/openclaw').AgentConfigUpdateResult>('agents.update', { agentId, ...config });
   }

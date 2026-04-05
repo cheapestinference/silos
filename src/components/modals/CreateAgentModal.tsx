@@ -27,7 +27,6 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
   const [agentName, setAgentName] = useState(generateDefaultName());
   const [model, setModel] = useState('');
   const [creating, setCreating] = useState(false);
-  const [waitingReconnect, setWaitingReconnect] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState('');
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -155,58 +154,30 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
       const client = getGatewayClient();
       if (!client) throw new Error('Not connected to gateway');
 
-      const configSnapshot: ConfigSnapshot = await client.getConfig();
-      if (!configSnapshot.exists || !configSnapshot.valid) {
-        throw new Error('Config file not found or invalid');
-      }
-
-      const currentConfig = configSnapshot.config;
-      const agentsList = (currentConfig.agents as { list?: unknown[] })?.list || [];
-
-      let finalAgentId = baseId;
-      let counter = 2;
-      const existingIds = new Set(
-        agentsList.map((a: unknown) => (a as { id?: string })?.id).filter(Boolean)
-      );
-      while (existingIds.has(finalAgentId)) {
-        finalAgentId = `${baseId}-${counter}`;
-        counter++;
-      }
-
-      const newAgent: Record<string, unknown> = {
-        id: finalAgentId,
+      const result = await client.createAgent({
         name: agentName.trim(),
-      };
-      if (model.trim()) newAgent.model = model.trim();
-
-      await client.patchConfig(configSnapshot.hash, {
-        agents: { list: [...agentsList, newAgent] },
+        ...(model.trim() ? { model: model.trim() } : {}),
       });
 
+      if (!result.ok) throw new Error('Failed to create agent');
+
+      const finalAgentId = result.agentId;
+
       setCreating(false);
-      setWaitingReconnect(true);
       setError(null);
 
-      const writeTemplatesWithRetry = async () => {
+      const writeTemplates = async () => {
         const templates = getAgentTemplates(locale);
-        const maxAttempts = 5;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          await new Promise(r => setTimeout(r, attempt * 800));
-          try {
-            const results = await Promise.all(
-              TEMPLATE_FILES.map(file => {
-                const content = templates[file];
-                if (content) return writeWorkspaceFile(finalAgentId, file, content);
-                return Promise.resolve(true);
-              })
-            );
-            if (results.every(Boolean)) return;
-          } catch { /* retry */ }
-        }
+        await Promise.all(
+          TEMPLATE_FILES.map(file => {
+            const content = templates[file];
+            if (content) return writeWorkspaceFile(finalAgentId, file, content);
+            return Promise.resolve(true);
+          })
+        );
       };
-      writeTemplatesWithRetry().finally(() => {
+      writeTemplates().catch(() => { /* non-fatal */ }).finally(() => {
         onSuccess();
-        setWaitingReconnect(false);
         setError(null);
         onClose();
       });
@@ -219,7 +190,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
   };
 
   const handleClose = () => {
-    if (!creating && !waitingReconnect) {
+    if (!creating) {
       setError(null);
       onClose();
     }
@@ -240,7 +211,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
           <h2 className="text-base font-semibold text-foreground">{t('modals.createAgent.title')}</h2>
           <button
             onClick={handleClose}
-            disabled={creating || waitingReconnect}
+            disabled={creating}
             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           >
             <X className="w-4 h-4" />
@@ -369,17 +340,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
           </div>
 
           {/* Status messages */}
-          {waitingReconnect && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2.5">
-              <Loader2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0 animate-spin" />
-              <div>
-                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{t('modals.createAgent.success')}</p>
-                <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/60 mt-0.5">{t('modals.createAgent.waitingRestart')}</p>
-              </div>
-            </div>
-          )}
-
-          {error && !waitingReconnect && (
+          {error && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
               <p className="text-xs text-destructive">{error}</p>
@@ -391,25 +352,20 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
         <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-end gap-2 shrink-0">
           <button
             onClick={handleClose}
-            disabled={creating || waitingReconnect}
+            disabled={creating}
             className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 rounded-md"
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleCreate}
-            disabled={creating || waitingReconnect || !agentName.trim() || !model}
+            disabled={creating || !agentName.trim() || !model}
             className="px-4 py-1.5 bg-foreground text-background text-sm font-medium rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
             {creating ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 {t('modals.createAgent.creating')}
-              </>
-            ) : waitingReconnect ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                {t('modals.createAgent.restarting')}
               </>
             ) : (
               <>

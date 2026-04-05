@@ -17,6 +17,7 @@ import {
 import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { getGatewayClient } from '../../lib/gateway-client';
 import { SettingsTab } from './SettingsTab';
 import { ConfigCard, ConfigRow } from './shared';
 import type { AgentSettings } from '../../types/openclaw';
@@ -27,7 +28,7 @@ export function ConfigPanel() {
   const { id: agentId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, patchGatewayConfig, gatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
+  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, gatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
 
   useEffect(() => {
     if (agentId) loadAgentConfig(agentId);
@@ -77,24 +78,16 @@ export function ConfigPanel() {
     setSettingsSaving(true);
     setSettingsError(null);
     try {
-      // Model changes: write per-agent override in agents.list via config.patch
+      // Model changes: use agents.update (no gateway restart)
       if (localSettings.model && localSettings.model !== activeModel) {
-        // Build the updated agents.list with this agent's model override
-        const currentList: Array<Record<string, unknown>> = (agentsSection?.list || []).map(a => ({ ...a }));
-        const existingIdx = currentList.findIndex(a => a.id === agent.id);
-
-        if (existingIdx >= 0) {
-          // Update existing entry
-          currentList[existingIdx] = { ...currentList[existingIdx], model: localSettings.model };
-        } else {
-          // Add new entry for this agent with just the model override
-          currentList.push({ id: agent.id, model: localSettings.model });
+        const client = getGatewayClient();
+        if (!client) {
+          setSettingsError('Not connected to gateway');
+          setSettingsSaving(false);
+          return;
         }
-
-        const success = await patchGatewayConfig({
-          agents: { list: currentList },
-        });
-        if (!success) {
+        const result = await client.updateAgent(agent.id, { model: localSettings.model });
+        if (!result.ok) {
           setSettingsError('Failed to update agent model');
           setSettingsSaving(false);
           return;

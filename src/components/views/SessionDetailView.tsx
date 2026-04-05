@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDashboardStore } from '../../store/dashboard-store';
+import { getGatewayClient } from '../../lib/gateway-client';
 import { cn } from '../../lib/utils';
 import useTranslation from '../../i18n';
 import {
@@ -163,7 +164,7 @@ export function SessionDetailView() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [modelDropdownOpen]);
 
-  const { patchGatewayConfig, loadGatewayConfig } = useDashboardStore();
+  const { loadGatewayConfig } = useDashboardStore();
 
   const handleModelChange = useCallback(async (newModelId: string, provider?: string) => {
     const effectiveProvider = provider || activeProvider;
@@ -173,17 +174,10 @@ export function SessionDetailView() {
     setModelDropdownOpen(false);
     setSelectedProvider('');
     try {
-      const currentList: Array<Record<string, unknown>> = (agentsCfg?.list || []).map(a => ({ ...a }));
-      const existingIdx = currentList.findIndex(a => a.id === agentId);
-
-      if (existingIdx >= 0) {
-        currentList[existingIdx] = { ...currentList[existingIdx], model: fullModel };
-      } else {
-        currentList.push({ id: agentId, model: fullModel });
-      }
-
-      const success = await patchGatewayConfig({ agents: { list: currentList } });
-      if (success) {
+      const client = getGatewayClient();
+      if (!client) throw new Error('Not connected');
+      const result = await client.updateAgent(agentId, { model: fullModel });
+      if (result.ok) {
         loadGatewayConfig();
         loadSessions();
       } else {
@@ -193,7 +187,7 @@ export function SessionDetailView() {
       console.error('Failed to change model:', err);
       setOptimisticModel(null);
     }
-  }, [activeProvider, agentId, agentsCfg, patchGatewayConfig, loadGatewayConfig, loadSessions]);
+  }, [activeProvider, agentId, loadGatewayConfig, loadSessions]);
 
   // Format last activity
   const lastActivity = session?.updatedAt
