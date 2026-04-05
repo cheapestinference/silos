@@ -858,8 +858,10 @@ export const useDashboardStore = create<DashboardStore>()(
         // so chatSending/activeRunId may be stuck from a finished run.
         const newChatSending = new Map(get().chatSending);
         const newActiveRunId = new Map(get().activeRunId);
-        newChatSending.delete(key);
-        newActiveRunId.delete(key);
+        if (key) {
+          newChatSending.delete(key);
+          newActiveRunId.delete(key);
+        }
         set({
           selectedSessionKey: key,
           chatMessages: [],
