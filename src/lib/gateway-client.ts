@@ -243,7 +243,7 @@ export class GatewayClient {
     return null;
   }
 
-  async createAgent(params: { name: string; model?: string; emoji?: string; avatar?: string }) {
+  async createAgent(params: { name: string; workspace: string; emoji?: string; avatar?: string }) {
     return this.request<{ ok: boolean; agentId: string; name: string; workspace: string }>('agents.create', params);
   }
 

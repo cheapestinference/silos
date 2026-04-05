@@ -201,6 +201,7 @@ export function AppSidebar() {
     selectedSessionKey,
     loadAgents,
     loadSessions,
+    loadGatewayConfig,
     patchSession,
     deleteSession,
     addSessionOptimistic,
@@ -281,8 +282,8 @@ export function AppSidebar() {
   const isSessionActive = (key: string) => selectedSessionKey === key || location.pathname === `/session/${key}`;
 
   const handleCreateAgentSuccess = () => {
-    // Reload agents list after creation
     loadAgents();
+    loadGatewayConfig();
   };
 
 

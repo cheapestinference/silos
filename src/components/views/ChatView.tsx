@@ -105,6 +105,45 @@ function extractMessageText(message: unknown): string | null {
   return null;
 }
 
+// ============== Reasoning Tag Stripper ==============
+// Mirrors OpenClaw's src/shared/text/reasoning-tags.ts logic.
+// Strips <think>, <thinking>, <thought>, <antthinking> blocks from assistant messages.
+// mode "strict"   — used for completed messages: orphaned close tags are stripped too.
+// mode "preserve" — used while streaming: if a block is still open, keep text after it
+//                   so the in-progress response stays visible.
+const REASONING_QUICK_RE = /<\s*\/?\s*(?:think(?:ing)?|thought|antthinking)\b/i;
+const REASONING_TAG_RE = /<\s*(\/?)\s*(?:think(?:ing)?|thought|antthinking)\b[^<>]*>/gi;
+
+function stripReasoningTags(text: string, mode: 'strict' | 'preserve' = 'strict'): string {
+  if (!text || !REASONING_QUICK_RE.test(text)) return text;
+
+  REASONING_TAG_RE.lastIndex = 0;
+  let result = '';
+  let lastIndex = 0;
+  let inThinking = false;
+
+  for (const match of text.matchAll(REASONING_TAG_RE)) {
+    const idx = match.index ?? 0;
+    const isClose = match[1] === '/';
+
+    if (!inThinking) {
+      result += text.slice(lastIndex, idx); // keep text before the tag
+      if (!isClose) inThinking = true;      // opening tag: enter thinking block
+      // closing tag with no open: just skip the tag (orphan strip)
+    } else if (isClose) {
+      inThinking = false;                   // closing tag: exit thinking block (discard content)
+    }
+    lastIndex = idx + match[0].length;
+  }
+
+  // Append remaining text: always if not in a block, or in preserve mode (streaming)
+  if (!inThinking || mode === 'preserve') {
+    result += text.slice(lastIndex);
+  }
+
+  return result.trimStart();
+}
+
 // ============== Message Markdown Renderer ==============
 
 // Markdown component renderers for react-markdown
@@ -161,7 +200,9 @@ function truncateForRender(text: string): string {
 
 function renderMarkdown(text: string | undefined | null): React.ReactNode {
   if (!text) return null;
-  const textStr = (typeof text === 'string' ? text : String(text)).trimStart();
+  const textStr = stripReasoningTags(
+    (typeof text === 'string' ? text : String(text)).trimStart()
+  );
   if (!textStr) return null;
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -957,9 +998,10 @@ const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, a
 
 /** Memoized streaming content renderer — avoids re-parsing markdown when text hasn't changed */
 const StreamingMarkdown = React.memo(function StreamingMarkdown({ text }: { text: string }) {
+  const stripped = stripReasoningTags(text, 'preserve');
   return (
     <div className="streaming-cursor text-sm leading-relaxed break-words overflow-hidden" style={{ contain: 'content' }}>
-      {renderMarkdown(text)}
+      {renderMarkdown(stripped)}
     </div>
   );
 });

@@ -28,7 +28,7 @@ export function ConfigPanel() {
   const { id: agentId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, gatewayConfig, patchGatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
+  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, gatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
 
   useEffect(() => {
     if (agentId) loadAgentConfig(agentId);
@@ -90,15 +90,10 @@ export function ConfigPanel() {
           // Agent has an explicit entry in agents.list — use agents.update (no restart)
           await client.updateAgent(agent.id, { model: localSettings.model });
         } else {
-          // Agent not in agents.list (e.g. the default "main" agent) — fall back to
-          // config.patch which adds it to the list (causes a config reload/restart)
-          const currentList = (agentsSection?.list ?? []) as Array<Record<string, unknown>>;
-          const ok = await patchGatewayConfig({ agents: { list: [...currentList, { id: agent.id, model: localSettings.model }] } });
-          if (!ok) {
-            setSettingsError('Failed to update agent model');
-            setSettingsSaving(false);
-            return;
-          }
+          // Agent not in agents.list (e.g. the default "main" agent) — add it via
+          // agents.create first (no restart), then set model via agents.update
+          await client.createAgent({ name: agent.id, workspace: agent.id });
+          await client.updateAgent(agent.id, { model: localSettings.model });
         }
       }
       // Save other settings (temperature, maxTokens, etc.) via agents.update

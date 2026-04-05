@@ -156,7 +156,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
 
       const result = await client.createAgent({
         name: agentName.trim(),
-        ...(model.trim() ? { model: model.trim() } : {}),
+        workspace: agentId,
       });
 
       if (!result.ok) throw new Error('Failed to create agent');
