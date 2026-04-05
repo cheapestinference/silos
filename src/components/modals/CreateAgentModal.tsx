@@ -163,6 +163,16 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
 
       const finalAgentId = result.agentId;
 
+      // agents.create ignores the model param; set it via agents.update now that the
+      // agent exists in agents.list (no restart — agents.* config changes are hot-reloaded)
+      if (model.trim()) {
+        try {
+          await client.updateAgent(finalAgentId, { model: model.trim() });
+        } catch {
+          // non-fatal: agent will use gateway default model
+        }
+      }
+
       setCreating(false);
       setError(null);
 

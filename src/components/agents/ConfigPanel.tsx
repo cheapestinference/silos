@@ -28,7 +28,7 @@ export function ConfigPanel() {
   const { id: agentId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, gatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
+  const { agents, selectedAgentConfig, loadAgentConfig, saveAgentConfig, gatewayConfig, patchGatewayConfig, deleteAgent, resetAgent } = useDashboardStore();
 
   useEffect(() => {
     if (agentId) loadAgentConfig(agentId);
@@ -78,7 +78,7 @@ export function ConfigPanel() {
     setSettingsSaving(true);
     setSettingsError(null);
     try {
-      // Model changes: use agents.update (no gateway restart)
+      // Model changes
       if (localSettings.model && localSettings.model !== activeModel) {
         const client = getGatewayClient();
         if (!client) {
@@ -86,11 +86,19 @@ export function ConfigPanel() {
           setSettingsSaving(false);
           return;
         }
-        const result = await client.updateAgent(agent.id, { model: localSettings.model });
-        if (!result.ok) {
-          setSettingsError('Failed to update agent model');
-          setSettingsSaving(false);
-          return;
+        if (agentEntry) {
+          // Agent has an explicit entry in agents.list — use agents.update (no restart)
+          await client.updateAgent(agent.id, { model: localSettings.model });
+        } else {
+          // Agent not in agents.list (e.g. the default "main" agent) — fall back to
+          // config.patch which adds it to the list (causes a config reload/restart)
+          const currentList = (agentsSection?.list ?? []) as Array<Record<string, unknown>>;
+          const ok = await patchGatewayConfig({ agents: { list: [...currentList, { id: agent.id, model: localSettings.model }] } });
+          if (!ok) {
+            setSettingsError('Failed to update agent model');
+            setSettingsSaving(false);
+            return;
+          }
         }
       }
       // Save other settings (temperature, maxTokens, etc.) via agents.update
