@@ -149,13 +149,23 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
   hr: () => <hr className="my-3 border-border/40" />,
 };
 
+// --- Content truncation: prevents browser freeze on very large messages/tool outputs ---
+// OpenClaw truncates at 140K (messages) and 120K (tool output). We use a single limit
+// for simplicity — react-markdown is the bottleneck, not the DOM.
+const MAX_RENDER_CHARS = 140_000;
+
+function truncateForRender(text: string): string {
+  if (text.length <= MAX_RENDER_CHARS) return text;
+  return text.slice(0, MAX_RENDER_CHARS) + '\n\n---\n*[Output truncated — ' + (text.length - MAX_RENDER_CHARS).toLocaleString() + ' chars omitted]*';
+}
+
 function renderMarkdown(text: string | undefined | null): React.ReactNode {
   if (!text) return null;
   const textStr = (typeof text === 'string' ? text : String(text)).trimStart();
   if (!textStr) return null;
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-      {textStr}
+      {truncateForRender(textStr)}
     </ReactMarkdown>
   );
 }
@@ -415,17 +425,17 @@ function ToolCallExpander({ toolName, toolCall, result, content }: ToolCallExpan
   const [outputExpanded, setOutputExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<'input' | 'output' | null>(null);
 
-  // Format input (tool call args)
+  // Format input (tool call args) — truncate to prevent freeze on huge payloads
   const inputStr = toolCall
-    ? (typeof toolCall === 'string' ? toolCall : JSON.stringify(toolCall, null, 2))
+    ? truncateForRender(typeof toolCall === 'string' ? toolCall : JSON.stringify(toolCall, null, 2))
     : null;
 
-  // Format output (tool result)
+  // Format output (tool result) — truncate to prevent freeze on huge payloads
   let outputStr: string | null = null;
   if (content && typeof content === 'string' && content.trim()) {
-    outputStr = content;
+    outputStr = truncateForRender(content);
   } else if (result) {
-    outputStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    outputStr = truncateForRender(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
   }
 
   const hasOutput = !!outputStr;
@@ -578,14 +588,16 @@ interface ToolsPanelProps {
 function ToolsPanel({ messages }: ToolsPanelProps) {
   const { t } = useTranslation();
 
-  const toolMessages = messages.filter(
-    m => m.role === 'tool' || m.toolName || m.toolCall || m.result
-  );
+  // Memoize both filter and reverse — messages.filter() creates a new array every render,
+  // so a useMemo on the derived array would never skip. Memoize from the source.
+  const reversed = useMemo(() => {
+    const toolMessages = messages.filter(
+      m => m.role === 'tool' || m.toolName || m.toolCall || m.result
+    );
+    return toolMessages.reverse();
+  }, [messages]);
 
-  // Reverse: most recent first
-  const reversed = useMemo(() => [...toolMessages].reverse(), [toolMessages]);
-
-  if (toolMessages.length === 0) {
+  if (reversed.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
         <div className="w-12 h-12 rounded-xl bg-muted dark:bg-muted border border-border flex items-center justify-center mb-4">
@@ -1219,10 +1231,26 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
         !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result) &&
         msg.status !== 'queued'
       );
-      // Collapse consecutive same-role same-content duplicates (gateway may persist them)
-      return msgs.filter((msg, i) =>
-        i === 0 || msg.role !== msgs[i - 1].role || msg.content !== msgs[i - 1].content
-      );
+      // Collapse duplicate messages (gateway may persist them or history reload can re-introduce them)
+      // For user messages: deduplicate by content within a tight window (optimistic add + history
+      // reload completes in <1s, so 5s is safe without suppressing intentional repeated sends)
+      // For others: only collapse consecutive same-role same-content
+      const seenUserContent = new Map<string, number>(); // content → timestamp
+      return msgs.filter((msg, i) => {
+        if (msg.role === 'user' && msg.content) {
+          const prev = seenUserContent.get(msg.content);
+          if (prev !== undefined && Math.abs((msg.timestamp || 0) - prev) < 5_000) {
+            return false; // duplicate user message within 5s window
+          }
+          seenUserContent.set(msg.content, msg.timestamp || 0);
+          return true;
+        }
+        // For non-user messages: consecutive dedup only (same role + same content + same id prefix)
+        // The id check prevents collapsing distinct messages that became adjacent after tool filtering
+        if (i === 0 || msg.role !== msgs[i - 1].role || msg.content !== msgs[i - 1].content) return true;
+        // Same role+content — only collapse if they share a runId (true gateway duplicates)
+        return msg.runId !== msgs[i - 1].runId;
+      });
     },
     [chatMessages]
   );

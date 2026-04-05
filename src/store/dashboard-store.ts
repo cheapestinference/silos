@@ -23,6 +23,14 @@ import type {
 } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 
+// --- NO_REPLY filtering: defense-in-depth against gateway control tokens ---
+// Agents return "NO_REPLY" during memory compaction and other internal operations.
+// The gateway strips it server-side, but streaming deltas arrive before normalization.
+const _SILENT_REPLY_RE = /^\s*NO_REPLY\s*$/;
+function isSilentReply(text: string | null | undefined): boolean {
+  return typeof text === 'string' && _SILENT_REPLY_RE.test(text);
+}
+
 // --- Streaming buffer: coalesces WebSocket deltas to animation-frame rate (~60fps) ---
 // Chat events use replace semantics (each delta = full accumulated text).
 // We store the latest delta outside React state and flush via RAF to reduce re-renders.
@@ -845,7 +853,22 @@ export const useDashboardStore = create<DashboardStore>()(
           return;
         }
         cancelStreamingBuffer();
-        set({ selectedSessionKey: key, chatMessages: [], streamingContent: '', streamingRunId: null, streamingComplete: false });
+        // Clear potentially stale per-session state for the target session.
+        // Completion/error events are ignored while viewing another session,
+        // so chatSending/activeRunId may be stuck from a finished run.
+        const newChatSending = new Map(get().chatSending);
+        const newActiveRunId = new Map(get().activeRunId);
+        newChatSending.delete(key);
+        newActiveRunId.delete(key);
+        set({
+          selectedSessionKey: key,
+          chatMessages: [],
+          chatSending: newChatSending,
+          activeRunId: newActiveRunId,
+          streamingContent: '',
+          streamingRunId: null,
+          streamingComplete: false,
+        });
         if (key) {
           get().loadChatHistory(key);
           // Mark session as read when selected
@@ -973,15 +996,39 @@ export const useDashboardStore = create<DashboardStore>()(
             result: m.result,
             runId: m.runId,
           })).filter((m) => {
+            // Hide tool-result messages (gateway stores them with role='toolResult')
+            if (m.role === 'toolResult') return false;
             // Hide user messages that became empty after stripping runtime context / metadata
             if (m.role === 'user' && (!m.content || !m.content.trim())) return false;
+            // Hide NO_REPLY assistant messages (gateway control token for silent runs)
+            if (m.role === 'assistant' && isSilentReply(m.content)) return false;
             return true;
           });
           // Guard: user may have switched sessions while the request was in flight
           if (get().selectedSessionKey !== key) return;
-          // Preserve locally queued messages (they only exist client-side)
+          // Preserve locally queued messages — check both chatMessages (may have been cleared
+          // by selectSession) AND messageQueue (always survives session switches)
           const queued = get().chatMessages.filter(m => m.status === 'queued');
+          const orphanedQueue = get().messageQueue.get(key);
+          if (orphanedQueue && orphanedQueue.length > 0) {
+            const existingIds = new Set(queued.map(m => m.id));
+            for (const q of orphanedQueue) {
+              if (!existingIds.has(q.id)) {
+                queued.push({
+                  id: q.id,
+                  role: 'user' as const,
+                  content: q.text,
+                  timestamp: Date.now(),
+                  status: 'queued' as const,
+                });
+              }
+            }
+          }
           set({ chatMessages: queued.length > 0 ? [...messages, ...queued] : messages, chatLoading: false });
+          // If there are orphaned queued messages and no active run, dispatch them
+          if (queued.length > 0 && !get().activeRunId.get(key)) {
+            setTimeout(() => get()._dispatchNextQueued(key), 100);
+          }
         } catch (error) {
           if (get().selectedSessionKey !== key) return;
           // If it's a DM session that doesn't exist yet, just show empty history
@@ -2142,7 +2189,7 @@ export const useDashboardStore = create<DashboardStore>()(
                 : typeof payload.message.content === 'string' ? payload.message.content : null)
               : null;
 
-          if (chatDeltaText) {
+          if (chatDeltaText && !isSilentReply(chatDeltaText)) {
             const currentState = get();
             const runId = payload?.runId || (currentState.selectedSessionKey ? currentState.activeRunId.get(currentState.selectedSessionKey) : undefined);
 
@@ -2186,10 +2233,10 @@ export const useDashboardStore = create<DashboardStore>()(
                 newActiveRunId.delete(state.selectedSessionKey);
               }
 
-              // Save partial streaming content if present
+              // Save partial streaming content if present (skip NO_REPLY control tokens)
               const partialContent = state.streamingContent?.trim();
               let messages = state.chatMessages;
-              if (partialContent) {
+              if (partialContent && !isSilentReply(partialContent)) {
                 const alreadySaved = messages.some(m => m.role === 'assistant' && m.runId === runId && m.content === partialContent);
                 if (!alreadySaved) {
                   messages = [...messages, {
@@ -2249,8 +2296,41 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // ── COMPLETION (sole handler for message creation + state cleanup) ──
           if (payload?.status === 'ok' || payload?.status === 'done' || payload?.state === 'final' || payload?.state === 'done') {
-            flushStreamingBuffer(); // Ensure buffered content is flushed before completion
             const sessionKey = get().selectedSessionKey;
+
+            // Cross-run guard: if this final event is from a DIFFERENT run than our active one
+            // (e.g., cron job or sub-agent completing on the same session), append the message
+            // but DON'T clear activeRunId/streaming state — our run is still in progress.
+            // Mirrors OpenClaw's handling (openclaw/openclaw#1909).
+            const currentActiveRunId = sessionKey ? get().activeRunId.get(sessionKey) : undefined;
+            const eventRunId = payload?.runId;
+            if (eventRunId && currentActiveRunId && eventRunId !== currentActiveRunId) {
+              const crossRunContent = (() => {
+                const msg = payload?.message;
+                if (!msg?.content) return null;
+                if (typeof msg.content === 'string') return msg.content;
+                if (Array.isArray(msg.content)) {
+                  return msg.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('') || null;
+                }
+                return null;
+              })();
+              if (crossRunContent && crossRunContent.trim() && !isSilentReply(crossRunContent)) {
+                set((state) => ({
+                  chatMessages: [...state.chatMessages, {
+                    id: generateId(),
+                    role: 'assistant' as const,
+                    content: crossRunContent,
+                    timestamp: Date.now(),
+                    runId: eventRunId,
+                  }],
+                }));
+              }
+              // Don't clear activeRunId, don't dispatch queue, don't touch streaming.
+              // Let the active run continue uninterrupted.
+              return;
+            }
+
+            flushStreamingBuffer(); // Ensure buffered content is flushed before completion
 
             // Extract final content from the completion event payload (authoritative source).
             // The last state='delta' may not carry the complete text — the final event does.
@@ -2280,8 +2360,8 @@ export const useDashboardStore = create<DashboardStore>()(
               // Use final payload content (authoritative), fall back to accumulated streaming content
               const finalContent = finalPayloadContent || state.streamingContent;
 
-              // No content at all → just clear state (tool-only runs, or already handled)
-              if (!finalContent || !finalContent.trim()) {
+              // No content at all or NO_REPLY token → just clear state
+              if (!finalContent || !finalContent.trim() || isSilentReply(finalContent)) {
                 return {
                   activeRunId: newActiveRunId,
                   streamingContent: '',
@@ -2326,11 +2406,11 @@ export const useDashboardStore = create<DashboardStore>()(
                 };
               }
 
-              // Guard: if last assistant message already has this exact content, this is a
-              // duplicate completion event (e.g. both status='done' and state='final' fired).
-              // Just transition state without creating another message.
+              // Guard: if the last assistant message for THIS run already has this exact content,
+              // this is a duplicate completion event (e.g. both status='done' and state='final' fired).
+              // Scope to runId so different runs with identical content aren't suppressed.
               const lastAssistant = [...state.chatMessages].reverse().find(m => m.role === 'assistant');
-              if (lastAssistant && lastAssistant.content === finalContent) {
+              if (lastAssistant && lastAssistant.content === finalContent && (!runId || lastAssistant.runId === runId)) {
                 setTimeout(() => {
                   const s = useDashboardStore.getState();
                   if (s.streamingComplete && !s.streamingRunId) {
