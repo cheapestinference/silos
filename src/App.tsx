@@ -149,8 +149,10 @@ function App() {
     return () => clearInterval(interval);
   }, [emailNotVerified, user]);
 
-  // Show loading while Firebase auth is initializing
-  if (authLoading || verifying) {
+  // Show loading while Firebase auth is initializing — but only when there is no cached token.
+  // If a token is already in the store (persisted from a previous session), let the app render
+  // immediately with the ConnectionOverlay while verifyOwner runs in the background.
+  if ((authLoading || verifying) && !token) {
     return (
       <div key="auth-loading" className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

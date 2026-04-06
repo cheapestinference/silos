@@ -2685,7 +2685,25 @@ export const useDashboardStore = create<DashboardStore>()(
 
         // Load initial data after connection.
         // The gateway may still be initializing (providers/models can take >60s on cold start).
-        // If models or gateway config come back empty, retry once after a short delay.
+        // If models or gateway config come back empty, keep retrying every 5s until data arrives
+        // or the connection drops. Max 12 retries (~60s).
+        const retryLoadIfEmpty = (attemptsLeft: number) => {
+          if (attemptsLeft <= 0 || !get().connected) return;
+          setTimeout(() => {
+            if (!get().connected) return;
+            get().loadAll().then(() => {
+              const { models, gatewayConfig } = get();
+              const hasModels = models?.models && models.models.length > 0;
+              const cfg = gatewayConfig?.config as Record<string, unknown> | undefined;
+              const providers = (cfg?.models as Record<string, unknown>)?.providers as Record<string, unknown> | undefined;
+              const hasProviders = providers && Object.keys(providers).length > 0;
+              if (!hasModels || !hasProviders) {
+                retryLoadIfEmpty(attemptsLeft - 1);
+              }
+            }).catch(() => {});
+          }, 5000);
+        };
+
         get().loadAll().then(() => {
           set({ initialLoading: false });
           // Reload chat history for the current session (recover messages lost during disconnect)
@@ -2700,7 +2718,7 @@ export const useDashboardStore = create<DashboardStore>()(
           const providers = (cfg?.models as Record<string, unknown>)?.providers as Record<string, unknown> | undefined;
           const hasProviders = providers && Object.keys(providers).length > 0;
           if (!hasAgents || !hasModels || !hasProviders) {
-            setTimeout(() => get().loadAll(), 5000);
+            retryLoadIfEmpty(12);
           }
         }).catch(() => {
           set({ initialLoading: false });
