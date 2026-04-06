@@ -524,35 +524,6 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
-  // Maximize browser window — uses python3+Xlib inside the sandbox container
-  router.post('/api/browser/maximize', authMiddleware, async (_req, res) => {
-    try {
-      const { stdout: containers } = await execFileAsync('docker', [
-        'ps', '--filter', 'label=openclaw.sandboxBrowser=1', '--format', '{{.Names}}',
-      ]);
-      const name = containers.trim().split('\n')[0] || 'openclaw-browser';
-
-      // Use python3 to move+resize the Chromium window via X11
-      const pyScript = `
-import subprocess, re
-out = subprocess.check_output(['xwininfo', '-tree', '-root'], env={'DISPLAY': ':1'}).decode()
-for line in out.splitlines():
-    m = re.search(r'(0x[0-9a-f]+).*Chromium.*?(\\d+)x(\\d+)\\+(\\d+)\\+(\\d+)', line, re.I)
-    if m and int(m.group(2)) > 100:
-        wid = m.group(1)
-        subprocess.run(['xprop', '-id', wid, '-f', '_NET_WM_STATE', '32a', '-set', '_NET_WM_STATE', ''], env={'DISPLAY': ':1'})
-        subprocess.run(f'DISPLAY=:1 python3 -c "from ctypes import *; x=cdll.LoadLibrary(\\"libX11.so.6\\"); d=x.XOpenDisplay(None); x.XMoveResizeWindow(d,{int(wid,16)},0,0,1280,800); x.XFlush(d); x.XCloseDisplay(d)"', shell=True)
-        break
-`;
-      await execFileAsync('docker', [
-        'exec', name, 'python3', '-c', pyScript,
-      ], { timeout: 5000 });
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(502).json({ error: e.message });
-    }
-  });
-
   // Browser status — checks if the sandbox browser container is running and noVNC is reachable
   // Uses Docker Engine API via Unix socket (no docker CLI needed inside the container)
   const dockerRequest = (path) => new Promise((resolve, reject) => {

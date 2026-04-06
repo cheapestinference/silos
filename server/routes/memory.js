@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { validateAgentId, resolveAndValidatePath } from '../validation.js';
+
+const execFileAsync = promisify(execFile);
 
 const MAX_FILES = 500;
 const SKIP_DIRS = new Set([
@@ -53,6 +57,8 @@ async function ensureAgentDir(openclawBase, agentId) {
     ? path.join(openclawBase, 'workspace')
     : path.join(openclawBase, `workspace-${agentId}`);
   await fs.mkdir(dir, { recursive: true });
+  // Fix ownership so the gateway (running as openclaw) can write files into this dir
+  await execFileAsync('chown', ['-R', 'openclaw:openclaw', dir]).catch(() => {});
   return dir;
 }
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useRef } from 'react';
+import { useTranslation } from '../../i18n';
 import { Monitor, X, RefreshCw, ExternalLink, PanelRightClose } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { buildNoVncUrl } from '../../lib/browser-utils';
@@ -32,20 +32,6 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const url = status.active && status.password
     ? buildNoVncUrl(token, { password: status.password, resize: true })
     : null;
-
-  const maximized = useRef(false);
-
-  useEffect(() => {
-    if (browserPanelOpen && url) {
-      setLoading(true);
-      setError(false);
-      // Maximize Chromium window via CDP (one-shot, idempotent)
-      if (!maximized.current) {
-        maximized.current = true;
-        fetch('/api/browser/maximize', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-      }
-    }
-  }, [browserPanelOpen, url, token]);
 
   // Hide when not open or when detached (overlay/popout renders elsewhere)
   if (!browserPanelOpen || browserDetached !== 'none') return null;
