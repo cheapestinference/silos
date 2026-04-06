@@ -902,22 +902,11 @@ export const useDashboardStore = create<DashboardStore>()(
       },
 
       patchSession: async (key, updates) => {
-        const { client, sessions } = get();
+        const { client } = get();
         if (!client) return;
 
         try {
           await client.patchSession(key, updates);
-          // Update local session cache
-          if (sessions) {
-            set({
-              sessions: {
-                ...sessions,
-                sessions: sessions.sessions.map((s) =>
-                  s.key === key ? { ...s, ...updates } : s
-                ),
-              },
-            });
-          }
         } catch (error) {
           set({ error: String(error) });
         }

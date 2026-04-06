@@ -214,6 +214,7 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
             id: m.id,
             name: m.display_name || m.id,
             contextWindow: m.max_input_tokens || m.context_window || m.context_length || m.max_model_len || null,
+            type: m.type || null,
           }));
         } catch { /* skip failed providers */ }
       }));

@@ -17,7 +17,15 @@ import {
   Wrench,
   Sparkles,
   Settings,
+  Zap,
+  SlidersHorizontal,
 } from 'lucide-react';
+
+const PRESETS = [
+  { key: 'basica', label: 'Básica', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
+  { key: 'alta', label: 'Alta', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
+  { key: 'excelente', label: 'Excelente', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
+];
 import { ChatView } from './ChatView';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -118,6 +126,7 @@ export function SessionDetailView() {
   const [agentTab, setAgentTab] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState('');
   const [optimisticModel, setOptimisticModel] = useState<string | null>(null);
+  const [selectorMode, setSelectorMode] = useState<'simple' | 'advanced'>('simple');
 
   // Clear optimistic override once real config catches up
   useEffect(() => {
@@ -135,7 +144,7 @@ export function SessionDetailView() {
 
   // All available providers with their models
   const allProviders = useMemo(() => {
-    const map = new Map<string, Array<{ id: string; name: string; contextWindow?: number }>>();
+    const map = new Map<string, Array<{ id: string; name: string; contextWindow?: number; type?: string | null }>>();
     if (availableModels) {
       for (const [pId, models] of Object.entries(availableModels)) {
         if (models.length) map.set(pId, models);
@@ -146,7 +155,7 @@ export function SessionDetailView() {
 
   const activeProvider = selectedProvider || currentProvider || (allProviders.keys().next().value ?? '');
   const providerModels = useMemo(() => {
-    const all = allProviders.get(activeProvider) || [];
+    const all = (allProviders.get(activeProvider) || []).filter(m => !m.type || m.type === 'chat');
     if (!modelSearch.trim()) return all;
     const q = modelSearch.toLowerCase();
     return all.filter(m => m.id.toLowerCase().includes(q) || (m.name && m.name.toLowerCase().includes(q)));
@@ -166,10 +175,8 @@ export function SessionDetailView() {
 
   const { loadGatewayConfig } = useDashboardStore();
 
-  const handleModelChange = useCallback(async (newModelId: string, provider?: string) => {
-    const effectiveProvider = provider || activeProvider;
-    if (!effectiveProvider || !agentId) return;
-    const fullModel = `${effectiveProvider}/${newModelId}`;
+  const applyModel = useCallback(async (fullModel: string) => {
+    if (!agentId) return;
     setOptimisticModel(fullModel);
     setModelDropdownOpen(false);
     setSelectedProvider('');
@@ -180,7 +187,6 @@ export function SessionDetailView() {
         await client.updateAgent(agentId, { model: fullModel });
       } catch (updateErr) {
         if (!String(updateErr).includes('not found')) throw updateErr;
-        // Agent not yet in config list (old VPS without pre-created main) — create it first
         await client.createAgent({ name: agentId, workspace: agentId });
         await client.updateAgent(agentId, { model: fullModel });
       }
@@ -190,7 +196,17 @@ export function SessionDetailView() {
       console.error('Failed to change model:', err);
       setOptimisticModel(null);
     }
-  }, [activeProvider, agentId, loadGatewayConfig, loadSessions]);
+  }, [agentId, loadGatewayConfig, loadSessions]);
+
+  const handleModelChange = useCallback((newModelId: string, provider?: string) => {
+    const effectiveProvider = provider || activeProvider;
+    if (!effectiveProvider) return;
+    applyModel(`${effectiveProvider}/${newModelId}`);
+  }, [activeProvider, applyModel]);
+
+  const handlePresetChange = useCallback((presetModel: string) => {
+    applyModel(`${activeProvider}/${presetModel}`);
+  }, [activeProvider, applyModel]);
 
   // Format last activity
   const lastActivity = session?.updatedAt
@@ -257,86 +273,123 @@ export function SessionDetailView() {
                   </button>
 
                       {modelDropdownOpen && (
-                        <div className="absolute top-full left-0 mt-2 w-80 rounded-xl border bg-popover/95 backdrop-blur-sm shadow-2xl z-50 overflow-hidden flex flex-col">
-                          {/* Provider tabs */}
-                          {allProviders.size > 1 && (
-                            <div className="flex gap-1.5 px-3 py-2.5 border-b bg-muted/30">
-                              {Array.from(allProviders.keys()).map(pId => {
-                                const count = allProviders.get(pId)?.length || 0;
-                                return (
-                                  <button
-                                    key={pId}
-                                    type="button"
-                                    onClick={() => { setSelectedProvider(pId); setModelSearch(''); }}
-                                    className={cn(
-                                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
-                                      activeProvider === pId
-                                        ? "bg-muted text-foreground border border-border"
-                                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                                    )}
-                                  >
-                                    {pId}
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono bg-muted/60 text-muted-foreground">{count}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {/* Search input */}
-                          <div className="flex items-center gap-2 px-3 py-2.5 border-b">
-                            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <input
-                              ref={modelSearchRef}
-                              type="text"
-                              value={modelSearch}
-                              onChange={(e) => setModelSearch(e.target.value)}
-                              placeholder={`Search ${activeProvider} models...`}
-                              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40"
-                              autoFocus
-                            />
-                            {modelSearch && (
-                              <button type="button" onClick={() => setModelSearch('')} className="text-muted-foreground hover:text-foreground">
-                                <X className="w-3 h-3" />
+                        <div className="absolute top-full left-0 mt-2 w-64 rounded-xl border border-border bg-popover/95 backdrop-blur-sm shadow-2xl z-50 overflow-hidden flex flex-col">
+                          {selectorMode === 'simple' ? (
+                            <>
+                              <div className="px-3 pt-3 pb-1">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Inteligencia</span>
+                              </div>
+                              <div className="p-1.5 flex flex-col gap-0.5">
+                                {PRESETS.map((preset, i) => {
+                                  const currentModelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
+                                  const isActive = currentModelId === preset.model;
+                                  const dots = i + 1;
+                                  return (
+                                    <button
+                                      key={preset.key}
+                                      type="button"
+                                      onClick={() => handlePresetChange(preset.model)}
+                                      className={cn(
+                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors group",
+                                        isActive
+                                          ? "bg-primary/10 text-primary"
+                                          : "hover:bg-muted/60 text-foreground"
+                                      )}
+                                    >
+                                      <div className="flex gap-0.5 shrink-0">
+                                        {Array.from({ length: 3 }).map((_, j) => (
+                                          <div key={j} className={cn(
+                                            "w-1.5 h-1.5 rounded-full transition-colors",
+                                            j < dots
+                                              ? isActive ? "bg-primary" : "bg-primary/50 group-hover:bg-primary/70"
+                                              : "bg-muted-foreground/20"
+                                          )} />
+                                        ))}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className={cn("text-sm font-medium", isActive ? "text-primary" : "")}>{preset.label}</div>
+                                        <div className="text-[10px] text-muted-foreground/50 truncate font-mono">{preset.model.split('/').pop()}</div>
+                                      </div>
+                                      {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="border-t border-border/50 mx-1.5" />
+                              <button
+                                type="button"
+                                onClick={() => { setSelectorMode('advanced'); loadAvailableModels(); }}
+                                className="flex items-center gap-1.5 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <SlidersHorizontal className="w-3 h-3" />
+                                Ver todos los modelos
                               </button>
-                            )}
-                          </div>
-                          {/* Model list */}
-                          <div className="max-h-64 overflow-y-auto p-1.5 custom-scrollbar">
-                            {providerModels.length === 0 ? (
-                              <div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
-                                {!availableModels ? (
-                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t('common.loading')}</>
-                                ) : (
-                                  t('common.noResults')
+                            </>
+                          ) : (
+                            <>
+                              {/* Back + search */}
+                              <div className="flex items-center gap-2 px-3 py-2.5 border-b">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectorMode('simple'); setModelSearch(''); }}
+                                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5 rotate-90" />
+                                </button>
+                                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                <input
+                                  ref={modelSearchRef}
+                                  type="text"
+                                  value={modelSearch}
+                                  onChange={(e) => setModelSearch(e.target.value)}
+                                  placeholder="Buscar modelo..."
+                                  className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40 min-w-0"
+                                  autoFocus
+                                />
+                                {modelSearch && (
+                                  <button type="button" onClick={() => setModelSearch('')} className="text-muted-foreground hover:text-foreground shrink-0">
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 )}
                               </div>
-                            ) : (
-                              providerModels.map(m => {
-                                const modelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
-                                const isActive = m.id === modelId && activeProvider === currentProvider;
-                                return (
-                                  <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => handleModelChange(m.id, activeProvider)}
-                                    className={cn(
-                                      "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors",
-                                      isActive
-                                        ? "bg-primary/10 text-primary font-medium"
-                                        : "text-foreground/80 hover:bg-muted/80"
+                              {/* Model list */}
+                              <div className="max-h-64 overflow-y-auto p-1.5 custom-scrollbar">
+                                {providerModels.length === 0 ? (
+                                  <div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
+                                    {!availableModels ? (
+                                      <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t('common.loading')}</>
+                                    ) : (
+                                      t('common.noResults')
                                     )}
-                                  >
-                                    <Cpu className={cn("w-3 h-3 flex-shrink-0", isActive ? "text-primary" : "text-muted-foreground/40")} />
-                                    <span className="truncate flex-1 font-mono">{m.name || m.id}</span>
-                                    {m.contextWindow ? (
-                                      <span className="text-[10px] text-muted-foreground/50 flex-shrink-0 font-mono">{Math.round(m.contextWindow / 1000)}k</span>
-                                    ) : null}
-                                    {isActive && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
+                                  </div>
+                                ) : (
+                                  providerModels.map(m => {
+                                    const modelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
+                                    const isActive = m.id === modelId && activeProvider === currentProvider;
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => handleModelChange(m.id, activeProvider)}
+                                        className={cn(
+                                          "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors",
+                                          isActive
+                                            ? "bg-primary/10 text-primary font-medium"
+                                            : "text-foreground/80 hover:bg-muted/80"
+                                        )}
+                                      >
+                                        <span className="truncate flex-1 font-mono">{m.name || m.id}</span>
+                                        {m.contextWindow ? (
+                                          <span className="text-[10px] text-muted-foreground/50 shrink-0 font-mono">{Math.round(m.contextWindow / 1000)}k</span>
+                                        ) : null}
+                                        {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                      </button>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                 </div>
