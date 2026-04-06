@@ -629,8 +629,8 @@
     "completedAt": "Abgeschlossen",
     "instructions": "Anweisungen",
     "instructionsDescription": "Betriebshandbuch und Anfangskontext",
-    "agentsFileDescription": "Agenten-Betriebshandbuch",
-    "bootstrapFileDescription": "Erststart-Anweisungen",
+    "agentsFileDescription": "Agenten-Delegation und Rollen",
+    "bootstrapFileDescription": "Erstgespräch-Anweisungen",
     "identity": "Identität",
     "identityDescription": "Persönlichkeit und Benutzerkontext",
     "identityFileDescription": "Name, Avatar, Emoji, Design",
@@ -648,11 +648,9 @@
     "toolsCapabilities": "Fähigkeiten",
     "behavior": "Verhalten",
     "behaviorDescription": "Start- und periodisches Verhalten",
-    "bootstrapFileDescription": "Erstgespräch-Anweisungen",
     "heartbeatFileDescription2": "Periodische Check-in-Vorlage",
     "collaboration": "Zusammenarbeit",
     "collaborationDescription": "Multi-Agenten-Koordination",
-    "agentsFileDescription": "Agenten-Delegation und Rollen",
     "automation": "Automatisierung",
     "automationDescription": "Periodisches automatisches Verhalten",
     "heartbeatFileDescription": "Heartbeat-Checkliste",
@@ -989,5 +987,14 @@
     "autoActivate": "Wird automatisch aktiviert, wenn der Agent ihn benötigt",
     "notAvailable": "Browser nicht verfügbar",
     "retry": "Erneut versuchen"
+  },
+  "modelSelector": {
+    "intelligence": "Intelligenz",
+    "basic": "Einfach",
+    "high": "Hoch",
+    "excellent": "Exzellent",
+    "viewAllModels": "Alle Modelle anzeigen",
+    "hideList": "Liste ausblenden",
+    "searchModel": "Modell suchen..."
   }
 }

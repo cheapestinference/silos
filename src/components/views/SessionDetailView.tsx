@@ -20,11 +20,11 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 
-const PRESETS = [
-  { key: 'basica', label: 'Básica', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
-  { key: 'alta', label: 'Alta', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
-  { key: 'excelente', label: 'Excelente', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
-];
+const PRESET_MODELS = [
+  { key: 'basic', labelKey: 'modelSelector.basic', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
+  { key: 'high', labelKey: 'modelSelector.high', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
+  { key: 'excellent', labelKey: 'modelSelector.excellent', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
+] as const;
 import { ChatView } from './ChatView';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -276,10 +276,10 @@ export function SessionDetailView() {
                           {selectorMode === 'simple' ? (
                             <>
                               <div className="px-3 pt-3 pb-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Inteligencia</span>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">{t('modelSelector.intelligence')}</span>
                               </div>
                               <div className="p-1.5 flex flex-col gap-0.5">
-                                {PRESETS.map((preset, i) => {
+                                {PRESET_MODELS.map((preset, i) => {
                                   const currentModelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
                                   const isActive = currentModelId === preset.model;
                                   const dots = i + 1;
@@ -306,7 +306,7 @@ export function SessionDetailView() {
                                         ))}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <div className={cn("text-sm font-medium", isActive ? "text-primary" : "")}>{preset.label}</div>
+                                        <div className={cn("text-sm font-medium", isActive ? "text-primary" : "")}>{t(preset.labelKey)}</div>
                                         <div className="text-[10px] text-muted-foreground/50 truncate font-mono">{preset.model.split('/').pop()}</div>
                                       </div>
                                       {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -321,7 +321,7 @@ export function SessionDetailView() {
                                 className="flex items-center gap-1.5 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                               >
                                 <SlidersHorizontal className="w-3 h-3" />
-                                Ver todos los modelos
+                                {t('modelSelector.viewAllModels')}
                               </button>
                             </>
                           ) : (
@@ -341,7 +341,7 @@ export function SessionDetailView() {
                                   type="text"
                                   value={modelSearch}
                                   onChange={(e) => setModelSearch(e.target.value)}
-                                  placeholder="Buscar modelo..."
+                                  placeholder={t('modelSelector.searchModel')}
                                   className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40 min-w-0"
                                   autoFocus
                                 />

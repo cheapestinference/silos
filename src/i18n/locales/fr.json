@@ -629,8 +629,8 @@
     "completedAt": "Terminé",
     "instructions": "Instructions",
     "instructionsDescription": "Manuel d'opérations et contexte initial",
-    "agentsFileDescription": "Manuel d'opérations de l'agent",
-    "bootstrapFileDescription": "Instructions de premier démarrage",
+    "agentsFileDescription": "Délégation et rôles des agents",
+    "bootstrapFileDescription": "Instructions de première conversation",
     "identity": "Identité",
     "identityDescription": "Personnalité et contexte utilisateur",
     "identityFileDescription": "Nom, avatar, emoji, thème",
@@ -648,11 +648,9 @@
     "toolsCapabilities": "Capacités",
     "behavior": "Comportement",
     "behaviorDescription": "Démarrage et comportement périodique",
-    "bootstrapFileDescription": "Instructions de première conversation",
     "heartbeatFileDescription2": "Modèle de vérification périodique",
     "collaboration": "Collaboration",
     "collaborationDescription": "Coordination multi-agent",
-    "agentsFileDescription": "Délégation et rôles des agents",
     "automation": "Automatisation",
     "automationDescription": "Comportement automatique périodique",
     "heartbeatFileDescription": "Checklist pour les heartbeats",
@@ -989,5 +987,14 @@
     "autoActivate": "S'active automatiquement lorsque l'agent en a besoin",
     "notAvailable": "Navigateur non disponible",
     "retry": "Réessayer"
+  },
+  "modelSelector": {
+    "intelligence": "Intelligence",
+    "basic": "Basique",
+    "high": "Haute",
+    "excellent": "Excellente",
+    "viewAllModels": "Voir tous les modèles",
+    "hideList": "Masquer la liste",
+    "searchModel": "Rechercher un modèle..."
   }
 }

@@ -629,8 +629,8 @@
     "completedAt": "Completed",
     "instructions": "Instructions",
     "instructionsDescription": "Operations manual and initial context",
-    "agentsFileDescription": "Agent operations manual",
-    "bootstrapFileDescription": "First boot instructions",
+    "agentsFileDescription": "Agent delegation and roles",
+    "bootstrapFileDescription": "First-conversation instructions",
     "identity": "Identity",
     "identityDescription": "Personality and user context",
     "identityFileDescription": "Name, avatar, emoji, theme",
@@ -648,11 +648,9 @@
     "toolsCapabilities": "Capabilities",
     "behavior": "Behavior",
     "behaviorDescription": "Startup and periodic behavior",
-    "bootstrapFileDescription": "First-conversation instructions",
     "heartbeatFileDescription2": "Periodic check-in template",
     "collaboration": "Collaboration",
     "collaborationDescription": "Multi-agent coordination",
-    "agentsFileDescription": "Agent delegation and roles",
     "automation": "Automation",
     "automationDescription": "Periodic automatic behavior",
     "heartbeatFileDescription": "Heartbeat checklist",
@@ -989,5 +987,14 @@
     "autoActivate": "Activates automatically when the agent needs it",
     "notAvailable": "Browser not available",
     "retry": "Retry"
+  },
+  "modelSelector": {
+    "intelligence": "Intelligence",
+    "basic": "Basic",
+    "high": "High",
+    "excellent": "Excellent",
+    "viewAllModels": "View all models",
+    "hideList": "Hide list",
+    "searchModel": "Search model..."
   }
 }

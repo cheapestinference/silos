@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, AlertCircle, Search, Plus, SlidersHorizontal, Check, ChevronUp } from 'lucide-react';
 
-const PRESETS = [
-  { key: 'basica', label: 'Básica', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
-  { key: 'alta', label: 'Alta', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
-  { key: 'excelente', label: 'Excelente', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
-];
+const PRESET_MODELS = [
+  { key: 'basic', labelKey: 'modelSelector.basic', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
+  { key: 'high', labelKey: 'modelSelector.high', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
+  { key: 'excellent', labelKey: 'modelSelector.excellent', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
+] as const;
 import { getGatewayClient } from '../../lib/gateway-client';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { getAgentTemplates, TEMPLATE_FILES } from '../../lib/agent-templates';
@@ -258,7 +258,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
 
             {/* Presets */}
             <div className="flex flex-col gap-0.5 mb-1">
-              {PRESETS.map((preset, i) => {
+              {PRESET_MODELS.map((preset, i) => {
                 const fullId = `${providerNames[0] || 'silos'}/${preset.model}`;
                 const isSelected = model === fullId;
                 const dots = i + 1;
@@ -284,7 +284,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
                       ))}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>{preset.label}</div>
+                      <div className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>{t(preset.labelKey)}</div>
                       <div className="text-[10px] text-muted-foreground/50 truncate font-mono">{preset.model.split('/').pop()}</div>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -301,7 +301,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
               className="flex items-center gap-1.5 px-3 py-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full"
             >
               {selectorMode === 'advanced' ? <ChevronUp className="w-3 h-3" /> : <SlidersHorizontal className="w-3 h-3" />}
-              {selectorMode === 'advanced' ? 'Ocultar lista' : 'Ver todos los modelos'}
+              {selectorMode === 'advanced' ? t('modelSelector.hideList') : t('modelSelector.viewAllModels')}
             </button>
 
             {/* Advanced list */}
@@ -313,7 +313,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
                     type="text"
                     value={modelSearch}
                     onChange={(e) => setModelSearch(e.target.value)}
-                    placeholder="Buscar modelo..."
+                    placeholder={t('modelSelector.searchModel')}
                     className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40"
                     autoFocus
                   />
@@ -357,7 +357,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
               </div>
             )}
 
-            {model && !PRESETS.some(p => model.endsWith(p.model)) && (
+            {model && !PRESET_MODELS.some(p => model.endsWith(p.model)) && (
               <p className="mt-1 text-[11px] text-muted-foreground font-mono truncate">{model}</p>
             )}
           </div>
