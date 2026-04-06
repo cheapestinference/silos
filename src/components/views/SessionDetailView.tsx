@@ -164,7 +164,7 @@ export function SessionDetailView() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [modelDropdownOpen]);
 
-  const { loadGatewayConfig, patchGatewayConfig } = useDashboardStore();
+  const { loadGatewayConfig } = useDashboardStore();
 
   const handleModelChange = useCallback(async (newModelId: string, provider?: string) => {
     const effectiveProvider = provider || activeProvider;
@@ -176,23 +176,16 @@ export function SessionDetailView() {
     try {
       const client = getGatewayClient();
       if (!client) throw new Error('Not connected');
-      if (sessionAgentEntry) {
-        // Agent has an explicit entry in agents.list — use agents.update (no restart)
-        await client.updateAgent(agentId, { model: fullModel });
-        loadGatewayConfig();
-        loadSessions();
-      } else {
-        // Agent not in agents.list (e.g. the default "main" agent) — fall back to
-        // config.patch which adds it to the list (causes a config reload/restart)
-        const currentList = (agentsCfg?.list ?? []) as Array<Record<string, unknown>>;
-        const ok = await patchGatewayConfig({ agents: { list: [...currentList, { id: agentId, model: fullModel }] } });
-        if (!ok) setOptimisticModel(null);
-      }
+      // Always use agents.update — works for runtime agents even without an explicit
+      // config-file entry. config.patch is not needed and causes a gateway restart.
+      await client.updateAgent(agentId, { model: fullModel });
+      loadGatewayConfig();
+      loadSessions();
     } catch (err) {
       console.error('Failed to change model:', err);
       setOptimisticModel(null);
     }
-  }, [activeProvider, agentId, sessionAgentEntry, agentsCfg, loadGatewayConfig, loadSessions, patchGatewayConfig]);
+  }, [activeProvider, agentId, loadGatewayConfig, loadSessions]);
 
   // Format last activity
   const lastActivity = session?.updatedAt
