@@ -126,13 +126,12 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
       getDefaultModel();
       setAgentName(generateDefaultName());
       setModelSearch('');
-      setModelDropdownOpen(false);
+      setSelectorMode('simple');
     }
   }, [isOpen, models, loadModels]);
 
   const handleSelectModel = (providerId: string, modelId: string) => {
     setModel(`${providerId}/${modelId}`);
-    setModelDropdownOpen(false);
     setModelSearch('');
   };
 
