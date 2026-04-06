@@ -90,15 +90,15 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
         {!url ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/60">
             <Monitor className="w-8 h-8" />
-            <p className="text-sm">{t('browser.inactive', 'Browser inactive')}</p>
-            <p className="text-xs text-muted-foreground/40">{t('browser.autoActivate', 'Activates automatically when the agent needs it')}</p>
+            <p className="text-sm">{t('browser.inactive')}</p>
+            <p className="text-xs text-muted-foreground/40">{t('browser.autoActivate')}</p>
           </div>
         ) : error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Monitor className="w-8 h-8 opacity-40" />
-            <p className="text-sm">{t('browser.notAvailable', 'Browser not available')}</p>
+            <p className="text-sm">{t('browser.notAvailable')}</p>
             <button onClick={handleRefresh} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-muted hover:bg-accent transition-colors">
-              <RefreshCw className="w-3 h-3" /> {t('browser.retry', 'Retry')}
+              <RefreshCw className="w-3 h-3" /> {t('browser.retry')}
             </button>
           </div>
         ) : (
