@@ -569,14 +569,10 @@ export const useDashboardStore = create<DashboardStore>()(
             return backendSession;
           });
 
-          // Preserve optimistic sessions that don't exist on backend yet.
-          // Only keep sessions updated within the last 30s — this covers the narrow window
-          // between a new session being created and the backend confirming it, while
-          // discarding stale sessions from a previous VPS instance after a reset.
+          // Preserve optimistic sessions that don't exist on backend yet
           const loadedKeys = new Set(loadedSessions.sessions.map(s => s.key));
-          const OPTIMISTIC_TTL_MS = 30_000;
           const optimisticSessions = currentSessions?.sessions.filter(
-            s => !loadedKeys.has(s.key) && s.updatedAt != null && (Date.now() - s.updatedAt < OPTIMISTIC_TTL_MS)
+            s => !loadedKeys.has(s.key)
           ) || [];
 
           // Merge: backend sessions (with preserved labels) + optimistic sessions

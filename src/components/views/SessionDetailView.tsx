@@ -176,9 +176,14 @@ export function SessionDetailView() {
     try {
       const client = getGatewayClient();
       if (!client) throw new Error('Not connected');
-      // Always use agents.update — works for runtime agents even without an explicit
-      // config-file entry. config.patch is not needed and causes a gateway restart.
-      await client.updateAgent(agentId, { model: fullModel });
+      try {
+        await client.updateAgent(agentId, { model: fullModel });
+      } catch (updateErr) {
+        if (!String(updateErr).includes('not found')) throw updateErr;
+        // Agent not yet in config list (old VPS without pre-created main) — create it first
+        await client.createAgent({ name: agentId, workspace: agentId });
+        await client.updateAgent(agentId, { model: fullModel });
+      }
       loadGatewayConfig();
       loadSessions();
     } catch (err) {
