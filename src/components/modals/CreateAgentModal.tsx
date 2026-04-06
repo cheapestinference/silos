@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Loader2, AlertCircle, Search, ChevronDown, Plus, SlidersHorizontal, Check, ChevronUp } from 'lucide-react';
+import { X, Loader2, AlertCircle, Search, Plus, SlidersHorizontal, Check, ChevronUp } from 'lucide-react';
 
 const PRESETS = [
   { key: 'basica', label: 'Básica', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
@@ -35,7 +35,7 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState('');
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+
   const [selectorMode, setSelectorMode] = useState<'simple' | 'advanced'>('simple');
 
   // Get configured provider IDs from gateway config
@@ -83,14 +83,6 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
       m.id.toLowerCase().includes(q) || (m.name && m.name.toLowerCase().includes(q))
     );
   }, [modelsByProvider, selectedProvider, modelSearch]);
-
-  const selectedModelName = useMemo(() => {
-    if (!model) return '';
-    const modelId = model.includes('/') ? model.split('/').slice(1).join('/') : model;
-    const providerModels = modelsByProvider[selectedProvider] || [];
-    const found = providerModels.find(m => m.id === modelId);
-    return found?.name || found?.id || modelId;
-  }, [model, selectedProvider, modelsByProvider]);
 
   const generateAgentId = (name: string): string => {
     const transliterated = name
@@ -217,7 +209,6 @@ export function CreateAgentModal({ isOpen, onClose, onSuccess }: CreateAgentModa
 
   if (!isOpen) return null;
 
-  const totalModels = Object.values(modelsByProvider).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

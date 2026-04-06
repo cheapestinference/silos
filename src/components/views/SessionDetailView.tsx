@@ -17,7 +17,6 @@ import {
   Wrench,
   Sparkles,
   Settings,
-  Zap,
   SlidersHorizontal,
 } from 'lucide-react';
 
