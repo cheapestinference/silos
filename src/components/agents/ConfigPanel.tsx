@@ -86,15 +86,11 @@ export function ConfigPanel() {
           setSettingsSaving(false);
           return;
         }
-        if (agentEntry) {
-          // Agent has an explicit entry in agents.list — use agents.update (no restart)
-          await client.updateAgent(agent.id, { model: localSettings.model });
-        } else {
-          // Agent not in agents.list (e.g. the default "main" agent) — add it via
-          // agents.create first (no restart), then set model via agents.update
-          await client.createAgent({ name: agent.id, workspace: agent.id });
-          await client.updateAgent(agent.id, { model: localSettings.model });
-        }
+        // Always use agents.update directly. The agent already exists in OpenClaw's runtime
+        // (it's visible in the UI), so agents.update works even without an explicit entry in
+        // the config file's agents.list. Calling agents.create first would set a wrong
+        // workspace path for the "main" agent, triggering an unnecessary gateway restart.
+        await client.updateAgent(agent.id, { model: localSettings.model });
       }
       // Save other settings (temperature, maxTokens, etc.) via agents.update
       const { model: _model, ...otherSettings } = localSettings;
