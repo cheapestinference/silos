@@ -997,6 +997,21 @@ export const useDashboardStore = create<DashboardStore>()(
           });
           // Guard: user may have switched sessions while the request was in flight
           if (get().selectedSessionKey !== key) return;
+          // Preserve tool messages from the current session — the gateway history
+          // only returns user/assistant text, so tool events captured during streaming
+          // would be lost on reload. Keep them and interleave by timestamp.
+          const existingToolMessages = get().chatMessages.filter(
+            m => m.role === 'tool' || m.toolName || m.toolCall || m.result
+          );
+
+          // Merge tool messages into the reloaded history, sorted by timestamp
+          let merged = messages;
+          if (existingToolMessages.length > 0) {
+            merged = [...messages, ...existingToolMessages].sort(
+              (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
+            );
+          }
+
           // Preserve locally queued messages — check both chatMessages (may have been cleared
           // by selectSession) AND messageQueue (always survives session switches)
           const queued = get().chatMessages.filter(m => m.status === 'queued');
@@ -1015,7 +1030,7 @@ export const useDashboardStore = create<DashboardStore>()(
               }
             }
           }
-          set({ chatMessages: queued.length > 0 ? [...messages, ...queued] : messages, chatLoading: false });
+          set({ chatMessages: queued.length > 0 ? [...merged, ...queued] : merged, chatLoading: false });
           // If there are orphaned queued messages and no active run, dispatch them
           if (queued.length > 0 && !get().activeRunId.get(key)) {
             setTimeout(() => get()._dispatchNextQueued(key), 100);
