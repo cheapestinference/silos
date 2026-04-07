@@ -7,7 +7,7 @@
 [![Docker Image](https://img.shields.io/badge/ghcr.io-silos-blue)](https://github.com/cheapestinference/silos/pkgs/container/silos)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-<video src="https://github.com/cheapestinference/silos/raw/main/docs/silos-agent.mp4" autoplay loop muted playsinline width="100%"></video>
+https://github.com/user-attachments/assets/23831aba-845b-4213-ae77-b7361cb43169
 
 ---
 
