@@ -309,7 +309,7 @@ export interface ChatHistoryResult {
 
 // ============== Tasks/Runs ==============
 
-export type TaskStatus = 'pending' | 'running' | 'completed' | 'error' | 'aborted';
+export type TaskStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timed_out' | 'cancelled' | 'lost';
 
 export interface Task {
   id: string;

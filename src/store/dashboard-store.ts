@@ -1180,7 +1180,7 @@ export const useDashboardStore = create<DashboardStore>()(
             chatSending: newChatSending,
             runHadTools: newRunHadTools,
             tasks: tasks.map((t) =>
-              (runId && t.runId === runId) ? { ...t, status: 'aborted', completedAt: Date.now() } : t
+              (runId && t.runId === runId) ? { ...t, status: 'cancelled' as TaskStatus, completedAt: Date.now() } : t
             ),
             streamingContent: '',
             streamingRunId: null,
@@ -1475,7 +1475,7 @@ export const useDashboardStore = create<DashboardStore>()(
         set({
           tasks: tasks.map((task) =>
             task.id === id
-              ? { ...task, status, completedAt: status === 'completed' ? Date.now() : undefined }
+              ? { ...task, status, completedAt: status === 'succeeded' ? Date.now() : undefined }
               : task
           ),
         });
@@ -1489,7 +1489,7 @@ export const useDashboardStore = create<DashboardStore>()(
           await client.abortChat(runId);
           set({
             tasks: tasks.map((task) =>
-              task.runId === runId ? { ...task, status: 'aborted' as TaskStatus } : task
+              task.runId === runId ? { ...task, status: 'cancelled' as TaskStatus } : task
             ),
           });
         } catch (error) {
@@ -1532,9 +1532,9 @@ export const useDashboardStore = create<DashboardStore>()(
             }
 
             // Determine status based on available info
-            let status: TaskStatus = 'completed';
+            let status: TaskStatus = 'succeeded';
             if (session.abortedLastRun) {
-              status = 'aborted';
+              status = 'cancelled';
             }
 
             return {
@@ -2162,7 +2162,7 @@ export const useDashboardStore = create<DashboardStore>()(
             if (runId) {
               set((state) => ({
                 tasks: state.tasks.map((t) =>
-                  t.runId === runId ? { ...t, status: 'completed' as const, completedAt: Date.now() } : t
+                  t.runId === runId ? { ...t, status: 'succeeded' as const, completedAt: Date.now() } : t
                 ),
               }));
             }
@@ -2647,7 +2647,7 @@ export const useDashboardStore = create<DashboardStore>()(
                   t.runId === runId
                     ? {
                       ...t,
-                      status: isError ? 'error' : 'completed',
+                      status: isError ? 'failed' : 'succeeded',
                       completedAt: Date.now(),
                       error: isError ? (payload?.data?.error || 'Error') : undefined,
                     }

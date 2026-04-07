@@ -28,11 +28,13 @@ function formatTimestamp(ts: number) {
 }
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  running: { label: 'Running', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/15' },
-  completed: { label: 'Completed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/15' },
-  error: { label: 'Error', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/15' },
-  aborted: { label: 'Aborted', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/15' },
-  pending: { label: 'Pending', color: 'text-muted-foreground', bg: 'bg-muted' },
+  queued:    { label: 'Queued',    color: 'text-muted-foreground',                   bg: 'bg-muted' },
+  running:   { label: 'Running',   color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-500/15' },
+  succeeded: { label: 'Succeeded', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/15' },
+  failed:    { label: 'Failed',    color: 'text-red-600 dark:text-red-400',         bg: 'bg-red-500/15' },
+  timed_out: { label: 'Timed Out', color: 'text-orange-600 dark:text-orange-400',   bg: 'bg-orange-500/15' },
+  cancelled: { label: 'Cancelled', color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-500/15' },
+  lost:      { label: 'Lost',      color: 'text-gray-600 dark:text-gray-400',       bg: 'bg-gray-600/15' },
 };
 
 function InfoRow({ icon, label, value, mono, error }: { icon: React.ReactNode; label: string; value: React.ReactNode; mono?: boolean; error?: boolean }) {
@@ -56,7 +58,7 @@ const roleConfig: Record<string, { icon: React.ReactNode; label: string; bg: str
 
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const { t } = useTranslation();
-  const status = statusConfig[task.status] || statusConfig.pending;
+  const status = statusConfig[task.status] || statusConfig.queued;
   const totalTokens = (task.inputTokens || 0) + (task.outputTokens || 0);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
