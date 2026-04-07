@@ -16,7 +16,7 @@ import { KnowledgeBrowser } from './components/agents/KnowledgeBrowser';
 import { ScheduledPanel } from './components/agents/ScheduledPanel';
 import { ConfigPanel } from './components/agents/ConfigPanel';
 import { SessionDetailView } from './components/views/SessionDetailView';
-import { TasksPage } from './components/views/TasksPage';
+import { TasksFlowsPage } from './components/views/TasksFlowsPage';
 import { SettingsPage } from './components/views/SettingsPage';
 import { UnifiedDashboard } from './components/views/UnifiedDashboard';
 import { CronPage } from './components/views/CronPage';
@@ -261,7 +261,7 @@ function App() {
               <Route path="scheduled" element={<ScheduledPanel />} />
               <Route path="config" element={<ConfigPanel />} />
             </Route>
-            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/tasks" element={<TasksFlowsPage />} />
             <Route path="/cron" element={<CronPage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/settings" element={<SettingsPage />} />
