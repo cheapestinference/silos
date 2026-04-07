@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the details below so we can investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: Describe what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. Scroll down to ...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+      placeholder: Describe the expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem.
+      placeholder: Drag and drop images here or paste links.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Which browser are you using?
+      placeholder: e.g. Chrome 120, Firefox 121, Safari 17
+    validations:
+      required: false
+
+  - type: input
+    id: silos-version
+    attributes:
+      label: Silos Version
+      description: The version of the Silos dashboard (shown in the footer or Settings page).
+      placeholder: e.g. v2.2.1
+    validations:
+      required: false
+
+  - type: input
+    id: openclaw-version
+    attributes:
+      label: OpenClaw Version
+      description: The version of the OpenClaw gateway running on your VPS.
+      placeholder: e.g. 0.8.0
+    validations:
+      required: false
