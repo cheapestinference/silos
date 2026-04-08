@@ -27,7 +27,7 @@ export function createTasksRouter(openclawBase, authMiddleware) {
 
     const { stdout, stderr } = await execFileAsync(cliBin, args, {
       env: cliEnv,
-      timeout: 30000,
+      timeout: 60000,
       maxBuffer: 5 * 1024 * 1024,
     });
 
