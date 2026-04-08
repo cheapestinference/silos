@@ -1,6 +1,6 @@
 import { Clock, Loader2, CheckCircle, XCircle, Ban, Skull, Timer, Bot, Terminal, CalendarClock, Plug } from 'lucide-react';
 import type { TaskRun } from '../../types/tasks';
-import { taskRunStatusConfig, inferRuntime } from '../../types/tasks';
+import { inferRuntime } from '../../types/tasks';
 
 interface TaskRunCardProps {
   task: TaskRun;
