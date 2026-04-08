@@ -46,9 +46,9 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
     return { provider: '', modelId: m };
   }, [settings.model]);
 
-  // Check if parameter values are at their defaults
-  const isDefaultTemp = (settings.temperature ?? 0.7) === 0.7;
-  const isDefaultMaxTokens = (settings.maxTokens ?? 8192) === 8192;
+  // Check if parameter values are explicitly set by the user
+  const isTempSet = settings.temperature !== undefined && settings.temperature !== null;
+  const isMaxTokensSet = settings.maxTokens !== undefined && settings.maxTokens !== null;
 
   // Derive selected provider from current model
   const detectedProvider = useMemo(() => {
@@ -304,10 +304,10 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                   {t('agents.config.temperatureDesc')}
                 </TooltipContent>
               </Tooltip>
-              {isDefaultTemp && <DefaultBadge />}
+              {!isTempSet && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border rounded">Provider default</span>}
             </div>
             <span className="text-sm font-mono text-primary">
-              {(settings.temperature ?? 0.7).toFixed(2)}
+              {isTempSet ? settings.temperature!.toFixed(2) : '—'}
             </span>
           </div>
           <input
@@ -339,18 +339,22 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
                 {t('agents.config.maxTokensDesc')}
               </TooltipContent>
             </Tooltip>
-            {isDefaultMaxTokens && <DefaultBadge />}
+            {!isMaxTokensSet && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border rounded">Provider default</span>}
           </div>
           <Input
             type="number"
             min="1"
             max="128000"
-            value={settings.maxTokens ?? 8192}
-            onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value) || 8192)}
+            value={settings.maxTokens ?? ''}
+            placeholder="Not set"
+            onChange={(e) => {
+              const val = parseInt(e.target.value);
+              updateSetting('maxTokens', isNaN(val) ? undefined : val);
+            }}
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            OpenClaw default: 8192
+            Leave empty to use provider default
           </p>
         </div>
       </div>
