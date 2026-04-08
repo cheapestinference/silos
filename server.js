@@ -10,6 +10,7 @@ import { createApiRouter } from './server/routes/api.js';
 import { createMemoryRouter } from './server/routes/memory.js';
 import { createAdminRouter } from './server/routes/admin.js';
 import { createTasksRouter } from './server/routes/tasks.js';
+import { createLobsterRouter } from './server/routes/lobster.js';
 import { createGatewayProxy } from './server/proxy.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -88,6 +89,7 @@ app.use(createApiRouter(config, authMiddleware, OPENCLAW_BASE));
 app.use(createMemoryRouter(OPENCLAW_BASE, authMiddleware));
 app.use(createAdminRouter(GATEWAY_TOKEN));
 app.use(createTasksRouter(OPENCLAW_BASE, authMiddleware));
+app.use(createLobsterRouter(OPENCLAW_BASE, authMiddleware));
 
 // Gateway proxy (HTTP for /openclaw control UI)
 // Redirect logic for /openclaw → /openclaw/ is inside httpMiddleware (proxy.js)
