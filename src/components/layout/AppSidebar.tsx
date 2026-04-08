@@ -20,6 +20,8 @@ import {
   Pencil,
   ExternalLink,
   User,
+  ScrollText,
+  Workflow,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
@@ -339,6 +341,18 @@ export function AppSidebar() {
           active={isActive('/tasks')}
           onClick={() => navigate('/tasks')}
           badge={runningTasksCount > 0 ? runningTasksCount : undefined}
+        />
+        <NavItem
+          icon={Workflow}
+          label="Workflows"
+          active={isActive('/workflows')}
+          onClick={() => navigate('/workflows')}
+        />
+        <NavItem
+          icon={ScrollText}
+          label="Logs"
+          active={isActive('/logs')}
+          onClick={() => navigate('/logs')}
         />
         <NavItem
           icon={Settings}
