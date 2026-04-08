@@ -78,29 +78,24 @@ export function ConfigPanel() {
     setSettingsSaving(true);
     setSettingsError(null);
     try {
-      // Agent-level fields (model, thinkingDefault) saved via updateAgent
-      const agentUpdate: { model?: string; thinkingDefault?: string } = {};
+      const client = getGatewayClient();
+      if (!client) {
+        setSettingsError('Not connected to gateway');
+        setSettingsSaving(false);
+        return;
+      }
+      // Model changes via updateAgent
       if (localSettings.model && localSettings.model !== activeModel) {
-        agentUpdate.model = localSettings.model;
-      }
-      if (localSettings.thinkingDefault) {
-        agentUpdate.thinkingDefault = localSettings.thinkingDefault;
-      }
-      if (Object.keys(agentUpdate).length > 0) {
-        const client = getGatewayClient();
-        if (!client) {
-          setSettingsError('Not connected to gateway');
-          setSettingsSaving(false);
-          return;
-        }
         try {
-          await client.updateAgent(agent.id, agentUpdate);
+          await client.updateAgent(agent.id, { model: localSettings.model });
         } catch (updateErr) {
           if (!String(updateErr).includes('not found')) throw updateErr;
           await client.createAgent({ name: agent.id, workspace: agent.id });
-          await client.updateAgent(agent.id, agentUpdate);
+          await client.updateAgent(agent.id, { model: localSettings.model });
         }
       }
+      // Note: thinkingDefault is set per-agent in openclaw.json (not via RPC).
+      // The per-session thinking level is controlled via sessions.patch in the chat UI.
       // Save other settings (temperature, maxTokens, etc.) via agents.update
       const { model: _model, thinkingDefault: _thinking, ...otherSettings } = localSettings;
       if (Object.keys(otherSettings).length > 0) {

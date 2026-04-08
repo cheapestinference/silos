@@ -1154,13 +1154,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
 
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Thinking mode quick toggle for next message
-  const thinkingLevels = ['off', 'low', 'medium', 'high'] as const;
-  const [thinkingLevel, setThinkingLevel] = useState<typeof thinkingLevels[number]>('off');
-  const cycleThinking = () => {
-    const idx = thinkingLevels.indexOf(thinkingLevel);
-    setThinkingLevel(thinkingLevels[(idx + 1) % thinkingLevels.length]);
-  };
+  // (Effort/thinking level is controlled in SessionDetailView header via sessions.patch)
 
   // Right panel: top section tabs
   const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
@@ -1441,8 +1435,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
       return;
     }
 
-    const prefix = thinkingLevel !== 'off' ? `/think:${thinkingLevel} ` : '';
-    sendMessage(prefix + text);
+    sendMessage(text);
     inputRef.current!.value = '';
     inputRef.current!.style.height = 'auto';
   };
@@ -1604,31 +1597,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                     </span>
                   </div>
 
-                  {/* Thinking toggle */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={cycleThinking}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all border",
-                          thinkingLevel === 'off'
-                            ? "text-muted-foreground/50 border-transparent hover:text-muted-foreground hover:border-border"
-                            : thinkingLevel === 'low'
-                            ? "text-blue-500 border-blue-500/30 bg-blue-500/10"
-                            : thinkingLevel === 'medium'
-                            ? "text-violet-500 border-violet-500/30 bg-violet-500/10"
-                            : "text-amber-500 border-amber-500/30 bg-amber-500/10"
-                        )}
-                      >
-                        <Brain className="w-3 h-3" />
-                        {thinkingLevel === 'off' ? 'Think' : thinkingLevel.charAt(0).toUpperCase() + thinkingLevel.slice(1)}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">
-                      Click to cycle: Off → Low → Medium → High
-                    </TooltipContent>
-                  </Tooltip>
+                  {/* Effort level is in the session header */}
 
                   {/* Context utilization */}
                   {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {

@@ -123,6 +123,43 @@ export function SessionDetailView() {
   // Model dropdown
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [agentTab, setAgentTab] = useState<string | null>(null);
+
+  // Effort (thinking) level selector
+  const effortOptions = [
+    { value: 'off',    label: 'Normal',  icon: '💬', desc: 'Direct response' },
+    { value: 'low',    label: 'Careful', icon: '☕',  desc: 'Brief reasoning' },
+    { value: 'medium', label: 'Deep',    icon: '☕☕', desc: 'Step-by-step' },
+    { value: 'high',   label: 'Intense', icon: '☕☕☕', desc: 'Deep reasoning' },
+  ] as const;
+  const [effortLevel, setEffortLevel] = useState<string>(session?.thinkingLevel || 'off');
+  const [effortDropdownOpen, setEffortDropdownOpen] = useState(false);
+  const effortDropdownRef = useRef<HTMLDivElement>(null);
+  const currentEffort = effortOptions.find(e => e.value === effortLevel) || effortOptions[0];
+
+  const handleEffortChange = async (value: string) => {
+    setEffortLevel(value);
+    setEffortDropdownOpen(false);
+    const client = getGatewayClient();
+    if (client && sessionKey) {
+      try {
+        await client.patchSession(sessionKey, { thinkingLevel: value === 'off' ? null : value });
+      } catch (err) {
+        console.error('Failed to set thinking level:', err);
+      }
+    }
+  };
+
+  // Close effort dropdown on outside click
+  useEffect(() => {
+    if (!effortDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (effortDropdownRef.current && !effortDropdownRef.current.contains(e.target as Node)) {
+        setEffortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [effortDropdownOpen]);
   const [modelSearch, setModelSearch] = useState('');
   const [optimisticModel, setOptimisticModel] = useState<string | null>(null);
   const [selectorMode, setSelectorMode] = useState<'simple' | 'advanced'>('simple');
@@ -391,6 +428,59 @@ export function SessionDetailView() {
                           )}
                         </div>
                       )}
+                </div>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                {/* Effort (thinking) selector */}
+                <div className="relative" ref={effortDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setEffortDropdownOpen(!effortDropdownOpen)}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs transition-all cursor-pointer",
+                      effortDropdownOpen
+                        ? "text-primary"
+                        : effortLevel === 'off'
+                        ? "text-muted-foreground hover:text-foreground"
+                        : "text-violet-500 hover:text-violet-400"
+                    )}
+                  >
+                    <span className="text-[10px]">{currentEffort.icon}</span>
+                    <span className="font-medium">{currentEffort.label}</span>
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", effortDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {effortDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-52 rounded-xl border border-border bg-popover/95 backdrop-blur-sm shadow-2xl z-50 overflow-hidden">
+                      <div className="px-3 pt-3 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Effort</span>
+                      </div>
+                      <div className="p-1.5 flex flex-col gap-0.5">
+                        {effortOptions.map(opt => {
+                          const isActive = effortLevel === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => handleEffortChange(opt.value)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                                isActive
+                                  ? "bg-primary/10 text-primary"
+                                  : "hover:bg-muted/60 text-foreground"
+                              )}
+                            >
+                              <span className="text-base w-8 text-center">{opt.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className={cn("text-sm font-medium", isActive && "text-primary")}>{opt.label}</div>
+                                <div className="text-[10px] text-muted-foreground/60">{opt.desc}</div>
+                              </div>
+                              {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {lastActivity && (
                   <>

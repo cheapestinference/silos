@@ -406,7 +406,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Users can override this per-session by sending <code className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">/think &lt;level&gt;</code> in the chat.
+          This default can be overridden per-message using the effort selector in the chat input.
         </p>
       </div>
     </div>
