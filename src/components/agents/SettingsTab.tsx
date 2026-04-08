@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Sliders, HelpCircle, Cpu, Thermometer, Hash, Info, Search, ChevronDown, Check } from 'lucide-react';
+import { Sliders, HelpCircle, Cpu, Thermometer, Hash, Info, Search, ChevronDown, Check, Brain } from 'lucide-react';
 import { Input } from '../ui/input';
 import { useTranslation } from '../../i18n';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem,
 } from '../ui/select';
-import type { AgentSettings, ModelProviderConfig } from '../../types/openclaw';
+import type { AgentSettings, ModelProviderConfig, ThinkingLevel } from '../../types/openclaw';
 import { useDashboardStore } from '../../store/dashboard-store';
 
 interface SettingsTabProps {
@@ -353,6 +353,61 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
             Recommended: 4096 for most use cases
           </p>
         </div>
+      </div>
+
+      {/* Thinking Mode */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Brain className="w-5 h-5 text-violet-500" />
+          <h3 className="text-lg font-semibold">Thinking Mode</h3>
+          <Tooltip>
+            <TooltipTrigger>
+              <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              Controls whether the model reasons step-by-step before responding.
+              Higher levels produce more careful answers but use more tokens.
+              Users can override per-session with /think in the chat.
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { value: 'off',      label: 'Off',      desc: 'Direct response, no reasoning', color: 'border-gray-500/30' },
+            { value: 'low',      label: 'Low',      desc: 'Brief reasoning before response', color: 'border-blue-500/30' },
+            { value: 'medium',   label: 'Medium',   desc: 'Moderate step-by-step reasoning', color: 'border-violet-500/30' },
+            { value: 'high',     label: 'High',     desc: 'Deep multi-step reasoning', color: 'border-amber-500/30' },
+            { value: 'adaptive', label: 'Adaptive', desc: 'Provider decides (Claude only)', color: 'border-emerald-500/30' },
+            { value: 'minimal',  label: 'Minimal',  desc: 'Lightest reasoning budget', color: 'border-cyan-500/30' },
+          ] as { value: ThinkingLevel; label: string; desc: string; color: string }[]).map(opt => {
+            const isSelected = (settings.thinkingDefault || 'off') === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => updateSetting('thinkingDefault', opt.value)}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  isSelected
+                    ? `${opt.color} bg-primary/5 ring-1 ring-primary/30`
+                    : 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                    {opt.label}
+                  </span>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Users can override this per-session by sending <code className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">/think &lt;level&gt;</code> in the chat.
+        </p>
       </div>
     </div>
   );

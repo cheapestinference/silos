@@ -78,8 +78,15 @@ export function ConfigPanel() {
     setSettingsSaving(true);
     setSettingsError(null);
     try {
-      // Model changes
+      // Agent-level fields (model, thinkingDefault) saved via updateAgent
+      const agentUpdate: { model?: string; thinkingDefault?: string } = {};
       if (localSettings.model && localSettings.model !== activeModel) {
+        agentUpdate.model = localSettings.model;
+      }
+      if (localSettings.thinkingDefault) {
+        agentUpdate.thinkingDefault = localSettings.thinkingDefault;
+      }
+      if (Object.keys(agentUpdate).length > 0) {
         const client = getGatewayClient();
         if (!client) {
           setSettingsError('Not connected to gateway');
@@ -87,16 +94,15 @@ export function ConfigPanel() {
           return;
         }
         try {
-          await client.updateAgent(agent.id, { model: localSettings.model });
+          await client.updateAgent(agent.id, agentUpdate);
         } catch (updateErr) {
           if (!String(updateErr).includes('not found')) throw updateErr;
-          // Agent not yet in config list (old VPS without pre-created main) — create it first
           await client.createAgent({ name: agent.id, workspace: agent.id });
-          await client.updateAgent(agent.id, { model: localSettings.model });
+          await client.updateAgent(agent.id, agentUpdate);
         }
       }
       // Save other settings (temperature, maxTokens, etc.) via agents.update
-      const { model: _model, ...otherSettings } = localSettings;
+      const { model: _model, thinkingDefault: _thinking, ...otherSettings } = localSettings;
       if (Object.keys(otherSettings).length > 0) {
         await saveAgentConfig(agent.id, { settings: otherSettings });
       }

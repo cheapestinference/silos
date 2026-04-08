@@ -114,6 +114,8 @@ export interface AgentToAgentConfig {
   allowedAgents: string[];  // List of agent IDs allowed to communicate with, or ["*"] for all
 }
 
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'adaptive';
+
 export interface AgentSettings {
   model?: string;
   temperature?: number;
@@ -121,6 +123,7 @@ export interface AgentSettings {
   topP?: number;
   presencePenalty?: number;
   frequencyPenalty?: number;
+  thinkingDefault?: ThinkingLevel;
   enabledSkills?: string[];
   agentToAgent?: AgentToAgentConfig;
 }

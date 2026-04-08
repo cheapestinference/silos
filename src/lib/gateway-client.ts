@@ -247,7 +247,7 @@ export class GatewayClient {
     return this.request<{ ok: boolean; agentId: string; name: string; workspace: string }>('agents.create', params);
   }
 
-  async updateAgent(agentId: string, params: { name?: string; model?: string; workspace?: string }) {
+  async updateAgent(agentId: string, params: { name?: string; model?: string; workspace?: string; thinkingDefault?: string }) {
     return this.request<{ ok: boolean; agentId: string }>('agents.update', { agentId, ...params });
   }
 
