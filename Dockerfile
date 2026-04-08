@@ -1,5 +1,5 @@
 # Build stage — compile React frontend
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Firebase config passed at build time (Vite bakes VITE_* into the bundle)
@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Runtime stage — Node.js with server + compiled frontend
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./package-full.json

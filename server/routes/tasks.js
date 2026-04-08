@@ -7,7 +7,7 @@ const execFileAsync = promisify(execFile);
 
 export function createTasksRouter(openclawBase, authMiddleware) {
   const router = Router();
-  const cliBin = path.join(openclawBase, 'openclaw', 'node_modules', '.bin', 'openclaw');
+  const cliBin = process.env.OPENCLAW_CLI || 'openclaw';
   const configPath = path.join(openclawBase, 'openclaw.json');
 
   const cliEnv = {
@@ -25,15 +25,16 @@ export function createTasksRouter(openclawBase, authMiddleware) {
     const cached = cache.get(cacheKey);
     if (cached && now - cached.ts < CACHE_TTL) return cached.data;
 
-    const { stdout } = await execFileAsync(cliBin, args, {
+    const { stdout, stderr } = await execFileAsync(cliBin, args, {
       env: cliEnv,
-      timeout: 10000,
+      timeout: 30000,
       maxBuffer: 5 * 1024 * 1024,
     });
 
-    // CLI may print warnings to stdout before JSON — find the JSON part
-    const jsonStart = stdout.indexOf('{');
-    const jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout;
+    // CLI may output JSON to stdout or stderr — check both
+    const raw = stdout || stderr || '';
+    const jsonStart = raw.indexOf('{');
+    const jsonStr = jsonStart >= 0 ? raw.slice(jsonStart) : raw;
     const data = JSON.parse(jsonStr);
     cache.set(cacheKey, { data, ts: now });
     return data;
