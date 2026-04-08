@@ -1,6 +1,6 @@
 import { Clock, Loader2, CheckCircle, XCircle, Ban, Skull, Timer, Bot, Terminal, CalendarClock, Plug } from 'lucide-react';
 import type { TaskRun } from '../../types/tasks';
-import { taskRunStatusConfig } from '../../types/tasks';
+import { taskRunStatusConfig, inferRuntime } from '../../types/tasks';
 
 interface TaskRunCardProps {
   task: TaskRun;
@@ -22,11 +22,11 @@ function StatusIcon({ status }: { status: TaskRun['status'] }) {
   }
 }
 
-const runtimeIcons: Record<string, React.ElementType> = {
-  subagent: Bot,
-  cron: CalendarClock,
-  cli: Terminal,
-  acp: Plug,
+const runtimeConfig: Record<string, { icon: React.ElementType; label: string }> = {
+  subagent: { icon: Bot, label: 'Subagent' },
+  cron:     { icon: CalendarClock, label: 'Cron Job' },
+  cli:      { icon: Terminal, label: 'CLI Task' },
+  acp:      { icon: Plug, label: 'ACP Task' },
 };
 
 function formatDuration(startMs?: number, endMs?: number) {
@@ -51,7 +51,9 @@ function timeAgo(ts: number) {
 
 export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
   const status = taskRunStatusConfig[task.status];
-  const RuntimeIcon = runtimeIcons[task.runtime] || Terminal;
+  const realRuntime = inferRuntime(task);
+  const rt = runtimeConfig[realRuntime] || { icon: Terminal, label: realRuntime };
+  const RuntimeIcon = rt.icon;
   const isActive = task.status === 'running';
 
   return (
@@ -72,16 +74,21 @@ export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
         )}
         {!isActive && <StatusIcon status={task.status} />}
         <span className="text-xs font-medium text-foreground truncate flex-1">
-          {task.label || task.taskId.slice(0, 12)}
+          {task.label || (task.agentId ? `${rt.label} · ${task.agentId}` : rt.label)}
         </span>
-        <RuntimeIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+      </div>
+
+      {/* Runtime badge — always visible */}
+      <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+        <RuntimeIcon className="w-2.5 h-2.5" />
+        <span>{rt.label}</span>
+        {task.startedAt && (
+          <span className="ml-auto tabular-nums">{formatDuration(task.startedAt, task.endedAt)}</span>
+        )}
       </div>
 
       {!compact && (
         <>
-          {task.agentId && (
-            <p className="text-[10px] text-muted-foreground mt-1 truncate">{task.agentId}</p>
-          )}
 
           {task.progressSummary && isActive && (
             <p className="text-[10px] text-blue-400 mt-1.5 truncate leading-tight">{task.progressSummary}</p>
@@ -91,10 +98,7 @@ export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
             <p className="text-[10px] text-muted-foreground mt-1.5 truncate leading-tight">{task.terminalSummary}</p>
           )}
 
-          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
-            {task.startedAt && (
-              <span className="tabular-nums">{formatDuration(task.startedAt, task.endedAt)}</span>
-            )}
+          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
             <span className="ml-auto tabular-nums">{timeAgo(task.createdAt)}</span>
           </div>
         </>

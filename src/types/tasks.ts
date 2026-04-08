@@ -57,6 +57,18 @@ export interface TaskFlowDetail extends TaskFlow {
   };
 }
 
+/**
+ * Infer the real runtime from childSessionKey, since the CLI always reports "cli".
+ * The session key structure encodes the actual runtime type.
+ */
+export function inferRuntime(task: TaskRun): TaskRuntime {
+  const key = task.childSessionKey || '';
+  if (key.includes(':subagent:')) return 'subagent';
+  if (key.includes(':cron:')) return 'cron';
+  if (key.startsWith('acp:') || task.runtime === 'acp') return 'acp';
+  return task.runtime;
+}
+
 // Status display config shared across components
 export const taskRunStatusConfig: Record<TaskRunStatus, { label: string; color: string; bg: string; icon: string }> = {
   queued:    { label: 'Queued',    color: 'text-gray-500',                          bg: 'bg-gray-500/15',    icon: 'clock' },

@@ -3,7 +3,7 @@ import { Hash, Zap, Clock, MessageSquare, AlertTriangle, Wrench, Loader2, Chevro
 import { getGatewayClient } from '../../lib/gateway-client';
 import useTranslation from '../../i18n';
 import type { TaskRun } from '../../types/tasks';
-import { taskRunStatusConfig } from '../../types/tasks';
+import { taskRunStatusConfig, inferRuntime } from '../../types/tasks';
 import type { ChatMessage } from '../../types/openclaw';
 
 interface TaskRunDetailProps {
@@ -115,7 +115,7 @@ export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession }: T
       <div className="px-5">
         <InfoRow icon={<Hash className="w-3.5 h-3.5" />} label="Task ID" value={task.taskId} mono />
         {task.runId && <InfoRow icon={<Zap className="w-3.5 h-3.5" />} label="Run ID" value={task.runId} mono />}
-        <InfoRow icon={<Play className="w-3.5 h-3.5" />} label="Runtime" value={task.runtime} />
+        <InfoRow icon={<Play className="w-3.5 h-3.5" />} label="Runtime" value={inferRuntime(task)} />
         {task.agentId && <InfoRow icon={<Bot className="w-3.5 h-3.5" />} label="Agent" value={task.agentId} mono />}
         {sessionKey && (
           <InfoRow
