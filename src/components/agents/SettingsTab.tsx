@@ -48,7 +48,7 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
 
   // Check if parameter values are at their defaults
   const isDefaultTemp = (settings.temperature ?? 0.7) === 0.7;
-  const isDefaultMaxTokens = (settings.maxTokens ?? 4096) === 4096;
+  const isDefaultMaxTokens = (settings.maxTokens ?? 8192) === 8192;
 
   // Derive selected provider from current model
   const detectedProvider = useMemo(() => {
@@ -345,12 +345,12 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
             type="number"
             min="1"
             max="128000"
-            value={settings.maxTokens ?? 4096}
-            onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value) || 4096)}
+            value={settings.maxTokens ?? 8192}
+            onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value) || 8192)}
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Recommended: 4096 for most use cases
+            OpenClaw default: 8192
           </p>
         </div>
       </div>
