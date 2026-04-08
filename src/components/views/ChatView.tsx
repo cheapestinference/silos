@@ -1602,9 +1602,10 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                   {/* Context utilization */}
                   {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {
                     const used = currentSession.totalTokens!;
-                    const max = currentSession.contextTokens || sessions?.defaults?.contextTokens;
+                    // Only show max/bar if the provider actually reports context window
+                    const max = currentSession.contextTokens || null;
                     const pct = max ? Math.min((used / max) * 100, 100) : null;
-                    const barColor = pct === null ? 'bg-muted-foreground/40'
+                    const barColor = pct === null ? ''
                       : pct < 50 ? 'bg-emerald-500/70'
                       : pct < 80 ? 'bg-amber-500/70'
                       : 'bg-red-500/80';
