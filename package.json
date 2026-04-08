@@ -25,6 +25,7 @@
     "firebase": "^12.9.0",
     "http-proxy": "^1.18.1",
     "i18next": "^25.10.5",
+    "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

@@ -402,6 +402,11 @@ export class GatewayClient {
   async listModels() {
     return this.request<import('../types/openclaw').ModelsListResult>('models.list');
   }
+
+  // Logs
+  async tailLogs(params?: { cursor?: number; limit?: number; maxBytes?: number }) {
+    return this.request<import('../types/logs').LogTailResult>('logs.tail', params);
+  }
 }
 
 // Singleton instance
