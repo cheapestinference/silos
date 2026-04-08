@@ -31,60 +31,9 @@ function isSilentReply(text: string | null | undefined): boolean {
   return typeof text === 'string' && _SILENT_REPLY_RE.test(text);
 }
 
-// --- Streaming buffer: coalesces WebSocket deltas to animation-frame rate (~60fps) ---
-// Chat events use replace semantics (each delta = full accumulated text).
-// We store the latest delta outside React state and flush via RAF to reduce re-renders.
-let _latestStreamingText: string | null = null;
-let _streamingRafId: number | null = null;
-let _pendingFirstDelta: { runId?: string } | null = null;
-
-function flushStreamingBuffer() {
-  if (_streamingRafId !== null) {
-    cancelAnimationFrame(_streamingRafId);
-    _streamingRafId = null;
-  }
-  const text = _latestStreamingText;
-  const pendingFirst = _pendingFirstDelta;
-  _latestStreamingText = null;
-  _pendingFirstDelta = null;
-  if (text === null) return;
-
-  useDashboardStore.setState((state) => {
-    const updates: Partial<DashboardStore> = { streamingContent: text };
-
-    if (pendingFirst) {
-      const runId = pendingFirst.runId;
-      (updates as any).streamingRunId = runId || null;
-
-      if (runId) {
-        const newActiveRunId = new Map(state.activeRunId);
-        if (state.selectedSessionKey) {
-          newActiveRunId.set(state.selectedSessionKey, runId);
-        }
-        updates.activeRunId = newActiveRunId;
-
-        updates.chatMessages = state.chatMessages.map(m => {
-          if (m.role === 'user' && m.status === 'sending') {
-            return { ...m, status: 'delivered' as const, runId };
-          }
-          return m;
-        }) as ChatMessage[];
-      }
-    }
-
-    return updates;
-  });
-}
-
-/** Discard any buffered streaming data without flushing to state. */
-function cancelStreamingBuffer() {
-  if (_streamingRafId !== null) {
-    cancelAnimationFrame(_streamingRafId);
-    _streamingRafId = null;
-  }
-  _latestStreamingText = null;
-  _pendingFirstDelta = null;
-}
+// --- Streaming: simple replace model (mirrors OpenClaw Control UI) ---
+// Each chat:state='delta' carries the full accumulated text → direct replace into state.
+// No intermediate buffer, no RAF batching — React already batches setState calls.
 
 interface DashboardStore {
   // Connection state
@@ -852,7 +801,7 @@ export const useDashboardStore = create<DashboardStore>()(
         if (key === selectedSessionKey) {
           return;
         }
-        cancelStreamingBuffer();
+        // (no buffer to cancel — streaming writes directly to state)
         // Clear potentially stale per-session state for the target session.
         // Completion/error events are ignored while viewing another session,
         // so chatSending/activeRunId may be stuck from a finished run.
@@ -1081,7 +1030,7 @@ export const useDashboardStore = create<DashboardStore>()(
         const newChatSending = new Map(chatSending);
         newChatSending.set(selectedSessionKey, true);
 
-        cancelStreamingBuffer();
+        // (no buffer to cancel — streaming writes directly to state)
         set({
           chatMessages: [...get().chatMessages, userMessage],
           chatSending: newChatSending,
@@ -1158,7 +1107,7 @@ export const useDashboardStore = create<DashboardStore>()(
           newRunHadTools.delete(selectedSessionKey);
 
           // Save partial streaming content as assistant message before clearing
-          flushStreamingBuffer();
+          // (no buffer to flush — streaming writes directly to state)
           const partialContent = get().streamingContent;
           if (partialContent && partialContent.trim()) {
             const partialMessage: ChatMessage = {
@@ -1174,7 +1123,7 @@ export const useDashboardStore = create<DashboardStore>()(
           }
 
           // Also update the task status to aborted
-          cancelStreamingBuffer();
+          // (no buffer to cancel — streaming writes directly to state)
           set({
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
@@ -1201,7 +1150,7 @@ export const useDashboardStore = create<DashboardStore>()(
           newRunHadTools.delete(selectedSessionKey);
 
           // Save partial content before clearing
-          flushStreamingBuffer();
+          // (no buffer to flush — streaming writes directly to state)
           const partialContent = get().streamingContent;
           if (partialContent && partialContent.trim()) {
             set((state) => ({
@@ -1215,7 +1164,7 @@ export const useDashboardStore = create<DashboardStore>()(
             }));
           }
 
-          cancelStreamingBuffer();
+          // (no buffer to cancel — streaming writes directly to state)
           set({
             activeRunId: newActiveRunId,
             chatSending: newChatSending,
@@ -1251,7 +1200,7 @@ export const useDashboardStore = create<DashboardStore>()(
         newQueue.set(sessionKey, queue.slice(1));
 
         // Transition message status: queued → sending
-        cancelStreamingBuffer();
+        // (no buffer to cancel — streaming writes directly to state)
         const newChatSending = new Map(get().chatSending);
         newChatSending.set(sessionKey, true);
         set({
@@ -1963,7 +1912,7 @@ export const useDashboardStore = create<DashboardStore>()(
           // Streaming text comes exclusively from chat:state='delta' events (accumulated/replace semantics).
 
           if (shouldShowInChat && payload?.stream === 'tool') {
-            flushStreamingBuffer(); // Ensure buffered content is flushed before tool processing
+            // (no buffer to flush — streaming writes directly to state) // Ensure buffered content is flushed before tool processing
             const toolName = payload?.data?.name || payload?.data?.toolName;
             const phase = payload?.data?.phase;
 
@@ -2081,7 +2030,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // Handle agent run error (LLM provider failure, auth errors, etc.)
           if (shouldShowInChat && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'error' || (payload?.data?.phase === 'end' && payload?.data?.isError))) {
-            cancelStreamingBuffer(); // Discard buffered content on error
+            // (no buffer to cancel — streaming writes directly to state) // Discard buffered content on error
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
               const errorDetail = payload?.data?.error || payload?.data?.message || '';
@@ -2181,45 +2130,40 @@ export const useDashboardStore = create<DashboardStore>()(
           // Chat events are already filtered by sessionKey above — no additional guard needed.
           // Tool calls (agent events) still use hasUserInitiatedWork() to avoid cron noise.
 
-          // ── STREAMING TEXT (sole source of truth) ──
-          // chat:state='delta' carries accumulated text → replace semantics (no duplication possible).
-          // Also supports legacy format: stream='text' + delta (incremental append).
-          const isLegacyDelta = payload?.stream === 'text' && payload?.delta;
-          const isStateDelta = payload?.state === 'delta' && payload?.message?.content;
+          // ── STREAMING TEXT (simple replace, mirrors OpenClaw Control UI) ──
+          // chat:state='delta' carries accumulated text → replace streamingContent directly.
+          if (payload?.state === 'delta' && payload?.message?.content) {
+            const chatDeltaText = Array.isArray(payload.message.content)
+              ? payload.message.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('')
+              : typeof payload.message.content === 'string' ? payload.message.content : null;
 
-          const chatDeltaText = isLegacyDelta
-            ? payload.delta
-            : isStateDelta
-              ? (Array.isArray(payload.message.content)
-                ? payload.message.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('')
-                : typeof payload.message.content === 'string' ? payload.message.content : null)
-              : null;
+            if (chatDeltaText && !isSilentReply(chatDeltaText)) {
+              const selKey = get().selectedSessionKey;
+              const runId = payload?.runId || (selKey ? get().activeRunId.get(selKey) : undefined);
 
-          if (chatDeltaText && !isSilentReply(chatDeltaText)) {
-            const currentState = get();
-            const runId = payload?.runId || (currentState.selectedSessionKey ? currentState.activeRunId.get(currentState.selectedSessionKey) : undefined);
+              // Cross-run guard: ignore deltas from a different run
+              const currentRunId = get().streamingRunId;
+              if (runId && currentRunId && runId !== currentRunId) {
+                // Different run — skip
+              } else {
+                const isFirstDelta = !get().streamingContent;
+                const updates: Partial<DashboardStore> = { streamingContent: chatDeltaText };
 
-            // Cross-run contamination guard (check both flushed state and pending buffer)
-            const effectiveRunId = currentState.streamingRunId || _pendingFirstDelta?.runId;
-            if (!(runId && effectiveRunId && runId !== effectiveRunId)) {
-              // First delta: no content flushed to state AND nothing buffered
-              const isFirstDelta = !currentState.streamingContent && _latestStreamingText === null;
+                if (isFirstDelta && runId) {
+                  (updates as any).streamingRunId = runId;
+                  const newActiveRunId = new Map(get().activeRunId);
+                  if (selKey) {
+                    newActiveRunId.set(selKey, runId);
+                  }
+                  updates.activeRunId = newActiveRunId;
+                  updates.chatMessages = get().chatMessages.map(m =>
+                    m.role === 'user' && m.status === 'sending'
+                      ? { ...m, status: 'delivered' as const, runId }
+                      : m
+                  ) as ChatMessage[];
+                }
 
-              // Replace semantics for state='delta', append for legacy
-              _latestStreamingText = isStateDelta
-                ? chatDeltaText
-                : (_latestStreamingText ?? currentState.streamingContent ?? '') + chatDeltaText;
-
-              if (isFirstDelta) {
-                _pendingFirstDelta = { runId };
-              }
-
-              // Schedule RAF flush if not already scheduled
-              if (_streamingRafId === null) {
-                _streamingRafId = requestAnimationFrame(() => {
-                  _streamingRafId = null;
-                  flushStreamingBuffer();
-                });
+                set(updates);
               }
             }
           }
@@ -2229,7 +2173,7 @@ export const useDashboardStore = create<DashboardStore>()(
 
           // ── ABORTED (save partial content) ──
           if (payload?.state === 'aborted') {
-            flushStreamingBuffer();
+            // (no buffer to flush — streaming writes directly to state)
             const sessionKey = get().selectedSessionKey;
 
             set((state) => {
@@ -2278,7 +2222,7 @@ export const useDashboardStore = create<DashboardStore>()(
           // ── CHAT ERROR ──
           if (payload?.state === 'error') {
             const sessionKey = get().selectedSessionKey;
-            cancelStreamingBuffer();
+            // (no buffer to cancel — streaming writes directly to state)
             set((state) => {
               const newActiveRunId = new Map(state.activeRunId);
               const newChatSending = new Map(state.chatSending);
@@ -2336,7 +2280,7 @@ export const useDashboardStore = create<DashboardStore>()(
               return;
             }
 
-            flushStreamingBuffer(); // Ensure buffered content is flushed before completion
+            // (no buffer to flush — streaming writes directly to state) // Ensure buffered content is flushed before completion
 
             // Extract final content from the completion event payload (authoritative source).
             // The last state='delta' may not carry the complete text — the final event does.
@@ -2380,14 +2324,6 @@ export const useDashboardStore = create<DashboardStore>()(
               // saving streaming content mid-run), consolidate into one message with the final content.
               // Multiple tool calls can create multiple partial assistant messages for the same run.
               if (runId && state.chatMessages.some(m => m.runId === runId && m.role === 'assistant')) {
-                // Two-phase transition for the updated message too
-                setTimeout(() => {
-                  const s = useDashboardStore.getState();
-                  if (s.streamingComplete && !s.streamingRunId) {
-                    useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
-                  }
-                }, 150);
-
                 // Keep only the LAST assistant message with this runId (updated), remove earlier ones
                 let updatedLast = false;
                 const consolidated: ChatMessage[] = [];
@@ -2407,7 +2343,8 @@ export const useDashboardStore = create<DashboardStore>()(
                 return {
                   chatMessages: consolidated,
                   activeRunId: newActiveRunId,
-                  streamingComplete: true,
+                  streamingContent: '',
+                  streamingComplete: false,
                   streamingRunId: null,
                 };
               }
@@ -2417,15 +2354,10 @@ export const useDashboardStore = create<DashboardStore>()(
               // Scope to runId so different runs with identical content aren't suppressed.
               const lastAssistant = [...state.chatMessages].reverse().find(m => m.role === 'assistant');
               if (lastAssistant && lastAssistant.content === finalContent && (!runId || lastAssistant.runId === runId)) {
-                setTimeout(() => {
-                  const s = useDashboardStore.getState();
-                  if (s.streamingComplete && !s.streamingRunId) {
-                    useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
-                  }
-                }, 150);
                 return {
                   activeRunId: newActiveRunId,
-                  streamingComplete: true,
+                  streamingContent: '',
+                  streamingComplete: false,
                   streamingRunId: null,
                 };
               }
@@ -2456,18 +2388,10 @@ export const useDashboardStore = create<DashboardStore>()(
                 ? [...updatedMessages.slice(0, firstQueuedIdx), assistantMessage, ...updatedMessages.slice(firstQueuedIdx)]
                 : [...updatedMessages, assistantMessage];
 
-              // Two-phase transition: keep streamingContent for TypingIndicator fade-out.
-              // Guard: only clear if no new run has started (avoids wiping a new run's content).
-              setTimeout(() => {
-                const s = useDashboardStore.getState();
-                if (s.streamingComplete && !s.streamingRunId) {
-                  useDashboardStore.setState({ streamingContent: '', streamingComplete: false });
-                }
-              }, 150);
-
               return {
                 chatMessages: orderedMessages,
-                streamingComplete: true,
+                streamingContent: '',
+                streamingComplete: false,
                 streamingRunId: null,
                 activeRunId: newActiveRunId,
               };
@@ -2673,7 +2597,7 @@ export const useDashboardStore = create<DashboardStore>()(
       handleHello: (_hello) => {
         // Reset orphaned in-flight state from before disconnect.
         // Any run's final event was lost during the disconnect window.
-        cancelStreamingBuffer();
+        // (no buffer to cancel — streaming writes directly to state)
         // Only show full-screen loading overlay on first connection (no data yet).
         // On reconnects, data is already in the store — just refresh silently.
         const isFirstLoad = !get().agents && !get().sessions;
