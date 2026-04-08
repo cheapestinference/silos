@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+
 interface YamlViewerProps {
   content: string;
 }

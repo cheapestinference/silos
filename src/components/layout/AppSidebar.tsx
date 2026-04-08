@@ -29,6 +29,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
 import { CreateChannelModal } from '../modals/CreateChannelModal';
 import { UsageBar } from './UsageBar';
+import type { GatewaySessionRow } from '../../types/openclaw';
 
 // Parse session key to extract agent ID and session type
 interface ParsedSession {
@@ -450,8 +451,6 @@ export function AppSidebar() {
                 s.parsed.sessionType !== 'subagent' && s.parsed.sessionType !== 'cron'
               );
               const subagentSessions = agentSessions.filter(s => s.parsed.sessionType === 'subagent');
-              const cronSessions = agentSessions.filter(s => s.parsed.sessionType === 'cron');
-
               const sessionLimitReached = agentSessions.length >= 100;
 
               return (

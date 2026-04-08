@@ -45,7 +45,7 @@ function formatDuration(startedAt: number, completedAt?: number) {
 
 function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
   const isRunning = task.status === 'running';
-  const isFailed = task.status === 'error' || task.status === 'aborted';
+  const isFailed = task.status === 'failed' || task.status === 'cancelled';
   const tokens = (task.inputTokens || 0) + (task.outputTokens || 0);
 
   return (
@@ -139,14 +139,14 @@ export function OverviewPanel() {
   const sessions = allSessions?.sessions.filter(s => s.key.includes(agentId)) || [];
   const tasks = allTasks.filter(t => t.agentId === agentId || t.sessionKey?.startsWith(`agent:${agentId}:`));
   const cronJobs = allCronJobs.filter(j => j.agentId === agentId);
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
-  const failedTasks = tasks.filter(t => t.status === 'error' || t.status === 'aborted').length;
+  const completedTasks = tasks.filter(t => t.status === 'succeeded').length;
+  const failedTasks = tasks.filter(t => t.status === 'failed').length;
   const onViewScheduled = () => navigate(`/agents/${agentId}/scheduled`);
 
   const runningList = tasks.filter(t => t.status === 'running');
-  const completedList = tasks.filter(t => t.status === 'completed');
-  const errorList = tasks.filter(t => t.status === 'error');
-  const abortedList = tasks.filter(t => t.status === 'aborted');
+  const completedList = tasks.filter(t => t.status === 'succeeded');
+  const errorList = tasks.filter(t => t.status === 'failed');
+  const abortedList = tasks.filter(t => t.status === 'cancelled');
 
   const totalTokens = sessions.reduce((acc, s) => acc + (s.totalTokens || 0), 0);
   const avgTokensPerSession = sessions.length > 0 ? Math.round(totalTokens / sessions.length) : 0;

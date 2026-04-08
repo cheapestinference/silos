@@ -154,12 +154,6 @@ export function SettingsTab({ settings, onChange }: SettingsTabProps) {
     return found ? (found.name || found.id) : parsedModel.modelId || t('agentDetail.selectModel');
   }, [currentModels, parsedModel.modelId]);
 
-  const DefaultBadge = () => (
-    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded">
-      {t('agentDetail.gatewayDefault')}
-    </span>
-  );
-
   return (
     <div className="space-y-6">
       {/* Header */}

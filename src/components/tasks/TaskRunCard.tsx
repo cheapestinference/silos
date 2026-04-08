@@ -50,7 +50,6 @@ function timeAgo(ts: number) {
 }
 
 export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
-  const status = taskRunStatusConfig[task.status];
   const realRuntime = inferRuntime(task);
   const rt = runtimeConfig[realRuntime] || { icon: Terminal, label: realRuntime };
   const RuntimeIcon = rt.icon;

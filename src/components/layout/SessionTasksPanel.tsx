@@ -25,18 +25,18 @@ export function SessionTasksPanel() {
     : [];
 
   const runningTasks = sessionTasks.filter(t => t.status === 'running');
-  const completedTasks = sessionTasks.filter(t => t.status === 'completed');
-  const failedTasks = sessionTasks.filter(t => t.status === 'error' || t.status === 'aborted');
+  const completedTasks = sessionTasks.filter(t => t.status === 'succeeded');
+  const failedTasks = sessionTasks.filter(t => t.status === 'failed' || t.status === 'cancelled');
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'running':
         return <Loader2 className="w-3 h-3 animate-spin text-blue-500" />;
-      case 'completed':
+      case 'succeeded':
         return <CheckCircle2 className="w-3 h-3 text-green-500" />;
-      case 'error':
+      case 'failed':
         return <XCircle className="w-3 h-3 text-red-500" />;
-      case 'aborted':
+      case 'cancelled':
         return <Ban className="w-3 h-3 text-orange-500" />;
       default:
         return <Clock className="w-3 h-3 text-gray-400" />;

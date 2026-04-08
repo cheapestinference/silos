@@ -54,7 +54,7 @@ export function AgentDetailView() {
     return t.agentId === id || t.sessionKey?.startsWith(`agent:${id}:`);
   });
   const runningTasks = agentTasks.filter(t => t.status === 'running').length;
-  const completedTasks = agentTasks.filter(t => t.status === 'completed').length;
+  const completedTasks = agentTasks.filter(t => t.status === 'succeeded').length;
   const agentCronJobs = cronJobs.filter(j => j.agentId === id);
 
   if (!agent) {

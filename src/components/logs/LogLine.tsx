@@ -33,7 +33,7 @@ export function LogLine({ line, showTimestamp, selected, onClick }: LogLineProps
         <span className="text-violet-400/70 shrink-0 max-w-28 truncate select-none">[{line.subsystem}]</span>
       )}
       <span className="text-foreground/80 flex-1 truncate">{line.message}</span>
-      {line.payload && (
+      {!!line.payload && (
         <Braces className="w-3 h-3 text-muted-foreground/40 shrink-0 mt-0.5" />
       )}
     </div>

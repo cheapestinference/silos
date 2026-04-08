@@ -14,7 +14,6 @@ import {
   Check,
   Sparkles,
   User,
-  Brain,
   Terminal,
   Code2,
   Layers,

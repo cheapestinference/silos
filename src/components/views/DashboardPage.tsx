@@ -156,10 +156,10 @@ function TasksOverview() {
   const { t } = useTranslation();
   const { tasks } = useDashboardStore();
 
-  const pending = tasks.filter((task) => task.status === 'pending').length;
+  const pending = tasks.filter((task) => task.status === 'queued').length;
   const running = tasks.filter((task) => task.status === 'running').length;
-  const completed = tasks.filter((task) => task.status === 'completed').length;
-  const failed = tasks.filter((task) => task.status === 'error' || task.status === 'aborted').length;
+  const completed = tasks.filter((task) => task.status === 'succeeded').length;
+  const failed = tasks.filter((task) => task.status === 'failed' || task.status === 'cancelled').length;
 
   return (
     <div className="grid grid-cols-4 gap-4">
