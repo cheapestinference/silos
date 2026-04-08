@@ -6,9 +6,11 @@ import type { ParsedLogLine } from '../../types/logs';
 interface LogViewerProps {
   lines: ParsedLogLine[];
   showTimestamps?: boolean;
+  selectedIndex: number | null;
+  onSelectLine: (index: number | null) => void;
 }
 
-export function LogViewer({ lines, showTimestamps = true }: LogViewerProps) {
+export function LogViewer({ lines, showTimestamps = true, selectedIndex, onSelectLine }: LogViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -51,7 +53,13 @@ export function LogViewer({ lines, showTimestamps = true }: LogViewerProps) {
         ) : (
           <div className="py-2">
             {lines.map((line, i) => (
-              <LogLine key={i} line={line} showTimestamp={showTimestamps} />
+              <LogLine
+                key={i}
+                line={line}
+                showTimestamp={showTimestamps}
+                selected={selectedIndex === i}
+                onClick={() => onSelectLine(selectedIndex === i ? null : i)}
+              />
             ))}
           </div>
         )}

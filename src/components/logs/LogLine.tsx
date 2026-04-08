@@ -1,12 +1,15 @@
+import { Braces } from 'lucide-react';
 import { logLevelConfig } from '../../types/logs';
 import type { ParsedLogLine } from '../../types/logs';
 
 interface LogLineProps {
   line: ParsedLogLine;
   showTimestamp: boolean;
+  selected?: boolean;
+  onClick?: () => void;
 }
 
-export function LogLine({ line, showTimestamp }: LogLineProps) {
+export function LogLine({ line, showTimestamp, selected, onClick }: LogLineProps) {
   const level = logLevelConfig[line.level] || logLevelConfig.info;
 
   const ts = line.timestamp
@@ -14,7 +17,12 @@ export function LogLine({ line, showTimestamp }: LogLineProps) {
     : '';
 
   return (
-    <div className="flex items-start gap-2 px-3 py-0.5 hover:bg-white/[0.02] font-mono text-[11px] leading-relaxed group">
+    <div
+      onClick={onClick}
+      className={`flex items-start gap-2 px-3 py-0.5 font-mono text-[11px] leading-relaxed cursor-pointer transition-colors ${
+        selected ? 'bg-cyan-500/10 border-l-2 border-cyan-500' : 'hover:bg-white/[0.03]'
+      }`}
+    >
       {showTimestamp && ts && (
         <span className="text-gray-600 shrink-0 select-none tabular-nums w-24">{ts}</span>
       )}
@@ -24,7 +32,10 @@ export function LogLine({ line, showTimestamp }: LogLineProps) {
       {line.subsystem && (
         <span className="text-violet-400/70 shrink-0 max-w-28 truncate select-none">[{line.subsystem}]</span>
       )}
-      <span className="text-gray-300 break-all flex-1 whitespace-pre-wrap">{line.message}</span>
+      <span className="text-gray-300 flex-1 truncate">{line.message}</span>
+      {line.payload && (
+        <Braces className="w-3 h-3 text-gray-600 shrink-0 mt-0.5" />
+      )}
     </div>
   );
 }

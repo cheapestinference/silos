@@ -3,6 +3,7 @@ import { ScrollText, Pause, Play, Trash2, FileText } from 'lucide-react';
 import { useLogTail } from '../../hooks/useLogTail';
 import { LogViewer } from '../logs/LogViewer';
 import { LogFilterBar } from '../logs/LogFilterBar';
+import { LogDetailPanel } from '../logs/LogDetailPanel';
 import type { LogLevel } from '../../types/logs';
 
 export function LogsPage() {
@@ -10,6 +11,7 @@ export function LogsPage() {
     'error', 'warn', 'info', 'debug',
   ]);
   const [searchText, setSearchText] = useState('');
+  const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
 
   const { lines, file, connected, paused, setPaused, clear, totalCount, filteredCount } = useLogTail({
     levelFilter: activeLevels,
@@ -21,6 +23,8 @@ export function LogsPage() {
       prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
     );
   }, []);
+
+  const selectedLine = selectedLineIndex !== null ? lines[selectedLineIndex] : null;
 
   return (
     <div className="flex flex-col h-full bg-[#0d1117]">
@@ -61,7 +65,7 @@ export function LogsPage() {
           </button>
 
           <button
-            onClick={clear}
+            onClick={() => { clear(); setSelectedLineIndex(null); }}
             className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
             title="Clear"
           >
@@ -77,7 +81,21 @@ export function LogsPage() {
         onSearchChange={setSearchText}
       />
 
-      <LogViewer lines={lines} />
+      {/* Main area: log viewer + optional detail panel */}
+      <div className="flex-1 flex overflow-hidden">
+        <LogViewer
+          lines={lines}
+          selectedIndex={selectedLineIndex}
+          onSelectLine={setSelectedLineIndex}
+        />
+
+        {selectedLine && (
+          <LogDetailPanel
+            line={selectedLine}
+            onClose={() => setSelectedLineIndex(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
