@@ -1,4 +1,4 @@
-import { Clock, Loader2, CheckCircle, XCircle, Ban, Skull, Timer } from 'lucide-react';
+import { Clock, Loader2, CheckCircle, XCircle, Ban, Skull, Timer, Bot, Terminal, CalendarClock, Plug } from 'lucide-react';
 import type { TaskRun } from '../../types/tasks';
 import { taskRunStatusConfig } from '../../types/tasks';
 
@@ -22,6 +22,13 @@ function StatusIcon({ status }: { status: TaskRun['status'] }) {
   }
 }
 
+const runtimeIcons: Record<string, React.ElementType> = {
+  subagent: Bot,
+  cron: CalendarClock,
+  cli: Terminal,
+  acp: Plug,
+};
+
 function formatDuration(startMs?: number, endMs?: number) {
   if (!startMs) return '';
   const ms = (endMs || Date.now()) - startMs;
@@ -32,22 +39,42 @@ function formatDuration(startMs?: number, endMs?: number) {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
+function timeAgo(ts: number) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
   const status = taskRunStatusConfig[task.status];
+  const RuntimeIcon = runtimeIcons[task.runtime] || Terminal;
+  const isActive = task.status === 'running';
 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-muted/40 transition-colors"
+      className={`w-full text-left p-3 rounded-lg border transition-all ${
+        isActive
+          ? 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 shadow-sm shadow-blue-500/10'
+          : 'border-border bg-card hover:bg-muted/40'
+      }`}
     >
       <div className="flex items-center gap-2">
-        <StatusIcon status={task.status} />
+        {isActive && (
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+          </span>
+        )}
+        {!isActive && <StatusIcon status={task.status} />}
         <span className="text-xs font-medium text-foreground truncate flex-1">
           {task.label || task.taskId.slice(0, 12)}
         </span>
-        {task.runtime !== 'subagent' && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{task.runtime}</span>
-        )}
+        <RuntimeIcon className="w-3 h-3 text-muted-foreground shrink-0" />
       </div>
 
       {!compact && (
@@ -56,18 +83,19 @@ export function TaskRunCard({ task, compact, onClick }: TaskRunCardProps) {
             <p className="text-[10px] text-muted-foreground mt-1 truncate">{task.agentId}</p>
           )}
 
-          {task.progressSummary && task.status === 'running' && (
-            <p className="text-[10px] text-blue-500 mt-1 truncate">{task.progressSummary}</p>
+          {task.progressSummary && isActive && (
+            <p className="text-[10px] text-blue-400 mt-1.5 truncate leading-tight">{task.progressSummary}</p>
           )}
 
-          {task.terminalSummary && task.status !== 'running' && (
-            <p className="text-[10px] text-muted-foreground mt-1 truncate">{task.terminalSummary}</p>
+          {task.terminalSummary && !isActive && (
+            <p className="text-[10px] text-muted-foreground mt-1.5 truncate leading-tight">{task.terminalSummary}</p>
           )}
 
-          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
             {task.startedAt && (
-              <span>{formatDuration(task.startedAt, task.endedAt)}</span>
+              <span className="tabular-nums">{formatDuration(task.startedAt, task.endedAt)}</span>
             )}
+            <span className="ml-auto tabular-nums">{timeAgo(task.createdAt)}</span>
           </div>
         </>
       )}

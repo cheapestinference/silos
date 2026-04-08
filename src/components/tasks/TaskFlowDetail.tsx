@@ -3,6 +3,7 @@ import { Layers, Clock, ChevronRight, Loader2, AlertTriangle } from 'lucide-reac
 import { fetchFlowDetail } from '../../lib/tasks-api';
 import type { TaskFlowDetail as TaskFlowDetailType, TaskRun } from '../../types/tasks';
 import { taskFlowStatusConfig, taskRunStatusConfig } from '../../types/tasks';
+import { FlowTimeline } from './FlowTimeline';
 
 interface TaskFlowDetailProps {
   flowId: string;
@@ -80,6 +81,13 @@ export function TaskFlowDetail({ flowId, onSelectTask }: TaskFlowDetailProps) {
             <span>{flow.taskSummary.failed} failed</span>
             <span>{flow.taskSummary.total} total</span>
           </div>
+        </div>
+      )}
+
+      {/* Timeline waterfall */}
+      {flow.tasks && flow.tasks.length > 0 && (
+        <div className="border-t border-border">
+          <FlowTimeline tasks={flow.tasks} />
         </div>
       )}
 
