@@ -482,7 +482,7 @@ export function SessionDetailView() {
                       {(effortLevel === 'medium' || effortLevel === 'high') && (
                         <div className="px-3 py-2 border-t border-border/50 bg-amber-500/5">
                           <p className="text-[10px] text-amber-500 leading-relaxed">
-                            Higher effort uses more tokens for reasoning. If responses get truncated, increase max tokens in agent config.
+                            Uses more tokens — responses may be slower and cost more.
                           </p>
                         </div>
                       )}
