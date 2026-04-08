@@ -21,7 +21,9 @@ import {
   ExternalLink,
   User,
   ScrollText,
-  Workflow,
+  GitBranch,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
@@ -194,6 +196,69 @@ function getAgentColor(agentId: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+// Collapsible subagent group
+function SubagentGroup({
+  sessions,
+  isSessionActive,
+  onNavigate,
+  onRename,
+  onDelete,
+  unreadCounts,
+}: {
+  sessions: { session: GatewaySessionRow; parsed: ParsedSession }[];
+  isSessionActive: (key: string) => boolean;
+  onNavigate: (key: string) => void;
+  onRename: (key: string, label: string) => void;
+  onDelete: (key: string) => void;
+  unreadCounts: Map<string, number>;
+}) {
+  const hasActive = sessions.some(s => isSessionActive(s.session.key));
+  const [isOpen, setIsOpen] = useState(hasActive);
+
+  return (
+    <div className="mt-0.5">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'w-full flex items-center gap-1.5 px-1 py-0.5 rounded text-[11px] transition-colors',
+          hasActive ? 'text-cyan-500' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {isOpen
+          ? <ChevronDown className="w-3 h-3 shrink-0" />
+          : <ChevronRight className="w-3 h-3 shrink-0" />
+        }
+        <GitBranch className="w-3 h-3 text-cyan-500 shrink-0" />
+        <span className="flex-1 text-left">Subagents</span>
+        <span className="text-[10px] px-1.5 rounded-full bg-sidebar-hover text-muted-foreground tabular-nums">
+          {sessions.length}
+        </span>
+      </button>
+      {isOpen && (
+        <div className="ml-3 mt-0.5 space-y-0.5 border-l border-cyan-500/20 pl-2">
+          {sessions.map(({ session, parsed }) => (
+            <SessionItem
+              key={session.key}
+              sessionKey={session.key}
+              sessionType={parsed.sessionType}
+              label={session.label}
+              displayName={session.displayName}
+              defaultLabel={parsed.displayLabel}
+              active={isSessionActive(session.key)}
+              onClick={() => onNavigate(session.key)}
+              onRename={(newLabel) => onRename(session.key, newLabel)}
+              onDelete={() => onDelete(session.key)}
+              isSubagent
+              isCompleted={session.abortedLastRun === false && !session.systemSent}
+              unreadCount={unreadCounts.get(session.key) || 0}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppSidebar() {
   const {
     agents,
@@ -232,10 +297,15 @@ export function AppSidebar() {
   const [creatingSessionForAgent, setCreatingSessionForAgent] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState('');
 
-  // Parse all sessions and group by agent
+  // System sessions to hide
+  const isSystemSession = (key: string) =>
+    key === 'heartbeat' || key.includes(':heartbeat') || key.includes(':health-check') || key.includes(':system:');
+
+  // Parse all sessions and group by agent (excluding system sessions)
   const sessionsByAgent = new Map<string, { session: typeof sessionList[0]; parsed: ParsedSession }[]>();
 
   sessionList.forEach(session => {
+    if (isSystemSession(session.key)) return;
     const parsed = parseSessionKey(session.key, agentList);
     if (parsed.agentId && agentList.some(a => a.id === parsed.agentId)) {
       const existing = sessionsByAgent.get(parsed.agentId) || [];
@@ -343,12 +413,6 @@ export function AppSidebar() {
           badge={runningTasksCount > 0 ? runningTasksCount : undefined}
         />
         <NavItem
-          icon={Workflow}
-          label="Workflows"
-          active={isActive('/workflows')}
-          onClick={() => navigate('/workflows')}
-        />
-        <NavItem
           icon={ScrollText}
           label="Logs"
           active={isActive('/logs')}
@@ -404,26 +468,7 @@ export function AppSidebar() {
 
                   {/* Sessions always visible */}
                   <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border/50 pl-2">
-                    {/* Subagent sessions (top, same level as regular sessions) */}
-                    {subagentSessions.map(({ session, parsed }) => (
-                      <SessionItem
-                        key={session.key}
-                        sessionKey={session.key}
-                        sessionType={parsed.sessionType}
-                        label={session.label}
-                        displayName={session.displayName}
-                        defaultLabel={parsed.displayLabel}
-                        active={isSessionActive(session.key)}
-                        onClick={() => navigate(`/session/${session.key}`)}
-                        onRename={(newLabel) => handleRenameSession(session.key, newLabel)}
-                        onDelete={() => handleDeleteSession(session.key)}
-                        isSubagent
-                        isCompleted={session.abortedLastRun === false && !session.systemSent}
-                        unreadCount={unreadCounts.get(session.key) || 0}
-                      />
-                    ))}
-
-                    {/* Main/channel sessions */}
+                    {/* Main/channel sessions first */}
                     {mainSessions.map(({ session, parsed }) => (
                       <SessionItem
                         key={session.key}
@@ -440,26 +485,16 @@ export function AppSidebar() {
                       />
                     ))}
 
-                    {/* Cron job sessions (more indented, like subagents) */}
-                    {cronSessions.length > 0 && (
-                      <div className="ml-2 mt-0.5 space-y-0.5 border-l border-cyan-500/20 pl-2">
-                        {cronSessions.map(({ session, parsed }) => (
-                          <SessionItem
-                            key={session.key}
-                            sessionKey={session.key}
-                            sessionType={parsed.sessionType}
-                            label={session.label}
-                            displayName={session.displayName}
-                            defaultLabel={parsed.displayLabel}
-                            active={isSessionActive(session.key)}
-                            onClick={() => navigate(`/session/${session.key}`)}
-                            onRename={(newLabel) => handleRenameSession(session.key, newLabel)}
-                            onDelete={() => handleDeleteSession(session.key)}
-                            isCron
-                            unreadCount={unreadCounts.get(session.key) || 0}
-                          />
-                        ))}
-                      </div>
+                    {/* Subagents — collapsible group */}
+                    {subagentSessions.length > 0 && (
+                      <SubagentGroup
+                        sessions={subagentSessions}
+                        isSessionActive={isSessionActive}
+                        onNavigate={(key) => navigate(`/session/${key}`)}
+                        onRename={handleRenameSession}
+                        onDelete={handleDeleteSession}
+                        unreadCounts={unreadCounts}
+                      />
                     )}
 
                     {/* Create new session input */}
@@ -799,15 +834,9 @@ function SessionItem({
   };
 
   // Get appropriate icon based on session type
-  const getIcon = () => {
-    if (isSubagent) {
-      // Robot emoji for subagents
-      return null;
-    }
-    if (isCron) {
-      // Clock icon for cron sessions
-      return null; // We'll use emoji instead
-    }
+  const getIcon = (): React.ElementType | null => {
+    if (isSubagent) return GitBranch;
+    if (isCron) return ScrollText;
     switch (sessionType) {
       case 'main':
       case 'webchat':
@@ -819,7 +848,7 @@ function SessionItem({
       case 'discord':
         return Hash;
       case 'cron':
-        return null; // Use emoji
+        return ScrollText;
       default:
         return Hash;
     }
@@ -866,13 +895,12 @@ function SessionItem({
             : "text-sidebar-fg/80 hover:text-sidebar-fg hover:bg-sidebar-hover",
         )}
       >
-        {isSubagent ? (
-          <span className="shrink-0 text-[11px]">🤖</span>
-        ) : isCron ? (
-          <span className="shrink-0 text-[11px]">⏰</span>
-        ) : Icon ? (
-          <Icon className="shrink-0 opacity-60 w-3.5 h-3.5" />
-        ) : null}
+        {Icon && (
+          <Icon className={cn(
+            "shrink-0 w-3.5 h-3.5",
+            isSubagent ? "text-cyan-500 opacity-80" : isCron ? "text-amber-500 opacity-80" : "opacity-60"
+          )} />
+        )}
         <span className="flex-1 text-left truncate text-xs">{displayedName}</span>
         {unreadCount > 0 && !active && (
           <span className="shrink-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-blue-500 text-white">

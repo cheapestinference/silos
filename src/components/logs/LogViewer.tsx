@@ -44,11 +44,11 @@ export function LogViewer({ lines, showTimestamps = true, selectedIndex, onSelec
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto bg-[#0d1117]"
+        className="h-full overflow-y-auto bg-background"
       >
         {lines.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 text-sm font-mono">Waiting for logs...</p>
+            <p className="text-muted-foreground/50 text-sm font-mono">Waiting for logs...</p>
           </div>
         ) : (
           <div className="py-2">
@@ -68,9 +68,9 @@ export function LogViewer({ lines, showTimestamps = true, selectedIndex, onSelec
       {showScrollBtn && (
         <button
           onClick={jumpToBottom}
-          className="absolute bottom-4 right-4 p-2 bg-gray-800 border border-gray-600 rounded-full shadow-lg hover:bg-gray-700 transition-colors"
+          className="absolute bottom-4 right-4 p-2 bg-card border border-border rounded-full shadow-lg hover:bg-accent transition-colors"
         >
-          <ArrowDown className="w-4 h-4 text-gray-300" />
+          <ArrowDown className="w-4 h-4 text-foreground/70" />
         </button>
       )}
     </div>

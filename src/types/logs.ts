@@ -23,8 +23,8 @@ export const logLevelConfig: Record<LogLevel, { label: string; color: string; bg
   error: { label: 'ERROR', color: 'text-red-400',    bg: 'bg-red-500/10' },
   warn:  { label: 'WARN',  color: 'text-amber-400',  bg: 'bg-amber-500/10' },
   info:  { label: 'INFO',  color: 'text-cyan-400',   bg: 'bg-cyan-500/10' },
-  debug: { label: 'DEBUG', color: 'text-gray-500',   bg: 'bg-gray-500/10' },
-  trace: { label: 'TRACE', color: 'text-gray-600',   bg: 'bg-gray-600/10' },
+  debug: { label: 'DEBUG', color: 'text-muted-foreground',     bg: 'bg-muted' },
+  trace: { label: 'TRACE', color: 'text-muted-foreground/60', bg: 'bg-muted/60' },
 };
 
 export function parseLogLine(raw: string): ParsedLogLine {

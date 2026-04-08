@@ -7,9 +7,7 @@ import { LogDetailPanel } from '../logs/LogDetailPanel';
 import type { LogLevel } from '../../types/logs';
 
 export function LogsPage() {
-  const [activeLevels, setActiveLevels] = useState<LogLevel[]>([
-    'error', 'warn', 'info', 'debug',
-  ]);
+  const [activeLevels, setActiveLevels] = useState<LogLevel[]>([]);
   const [searchText, setSearchText] = useState('');
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
 
@@ -27,27 +25,27 @@ export function LogsPage() {
   const selectedLine = selectedLineIndex !== null ? lines[selectedLineIndex] : null;
 
   return (
-    <div className="flex flex-col h-full bg-[#0d1117]">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800 shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
-          <ScrollText className="w-4 h-4 text-cyan-400" />
-          <h1 className="text-sm font-semibold text-gray-200">Gateway Logs</h1>
+          <ScrollText className="w-4 h-4 text-cyan-500" />
+          <h1 className="text-sm font-semibold text-foreground">Gateway Logs</h1>
           <div className="flex items-center gap-1.5 ml-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-600'}`} />
-            <span className="text-[10px] text-gray-500">
+            <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+            <span className="text-[10px] text-muted-foreground">
               {connected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-600 tabular-nums">
+          <span className="text-[10px] text-muted-foreground/60 tabular-nums">
             {filteredCount !== totalCount ? `${filteredCount}/` : ''}{totalCount} lines
           </span>
 
           {file && (
-            <span className="text-[10px] text-gray-700 font-mono max-w-48 truncate flex items-center gap-1" title={file}>
+            <span className="text-[10px] text-muted-foreground/40 font-mono max-w-48 truncate flex items-center gap-1" title={file}>
               <FileText className="w-3 h-3" />{file.split('/').pop()}
             </span>
           )}
@@ -57,7 +55,7 @@ export function LogsPage() {
             className={`p-1.5 rounded-md text-xs transition-colors ${
               paused
                 ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             }`}
             title={paused ? 'Resume' : 'Pause'}
           >
@@ -66,7 +64,7 @@ export function LogsPage() {
 
           <button
             onClick={() => { clear(); setSelectedLineIndex(null); }}
-            className="p-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Clear"
           >
             <Trash2 className="w-3.5 h-3.5" />
