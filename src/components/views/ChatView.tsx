@@ -1601,8 +1601,10 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                   {/* Context utilization */}
                   {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {
                     const used = currentSession.totalTokens!;
-                    // Only show max/bar if the provider actually reports context window
-                    const max = currentSession.contextTokens || null;
+                    // Only show max/bar if the provider reports a real context window
+                    // 200000 is OpenClaw's hardcoded fallback when the model doesn't report one
+                    const rawMax = currentSession.contextTokens;
+                    const max = rawMax && rawMax !== 200000 ? rawMax : null;
                     const pct = max ? Math.min((used / max) * 100, 100) : null;
                     const barColor = pct === null ? ''
                       : pct < 50 ? 'bg-emerald-500/70'
