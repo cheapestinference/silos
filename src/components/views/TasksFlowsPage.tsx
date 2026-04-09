@@ -20,7 +20,7 @@ export function TasksFlowsPage() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskRun[]>([]);
   const [flows, setFlows] = useState<TaskFlow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,10 +42,9 @@ export function TasksFlowsPage() {
     }
   }, []);
 
-  // Load when token is available (wait for zustand rehydration from localStorage)
+  // Load when token is available (zustand persist rehydrates it from localStorage)
   const token = useDashboardStore(s => s.token);
-  const hydrated = useDashboardStore(s => s._hydrated);
-  useEffect(() => { if (hydrated && token) loadData(); }, [loadData, token, hydrated]);
+  useEffect(() => { if (token) loadData(); }, [loadData, token]);
 
   const hasActiveTasks = useMemo(
     () => tasks.some(t => t.status === 'running' || t.status === 'queued'),

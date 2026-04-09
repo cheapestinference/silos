@@ -4,10 +4,9 @@ import { useDashboardStore } from '../store/dashboard-store';
 const API_BASE = '/api';
 
 async function fetchJson<T>(url: string): Promise<T> {
-  // Read token at call time (not closure time) to get rehydrated value
   const token = useDashboardStore.getState().token;
-  if (!token) throw new Error('Not authenticated');
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
