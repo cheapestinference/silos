@@ -1,9 +1,13 @@
 import type { TaskRun, TaskFlow, TaskFlowDetail } from '../types/tasks';
+import { useDashboardStore } from '../store/dashboard-store';
 
 const API_BASE = '/api';
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  // Read token at call time (not closure time) to get rehydrated value
+  const token = useDashboardStore.getState().token;
+  if (!token) throw new Error('Not authenticated');
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }

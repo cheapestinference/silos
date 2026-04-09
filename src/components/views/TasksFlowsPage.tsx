@@ -42,9 +42,10 @@ export function TasksFlowsPage() {
     }
   }, []);
 
-  // Load when token is available (wait for zustand rehydration)
+  // Load when token is available (wait for zustand rehydration from localStorage)
   const token = useDashboardStore(s => s.token);
-  useEffect(() => { if (token) loadData(); }, [loadData, token]);
+  const hydrated = useDashboardStore(s => s._hydrated);
+  useEffect(() => { if (hydrated && token) loadData(); }, [loadData, token, hydrated]);
 
   const hasActiveTasks = useMemo(
     () => tasks.some(t => t.status === 'running' || t.status === 'queued'),

@@ -36,6 +36,8 @@ function isSilentReply(text: string | null | undefined): boolean {
 // No intermediate buffer, no RAF batching — React already batches setState calls.
 
 interface DashboardStore {
+  // Persist rehydration flag
+  _hydrated: boolean;
   // Connection state
   connected: boolean;
   connecting: boolean;
@@ -274,6 +276,7 @@ export const useDashboardStore = create<DashboardStore>()(
   persist(
     (set, get) => ({
       // Initial state
+      _hydrated: false,
       connected: false,
       connecting: false,
       initialLoading: false,
@@ -2661,6 +2664,9 @@ export const useDashboardStore = create<DashboardStore>()(
         darkMode: state.darkMode,
         theme: state.theme,
       }),
+      onRehydrateStorage: () => () => {
+        useDashboardStore.setState({ _hydrated: true });
+      },
     }
   )
 );
