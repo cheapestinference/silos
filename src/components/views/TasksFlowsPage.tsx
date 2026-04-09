@@ -8,6 +8,7 @@ import { DetailDrawer } from '../tasks/DetailDrawer';
 import { TaskRunDetail } from '../tasks/TaskRunDetail';
 import { TaskFlowDetail } from '../tasks/TaskFlowDetail';
 import { useNavigate } from 'react-router-dom';
+import { useDashboardStore } from '../../store/dashboard-store';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type DrawerContent =
@@ -41,7 +42,9 @@ export function TasksFlowsPage() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Load when token is available (wait for zustand rehydration)
+  const token = useDashboardStore(s => s.token);
+  useEffect(() => { if (token) loadData(); }, [loadData, token]);
 
   const hasActiveTasks = useMemo(
     () => tasks.some(t => t.status === 'running' || t.status === 'queued'),
