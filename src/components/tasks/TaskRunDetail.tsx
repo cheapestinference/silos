@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { stripReasoningTags } from '../../lib/reasoning-tags';
 import { Hash, Zap, Clock, MessageSquare, AlertTriangle, Wrench, Loader2, ChevronDown, ChevronUp, User, Bot, Play, Layers } from 'lucide-react';
 import { getGatewayClient } from '../../lib/gateway-client';
 import useTranslation from '../../i18n';
@@ -225,7 +226,7 @@ export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession }: T
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {messages.map((msg, i) => {
                     const role = roleConfig[msg.role] || roleConfig.system;
-                    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2);
+                    const content = stripReasoningTags(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2));
                     return (
                       <div key={msg.id || i} className="rounded-lg border border-border overflow-hidden">
                         <div className={`px-3 py-1.5 flex items-center gap-2 ${role.bg}`}>

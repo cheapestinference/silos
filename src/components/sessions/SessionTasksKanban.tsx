@@ -149,6 +149,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
           <TaskKanban
             tasks={sessionTasks.map(taskToTaskRun)}
             compact
+            vertical
             onTaskClick={(taskRun) => {
               const original = sessionTasks.find(t => t.id === taskRun.taskId);
               if (original) setSelectedTask(original);

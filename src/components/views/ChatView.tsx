@@ -1149,6 +1149,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     browserAgentAction,
     setBrowserPanelOpen,
     sessionCumulativeTokens,
+    models: modelCatalog,
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
@@ -1601,10 +1602,12 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                   {/* Context utilization */}
                   {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {
                     const used = currentSession.totalTokens!;
-                    // Only show max/bar if the provider reports a real context window
-                    // 200000 is OpenClaw's hardcoded fallback when the model doesn't report one
-                    const rawMax = currentSession.contextTokens;
-                    const max = rawMax && rawMax !== 200000 ? rawMax : null;
+                    // Resolve real context window from the model catalog (authoritative source).
+                    // Fall back to session's contextTokens only when the catalog has no entry.
+                    const catalogEntry = currentSession.model
+                      ? modelCatalog?.models?.find(m => m.id === currentSession.model)
+                      : null;
+                    const max = catalogEntry?.contextWindow || currentSession.contextTokens || null;
                     const pct = max ? Math.min((used / max) * 100, 100) : null;
                     const barColor = pct === null ? ''
                       : pct < 50 ? 'bg-emerald-500/70'

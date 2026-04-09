@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { stripReasoningTags } from '../../lib/reasoning-tags';
 import { X, Zap, Clock, Hash, MessageSquare, ArrowDownLeft, ArrowUpRight, AlertTriangle, Wrench, Loader2, ChevronDown, ChevronUp, User, Bot } from 'lucide-react';
 import { getGatewayClient } from '../../lib/gateway-client';
 import useTranslation from '../../i18n';
@@ -249,7 +250,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
                   <div className="space-y-2">
                     {messages.map((msg, i) => {
                       const role = roleConfig[msg.role] || roleConfig.system;
-                      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2);
+                      const content = stripReasoningTags(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2));
                       const isLong = content.length > 300;
 
                       // For tool messages, extract input/output

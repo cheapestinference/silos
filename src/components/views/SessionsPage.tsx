@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { stripReasoningTags } from '../../lib/reasoning-tags';
 import useTranslation from '../../i18n';
 import {
   MessageSquare,
@@ -364,9 +365,7 @@ function ChatMessageItem({ message }: { message: ChatMessage }) {
           </div>
           {message.content && (
             <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto max-h-40 overflow-y-auto">
-              {message.content.length > 500
-                ? message.content.substring(0, 500) + '...'
-                : message.content}
+              {(() => { const c = stripReasoningTags(message.content); return c.length > 500 ? c.substring(0, 500) + '...' : c; })()}
             </pre>
           )}
         </div>
@@ -407,7 +406,7 @@ function ChatMessageItem({ message }: { message: ChatMessage }) {
               : 'bg-muted rounded-tl-none'
           )}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">{stripReasoningTags(message.content || '')}</p>
         </div>
         <span className="text-[10px] text-muted-foreground mt-1 px-2">
           {new Date(message.timestamp).toLocaleTimeString()}
