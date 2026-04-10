@@ -26,6 +26,11 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'silos-4352a';
 const USER_LOCALE = process.env.USER_LOCALE || '';
 
+// Model presets — configurable per-instance via env vars (set by provisioning)
+const PRESET_BASICA = process.env.VITE_PRESET_BASICA || '';
+const PRESET_ALTA = process.env.VITE_PRESET_ALTA || '';
+const PRESET_EXCELENTE = process.env.VITE_PRESET_EXCELENTE || '';
+
 let openclawVersion = process.env.OPENCLAW_VERSION || null;
 if (!openclawVersion) {
   for (const p of ['/usr/lib/node_modules/openclaw/package.json', '/usr/local/lib/node_modules/openclaw/package.json', '/home/openclaw/openclaw/package.json']) {
@@ -99,11 +104,30 @@ app.use('/openclaw', httpMiddleware);
 // Browser noVNC: static files served from dist/browser/ by express.static above.
 // WebSocket upgrades for /browser/websockify are handled by upgradeHandler (server.on('upgrade')).
 
+// Runtime config injected into index.html so the SPA can read env vars set at deploy time.
+// Build-time VITE_* values are baked into the JS bundle; this overrides them per-instance.
+const runtimeConfig = JSON.stringify({
+  VITE_PRESET_BASICA: PRESET_BASICA,
+  VITE_PRESET_ALTA: PRESET_ALTA,
+  VITE_PRESET_EXCELENTE: PRESET_EXCELENTE,
+});
+const indexPath = path.join(__dirname, 'dist', 'index.html');
+let indexHtml = null;
+try {
+  const raw = await fs.readFile(indexPath, 'utf8');
+  indexHtml = raw.replace(
+    '<head>',
+    `<head><script>window.__RUNTIME_CONFIG__=${runtimeConfig}</script>`
+  );
+} catch { /* index.html missing in dev — SPA catch-all will 404 naturally */ }
+
 // SPA catch-all
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    if (!indexHtml) return res.status(404).send('Not found');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(indexHtml);
   } else {
     next();
   }

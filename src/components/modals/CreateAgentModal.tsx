@@ -1,11 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, AlertCircle, Search, Plus, SlidersHorizontal, Check, ChevronUp } from 'lucide-react';
 
-const PRESET_MODELS = [
-  { key: 'basic', labelKey: 'modelSelector.basic', model: import.meta.env.VITE_PRESET_BASICA || 'Qwen/Qwen3.5-35B-A3B' },
-  { key: 'high', labelKey: 'modelSelector.high', model: import.meta.env.VITE_PRESET_ALTA || 'Qwen/Qwen3.5-122B-A10B' },
-  { key: 'excellent', labelKey: 'modelSelector.excellent', model: import.meta.env.VITE_PRESET_EXCELENTE || 'moonshotai/Kimi-K2.5' },
-] as const;
+import { PRESET_MODELS } from '../../lib/runtime-config';
 import { getGatewayClient } from '../../lib/gateway-client';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { getAgentTemplates, TEMPLATE_FILES } from '../../lib/agent-templates';
