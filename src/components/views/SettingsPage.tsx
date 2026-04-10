@@ -645,13 +645,15 @@ function ModelsSection() {
 
   type ModelDef = { id: string; name: string; contextWindow: number; reasoning?: boolean };
 
-  // Resolve context window from gateway's model catalog (authoritative source).
-  // Falls back to the value stored in config, then 0 (unknown).
+  // Resolve context window — prefer provider API data, then gateway catalog, then config.
+  // Filters out 200000 (OpenClaw's hardcoded fallback when model doesn't report one).
   const resolveContextWindow = (providerId: string, modelId: string, fallback?: number): number => {
-    const catalogEntry = dynamicModels?.models?.find(
+    const providerCtx = availableModels?.[providerId]?.find(m => m.id === modelId)?.contextWindow;
+    const catalogCtx = dynamicModels?.models?.find(
       m => m.id === modelId && m.provider?.toLowerCase() === providerId.toLowerCase()
-    );
-    return catalogEntry?.contextWindow || fallback || 0;
+    )?.contextWindow;
+    const raw = providerCtx || catalogCtx || fallback || 0;
+    return raw === 200000 ? 0 : raw;
   };
 
   const providerPresets: Record<string, { baseUrl: string; api: string }> = {

@@ -1944,23 +1944,11 @@ export const useDashboardStore = create<DashboardStore>()(
                 set({ runHadTools: newRunHadTools });
               }
 
-              // First, save any accumulated streaming content as an assistant message
+              // Clear streaming content and add tool call message.
+              // Do NOT save streamingContent as an assistant message — it's a partial
+              // snapshot that may contain half-formed tags. The authoritative text
+              // arrives with chat:state='final' which creates the real assistant message.
               set((state) => {
-                const messages = [...state.chatMessages];
-
-                // If there's streaming content, save it first
-                if (state.streamingContent && state.streamingContent.trim()) {
-                  const assistantMessage: ChatMessage = {
-                    id: generateId(),
-                    role: 'assistant',
-                    content: state.streamingContent,
-                    timestamp: Date.now(),
-                    runId: payload?.runId,
-                  };
-                  messages.push(assistantMessage);
-                }
-
-                // Add tool call message (showing input/args)
                 const toolCallMessage: ChatMessage = {
                   id: generateId(),
                   role: 'tool',
@@ -1971,10 +1959,9 @@ export const useDashboardStore = create<DashboardStore>()(
                   runId: payload?.runId,
                   status: 'sending',
                 };
-                messages.push(toolCallMessage);
 
                 return {
-                  chatMessages: messages,
+                  chatMessages: [...state.chatMessages, toolCallMessage],
                   streamingContent: '',
                   streamingRunId: null,
                 };

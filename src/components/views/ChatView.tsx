@@ -1149,7 +1149,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     browserAgentAction,
     setBrowserPanelOpen,
     sessionCumulativeTokens,
-    models: modelCatalog,
+    availableModels,
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
@@ -1501,13 +1501,9 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
           )}
 
           {filteredMessages.map((msg, i, arr) => {
-            // Hide assistant messages whose content is already visible in the TypingIndicator:
-            // 1. During streaming→message transition (fade-out): last assistant msg is duplicate
-            // 2. During post-tool streaming: tool handler saved a partial assistant msg for the
-            //    active run, but TypingIndicator now shows the full accumulated text (replace semantics)
-            if (streamingContent && msg.role === 'assistant') {
-              if (streamingComplete && i === arr.length - 1) return null;
-              if (!streamingComplete && streamingRunId && msg.runId === streamingRunId) return null;
+            // Hide assistant message that duplicates the TypingIndicator during streaming→message fade-out
+            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === arr.length - 1) {
+              return null;
             }
             const showAvatar = i === 0 ||
               arr[i-1].role !== msg.role ||
@@ -1602,12 +1598,10 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                   {/* Context utilization */}
                   {currentSession?.totalTokens !== undefined && currentSession.totalTokens > 0 && (() => {
                     const used = currentSession.totalTokens!;
-                    // Resolve real context window from the model catalog (authoritative source).
-                    // Fall back to session's contextTokens only when the catalog has no entry.
-                    const catalogEntry = currentSession.model
-                      ? modelCatalog?.models?.find(m => m.id === currentSession.model)
-                      : null;
-                    const max = catalogEntry?.contextWindow || currentSession.contextTokens || null;
+                    // Same source as the model selector dropdown: availableModels[provider].contextWindow
+                    const provider = currentSession.modelProvider;
+                    const max = (provider && currentSession.model && availableModels?.[provider]
+                      ?.find(m => m.id === currentSession.model)?.contextWindow) || null;
                     const pct = max ? Math.min((used / max) * 100, 100) : null;
                     const barColor = pct === null ? ''
                       : pct < 50 ? 'bg-emerald-500/70'
