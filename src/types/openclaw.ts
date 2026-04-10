@@ -292,6 +292,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   toolName?: string;
+  toolCallId?: string;
   toolCall?: unknown;
   result?: unknown;
   runId?: string;

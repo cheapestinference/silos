@@ -22,14 +22,14 @@ import type {
   ConfigSnapshot,
 } from '../types/openclaw';
 import { generateId } from '../lib/utils';
+import { isSilentReply } from '../lib/reasoning-tags';
+import {
+  handleAgentDisplayEvent as _handleAgentDisplayEvent,
+  handleChatEvent as _handleChatEvent,
+  handleTaskTracking as _handleTaskTracking,
+} from './chat-event-handlers';
 
-// --- NO_REPLY filtering: defense-in-depth against gateway control tokens ---
-// Agents return "NO_REPLY" during memory compaction and other internal operations.
-// The gateway strips it server-side, but streaming deltas arrive before normalization.
-const _SILENT_REPLY_RE = /^\s*NO_REPLY\s*$/;
-function isSilentReply(text: string | null | undefined): boolean {
-  return typeof text === 'string' && _SILENT_REPLY_RE.test(text);
-}
+// isSilentReply imported from lib/reasoning-tags
 
 // --- Streaming: simple replace model (mirrors OpenClaw Control UI) ---
 // Each chat:state='delta' carries the full accumulated text → direct replace into state.
@@ -79,6 +79,7 @@ interface DashboardStore {
   pendingSpawnParent: string | null; // Parent session for next spawned subagent
   unreadCounts: Map<string, number>; // sessionKey -> unread message count
   sessionCumulativeTokens: Map<string, { total: number; lastInput: number; lastOutput: number }>;
+  rateLimitedUntil: number; // Timestamp until rate limit is active (survives component unmount)
 
   // Loading states
   agentsLoading: boolean;
@@ -329,6 +330,7 @@ export const useDashboardStore = create<DashboardStore>()(
         } catch { /* ignore corrupt data */ }
         return new Map();
       })(),
+      rateLimitedUntil: 0,
 
       agentsLoading: false,
       sessionsLoading: false,
@@ -922,27 +924,54 @@ export const useDashboardStore = create<DashboardStore>()(
         });
 
         try {
-          const result = await client.getChatHistory(effectiveKey, { limit: 100 });
-          const messages: ChatMessage[] = (result.messages || []).map((m: any, i: number) => ({
-            id: m.id || `msg-${i}`,
-            role: m.role || 'user',
-            // Strip gateway metadata from user messages for clean display
-            content: m.role === 'user'
-              ? stripInboundMeta(m.content)
-              : (typeof m.content === 'string'
-                ? m.content
-                : Array.isArray(m.content)
-                  ? m.content
-                    .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
-                    .filter(Boolean)
-                    .join('\n') || ''
-                  : ''),
-            timestamp: m.timestamp || Date.now(),
-            toolName: m.toolName,
-            toolCall: m.toolCall,
-            result: m.result,
-            runId: m.runId,
-          })).filter((m) => {
+          const result = await client.getChatHistory(effectiveKey, { limit: 200 });
+
+          // Extract text from content, preserving tool_use blocks as separate messages
+          const extractedToolUseMessages: ChatMessage[] = [];
+          const messages: ChatMessage[] = (result.messages || []).map((m: any, i: number) => {
+            let textContent: string;
+            if (m.role === 'user') {
+              textContent = stripInboundMeta(m.content);
+            } else if (typeof m.content === 'string') {
+              textContent = m.content;
+            } else if (Array.isArray(m.content)) {
+              // Extract text blocks
+              const textParts = m.content
+                .filter((item: any) => !item || typeof item === 'string' || item?.type === 'text')
+                .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
+                .filter(Boolean);
+              textContent = textParts.join('\n') || '';
+
+              // Extract tool_use blocks as separate tool messages
+              for (const item of m.content) {
+                if (item?.type === 'tool_use' && item.name) {
+                  extractedToolUseMessages.push({
+                    id: item.id || `tool-${m.id || i}-${item.name}`,
+                    role: 'tool',
+                    content: '',
+                    timestamp: m.timestamp || Date.now(),
+                    toolName: item.name,
+                    toolCall: item.input,
+                    runId: m.runId,
+                    status: 'delivered',
+                  });
+                }
+              }
+            } else {
+              textContent = '';
+            }
+
+            return {
+              id: m.id || `msg-${i}`,
+              role: m.role || 'user',
+              content: textContent,
+              timestamp: m.timestamp || Date.now(),
+              toolName: m.toolName,
+              toolCall: m.toolCall,
+              result: m.result,
+              runId: m.runId,
+            };
+          }).filter((m) => {
             // Hide tool-result messages (gateway stores them with role='toolResult')
             if (m.role === 'toolResult') return false;
             // Hide user messages that became empty after stripping runtime context / metadata
@@ -953,17 +982,32 @@ export const useDashboardStore = create<DashboardStore>()(
           });
           // Guard: user may have switched sessions or another loadChatHistory call was made
           if (get().selectedSessionKey !== key || gen !== _chatHistoryGen) return;
-          // Preserve tool messages from the current session — the gateway history
-          // only returns user/assistant text, so tool events captured during streaming
-          // would be lost on reload. Keep them and interleave by timestamp.
+          // Merge tool messages: gateway history doesn't return tool events, so we
+          // need them from two sources:
+          // 1. extractedToolUseMessages: tool_use blocks found in assistant content arrays
+          // 2. existingToolMessages: tool events captured during streaming
+          // Deduplicate: if a tool_use block matches a streaming tool message (same toolName
+          // + runId + similar timestamp), keep only the streaming one (it has richer data).
           const existingToolMessages = get().chatMessages.filter(
             m => m.role === 'tool' || m.toolName || m.toolCall || m.result
           );
 
-          // Merge tool messages into the reloaded history, sorted by timestamp
+          // Build a set of (toolName, runId) pairs from existing streaming tools for dedup
+          const existingToolKeys = new Set(
+            existingToolMessages
+              .filter(m => m.toolName && m.runId)
+              .map(m => `${m.toolName}:${m.runId}`)
+          );
+
+          // Only add extracted tool_use messages that don't overlap with streaming tools
+          const uniqueExtracted = extractedToolUseMessages.filter(
+            m => !m.runId || !m.toolName || !existingToolKeys.has(`${m.toolName}:${m.runId}`)
+          );
+
+          const allToolMessages = [...existingToolMessages, ...uniqueExtracted];
           let merged = messages;
-          if (existingToolMessages.length > 0) {
-            merged = [...messages, ...existingToolMessages].sort(
+          if (allToolMessages.length > 0) {
+            merged = [...messages, ...allToolMessages].sort(
               (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
             );
           }
@@ -1867,728 +1911,31 @@ export const useDashboardStore = create<DashboardStore>()(
       setBrowserDetached: (mode) => set({ browserDetached: mode }),
       setBrowserAgentAction: (action) => set({ browserAgentAction: action }),
 
-      // Event handlers
+      // Event handlers — dispatches to focused handlers in chat-event-handlers.ts
       handleEvent: (event) => {
         const { selectedSessionKey } = get();
+        const storeAccessor = { get, set };
 
-        // Calculate effective session key for comparison
         const currentEffectiveKey = selectedSessionKey?.startsWith('dm-')
           ? `agent:${selectedSessionKey.replace(/^dm-/, '')}:dm-operator`
           : selectedSessionKey;
 
-        // Handle streaming text from 'agent' events (stream: 'assistant')
+        // Agent events: display (tools, errors) + task tracking
         if (event.event === 'agent') {
           const payload = event.payload as any;
-          const eventSessionKey = payload?.sessionKey;
-
-          // Check if this event belongs to our currently selected session
-          // BUT allow subagent events through for task tracking (they have different session keys)
-          const isSubagentEvent = eventSessionKey?.includes(':subagent:') || eventSessionKey?.includes('-subagent-');
-          const isFromSameAgent = (() => {
-            if (!eventSessionKey || !currentEffectiveKey) return false;
-            const eventAgentMatch = eventSessionKey.match(/^agent:([^:]+)/);
-            const currentAgentMatch = currentEffectiveKey.match(/^agent:([^:]+)/);
-            return eventAgentMatch && currentAgentMatch && eventAgentMatch[1] === currentAgentMatch[1];
-          })();
-
-          if (eventSessionKey && eventSessionKey !== currentEffectiveKey) {
-            // Track unread for other sessions when message completes
-            if (payload?.stream === 'lifecycle' &&
-              (payload?.data?.phase === 'complete' || payload?.data?.phase === 'done' || payload?.data?.phase === 'end')) {
-              get().incrementUnread(eventSessionKey);
-            }
-            // Allow subagent events from the same agent to pass through for task/tool tracking
-            // but skip display events (streaming, assistant deltas) for other sessions
-            if (!isSubagentEvent || !isFromSameAgent) {
-              return;
-            }
-            // Subagent events from same agent: skip display handling below,
-            // but fall through to task tracking section (second 'agent' event block)
-          }
-
-          // Only process display events (streaming, tool calls) for the current session, not subagent events
-          const isCurrentSessionEvent = eventSessionKey === currentEffectiveKey || !eventSessionKey;
-
-          // Show events for the current session. The hasUserInitiatedWork() check was
-          // previously used to filter cron/external triggers, but this caused legitimate
-          // events to be invisible. Instead, always show events for the current session —
-          // external triggers on the same session ARE relevant to the user watching it.
-          const shouldShowInChat = isCurrentSessionEvent;
-
-          // agent:stream='assistant' — IGNORED for display.
-          // Streaming text comes exclusively from chat:state='delta' events (accumulated/replace semantics).
-
-          if (shouldShowInChat && payload?.stream === 'tool') {
-            // (no buffer to flush — streaming writes directly to state) // Ensure buffered content is flushed before tool processing
-            const toolName = payload?.data?.name || payload?.data?.toolName;
-            const phase = payload?.data?.phase;
-
-            // Browser tool detection: auto-open browser panel and show action description
-            if (toolName && (toolName === 'browser' || (toolName as string).startsWith('browser'))) {
-              if (phase === 'call' || phase === 'input' || phase === 'start') {
-                const toolInput = payload?.data?.input || payload?.data?.args || {};
-                const description = describeBrowserAction(toolInput as Record<string, unknown>);
-                set({ browserAgentAction: description });
-                if (!get().browserPanelOpen) {
-                  set({ browserPanelOpen: true });
-                }
-              } else if (phase === 'result') {
-                set({ browserAgentAction: null });
-              }
-            }
-
-            // Handle tool call start - show what tool is being called
-            if ((phase === 'call' || phase === 'input' || phase === 'start') && toolName) {
-              // Mark that this run used tools — history will be reloaded on completion
-              const sk = get().selectedSessionKey;
-              const rid = payload?.runId;
-              if (sk && rid) {
-                const newRunHadTools = new Map(get().runHadTools);
-                newRunHadTools.set(sk, true);
-                set({ runHadTools: newRunHadTools });
-              }
-
-              // Clear streaming content and add tool call message.
-              // Do NOT save streamingContent as an assistant message — it's a partial
-              // snapshot that may contain half-formed tags. The authoritative text
-              // arrives with chat:state='final' which creates the real assistant message.
-              set((state) => {
-                const toolCallMessage: ChatMessage = {
-                  id: generateId(),
-                  role: 'tool',
-                  content: '', // Will be filled when result comes
-                  timestamp: Date.now(),
-                  toolName: toolName,
-                  toolCall: payload?.data?.input || payload?.data?.args,
-                  runId: payload?.runId,
-                  status: 'sending',
-                };
-
-                return {
-                  chatMessages: [...state.chatMessages, toolCallMessage],
-                  streamingContent: '',
-                  streamingRunId: null,
-                };
-              });
-            }
-
-            // Handle tool results
-            if (phase === 'result' && toolName) {
-              const toolResult = payload?.data?.result;
-              const toolArgs = payload?.data?.args || payload?.data?.input;
-
-              set((state) => {
-                // Find the pending tool message — try strict runId match first, then relaxed
-                let pendingToolIdx = state.chatMessages.findIndex(
-                  m => m.role === 'tool' && m.toolName === toolName && m.status === 'sending' && m.runId === payload?.runId
-                );
-                if (pendingToolIdx === -1) {
-                  // Relaxed: match by toolName + sending status (last one wins)
-                  for (let i = state.chatMessages.length - 1; i >= 0; i--) {
-                    const m = state.chatMessages[i];
-                    if (m.role === 'tool' && m.toolName === toolName && m.status === 'sending') {
-                      pendingToolIdx = i;
-                      break;
-                    }
-                  }
-                }
-
-                if (pendingToolIdx !== -1) {
-                  // Update existing pending tool message
-                  const messages = [...state.chatMessages];
-                  messages[pendingToolIdx] = {
-                    ...messages[pendingToolIdx],
-                    content: toolResult ? (typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2)) : '',
-                    result: toolResult,
-                    toolCall: messages[pendingToolIdx].toolCall || toolArgs,
-                    status: 'delivered',
-                  };
-                  return { chatMessages: messages };
-                } else {
-                  // No pending message found, create a new one with args from result event
-                  const toolMessage: ChatMessage = {
-                    id: generateId(),
-                    role: 'tool',
-                    content: toolResult ? (typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2)) : '',
-                    timestamp: Date.now(),
-                    toolName: toolName,
-                    toolCall: toolArgs,
-                    result: toolResult,
-                    runId: payload?.runId,
-                  };
-                  return { chatMessages: [...state.chatMessages, toolMessage] };
-                }
-              });
-            }
-          }
-
-          // Handle agent run error (LLM provider failure, auth errors, etc.)
-          if (shouldShowInChat && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'error' || (payload?.data?.phase === 'end' && payload?.data?.isError))) {
-            // (no buffer to cancel — streaming writes directly to state) // Discard buffered content on error
-            set((state) => {
-              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
-              const errorDetail = payload?.data?.error || payload?.data?.message || '';
-
-              // Classify rate limit type from LiteLLM error detail
-              const isRateLimit = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
-              if (isRateLimit) {
-                const limitType = /budget/i.test(errorDetail) ? 'BUDGET'
-                  : /requests?\s*per\s*minute|rpm/i.test(errorDetail) ? 'RPM'
-                    : /tokens?\s*per\s*minute|tpm/i.test(errorDetail) ? 'TPM'
-                      : 'UNKNOWN';
-                const resetMatch = errorDetail.match(/resets?\s*(?:at|in)[:\s]*(.+?)(?:\s*UTC)?\s*$/i);
-                console.log(`[RateLimit] Type: ${limitType} | Reset: ${resetMatch?.[1] || 'unknown'} | Detail: ${errorDetail}`);
-                const recentRateLimit = state.chatMessages.find(
-                  m => m.role === 'system' && m.content?.startsWith('__provider_error__') &&
-                    (m.content.includes('429') || /rate limit/i.test(m.content)) &&
-                    (Date.now() - m.timestamp) < 60000
-                );
-                if (recentRateLimit) {
-                  // Still clear sending state but don't add another error message
-                  const newActiveRunId = new Map(state.activeRunId);
-                  if (state.selectedSessionKey) {
-                    newActiveRunId.delete(state.selectedSessionKey);
-                  }
-                  // Queue dispatch happens after set() via setTimeout below
-                  return {
-                    streamingContent: '',
-                    streamingRunId: null,
-                    streamingComplete: false,
-                    activeRunId: newActiveRunId,
-                  };
-                }
-              }
-
-              // Create a system error message visible to the user
-              const errorMessage: ChatMessage = {
-                id: generateId(),
-                role: 'system',
-                content: `__provider_error__${errorDetail}`,
-                timestamp: Date.now(),
-                runId: runId,
-              };
-
-              // Mark the sending user message as error (not queued ones — they haven't been sent)
-              const updatedMessages = state.chatMessages.map(m => {
-                if (runId && m.runId === runId && m.role === 'user' && m.status === 'sending') {
-                  return { ...m, status: 'error' as const };
-                }
-                if (!runId && m.role === 'user' && m.status === 'sending') {
-                  return { ...m, status: 'error' as const };
-                }
-                return m;
-              });
-
-              const newActiveRunId = new Map(state.activeRunId);
-              if (state.selectedSessionKey) {
-                newActiveRunId.delete(state.selectedSessionKey);
-              }
-
-              return {
-                chatMessages: [...updatedMessages, errorMessage],
-                streamingContent: '',
-                streamingRunId: null,
-                streamingComplete: false,
-                activeRunId: newActiveRunId,
-              };
-            });
-
-            // Dispatch next queued message (if any) after error
-            const sk = get().selectedSessionKey;
-            if (sk) setTimeout(() => get()._dispatchNextQueued(sk), 0);
-          }
-
-          // agent:lifecycle:complete — ONLY task tracking.
-          // Message creation and state cleanup are handled exclusively by chat:state='final'.
-          if (payload?.stream === 'lifecycle' && (payload?.data?.phase === 'complete' || payload?.data?.phase === 'done' || (payload?.data?.phase === 'end' && !payload?.data?.isError))) {
-            const runId = payload?.runId;
-            if (runId) {
-              set((state) => ({
-                tasks: state.tasks.map((t) =>
-                  t.runId === runId ? { ...t, status: 'succeeded' as const, completedAt: Date.now() } : t
-                ),
-              }));
-            }
+          const shouldTrack = _handleAgentDisplayEvent(storeAccessor, payload, currentEffectiveKey);
+          if (shouldTrack) {
+            _handleTaskTracking(storeAccessor, payload, selectedSessionKey);
           }
         }
 
-        // Handle chat events
+        // Chat events: streaming, completion, abort
         if (event.event === 'chat') {
           const payload = event.payload as any;
-          const eventSessionKey = payload?.sessionKey;
-
-          if (eventSessionKey && eventSessionKey !== currentEffectiveKey) {
-            return;
-          }
-
-          // Chat events are already filtered by sessionKey above — no additional guard needed.
-          // Tool calls (agent events) still use hasUserInitiatedWork() to avoid cron noise.
-
-          // ── STREAMING TEXT (simple replace, mirrors OpenClaw Control UI) ──
-          // chat:state='delta' carries accumulated text → replace streamingContent directly.
-          if (payload?.state === 'delta' && payload?.message?.content) {
-            const chatDeltaText = Array.isArray(payload.message.content)
-              ? payload.message.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('')
-              : typeof payload.message.content === 'string' ? payload.message.content : null;
-
-            if (chatDeltaText && !isSilentReply(chatDeltaText)) {
-              const selKey = get().selectedSessionKey;
-              const runId = payload?.runId || (selKey ? get().activeRunId.get(selKey) : undefined);
-
-              // Cross-run guard: ignore deltas from a different run
-              const currentRunId = get().streamingRunId;
-              if (runId && currentRunId && runId !== currentRunId) {
-                // Different run — skip
-              } else {
-                const isFirstDelta = !get().streamingContent;
-                const updates: Partial<DashboardStore> = { streamingContent: chatDeltaText };
-
-                if (isFirstDelta && runId) {
-                  (updates as any).streamingRunId = runId;
-                  const newActiveRunId = new Map(get().activeRunId);
-                  if (selKey) {
-                    newActiveRunId.set(selKey, runId);
-                  }
-                  updates.activeRunId = newActiveRunId;
-                  updates.chatMessages = get().chatMessages.map(m =>
-                    m.role === 'user' && m.status === 'sending'
-                      ? { ...m, status: 'delivered' as const, runId }
-                      : m
-                  ) as ChatMessage[];
-                }
-
-                set(updates);
-              }
-            }
-          }
-
-          // ── TOOL CALLS from chat events — SKIPPED ──
-          // Tool calls are handled by agent:stream='tool' which has granular call/result phases.
-
-          // ── ABORTED (save partial content) ──
-          if (payload?.state === 'aborted') {
-            // (no buffer to flush — streaming writes directly to state)
-            const targetKey = eventSessionKey || get().selectedSessionKey;
-
-            set((state) => {
-              const runId = payload?.runId || (targetKey ? state.activeRunId.get(targetKey) : undefined);
-              const newActiveRunId = new Map(state.activeRunId);
-              if (targetKey) {
-                newActiveRunId.delete(targetKey);
-              }
-
-              // Save partial streaming content if present (skip NO_REPLY control tokens)
-              const partialContent = state.streamingContent?.trim();
-              let messages = state.chatMessages;
-              if (partialContent && !isSilentReply(partialContent)) {
-                const alreadySaved = messages.some(m => m.role === 'assistant' && m.runId === runId && m.content === partialContent);
-                if (!alreadySaved) {
-                  messages = [...messages, {
-                    id: generateId(),
-                    role: 'assistant' as const,
-                    content: partialContent,
-                    timestamp: Date.now(),
-                    runId,
-                  }];
-                }
-              }
-
-              const newChatSending = new Map(state.chatSending);
-              if (targetKey) {
-                newChatSending.delete(targetKey);
-              }
-
-              return {
-                chatMessages: messages,
-                activeRunId: newActiveRunId,
-                chatSending: newChatSending,
-                streamingContent: '',
-                streamingRunId: null,
-                streamingComplete: false,
-              };
-            });
-
-            if (targetKey) {
-              setTimeout(() => get()._dispatchNextQueued(targetKey), 0);
-            }
-          }
-
-          // ── CHAT ERROR ──
-          if (payload?.state === 'error') {
-            const targetKey = eventSessionKey || get().selectedSessionKey;
-            // (no buffer to cancel — streaming writes directly to state)
-            set((state) => {
-              const newActiveRunId = new Map(state.activeRunId);
-              const newChatSending = new Map(state.chatSending);
-              if (targetKey) {
-                newActiveRunId.delete(targetKey);
-                newChatSending.delete(targetKey);
-              }
-              return {
-                activeRunId: newActiveRunId,
-                chatSending: newChatSending,
-                streamingContent: '',
-                streamingRunId: null,
-                streamingComplete: false,
-                error: targetKey === state.selectedSessionKey ? (payload?.errorMessage || 'Chat error') : state.error,
-              };
-            });
-            if (targetKey) {
-              setTimeout(() => get()._dispatchNextQueued(targetKey), 0);
-            }
-          }
-
-          // ── COMPLETION (sole handler for message creation + state cleanup) ──
-          if (payload?.status === 'ok' || payload?.status === 'done' || payload?.state === 'final' || payload?.state === 'done') {
-            const sessionKey = get().selectedSessionKey;
-
-            // Cross-run guard: if this final event is from a DIFFERENT run than our active one
-            // (e.g., cron job or sub-agent completing on the same session), append the message
-            // but DON'T clear activeRunId/streaming state — our run is still in progress.
-            // Mirrors OpenClaw's handling (openclaw/openclaw#1909).
-            const currentActiveRunId = sessionKey ? get().activeRunId.get(sessionKey) : undefined;
-            const eventRunId = payload?.runId;
-            if (eventRunId && currentActiveRunId && eventRunId !== currentActiveRunId) {
-              const crossRunContent = (() => {
-                const msg = payload?.message;
-                if (!msg?.content) return null;
-                if (typeof msg.content === 'string') return msg.content;
-                if (Array.isArray(msg.content)) {
-                  return msg.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('') || null;
-                }
-                return null;
-              })();
-              if (crossRunContent && crossRunContent.trim() && !isSilentReply(crossRunContent)) {
-                set((state) => ({
-                  chatMessages: [...state.chatMessages, {
-                    id: generateId(),
-                    role: 'assistant' as const,
-                    content: crossRunContent,
-                    timestamp: Date.now(),
-                    runId: eventRunId,
-                  }],
-                }));
-              }
-              // Don't clear activeRunId, don't dispatch queue, don't touch streaming.
-              // Let the active run continue uninterrupted.
-              return;
-            }
-
-            // (no buffer to flush — streaming writes directly to state) // Ensure buffered content is flushed before completion
-
-            // Extract final content from the completion event payload (authoritative source).
-            // The last state='delta' may not carry the complete text — the final event does.
-            const finalPayloadContent = (() => {
-              const msg = payload?.message;
-              if (!msg?.content) return null;
-              if (typeof msg.content === 'string') return msg.content;
-              if (Array.isArray(msg.content)) {
-                const text = msg.content
-                  .filter((c: any) => c.type === 'text')
-                  .map((c: any) => c.text)
-                  .join('');
-                return text || null;
-              }
-              return null;
-            })();
-
-            set((state) => {
-              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
-
-              // Clear active run and sending state (queue dispatch will set new ones if needed)
-              const newActiveRunId = new Map(state.activeRunId);
-              const newChatSending = new Map(state.chatSending);
-              if (state.selectedSessionKey) {
-                newActiveRunId.delete(state.selectedSessionKey);
-                newChatSending.delete(state.selectedSessionKey);
-              }
-
-              // Use final payload content (authoritative), fall back to accumulated streaming content
-              const finalContent = finalPayloadContent || state.streamingContent;
-
-              // No content at all or NO_REPLY token → just clear state
-              if (!finalContent || !finalContent.trim() || isSilentReply(finalContent)) {
-                return {
-                  activeRunId: newActiveRunId,
-                  chatSending: newChatSending,
-                  streamingContent: '',
-                  streamingRunId: null,
-                  streamingComplete: false,
-                };
-              }
-
-              // Dedup: if assistant message(s) with this runId already exist (created by tool handler
-              // saving streaming content mid-run), consolidate into one message with the final content.
-              // Multiple tool calls can create multiple partial assistant messages for the same run.
-              if (runId && state.chatMessages.some(m => m.runId === runId && m.role === 'assistant')) {
-                // Keep only the LAST assistant message with this runId (updated), remove earlier ones
-                let updatedLast = false;
-                const consolidated: ChatMessage[] = [];
-                for (let j = state.chatMessages.length - 1; j >= 0; j--) {
-                  const m = state.chatMessages[j];
-                  if (m.runId === runId && m.role === 'assistant') {
-                    if (!updatedLast) {
-                      consolidated.unshift({ ...m, content: finalContent });
-                      updatedLast = true;
-                    }
-                    // else: skip earlier partial assistant messages from same run
-                  } else {
-                    consolidated.unshift(m);
-                  }
-                }
-
-                return {
-                  chatMessages: consolidated,
-                  activeRunId: newActiveRunId,
-                  chatSending: newChatSending,
-                  streamingContent: '',
-                  streamingComplete: true,
-                  streamingRunId: null,
-                };
-              }
-
-              // Guard: if the last assistant message for THIS run already has this exact content,
-              // this is a duplicate completion event (e.g. both status='done' and state='final' fired).
-              // Scope to runId so different runs with identical content aren't suppressed.
-              const lastAssistant = [...state.chatMessages].reverse().find(m => m.role === 'assistant');
-              if (lastAssistant && lastAssistant.content === finalContent && (!runId || lastAssistant.runId === runId)) {
-                return {
-                  activeRunId: newActiveRunId,
-                  chatSending: newChatSending,
-                  streamingContent: '',
-                  streamingComplete: true,
-                  streamingRunId: null,
-                };
-              }
-
-              // Create the assistant message — prefer final event content over streaming content
-              if (finalPayloadContent && state.streamingContent && finalPayloadContent !== state.streamingContent) {
-                console.log(`[chat:final] Content mismatch — payload: ${finalPayloadContent.length} chars, streaming: ${state.streamingContent.length} chars`);
-              }
-              const assistantMessage: ChatMessage = {
-                id: generateId(),
-                role: 'assistant',
-                content: finalContent,
-                timestamp: Date.now(),
-                runId,
-              };
-
-              // Transition any remaining 'sending' user message → 'delivered'
-              const updatedMessages = state.chatMessages.map(m => {
-                if (m.role === 'user' && m.status === 'sending') {
-                  return { ...m, status: 'delivered' as const, runId: runId || m.runId };
-                }
-                return m;
-              });
-
-              // Insert assistant message before queued messages (chronological order)
-              const firstQueuedIdx = updatedMessages.findIndex(m => m.role === 'user' && m.status === 'queued');
-              const orderedMessages = firstQueuedIdx >= 0
-                ? [...updatedMessages.slice(0, firstQueuedIdx), assistantMessage, ...updatedMessages.slice(firstQueuedIdx)]
-                : [...updatedMessages, assistantMessage];
-
-              return {
-                chatMessages: orderedMessages,
-                streamingContent: '',
-                streamingComplete: true,
-                streamingRunId: null,
-                activeRunId: newActiveRunId,
-                chatSending: newChatSending,
-              };
-            });
-
-            // Reset streamingComplete after the fade-out transition completes
-            setTimeout(() => set({ streamingComplete: false }), 200);
-
-            // After state is settled, dispatch next queued message
-            if (sessionKey) {
-              // Use setTimeout to ensure the set() above is fully applied
-              setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
-            }
-
-            // Reload history after tool-using runs to get authoritative tool results
-            const hadTools = get().runHadTools.get(sessionKey || '');
-            if (hadTools && sessionKey) {
-              const newRunHadTools = new Map(get().runHadTools);
-              newRunHadTools.delete(sessionKey);
-              set({ runHadTools: newRunHadTools });
-              // Small delay so the final message is visible before reload replaces it
-              setTimeout(() => {
-                if (get().selectedSessionKey === sessionKey) {
-                  get().loadChatHistory(sessionKey);
-                }
-              }, 300);
-            }
-
-            // Refresh sessions to update token counts
-            setTimeout(() => get().loadSessions(), 1000);
-          }
+          _handleChatEvent(storeAccessor, payload, currentEffectiveKey);
         }
 
-        // Handle agent events for task tracking
-        // Only track: sub-agents (spawned via sessions_spawn) and background processes
-        if (event.event === 'agent') {
-          const payload = event.payload as any;
-          const runId = payload?.runId;
-          const stream = payload?.stream;
-          const phase = payload?.data?.phase;
-          const toolResult = payload?.data?.result;
-          const taskSessionKey = payload?.sessionKey || selectedSessionKey || 'unknown';
-
-          // Detect sub-agent by sessionKey pattern: agent:{id}:subagent:{uuid} or webchat:g-agent-{id}-subagent-{uuid}
-          const isSubAgent = taskSessionKey.includes(':subagent:') || taskSessionKey.includes('-subagent-');
-
-          // Check for background process (result contains "still running" or similar)
-          const resultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult || '');
-          const isBackgroundProcess =
-            resultStr.includes('still running') ||
-            resultStr.includes('Command still running') ||
-            resultStr.includes('background') ||
-            resultStr.includes('pid ');
-
-          // Check for lifecycle events
-          const isLifecycleStart = stream === 'lifecycle' && phase === 'start';
-          const isLifecycleEnd = stream === 'lifecycle' && (phase === 'end' || phase === 'error');
-
-          // Check for tool execution
-          const isToolStart = stream === 'tool' && (phase === 'start' || phase === 'call' || phase === 'input');
-          const isToolEnd = stream === 'tool' && phase === 'result';
-          const toolName = payload?.data?.name || payload?.data?.toolName || payload?.toolName;
-
-          if (runId) {
-            const { tasks } = get();
-            const existingTask = tasks.find((t: Task) => t.runId === runId);
-
-            // Extract agent ID from sessionKey
-            let agentId: string | null = null;
-            if (taskSessionKey.startsWith('agent:')) {
-              const parts = taskSessionKey.split(':');
-              if (parts.length >= 2) {
-                agentId = parts[1];
-              }
-            }
-
-            // CREATE TASK for:
-            // 1. Sub-agent lifecycle start (not regular chat sessions)
-            // 2. Background processes (detected from tool result)
-            // Regular chat conversations are NOT tasks — only subagents and background processes.
-            if (!existingTask && ((isLifecycleStart && isSubAgent) || isBackgroundProcess)) {
-              const newTask: Task = {
-                id: generateId(),
-                runId: runId,
-                sessionKey: taskSessionKey,
-                agentId: agentId || undefined,
-                status: 'running',
-                startedAt: Date.now(),
-              };
-              set((state) => ({ tasks: [...state.tasks, newTask] }));
-            }
-
-            // Track potential spawn parent when spawn-related tools are called
-            // (tool calls themselves are shown in the Tools panel, not the kanban)
-            if (isToolStart && toolName) {
-              const isSpawnTool = toolName.toLowerCase().includes('spawn') ||
-                toolName.toLowerCase().includes('task') ||
-                toolName === 'sessions_spawn';
-              if (isSpawnTool && selectedSessionKey) {
-                set({ pendingSpawnParent: selectedSessionKey });
-              }
-            }
-
-            // Track subagent parent when we first see it (any event)
-            if (isSubAgent) {
-              const { subagentParents, pendingSpawnParent, sessions } = get();
-              // Only track if we haven't seen this subagent before
-              if (!subagentParents.has(taskSessionKey)) {
-                // Determine parent: use pendingSpawnParent, or selectedSessionKey if different from subagent
-                let parentKey: string | null = null;
-
-                if (pendingSpawnParent && pendingSpawnParent !== taskSessionKey) {
-                  parentKey = pendingSpawnParent;
-                } else if (selectedSessionKey && selectedSessionKey !== taskSessionKey) {
-                  parentKey = selectedSessionKey;
-                }
-
-                // Try to find the actual session key in the sessions list
-                // This handles cases where selectedSessionKey (from URL) doesn't match gateway's key format
-                if (parentKey && sessions?.sessions) {
-                  // Helper to extract agent ID from various key formats
-                  const extractAgentId = (key: string): string | null => {
-                    const agentMatch = key.match(/^agent:([^:]+)/);
-                    if (agentMatch) return agentMatch[1];
-                    const webchatMatch = key.match(/^webchat:g-agent-([^-]+)/);
-                    if (webchatMatch) return webchatMatch[1];
-                    const dmMatch = key.match(/^dm-(.+)$/);
-                    if (dmMatch) return dmMatch[1];
-                    return null;
-                  };
-
-                  // First check if exact match exists
-                  const exactMatch = sessions.sessions.some(s => s.key === parentKey);
-                  if (!exactMatch) {
-                    // Try to find by suffix or label matching
-                    const parentParts = parentKey.split(':');
-                    const parentAgentId = extractAgentId(parentKey);
-                    const parentSuffix = parentParts.length >= 3 ? parentParts.slice(2).join(':') : null;
-
-                    const matchedSession = sessions.sessions.find(s => {
-                      // Skip subagent sessions
-                      if (s.key.includes(':subagent:') || s.key.includes('-subagent-')) return false;
-                      // Check agent ID
-                      const sessionAgentId = extractAgentId(s.key);
-                      if (sessionAgentId !== parentAgentId) return false;
-                      // Check suffix match
-                      if (parentSuffix) {
-                        if (s.key.endsWith(`:${parentSuffix}`)) return true;
-                        if (s.key.endsWith(`-${parentSuffix}`)) return true;
-                        if (s.label === parentSuffix || s.displayName === parentSuffix) return true;
-                      }
-                      return false;
-                    });
-
-                    if (matchedSession) {
-                      parentKey = matchedSession.key;
-                    }
-                  }
-                }
-
-                if (parentKey) {
-                  // Store the parent relationship and clear pendingSpawnParent
-                  set((state) => {
-                    const newParents = new Map(state.subagentParents);
-                    newParents.set(taskSessionKey, parentKey!);
-                    return { subagentParents: newParents, pendingSpawnParent: null };
-                  });
-                  // Refresh sessions list so subagent appears in sidebar
-                  setTimeout(() => get().loadSessions(), 500);
-                }
-              }
-            }
-
-            // COMPLETE TASK on lifecycle end or tool result with background process
-            if (existingTask && (isLifecycleEnd || (isToolEnd && existingTask))) {
-              const isError = phase === 'error' || payload?.data?.isError;
-
-              set((state) => ({
-                tasks: state.tasks.map((t: Task) =>
-                  t.runId === runId
-                    ? {
-                      ...t,
-                      status: isError ? 'failed' : 'succeeded',
-                      completedAt: Date.now(),
-                      error: isError ? (payload?.data?.error || 'Error') : undefined,
-                    }
-                    : t
-                ),
-              }));
-            }
-
-            // Queue processing is now handled by _dispatchNextQueued called from
-            // the chat:state='final' completion handler. No dual-dispatch needed here.
-          }
-        }
-
-        // Handle presence updates
+        // Presence updates
         if (event.event === 'system-presence') {
           const payload = event.payload as any;
           if (payload?.entries) {

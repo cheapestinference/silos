@@ -54,3 +54,11 @@ export function stripReasoningTags(text: string, mode: 'strict' | 'preserve' = '
 
   return result.trimStart();
 }
+
+// --- NO_REPLY filtering: defense-in-depth against gateway control tokens ---
+// Agents return "NO_REPLY" during memory compaction and other internal operations.
+// The gateway strips it server-side, but streaming deltas arrive before normalization.
+const _SILENT_REPLY_RE = /^\s*NO_REPLY\s*$/;
+export function isSilentReply(text: string | null | undefined): boolean {
+  return typeof text === 'string' && _SILENT_REPLY_RE.test(text);
+}
