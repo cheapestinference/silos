@@ -272,6 +272,9 @@ function describeBrowserAction(input: Record<string, unknown>): string {
   return `${action}...`;
 }
 
+// Generation counter for loadChatHistory — discards stale responses from concurrent calls
+let _chatHistoryGen = 0;
+
 export const useDashboardStore = create<DashboardStore>()(
   persist(
     (set, get) => ({
@@ -805,14 +808,14 @@ export const useDashboardStore = create<DashboardStore>()(
           return;
         }
         // (no buffer to cancel — streaming writes directly to state)
-        // Clear potentially stale per-session state for the target session.
+        // Clear potentially stale per-session state for the session we're LEAVING.
         // Completion/error events are ignored while viewing another session,
         // so chatSending/activeRunId may be stuck from a finished run.
         const newChatSending = new Map(get().chatSending);
         const newActiveRunId = new Map(get().activeRunId);
-        if (key) {
-          newChatSending.delete(key);
-          newActiveRunId.delete(key);
+        if (selectedSessionKey) {
+          newChatSending.delete(selectedSessionKey);
+          newActiveRunId.delete(selectedSessionKey);
         }
         set({
           selectedSessionKey: key,
@@ -903,6 +906,7 @@ export const useDashboardStore = create<DashboardStore>()(
         const { client } = get();
         if (!client) return;
 
+        const gen = ++_chatHistoryGen;
         set({ chatLoading: true, error: null }); // Clear previous errors
 
         let effectiveKey = key;
@@ -947,8 +951,8 @@ export const useDashboardStore = create<DashboardStore>()(
             if (m.role === 'assistant' && isSilentReply(m.content)) return false;
             return true;
           });
-          // Guard: user may have switched sessions while the request was in flight
-          if (get().selectedSessionKey !== key) return;
+          // Guard: user may have switched sessions or another loadChatHistory call was made
+          if (get().selectedSessionKey !== key || gen !== _chatHistoryGen) return;
           // Preserve tool messages from the current session — the gateway history
           // only returns user/assistant text, so tool events captured during streaming
           // would be lost on reload. Keep them and interleave by timestamp.
@@ -988,7 +992,7 @@ export const useDashboardStore = create<DashboardStore>()(
             setTimeout(() => get()._dispatchNextQueued(key), 100);
           }
         } catch (error) {
-          if (get().selectedSessionKey !== key) return;
+          if (get().selectedSessionKey !== key || gen !== _chatHistoryGen) return;
           // If it's a DM session that doesn't exist yet, just show empty history
           if (key.startsWith('dm-')) {
             set({ chatMessages: [], chatLoading: false });
@@ -1245,7 +1249,7 @@ export const useDashboardStore = create<DashboardStore>()(
               m.id === next.id ? { ...m, status: 'error' as const } : m
             ),
           });
-          get()._dispatchNextQueued(sessionKey);
+          setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
         }
       },
 
@@ -2164,13 +2168,13 @@ export const useDashboardStore = create<DashboardStore>()(
           // ── ABORTED (save partial content) ──
           if (payload?.state === 'aborted') {
             // (no buffer to flush — streaming writes directly to state)
-            const sessionKey = get().selectedSessionKey;
+            const targetKey = eventSessionKey || get().selectedSessionKey;
 
             set((state) => {
-              const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
+              const runId = payload?.runId || (targetKey ? state.activeRunId.get(targetKey) : undefined);
               const newActiveRunId = new Map(state.activeRunId);
-              if (state.selectedSessionKey) {
-                newActiveRunId.delete(state.selectedSessionKey);
+              if (targetKey) {
+                newActiveRunId.delete(targetKey);
               }
 
               // Save partial streaming content if present (skip NO_REPLY control tokens)
@@ -2190,8 +2194,8 @@ export const useDashboardStore = create<DashboardStore>()(
               }
 
               const newChatSending = new Map(state.chatSending);
-              if (state.selectedSessionKey) {
-                newChatSending.delete(state.selectedSessionKey);
+              if (targetKey) {
+                newChatSending.delete(targetKey);
               }
 
               return {
@@ -2204,21 +2208,21 @@ export const useDashboardStore = create<DashboardStore>()(
               };
             });
 
-            if (sessionKey) {
-              setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
+            if (targetKey) {
+              setTimeout(() => get()._dispatchNextQueued(targetKey), 0);
             }
           }
 
           // ── CHAT ERROR ──
           if (payload?.state === 'error') {
-            const sessionKey = get().selectedSessionKey;
+            const targetKey = eventSessionKey || get().selectedSessionKey;
             // (no buffer to cancel — streaming writes directly to state)
             set((state) => {
               const newActiveRunId = new Map(state.activeRunId);
               const newChatSending = new Map(state.chatSending);
-              if (state.selectedSessionKey) {
-                newActiveRunId.delete(state.selectedSessionKey);
-                newChatSending.delete(state.selectedSessionKey);
+              if (targetKey) {
+                newActiveRunId.delete(targetKey);
+                newChatSending.delete(targetKey);
               }
               return {
                 activeRunId: newActiveRunId,
@@ -2226,11 +2230,11 @@ export const useDashboardStore = create<DashboardStore>()(
                 streamingContent: '',
                 streamingRunId: null,
                 streamingComplete: false,
-                error: payload?.errorMessage || 'Chat error',
+                error: targetKey === state.selectedSessionKey ? (payload?.errorMessage || 'Chat error') : state.error,
               };
             });
-            if (sessionKey) {
-              setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
+            if (targetKey) {
+              setTimeout(() => get()._dispatchNextQueued(targetKey), 0);
             }
           }
 
@@ -2291,10 +2295,12 @@ export const useDashboardStore = create<DashboardStore>()(
             set((state) => {
               const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
 
-              // Clear active run (queue dispatch will set a new one if needed)
+              // Clear active run and sending state (queue dispatch will set new ones if needed)
               const newActiveRunId = new Map(state.activeRunId);
+              const newChatSending = new Map(state.chatSending);
               if (state.selectedSessionKey) {
                 newActiveRunId.delete(state.selectedSessionKey);
+                newChatSending.delete(state.selectedSessionKey);
               }
 
               // Use final payload content (authoritative), fall back to accumulated streaming content
@@ -2304,6 +2310,7 @@ export const useDashboardStore = create<DashboardStore>()(
               if (!finalContent || !finalContent.trim() || isSilentReply(finalContent)) {
                 return {
                   activeRunId: newActiveRunId,
+                  chatSending: newChatSending,
                   streamingContent: '',
                   streamingRunId: null,
                   streamingComplete: false,
@@ -2333,8 +2340,9 @@ export const useDashboardStore = create<DashboardStore>()(
                 return {
                   chatMessages: consolidated,
                   activeRunId: newActiveRunId,
+                  chatSending: newChatSending,
                   streamingContent: '',
-                  streamingComplete: false,
+                  streamingComplete: true,
                   streamingRunId: null,
                 };
               }
@@ -2346,8 +2354,9 @@ export const useDashboardStore = create<DashboardStore>()(
               if (lastAssistant && lastAssistant.content === finalContent && (!runId || lastAssistant.runId === runId)) {
                 return {
                   activeRunId: newActiveRunId,
+                  chatSending: newChatSending,
                   streamingContent: '',
-                  streamingComplete: false,
+                  streamingComplete: true,
                   streamingRunId: null,
                 };
               }
@@ -2381,11 +2390,15 @@ export const useDashboardStore = create<DashboardStore>()(
               return {
                 chatMessages: orderedMessages,
                 streamingContent: '',
-                streamingComplete: false,
+                streamingComplete: true,
                 streamingRunId: null,
                 activeRunId: newActiveRunId,
+                chatSending: newChatSending,
               };
             });
+
+            // Reset streamingComplete after the fade-out transition completes
+            setTimeout(() => set({ streamingComplete: false }), 200);
 
             // After state is settled, dispatch next queued message
             if (sessionKey) {

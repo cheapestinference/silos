@@ -37,6 +37,7 @@ export class GatewayClient {
   private reconnectAttempt = 0;
   private connectSent = false;
   private helloReceived = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private opts: GatewayClientOptions) { }
 
@@ -55,6 +56,10 @@ export class GatewayClient {
 
   stop(): void {
     this.closed = true;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
     this.flushPending(new Error('Gateway client stopped'));
@@ -106,7 +111,10 @@ export class GatewayClient {
     const delay = this.backoffMs;
     this.backoffMs = Math.min(this.backoffMs * 1.7, MAX_BACKOFF);
 
-    setTimeout(() => this.connect(), delay);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
   }
 
   private flushPending(error: Error): void {

@@ -1279,14 +1279,17 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
       // For user messages: deduplicate by content within a tight window (optimistic add + history
       // reload completes in <1s, so 5s is safe without suppressing intentional repeated sends)
       // For others: only collapse consecutive same-role same-content
-      const seenUserContent = new Map<string, number>(); // content → timestamp
+      const seenUserContent = new Map<string, { timestamp: number; status?: string }>(); // content → first occurrence
       return msgs.filter((msg, i) => {
         if (msg.role === 'user' && msg.content) {
           const prev = seenUserContent.get(msg.content);
-          if (prev !== undefined && Math.abs((msg.timestamp || 0) - prev) < 5_000) {
-            return false; // duplicate user message within 5s window
+          if (prev !== undefined && Math.abs((msg.timestamp || 0) - prev.timestamp) < 5_000) {
+            // Only suppress if one of the pair is an optimistic copy (sending/delivered)
+            const isOptimistic = msg.status === 'sending' || msg.status === 'delivered'
+              || prev.status === 'sending' || prev.status === 'delivered';
+            if (isOptimistic) return false;
           }
-          seenUserContent.set(msg.content, msg.timestamp || 0);
+          seenUserContent.set(msg.content, { timestamp: msg.timestamp || 0, status: msg.status });
           return true;
         }
         // For non-user messages: consecutive dedup only (same role + same content + same id prefix)
