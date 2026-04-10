@@ -257,21 +257,7 @@ function stripInboundMeta(content: unknown): string {
   return text.trim();
 }
 
-function describeBrowserAction(input: Record<string, unknown>): string {
-  const action = (input?.action as string) || (input?.command as string) || 'working';
-  const url = input?.url as string;
-  const ref = input?.ref;
-  const text = input?.text as string;
-
-  if (action === 'navigate' && url) return `navigating to ${url}...`;
-  if (action === 'click' && ref) return `clicking element ${ref}...`;
-  if (action === 'type' && ref) return `typing in element ${ref}...`;
-  if (action === 'snapshot') return 'reading page...';
-  if (action === 'screenshot') return 'taking screenshot...';
-  if (action === 'evaluate') return 'running script...';
-  if (text) return `${action}: "${text.slice(0, 40)}"...`;
-  return `${action}...`;
-}
+// describeBrowserAction moved to chat-event-handlers.ts
 
 // Generation counter for loadChatHistory — discards stale responses from concurrent calls
 let _chatHistoryGen = 0;

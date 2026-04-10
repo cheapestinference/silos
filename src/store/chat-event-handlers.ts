@@ -6,7 +6,7 @@
  * while maintaining the same store mutation semantics.
  */
 
-import type { EventFrame, ChatMessage, Task } from '../types/openclaw';
+import type { ChatMessage, Task } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 import { isSilentReply } from '../lib/reasoning-tags';
 
