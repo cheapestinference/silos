@@ -19,11 +19,26 @@ export function FloatingBrowserPanel() {
   const [size, setSize] = useState({ w: Math.min(800, window.innerWidth * 0.6), h: Math.min(600, window.innerHeight * 0.7) });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [connected, setConnected] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizing = useRef(false);
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  // Listen for VNC connection state from the noVNC iframe via postMessage
+  const onMessage = useCallback((e: MessageEvent) => {
+    if (e.data?.type !== 'novnc-state') return;
+    const state = e.data.state;
+    if (state === 'connected') { setConnected(true); setLoading(false); }
+    else if (state === 'disconnected') { setConnected(false); }
+    else if (state === 'connecting') { setConnected(false); setLoading(true); }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [onMessage]);
 
   const isOverlay = browserDetached === 'overlay';
   const status = useBrowserStatus(token, browserPanelOpen && isOverlay);

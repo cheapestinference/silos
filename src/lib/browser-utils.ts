@@ -15,7 +15,7 @@ export function buildNoVncUrl(token: string | null, opts: { password?: string; r
   }
 
   // Cache-bust to ensure updated browser.html is loaded
-  params.set('_cb', '7');
+  params.set('_cb', '8');
 
   return `${baseUrl}/browser.html?${params.toString()}`;
 }

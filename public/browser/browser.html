@@ -37,63 +37,100 @@
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const url = `${proto}://${host}${port ? ':' + port : ''}/${path}`;
 
-  const rfb = new RFB(screenEl, url, {
-    credentials: { password },
-    wsProtocols: ['binary'],
-  });
+  let rfb = null;
+  let reconnectTimer = null;
+  let resizeObs = null;
 
-  rfb.scaleViewport = false;
-  rfb.resizeSession = false;
-
-  const display = rfb._display;
-
-  // Override noVNC's _rescale — it fights our fitToWidth by setting
-  // inline width/height on the canvas. We keep _scale for internal use only.
-  display._rescale = function(factor) {
-    this._scale = factor;
-  };
-
-  // Fit canvas to container width, maintain aspect ratio for height.
-  function fitToWidth() {
-    const canvas = screenEl.querySelector('canvas');
-    if (!canvas) return;
-    const fbW = display._fbWidth || canvas.width;
-    const fbH = display._fbHeight || canvas.height;
-    if (!fbW || !fbH) return;
-    const containerW = screenEl.clientWidth;
-    canvas.style.width = containerW + 'px';
-    canvas.style.height = Math.round(containerW * fbH / fbW) + 'px';
+  function notifyParent(state) {
+    try { window.parent.postMessage({ type: 'novnc-state', state }, '*'); } catch {}
   }
 
-  new ResizeObserver(fitToWidth).observe(screenEl);
+  function clearScreen() {
+    while (screenEl.firstChild) screenEl.removeChild(screenEl.firstChild);
+  }
 
-  // Patch mouse coordinate mapping to use actual rendered canvas size.
-  display.absX = function(x) {
-    const rect = this._target.getBoundingClientRect();
-    if (rect.width === 0) return 0;
-    return Math.round(x / rect.width * this._fbWidth + this._viewportLoc.x);
-  };
-  display.absY = function(y) {
-    const rect = this._target.getBoundingClientRect();
-    if (rect.height === 0) return 0;
-    return Math.round(y / rect.height * this._fbHeight + this._viewportLoc.y);
-  };
+  function connect() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (rfb) { try { rfb.disconnect(); } catch {} rfb = null; }
+    if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
+    clearScreen();
 
-  rfb.addEventListener('connect', () => {
-    statusEl.textContent = 'Connected';
-    statusEl.classList.add('connected');
-    fitToWidth();
-  });
-
-  rfb.addEventListener('disconnect', (e) => {
-    statusEl.textContent = e.detail.clean ? 'Disconnected' : 'Connection lost';
+    statusEl.textContent = 'Connecting\u2026';
     statusEl.classList.remove('connected');
-  });
+    notifyParent('connecting');
 
-  rfb.addEventListener('credentialsrequired', () => {
-    const pw = prompt('VNC Password:');
-    if (pw) rfb.sendCredentials({ password: pw });
-  });
+    rfb = new RFB(screenEl, url, {
+      credentials: { password },
+      wsProtocols: ['binary'],
+    });
+
+    rfb.scaleViewport = false;
+    rfb.resizeSession = false;
+
+    const display = rfb._display;
+
+    // Override noVNC's _rescale — it fights our fitToWidth by setting
+    // inline width/height on the canvas. We keep _scale for internal use only.
+    display._rescale = function(factor) {
+      this._scale = factor;
+    };
+
+    // Fit canvas to container width, maintain aspect ratio for height.
+    function fitToWidth() {
+      const canvas = screenEl.querySelector('canvas');
+      if (!canvas) return;
+      const fbW = display._fbWidth || canvas.width;
+      const fbH = display._fbHeight || canvas.height;
+      if (!fbW || !fbH) return;
+      const containerW = screenEl.clientWidth;
+      canvas.style.width = containerW + 'px';
+      canvas.style.height = Math.round(containerW * fbH / fbW) + 'px';
+    }
+
+    resizeObs = new ResizeObserver(fitToWidth);
+    resizeObs.observe(screenEl);
+
+    // Patch mouse coordinate mapping to use actual rendered canvas size.
+    display.absX = function(x) {
+      const rect = this._target.getBoundingClientRect();
+      if (rect.width === 0) return 0;
+      return Math.round(x / rect.width * this._fbWidth + this._viewportLoc.x);
+    };
+    display.absY = function(y) {
+      const rect = this._target.getBoundingClientRect();
+      if (rect.height === 0) return 0;
+      return Math.round(y / rect.height * this._fbHeight + this._viewportLoc.y);
+    };
+
+    rfb.addEventListener('connect', () => {
+      statusEl.textContent = 'Connected';
+      statusEl.classList.add('connected');
+      notifyParent('connected');
+      fitToWidth();
+    });
+
+    rfb.addEventListener('disconnect', (e) => {
+      const msg = e.detail.clean ? 'Reconnecting\u2026' : 'Connection lost \u2014 reconnecting\u2026';
+      statusEl.textContent = msg;
+      statusEl.classList.remove('connected');
+      notifyParent('disconnected');
+      scheduleReconnect();
+    });
+
+    rfb.addEventListener('credentialsrequired', () => {
+      rfb.sendCredentials({ password });
+    });
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, 3000);
+  }
+
+  connect();
 </script>
 </body>
 </html>

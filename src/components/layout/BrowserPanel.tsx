@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from '../../i18n';
 import { Monitor, X, RefreshCw, ExternalLink, PanelRightClose } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -27,6 +27,20 @@ export function BrowserPanel({ embedded }: BrowserPanelProps = {}) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { t } = useTranslation();
+
+  // Listen for VNC connection state from the noVNC iframe via postMessage
+  const onMessage = useCallback((e: MessageEvent) => {
+    if (e.data?.type !== 'novnc-state') return;
+    const state = e.data.state;
+    if (state === 'connected') { setConnected(true); setLoading(false); }
+    else if (state === 'disconnected') { setConnected(false); }
+    else if (state === 'connecting') { setConnected(false); setLoading(true); }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [onMessage]);
 
   const status = useBrowserStatus(token, browserPanelOpen);
   const url = status.active && status.password
