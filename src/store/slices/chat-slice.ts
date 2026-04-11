@@ -218,7 +218,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
     },
 
     abortChat: async () => {
-      const { client, activeRunId, selectedSessionKey, chatSending, tasks } = get();
+      const { client, activeRunId, selectedSessionKey, tasks } = get();
       if (!client || !selectedSessionKey) return;
 
       const runId = activeRunId.get(selectedSessionKey);

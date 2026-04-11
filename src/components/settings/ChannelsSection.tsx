@@ -13,9 +13,8 @@ import { cn } from '../../lib/utils';
 import useTranslation, { t as tStatic } from '../../i18n';
 import type { ChannelsStatusSnapshot } from '../../types/openclaw';
 import { formatDistanceToNow } from 'date-fns';
-import { Spinner, SectionLabel, ErrorBanner } from './shared';
+import { Spinner, ErrorBanner } from './shared';
 import { ChannelFieldRenderer } from './ChannelFieldRenderer';
-import type { ChannelFieldDef } from './ChannelFieldRenderer';
 
 // Channels that support QR code pairing
 const QR_CHANNELS = new Set(['whatsapp']);
@@ -376,7 +375,6 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 setEditing(false);
               } else {
                 setEditConfig(rawConfig ? { ...rawConfig } : {});
-                setEditPhoneInput('');
                 setEditing(true);
               }
             }}

@@ -1,6 +1,6 @@
 import type { StoreSet, StoreGet } from '../store-types';
 
-export function createUiSlice(set: StoreSet, get: StoreGet) {
+export function createUiSlice(set: StoreSet, _get: StoreGet) {
   return {
     unreadCounts: new Map<string, number>(),
     browserPanelOpen: false,

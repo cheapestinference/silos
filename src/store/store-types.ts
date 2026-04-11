@@ -13,7 +13,6 @@ import type {
   TaskStatus,
   HelloOk,
   AgentConfiguration,
-  KnowledgeFile,
   KnowledgeFileType,
   ModelsListResult,
   ConfigSnapshot,
