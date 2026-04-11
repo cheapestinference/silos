@@ -141,21 +141,15 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
 
       {/* Kanban */}
       <div className="flex-1 overflow-hidden p-2">
-        {sessionTasks.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <span className="text-[10px] text-muted-foreground/40">No tasks</span>
-          </div>
-        ) : (
-          <TaskKanban
-            tasks={sessionTasks.map(taskToTaskRun)}
-            compact
-            vertical
-            onTaskClick={(taskRun) => {
-              const original = sessionTasks.find(t => t.id === taskRun.taskId);
-              if (original) setSelectedTask(original);
-            }}
-          />
-        )}
+        <TaskKanban
+          tasks={sessionTasks.map(taskToTaskRun)}
+          compact
+          vertical
+          onTaskClick={(taskRun) => {
+            const original = sessionTasks.find(t => t.id === taskRun.taskId);
+            if (original) setSelectedTask(original);
+          }}
+        />
       </div>
 
       <DetailDrawer

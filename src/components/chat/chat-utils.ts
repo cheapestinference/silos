@@ -13,6 +13,54 @@ import remarkGfm from 'remark-gfm';
 // Re-export stripReasoningTags from the canonical source (handles orphan close fragments)
 export { stripReasoningTags } from '../../lib/reasoning-tags';
 
+// ============== Inline LaTeX → Unicode ==============
+// LLMs often emit $\rightarrow$, $\times$, etc. in chat.
+// Instead of adding KaTeX (~300KB), we replace common LaTeX commands with Unicode.
+const LATEX_SYMBOLS: Record<string, string> = {
+  '\\rightarrow': '→', '\\Rightarrow': '⇒', '\\longrightarrow': '⟶', '\\Longrightarrow': '⟹',
+  '\\leftarrow': '←', '\\Leftarrow': '⇐', '\\longleftarrow': '⟵', '\\Longleftarrow': '⟸',
+  '\\leftrightarrow': '↔', '\\Leftrightarrow': '⇔',
+  '\\uparrow': '↑', '\\downarrow': '↓',
+  '\\to': '→', '\\gets': '←', '\\mapsto': '↦',
+  '\\times': '×', '\\div': '÷', '\\pm': '±', '\\mp': '∓', '\\cdot': '·',
+  '\\leq': '≤', '\\geq': '≥', '\\neq': '≠', '\\approx': '≈', '\\equiv': '≡',
+  '\\le': '≤', '\\ge': '≥', '\\ne': '≠',
+  '\\infty': '∞', '\\emptyset': '∅', '\\forall': '∀', '\\exists': '∃',
+  '\\in': '∈', '\\notin': '∉', '\\subset': '⊂', '\\supset': '⊃',
+  '\\subseteq': '⊆', '\\supseteq': '⊇',
+  '\\cup': '∪', '\\cap': '∩',
+  '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ', '\\delta': 'δ', '\\epsilon': 'ε',
+  '\\lambda': 'λ', '\\mu': 'μ', '\\pi': 'π', '\\sigma': 'σ', '\\theta': 'θ',
+  '\\phi': 'φ', '\\omega': 'ω', '\\rho': 'ρ', '\\tau': 'τ',
+  '\\Delta': 'Δ', '\\Sigma': 'Σ', '\\Pi': 'Π', '\\Omega': 'Ω', '\\Lambda': 'Λ',
+  '\\star': '⋆', '\\bullet': '•', '\\circ': '∘', '\\diamond': '◇',
+  '\\checkmark': '✓', '\\ldots': '…', '\\dots': '…', '\\cdots': '⋯',
+  '\\sum': '∑', '\\prod': '∏', '\\int': '∫',
+  '\\langle': '⟨', '\\rangle': '⟩',
+  '\\neg': '¬', '\\land': '∧', '\\lor': '∨',
+};
+
+// Build regex: match $...$ where content is one or more known commands (with optional spaces)
+const LATEX_CMD_PATTERN = Object.keys(LATEX_SYMBOLS)
+  .map(k => k.replace(/\\/g, '\\\\'))
+  .join('|');
+const INLINE_LATEX_RE = new RegExp(
+  `\\$([^$]*(?:${LATEX_CMD_PATTERN})[^$]*)\\$`,
+  'g',
+);
+
+function replaceInlineLatex(text: string): string {
+  return text.replace(INLINE_LATEX_RE, (_match, inner: string) => {
+    let result = inner;
+    for (const [cmd, unicode] of Object.entries(LATEX_SYMBOLS)) {
+      result = result.split(cmd).join(unicode);
+    }
+    // Strip leftover LaTeX formatting commands
+    result = result.replace(/\\(?:text|mathrm|mathbf|textbf|textit)\{([^}]*)\}/g, '$1');
+    return result.trim();
+  });
+}
+
 // ============== Message Text Extraction ==============
 
 /**
@@ -187,5 +235,5 @@ export function renderMarkdown(text: string | undefined | null, mode: 'strict' |
   return React.createElement(ReactMarkdown, {
     remarkPlugins: [remarkGfm],
     components: markdownComponents,
-  }, truncateForRender(textStr));
+  }, truncateForRender(replaceInlineLatex(textStr)));
 }

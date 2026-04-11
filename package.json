@@ -1,7 +1,7 @@
 {
   "name": "silos",
   "description": "Dashboard for managing OpenClaw AI agents, sessions, and channels",
-  "version": "2.20.1",
+  "version": "2.21.0",
   "license": "MIT",
   "repository": {
     "type": "git",
