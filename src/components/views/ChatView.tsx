@@ -15,6 +15,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { formatNumber, cn } from '../../lib/utils';
+import { resolveSessionKey } from '../../lib/session-utils';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { SessionTasksKanban } from '../sessions/SessionTasksKanban';
@@ -163,10 +164,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   }, []);
 
 
-  // Translate sessionKey to effective key for backend matching
-  const effectiveKey = sessionKey.startsWith('dm-')
-    ? `agent:${sessionKey.replace(/^dm-/, '')}:dm-operator`
-    : sessionKey;
+  const effectiveKey = resolveSessionKey(sessionKey);
 
   // Extract agentId from sessionKey for workspace panel
   const chatAgentId = useMemo(() => {

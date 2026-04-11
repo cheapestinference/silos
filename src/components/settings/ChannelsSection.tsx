@@ -13,6 +13,9 @@ import { cn } from '../../lib/utils';
 import useTranslation, { t as tStatic } from '../../i18n';
 import type { ChannelsStatusSnapshot } from '../../types/openclaw';
 import { formatDistanceToNow } from 'date-fns';
+import { Spinner, SectionLabel, ErrorBanner } from './shared';
+import { ChannelFieldRenderer } from './ChannelFieldRenderer';
+import type { ChannelFieldDef } from './ChannelFieldRenderer';
 
 // Channels that support QR code pairing
 const QR_CHANNELS = new Set(['whatsapp']);
@@ -91,7 +94,6 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
   const [editing, setEditing] = useState(false);
   const [editConfig, setEditConfig] = useState<Record<string, unknown>>({});
   const [editSaving, setEditSaving] = useState(false);
-  const [editPhoneInput, setEditPhoneInput] = useState('');
 
   const label = channels?.channelLabels?.[channelId] || channelId;
   const accounts = channels?.channelAccounts?.[channelId] || [];
@@ -350,7 +352,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/20"
             >
               {actionLoading === 'disconnect' ? (
-                <><div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Disconnecting...</>
+                <><Spinner className="border-amber-400" /> Disconnecting...</>
               ) : (
                 <><Power className="w-3.5 h-3.5" /> Disconnect</>
               )}
@@ -362,7 +364,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20"
             >
               {actionLoading === 'connect' ? (
-                <><div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> Connecting...</>
+                <><Spinner className="border-emerald-400" /> Connecting...</>
               ) : (
                 <><Power className="w-3.5 h-3.5" /> Connect</>
               )}
@@ -391,7 +393,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
             className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10"
           >
             {actionLoading === 'remove' ? (
-              <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+              <Spinner className="border-red-400" />
             ) : (
               <Trash2 className="w-3.5 h-3.5" />
             )}
@@ -402,115 +404,11 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
       {/* Edit Panel */}
       {editing && channelPresets[channelId.toLowerCase()] && (
         <div className="border-t p-4 space-y-3">
-          {channelPresets[channelId.toLowerCase()].fields.map((field) => (
-            <div key={field.key}>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                {field.label}
-              </label>
-              {field.description && (
-                <p className="text-[10px] text-muted-foreground mb-1">{field.description}</p>
-              )}
-
-              {field.type === 'select' && (
-                <div className="flex flex-wrap gap-2">
-                  {field.options?.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        const updated = { ...editConfig, [field.key]: opt.value };
-                        if (field.key === 'dmPolicy' && opt.value === 'open') {
-                          updated.allowFrom = ['*'];
-                        }
-                        setEditConfig(updated);
-                      }}
-                      className={cn(
-                        "px-3 py-1.5 text-xs rounded-lg border transition-colors",
-                        editConfig[field.key] === opt.value
-                          ? "bg-primary/20 text-primary border-primary/40"
-                          : "bg-muted text-muted-foreground border hover:border-foreground/20"
-                      )}
-                    >
-                      <span className="font-medium">{opt.label}</span>
-                      {opt.description && <span className="text-muted-foreground ml-1">— {opt.description}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {field.type === 'text' && (
-                <input
-                  type={field.key.toLowerCase().includes('token') || field.key.toLowerCase().includes('key') ? 'password' : 'text'}
-                  placeholder={field.placeholder}
-                  value={(editConfig[field.key] as string) || ''}
-                  onChange={(e) => setEditConfig({ ...editConfig, [field.key]: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
-                />
-              )}
-
-              {field.type === 'phone-list' && (
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {((editConfig[field.key] as string[]) || []).map((phone, i) => (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-mono">
-                        {phone}
-                        <button
-                          onClick={() => {
-                            const list = [...((editConfig[field.key] as string[]) || [])];
-                            list.splice(i, 1);
-                            setEditConfig({ ...editConfig, [field.key]: list });
-                          }}
-                          className="ml-0.5 text-primary hover:text-red-600 dark:text-red-400"
-                        >×</button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={field.placeholder}
-                      value={editPhoneInput}
-                      onChange={(e) => setEditPhoneInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && editPhoneInput.trim()) {
-                          const list = [...((editConfig[field.key] as string[]) || []), editPhoneInput.trim()];
-                          setEditConfig({ ...editConfig, [field.key]: list });
-                          setEditPhoneInput('');
-                        }
-                      }}
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
-                    />
-                    <button
-                      onClick={() => {
-                        if (editPhoneInput.trim()) {
-                          const list = [...((editConfig[field.key] as string[]) || []), editPhoneInput.trim()];
-                          setEditConfig({ ...editConfig, [field.key]: list });
-                          setEditPhoneInput('');
-                        }
-                      }}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {field.type === 'toggle' && (
-                <button
-                  onClick={() => setEditConfig({ ...editConfig, [field.key]: !editConfig[field.key] })}
-                  className={cn(
-                    "w-10 h-5 rounded-full transition-colors relative",
-                    editConfig[field.key] ? "bg-primary/40" : "bg-muted"
-                  )}
-                >
-                  <span className={cn(
-                    "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                    editConfig[field.key] ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"
-                  )} />
-                </button>
-              )}
-            </div>
-          ))}
+          <ChannelFieldRenderer
+            fields={channelPresets[channelId.toLowerCase()].fields}
+            config={editConfig}
+            onChange={setEditConfig}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <button
@@ -550,7 +448,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
                 !editSaving ? "bg-primary/20 text-primary hover:bg-primary/40" : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {editSaving && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
+              {editSaving && <Spinner />}
               {editSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -570,7 +468,7 @@ function ChannelRow({ channelId, channels, channelIcons, onRemove, rawConfig }: 
               </div>
               {waitingForScan && (
                 <div className="flex items-center gap-2 text-xs text-primary">
-                  <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <Spinner className="border-primary" />
                   Waiting for scan...
                 </div>
               )}
@@ -615,7 +513,6 @@ export function ChannelsSection() {
   const [channelConfig, setChannelConfig] = useState<Record<string, unknown>>({});
   const [savingChannel, setSavingChannel] = useState(false);
   const [saveChannelError, setSaveChannelError] = useState<string | null>(null);
-  const [phoneInput, setPhoneInput] = useState('');
 
   const channelIcons: Record<string, string> = {
     whatsapp: '📱', telegram: '✈️', discord: '🎮', slack: '💼',
@@ -697,7 +594,6 @@ export function ChannelsSection() {
                       if (f.defaultValue !== undefined) defaults[f.key] = f.defaultValue;
                     });
                     setChannelConfig(defaults);
-                    setPhoneInput('');
                     setSaveChannelError(null);
                   }}
                   className={cn(
@@ -715,123 +611,14 @@ export function ChannelsSection() {
             {/* Channel Config Fields */}
             {selectedChannelType && channelPresets[selectedChannelType] && (
               <div className="space-y-3">
-                {channelPresets[selectedChannelType].fields.map((field) => (
-                  <div key={field.key}>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                      {field.label}
-                    </label>
-                    {field.description && (
-                      <p className="text-[10px] text-muted-foreground mb-1">{field.description}</p>
-                    )}
-
-                    {field.type === 'select' && (
-                      <div className="flex flex-wrap gap-2">
-                        {field.options?.map((opt) => (
-                          <button
-                            key={opt.value}
-                            onClick={() => {
-                              const updated = { ...channelConfig, [field.key]: opt.value };
-                              // If dmPolicy is 'open', auto-set allowFrom to ['*']
-                              if (field.key === 'dmPolicy' && opt.value === 'open') {
-                                updated.allowFrom = ['*'];
-                              }
-                              setChannelConfig(updated);
-                            }}
-                            className={cn(
-                              "px-3 py-1.5 text-xs rounded-lg border transition-colors",
-                              channelConfig[field.key] === opt.value
-                                ? "bg-primary/20 text-primary border-primary/40"
-                                : "bg-muted text-muted-foreground border hover:border-foreground/20"
-                            )}
-                          >
-                            <span className="font-medium">{opt.label}</span>
-                            {opt.description && <span className="text-muted-foreground ml-1">— {opt.description}</span>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {field.type === 'text' && (
-                      <input
-                        type={field.key.toLowerCase().includes('token') || field.key.toLowerCase().includes('key') ? 'password' : 'text'}
-                        placeholder={field.placeholder}
-                        value={(channelConfig[field.key] as string) || ''}
-                        onChange={(e) => setChannelConfig({ ...channelConfig, [field.key]: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
-                      />
-                    )}
-
-                    {field.type === 'phone-list' && (
-                      <div className="space-y-2">
-                        {/* Existing numbers */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {((channelConfig[field.key] as string[]) || []).map((phone, i) => (
-                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-mono">
-                              {phone}
-                              <button
-                                onClick={() => {
-                                  const list = [...((channelConfig[field.key] as string[]) || [])];
-                                  list.splice(i, 1);
-                                  setChannelConfig({ ...channelConfig, [field.key]: list });
-                                }}
-                                className="ml-0.5 text-primary hover:text-red-600 dark:text-red-400"
-                              >×</button>
-                            </span>
-                          ))}
-                        </div>
-                        {/* Add number input */}
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder={field.placeholder}
-                            value={phoneInput}
-                            onChange={(e) => setPhoneInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && phoneInput.trim()) {
-                                const list = [...((channelConfig[field.key] as string[]) || []), phoneInput.trim()];
-                                setChannelConfig({ ...channelConfig, [field.key]: list });
-                                setPhoneInput('');
-                              }
-                            }}
-                            className="flex-1 px-3 py-1.5 rounded-lg bg-muted border text-foreground text-sm font-mono focus:outline-none focus:border-ring"
-                          />
-                          <button
-                            onClick={() => {
-                              if (phoneInput.trim()) {
-                                const list = [...((channelConfig[field.key] as string[]) || []), phoneInput.trim()];
-                                setChannelConfig({ ...channelConfig, [field.key]: list });
-                                setPhoneInput('');
-                              }
-                            }}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted text-muted-foreground hover:bg-muted"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {field.type === 'toggle' && (
-                      <button
-                        onClick={() => setChannelConfig({ ...channelConfig, [field.key]: !channelConfig[field.key] })}
-                        className={cn(
-                          "w-10 h-5 rounded-full transition-colors relative",
-                          channelConfig[field.key] ? "bg-primary/40" : "bg-muted"
-                        )}
-                      >
-                        <span className={cn(
-                          "absolute top-0.5 w-4 h-4 rounded-full transition-all",
-                          channelConfig[field.key] ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"
-                        )} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                <ChannelFieldRenderer
+                  fields={channelPresets[selectedChannelType].fields}
+                  config={channelConfig}
+                  onChange={setChannelConfig}
+                />
 
                 {saveChannelError && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
-                    {saveChannelError}
-                  </div>
+                  <ErrorBanner>{saveChannelError}</ErrorBanner>
                 )}
 
                 {/* Save / Cancel */}
@@ -896,7 +683,7 @@ export function ChannelsSection() {
                             : "bg-muted text-muted-foreground cursor-not-allowed"
                         )}
                       >
-                        {savingChannel && <div className="w-3 h-3 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />}
+                        {savingChannel && <Spinner />}
                         {savingChannel ? 'Adding...' : needsAllowFrom ? 'Add a phone number first' : `Add ${channelPresets[selectedChannelType]?.label || 'Channel'}`}
                       </button>
                     );

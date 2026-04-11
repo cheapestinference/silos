@@ -1,264 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
-import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from '../../i18n';
-import { cn } from '../../lib/utils';
 import {
   Home,
   Settings,
   Bot,
   ListTodo,
-  LogOut,
-  Hash,
   Plus,
-  BotMessageSquare,
-  MessageCircle,
-  Smartphone,
-  Trash2,
   Check,
   X,
-  Pencil,
-  ExternalLink,
-  User,
   ScrollText,
-  GitBranch,
-  ChevronRight,
-  ChevronDown,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
 import { CreateChannelModal } from '../modals/CreateChannelModal';
 import { UsageBar } from './UsageBar';
-import type { GatewaySessionRow } from '../../types/openclaw';
-
-// Parse session key to extract agent ID and session type
-interface ParsedSession {
-  agentId: string | null;
-  sessionType: 'main' | 'subagent' | 'cron' | 'webchat' | 'whatsapp' | 'slack' | 'telegram' | 'discord' | 'unknown';
-  parentSessionKey?: string;
-  subagentId?: string;
-  cronJobId?: string;
-  displayLabel: string;
-}
-
-function parseSessionKey(sessionKey: string, agents?: { id: string }[]): ParsedSession {
-  // Format: agent:{agentId}:main
-  const agentMainMatch = sessionKey.match(/^agent:([^:]+):main$/);
-  if (agentMainMatch) {
-    return {
-      agentId: agentMainMatch[1],
-      sessionType: 'main',
-      displayLabel: 'main'
-    };
-  }
-
-  // Format: agent:{agentId}:subagent:{uuid}
-  const agentSubagentMatch = sessionKey.match(/^agent:([^:]+):subagent:([^:]+)$/);
-  if (agentSubagentMatch) {
-    return {
-      agentId: agentSubagentMatch[1],
-      sessionType: 'subagent',
-      subagentId: agentSubagentMatch[2],
-      displayLabel: `subagent-${agentSubagentMatch[2].slice(0, 8)}`
-    };
-  }
-
-  // Format: agent:{agentId}:cron:{jobId} - sessions created by cron jobs
-  const agentCronMatch = sessionKey.match(/^agent:([^:]+):cron:([^:]+)$/);
-  if (agentCronMatch) {
-    return {
-      agentId: agentCronMatch[1],
-      sessionType: 'cron',
-      cronJobId: agentCronMatch[2],
-      displayLabel: `cron-${agentCronMatch[2].slice(0, 8)}`
-    };
-  }
-
-  // Format: webchat:g-agent-{agentId} or webchat:g-agent-{agentId}-subagent-{uuid}
-  const webchatMatch = sessionKey.match(/^webchat:g-agent-([^-]+(?:-[^-]+)*?)(?:-subagent-(.+))?$/);
-  if (webchatMatch) {
-    const potentialAgentId = webchatMatch[1];
-    const subagentUuid = webchatMatch[2];
-
-    // Try to find matching agent
-    let matchedAgentId = potentialAgentId;
-    if (agents) {
-      const agent = agents.find(a => potentialAgentId.startsWith(a.id) || a.id.startsWith(potentialAgentId));
-      if (agent) matchedAgentId = agent.id;
-    }
-
-    if (subagentUuid) {
-      return {
-        agentId: matchedAgentId,
-        sessionType: 'subagent',
-        subagentId: subagentUuid,
-        displayLabel: `subagent-${subagentUuid.slice(0, 8)}`
-      };
-    }
-    return {
-      agentId: matchedAgentId,
-      sessionType: 'webchat',
-      displayLabel: 'webchat'
-    };
-  }
-
-  // Format: whatsapp:{phoneOrGroup}:{agentId}
-  const whatsappMatch = sessionKey.match(/^whatsapp:([^:]+):([^:]+)$/);
-  if (whatsappMatch) {
-    return {
-      agentId: whatsappMatch[2],
-      sessionType: 'whatsapp',
-      displayLabel: `whatsapp:${whatsappMatch[1].slice(-4)}`
-    };
-  }
-
-  // Format: slack:{workspace}:{channel}:{agentId}
-  const slackMatch = sessionKey.match(/^slack:([^:]+):([^:]+):([^:]+)$/);
-  if (slackMatch) {
-    return {
-      agentId: slackMatch[3],
-      sessionType: 'slack',
-      displayLabel: `slack:${slackMatch[2]}`
-    };
-  }
-
-  // Format: telegram:{chatId}:{agentId}
-  const telegramMatch = sessionKey.match(/^telegram:([^:]+):([^:]+)$/);
-  if (telegramMatch) {
-    return {
-      agentId: telegramMatch[2],
-      sessionType: 'telegram',
-      displayLabel: `telegram:${telegramMatch[1].slice(-4)}`
-    };
-  }
-
-  // Format: discord:{guildId}:{channelId}:{agentId}
-  const discordMatch = sessionKey.match(/^discord:([^:]+):([^:]+):([^:]+)$/);
-  if (discordMatch) {
-    return {
-      agentId: discordMatch[3],
-      sessionType: 'discord',
-      displayLabel: `discord:${discordMatch[2].slice(-4)}`
-    };
-  }
-
-  // DM format: dm-{agentId}
-  const dmMatch = sessionKey.match(/^dm-(.+)$/);
-  if (dmMatch) {
-    return {
-      agentId: dmMatch[1],
-      sessionType: 'main',
-      displayLabel: 'main'
-    };
-  }
-
-  // Unknown format - try to extract agent ID from any part
-  if (agents) {
-    for (const agent of agents) {
-      if (sessionKey.includes(agent.id)) {
-        return {
-          agentId: agent.id,
-          sessionType: 'unknown',
-          displayLabel: sessionKey.split(':').pop() || sessionKey
-        };
-      }
-    }
-  }
-
-  return {
-    agentId: null,
-    sessionType: 'unknown',
-    displayLabel: sessionKey
-  };
-}
-
-// Generate consistent color for agent based on ID
-function getAgentColor(agentId: string): string {
-  const colors = [
-    'bg-blue-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-rose-500',
-    'bg-orange-500',
-    'bg-amber-500',
-    'bg-lime-500',
-    'bg-emerald-500',
-    'bg-teal-500',
-    'bg-cyan-500',
-    'bg-indigo-500',
-    'bg-violet-500',
-  ];
-
-  // Simple hash function to get consistent color for same ID
-  let hash = 0;
-  for (let i = 0; i < agentId.length; i++) {
-    hash = agentId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-// Collapsible subagent group
-function SubagentGroup({
-  sessions,
-  isSessionActive,
-  onNavigate,
-  onRename,
-  onDelete,
-  unreadCounts,
-}: {
-  sessions: { session: GatewaySessionRow; parsed: ParsedSession }[];
-  isSessionActive: (key: string) => boolean;
-  onNavigate: (key: string) => void;
-  onRename: (key: string, label: string) => void;
-  onDelete: (key: string) => void;
-  unreadCounts: Map<string, number>;
-}) {
-  const hasActive = sessions.some(s => isSessionActive(s.session.key));
-  const [isOpen, setIsOpen] = useState(hasActive);
-
-  return (
-    <div className="mt-0.5">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'w-full flex items-center gap-1.5 px-1 py-0.5 rounded text-[11px] transition-colors',
-          hasActive ? 'text-cyan-500' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        {isOpen
-          ? <ChevronDown className="w-3 h-3 shrink-0" />
-          : <ChevronRight className="w-3 h-3 shrink-0" />
-        }
-        <GitBranch className="w-3 h-3 text-cyan-500 shrink-0" />
-        <span className="flex-1 text-left">Subagents</span>
-        <span className="text-[10px] px-1.5 rounded-full bg-sidebar-hover text-muted-foreground tabular-nums">
-          {sessions.length}
-        </span>
-      </button>
-      {isOpen && (
-        <div className="ml-3 mt-0.5 space-y-0.5 border-l border-cyan-500/20 pl-2">
-          {sessions.map(({ session, parsed }) => (
-            <SessionItem
-              key={session.key}
-              sessionKey={session.key}
-              sessionType={parsed.sessionType}
-              label={session.label}
-              displayName={session.displayName}
-              defaultLabel={parsed.displayLabel}
-              active={isSessionActive(session.key)}
-              onClick={() => onNavigate(session.key)}
-              onRename={(newLabel) => onRename(session.key, newLabel)}
-              onDelete={() => onDelete(session.key)}
-              isSubagent
-              isCompleted={session.abortedLastRun === false && !session.systemSent}
-              unreadCount={unreadCounts.get(session.key) || 0}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { parseSessionKey, isSystemSession } from '../../lib/session-utils';
+import type { ParsedSession } from '../../lib/session-utils';
+import { NavItem } from '../sidebar/NavItem';
+import { AgentItem } from '../sidebar/AgentItem';
+import { SessionItem } from '../sidebar/SessionItem';
+import { SubagentGroup } from '../sidebar/SubagentGroup';
+import { ProfileMenu } from '../sidebar/ProfileMenu';
 
 export function AppSidebar() {
   const {
@@ -282,7 +45,6 @@ export function AppSidebar() {
   const [createAgentModalOpen, setCreateAgentModalOpen] = useState(false);
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false);
 
-  // Load agents and sessions when sidebar mounts
   useEffect(() => {
     if (connected) {
       loadAgents();
@@ -294,13 +56,8 @@ export function AppSidebar() {
   const sessionList = sessions?.sessions || [];
   const runningTasksCount = tasks.filter(t => t.status === 'running').length;
 
-  // Track which agent is creating a new session
   const [creatingSessionForAgent, setCreatingSessionForAgent] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState('');
-
-  // System sessions to hide
-  const isSystemSession = (key: string) =>
-    key === 'heartbeat' || key.includes(':heartbeat') || key.includes(':health-check') || key.includes(':system:');
 
   // Parse all sessions and group by agent (excluding system sessions)
   const sessionsByAgent = new Map<string, { session: typeof sessionList[0]; parsed: ParsedSession }[]>();
@@ -315,7 +72,6 @@ export function AppSidebar() {
     }
   });
 
-  // Handle session rename
   const handleRenameSession = async (sessionKey: string, newLabel: string) => {
     try {
       await patchSession(sessionKey, { label: newLabel });
@@ -325,7 +81,6 @@ export function AppSidebar() {
     }
   };
 
-  // Handle session delete
   const handleDeleteSession = async (sessionKey: string) => {
     if (confirm('Are you sure you want to delete this session?')) {
       try {
@@ -337,15 +92,11 @@ export function AppSidebar() {
     }
   };
 
-  // Handle create new session
   const handleCreateSession = (agentId: string) => {
     if (!newSessionName.trim()) return;
     const label = newSessionName.trim();
     const sessionKey = `agent:${agentId}:${label.toLowerCase().replace(/\s+/g, '-')}`;
-
-    // Add session optimistically to sidebar
     addSessionOptimistic(sessionKey, label);
-
     navigate(`/session/${sessionKey}`);
     setCreatingSessionForAgent(null);
     setNewSessionName('');
@@ -359,7 +110,6 @@ export function AppSidebar() {
     loadGatewayConfig();
   };
 
-
   return (
     <>
       <CreateAgentModal
@@ -371,7 +121,6 @@ export function AppSidebar() {
         isOpen={createChannelModalOpen}
         onClose={() => setCreateChannelModalOpen(false)}
         onSuccess={async (sessionKey, members) => {
-          // Save members to session metadata
           try {
             await patchSession(sessionKey, {
               displayName: sessionKey.split('-').slice(1, -1).join('-'),
@@ -400,36 +149,14 @@ export function AppSidebar() {
 
       {/* Main Navigation */}
       <div className="px-2 py-2 border-b border-sidebar-border space-y-0.5">
-        <NavItem
-          icon={Home}
-          label={t('nav.home')}
-          active={isActive('/')}
-          onClick={() => navigate('/')}
-        />
-        <NavItem
-          icon={ListTodo}
-          label={t('nav.tasks')}
-          active={isActive('/tasks')}
-          onClick={() => navigate('/tasks')}
-          badge={runningTasksCount > 0 ? runningTasksCount : undefined}
-        />
-        <NavItem
-          icon={ScrollText}
-          label="Logs"
-          active={isActive('/logs')}
-          onClick={() => navigate('/logs')}
-        />
-        <NavItem
-          icon={Settings}
-          label={t('nav.settings')}
-          active={location.pathname.startsWith('/settings')}
-          onClick={() => navigate('/settings')}
-        />
+        <NavItem icon={Home} label={t('nav.home')} active={isActive('/')} onClick={() => navigate('/')} />
+        <NavItem icon={ListTodo} label={t('nav.tasks')} active={isActive('/tasks')} onClick={() => navigate('/tasks')} badge={runningTasksCount > 0 ? runningTasksCount : undefined} />
+        <NavItem icon={ScrollText} label="Logs" active={isActive('/logs')} onClick={() => navigate('/logs')} />
+        <NavItem icon={Settings} label={t('nav.settings')} active={location.pathname.startsWith('/settings')} onClick={() => navigate('/settings')} />
       </div>
 
       {/* Scrollable Sessions Area */}
       <div className="flex-1 overflow-y-auto">
-        {/* Agents Section with nested sessions */}
         <div className="py-2">
           <div className="w-full px-3 py-1 flex items-center gap-1.5 text-xs font-semibold text-foreground uppercase tracking-wide">
             <Bot className="w-3 h-3" />
@@ -445,8 +172,6 @@ export function AppSidebar() {
           <div className="mt-0.5 space-y-1 px-2">
             {agentList.map(agent => {
               const agentSessions = sessionsByAgent.get(agent.id) || [];
-
-              // Separate main sessions from subagent and cron sessions
               const mainSessions = agentSessions.filter(s =>
                 s.parsed.sessionType !== 'subagent' && s.parsed.sessionType !== 'cron'
               );
@@ -455,7 +180,6 @@ export function AppSidebar() {
 
               return (
                 <div key={agent.id} className="mb-1">
-                  {/* Agent header */}
                   <AgentItem
                     agentId={agent.id}
                     name={agent.identity?.name || agent.name || agent.id}
@@ -465,9 +189,7 @@ export function AppSidebar() {
                     sessionLimitReached={sessionLimitReached}
                   />
 
-                  {/* Sessions always visible */}
                   <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border/50 pl-2">
-                    {/* Main/channel sessions first */}
                     {mainSessions.map(({ session, parsed }) => (
                       <SessionItem
                         key={session.key}
@@ -484,7 +206,6 @@ export function AppSidebar() {
                       />
                     ))}
 
-                    {/* Subagents — collapsible group */}
                     {subagentSessions.length > 0 && (
                       <SubagentGroup
                         sessions={subagentSessions}
@@ -496,7 +217,6 @@ export function AppSidebar() {
                       />
                     )}
 
-                    {/* Create new session input */}
                     {creatingSessionForAgent === agent.id && (
                       <div className="flex items-center gap-2 px-2 py-1.5">
                         <input
@@ -514,25 +234,15 @@ export function AppSidebar() {
                           className="flex-1 text-sm px-2.5 py-1.5 bg-sidebar-hover border border-primary/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg"
                           autoFocus
                         />
-                        <button
-                          onClick={() => handleCreateSession(agent.id)}
-                          className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg"
-                        >
+                        <button onClick={() => handleCreateSession(agent.id)} className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg">
                           <Check className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            setCreatingSessionForAgent(null);
-                            setNewSessionName('');
-                          }}
-                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg"
-                        >
+                        <button onClick={() => { setCreatingSessionForAgent(null); setNewSessionName(''); }} className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     )}
 
-                    {/* Empty state */}
                     {agentSessions.length === 0 && creatingSessionForAgent !== agent.id && (
                       <div className="px-3 py-2 text-xs text-muted-foreground italic">
                         No sessions
@@ -549,7 +259,6 @@ export function AppSidebar() {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Usage Bar */}
@@ -563,375 +272,3 @@ export function AppSidebar() {
     </>
   );
 }
-
-function ProfileMenu() {
-  const { user } = useAuth();
-  const { connected, disconnect, gatewayUrl, token } = useDashboardStore();
-  const { signOut } = useAuth();
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors",
-          open ? "bg-sidebar-hover" : "hover:bg-sidebar-hover"
-        )}
-      >
-        {user?.photoURL ? (
-          <img
-            src={user.photoURL}
-            alt=""
-            className="w-6 h-6 rounded-full object-cover shrink-0"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-            <span className="text-[10px] font-semibold text-primary">
-              {firstName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
-        <span className="text-xs font-medium text-sidebar-fg/80 truncate flex-1 text-left">{firstName}</span>
-        <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", connected ? "bg-green-500" : "bg-gray-400")} />
-      </button>
-
-      {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 py-1 bg-popover border border-border rounded-lg shadow-lg z-50">
-          <button
-            onClick={() => { navigate('/account'); setOpen(false); }}
-            className={cn(
-              "w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors",
-              location.pathname === '/account' && "bg-accent font-medium"
-            )}
-          >
-            <User className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>My account</span>
-          </button>
-          <button
-            onClick={() => { navigate('/settings'); setOpen(false); }}
-            className={cn(
-              "w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors",
-              location.pathname.startsWith('/settings') && "bg-accent font-medium"
-            )}
-          >
-            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>{t('nav.settings')}</span>
-          </button>
-          {connected && (
-            <button
-              onClick={() => {
-                const isLocal = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
-                const isHttps = window.location.protocol === 'https:';
-                const suffix = token ? `#token=${encodeURIComponent(token)}` : '';
-                if (isLocal && isHttps) {
-                  window.open(`${window.location.origin}/openclaw/${suffix}`, '_blank');
-                } else {
-                  let httpUrl = gatewayUrl.replace(/^wss?:\/\//, 'http://');
-                  if (!httpUrl.startsWith('http')) httpUrl = `http://${httpUrl}`;
-                  window.open(`${httpUrl}/openclaw/${suffix}`, '_blank');
-                }
-                setOpen(false);
-              }}
-              className="w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 hover:bg-accent transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>OpenClaw UI</span>
-            </button>
-          )}
-          <div className="my-1 border-t border-border" />
-          <button
-            onClick={() => { disconnect(); signOut(); setOpen(false); }}
-            className="w-full px-3 py-2 text-xs text-left flex items-center gap-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign out</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface NavItemProps {
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-  badge?: number;
-}
-
-function NavItem({ icon: Icon, label, active, onClick, badge }: NavItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full px-2 py-1 rounded flex items-center gap-2 transition-colors text-xs",
-        active
-          ? "bg-primary/15 text-primary font-semibold relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-4 before:rounded-full before:bg-primary"
-          : "text-sidebar-fg/80 hover:text-sidebar-fg hover:bg-sidebar-hover"
-      )}
-    >
-      <Icon className="w-3.5 h-3.5 shrink-0" />
-      <span className="flex-1 text-left truncate">{label}</span>
-      {badge !== undefined && badge > 0 && (
-        <span className="min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
-          {badge > 9 ? '9+' : badge}
-        </span>
-      )}
-    </button>
-  );
-}
-
-interface AgentItemProps {
-  agentId: string;
-  name: string;
-  emoji?: string;
-  onClick: () => void;
-  onCreateSession: () => void;
-  sessionLimitReached?: boolean;
-}
-
-function AgentItem({ agentId, name, emoji, onClick, onCreateSession, sessionLimitReached }: AgentItemProps) {
-  const { t } = useTranslation();
-  const agentColor = getAgentColor(agentId);
-
-  return (
-    <div className="flex items-center gap-0.5 group">
-      {/* Agent button */}
-      <button
-        onClick={onClick}
-        className={cn(
-          "flex-1 px-2 py-1 rounded flex items-center gap-2 transition-colors",
-          "text-sidebar-fg hover:bg-sidebar-hover"
-        )}
-      >
-        <div className={cn(
-          "w-5 h-5 rounded flex items-center justify-center shrink-0",
-          agentColor,
-          "text-white"
-        )}>
-          {emoji ? (
-            <span className="text-xs">{emoji}</span>
-          ) : (
-            <BotMessageSquare className="w-3 h-3" />
-          )}
-        </div>
-        <span className="flex-1 text-xs text-left truncate font-semibold">{name}</span>
-        <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-green-500" />
-      </button>
-
-      {/* Create session button */}
-      {sessionLimitReached ? (
-        <span
-          className="p-1.5 opacity-0 group-hover:opacity-100 text-muted-foreground/40 cursor-not-allowed"
-          title={t('sidebar.sessionLimitReached')}
-        >
-          <Plus className="w-4 h-4" />
-        </span>
-      ) : (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCreateSession();
-          }}
-          className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-sidebar-hover rounded-lg transition-all text-muted-foreground hover:text-foreground"
-          title={t('sidebar.createSession')}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-interface SessionItemProps {
-  sessionKey: string;
-  sessionType: string;
-  label?: string;
-  displayName?: string;
-  defaultLabel: string;
-  active?: boolean;
-  onClick: () => void;
-  onRename: (newLabel: string) => void;
-  onDelete: () => void;
-  isSubagent?: boolean;
-  isCron?: boolean;
-  isCompleted?: boolean;
-  unreadCount?: number;
-}
-
-function SessionItem({
-  sessionType,
-  label,
-  displayName,
-  defaultLabel,
-  active,
-  onClick,
-  onRename,
-  onDelete,
-  isSubagent,
-  isCron,
-  isCompleted,
-  unreadCount = 0,
-}: SessionItemProps) {
-  const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Translate known session type labels
-  const translatedDefault = sessionType === 'main' ? t('sidebar.sessionTypes.main')
-    : sessionType === 'webchat' ? t('sidebar.sessionTypes.webchat')
-    : defaultLabel;
-
-  // Display name priority: label > displayName > translated defaultLabel
-  const displayedName = label || displayName || translatedDefault;
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  const handleStartEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditValue(displayedName);
-    setEditing(true);
-  };
-
-  const handleSave = () => {
-    if (editValue.trim() && editValue !== displayedName) {
-      onRename(editValue.trim());
-    }
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setEditing(false);
-    }
-  };
-
-  // Get appropriate icon based on session type
-  const getIcon = (): React.ElementType | null => {
-    if (isSubagent) return GitBranch;
-    if (isCron) return ScrollText;
-    switch (sessionType) {
-      case 'main':
-      case 'webchat':
-        return MessageCircle;
-      case 'whatsapp':
-      case 'telegram':
-        return Smartphone;
-      case 'slack':
-      case 'discord':
-        return Hash;
-      case 'cron':
-        return ScrollText;
-      default:
-        return Hash;
-    }
-  };
-
-  const Icon = getIcon();
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-1.5 px-2 py-1">
-        <input
-          ref={inputRef}
-          type="text"
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          className="flex-1 text-sm px-2 py-1 bg-sidebar-hover border border-primary/40 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sidebar-fg min-w-0"
-        />
-        <button
-          onClick={handleSave}
-          className="p-1 text-green-500 hover:bg-green-500/10 rounded"
-        >
-          <Check className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => setEditing(false)}
-          className="p-1 text-red-500 hover:bg-red-500/10 rounded"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group flex items-center gap-0.5">
-      <button
-        onClick={onClick}
-        className={cn(
-          "flex-1 px-2 py-0.5 rounded flex items-center gap-1.5 transition-colors min-w-0",
-          active
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-sidebar-fg/80 hover:text-sidebar-fg hover:bg-sidebar-hover",
-        )}
-      >
-        {Icon && (
-          <Icon className={cn(
-            "shrink-0 w-3.5 h-3.5",
-            isSubagent ? "text-cyan-500 opacity-80" : isCron ? "text-amber-500 opacity-80" : "opacity-60"
-          )} />
-        )}
-        <span className="flex-1 text-left truncate text-xs">{displayedName}</span>
-        {unreadCount > 0 && !active && (
-          <span className="shrink-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-blue-500 text-white">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-        {isSubagent && isCompleted && (
-          <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
-        )}
-      </button>
-
-      {/* Action buttons (visible on hover) */}
-      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={handleStartEdit}
-          className="p-1 hover:bg-sidebar-hover rounded text-muted-foreground hover:text-foreground"
-          title="Rename"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="p-1 hover:bg-red-500/10 rounded text-muted-foreground hover:text-red-500"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
