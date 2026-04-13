@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Layers, Clock, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
-import { fetchFlowDetail } from '../../lib/tasks-api';
+import { Layers, Clock, ChevronRight, Loader2, AlertTriangle, Ban } from 'lucide-react';
+import { fetchFlowDetail, cancelFlowWithFeedback } from '../../lib/tasks-api';
 import type { TaskFlowDetail as TaskFlowDetailType, TaskRun } from '../../types/tasks';
 import { taskFlowStatusConfig, taskRunStatusConfig } from '../../types/tasks';
 import { FlowTimeline } from './FlowTimeline';
+import { ConfirmButton } from './ConfirmButton';
+import { CopyButton } from './CopyButton';
 
 interface TaskFlowDetailProps {
   flowId: string;
   onSelectTask: (task: TaskRun) => void;
+  onClose?: () => void;
 }
 
 function ProgressBar({ summary }: { summary: TaskFlowDetailType['taskSummary'] }) {
@@ -29,7 +32,7 @@ function ProgressBar({ summary }: { summary: TaskFlowDetailType['taskSummary'] }
   );
 }
 
-export function TaskFlowDetail({ flowId, onSelectTask }: TaskFlowDetailProps) {
+export function TaskFlowDetail({ flowId, onSelectTask, onClose: _onClose }: TaskFlowDetailProps) {
   const [flow, setFlow] = useState<TaskFlowDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,16 +62,29 @@ export function TaskFlowDetail({ flowId, onSelectTask }: TaskFlowDetailProps) {
   );
 
   const status = taskFlowStatusConfig[flow.status] || taskFlowStatusConfig.queued;
+  const isActive = flow.status === 'running' || flow.status === 'queued' || flow.status === 'waiting' || flow.status === 'blocked';
 
   return (
     <div>
       {/* Status & Goal */}
-      <div className="px-5 pt-4 pb-2">
-        <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold ${status.color} ${status.bg}`}>
-          {status.label}
-        </span>
-        {flow.goal && <p className="text-sm font-medium text-foreground mt-2">{flow.goal}</p>}
-        {flow.currentStep && <p className="text-xs text-muted-foreground mt-1">{flow.currentStep}</p>}
+      <div className="px-5 pt-4 pb-2 flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold ${status.color} ${status.bg}`}>
+            {status.label}
+          </span>
+          {flow.goal && <p className="text-sm font-medium text-foreground mt-2">{flow.goal}</p>}
+          {flow.currentStep && <p className="text-xs text-muted-foreground mt-1">{flow.currentStep}</p>}
+        </div>
+        {isActive && (
+          <ConfirmButton
+            variant="warn"
+            icon={<Ban className="w-3 h-3" />}
+            confirmLabel="Click to cancel"
+            onConfirm={() => cancelFlowWithFeedback(flow.flowId)}
+          >
+            Cancel flow
+          </ConfirmButton>
+        )}
       </div>
 
       {/* Progress */}
@@ -108,9 +124,11 @@ export function TaskFlowDetail({ flowId, onSelectTask }: TaskFlowDetailProps) {
       <div className="px-5 py-2 border-t border-border mt-2">
         <div className="flex items-start gap-3 py-2 text-xs">
           <Layers className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
-          <div>
-            <p className="text-[11px] text-muted-foreground">Flow ID</p>
-            <p className="font-mono text-foreground">{flow.flowId}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              Flow ID <CopyButton value={flow.flowId} />
+            </p>
+            <p className="font-mono text-foreground break-all">{flow.flowId}</p>
           </div>
         </div>
         <div className="flex items-start gap-3 py-2 text-xs">

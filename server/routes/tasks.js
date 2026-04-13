@@ -5,8 +5,8 @@ const SIDECAR_BASE = process.env.TASKS_SIDECAR_URL || 'http://127.0.0.1:9222';
 export function createTasksRouter(_openclawBase, authMiddleware) {
   const router = Router();
 
-  async function proxySidecar(path) {
-    const res = await fetch(`${SIDECAR_BASE}${path}`);
+  async function proxySidecar(path, init) {
+    const res = await fetch(`${SIDECAR_BASE}${path}`, init);
     if (!res.ok) throw new Error(`Sidecar ${res.status}`);
     return res.json();
   }
@@ -35,6 +35,19 @@ export function createTasksRouter(_openclawBase, authMiddleware) {
     }
   });
 
+  router.post('/api/tasks/:lookup/cancel', authMiddleware, async (req, res) => {
+    try {
+      const data = await proxySidecar(
+        `/tasks/${encodeURIComponent(req.params.lookup)}/cancel`,
+        { method: 'POST' }
+      );
+      res.json(data);
+    } catch (err) {
+      console.error('[Tasks] cancel error:', err.message);
+      res.status(502).json({ error: 'Task cancel unavailable' });
+    }
+  });
+
   router.get('/api/flows', authMiddleware, async (req, res) => {
     try {
       const data = await proxySidecar('/flows');
@@ -52,6 +65,19 @@ export function createTasksRouter(_openclawBase, authMiddleware) {
     } catch (err) {
       console.error('[Flows] sidecar error:', err.message);
       res.status(502).json({ error: 'Flows service unavailable' });
+    }
+  });
+
+  router.post('/api/flows/:lookup/cancel', authMiddleware, async (req, res) => {
+    try {
+      const data = await proxySidecar(
+        `/flows/${encodeURIComponent(req.params.lookup)}/cancel`,
+        { method: 'POST' }
+      );
+      res.json(data);
+    } catch (err) {
+      console.error('[Flows] cancel error:', err.message);
+      res.status(502).json({ error: 'Flow cancel unavailable' });
     }
   });
 

@@ -133,36 +133,36 @@ function HorizontalKanban({ tasks, compact, onTaskClick }: Omit<TaskKanbanProps,
     }}>
       {grouped.map(col => (
         <div key={col.key} className="flex flex-col min-w-0 overflow-hidden">
-          {/* Fixed-height header row */}
-          <div className="flex items-center gap-1.5 px-2 h-8 shrink-0">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${col.dotColor}`} />
-            <span className={`text-[10px] font-semibold uppercase tracking-wider ${col.headerColor} truncate`}>
-              {col.label}
-            </span>
-            <span className={`text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
-              col.tasks.length > 0
-                ? 'bg-muted text-muted-foreground'
-                : 'text-muted-foreground/30'
-            }`}>
-              {col.tasks.length}
-            </span>
-          </div>
-
-          {/* Cards */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 px-1">
-            {col.tasks.map(task => (
-              <TaskRunCard
-                key={task.taskId}
-                task={task}
-                compact={compact}
-                onClick={() => onTaskClick(task)}
-              />
-            ))}
-            {col.tasks.length === 0 && (
-              <div className="py-8 text-center">
-                <span className="text-[9px] text-muted-foreground/30">—</span>
-              </div>
-            )}
+          {/* Scrollable area; header is sticky inside so it stays visible while scrolling cards */}
+          <div className="flex-1 overflow-y-auto px-1">
+            <div className="sticky top-0 z-10 bg-background flex items-center gap-1.5 px-1 h-8 border-b border-border/60">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${col.dotColor}`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${col.headerColor} truncate`}>
+                {col.label}
+              </span>
+              <span className={`text-[10px] min-w-[20px] text-center px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
+                col.tasks.length > 0
+                  ? 'bg-muted text-muted-foreground'
+                  : 'text-muted-foreground/30'
+              }`}>
+                {col.tasks.length}
+              </span>
+            </div>
+            <div className="space-y-1.5 pt-1.5">
+              {col.tasks.map(task => (
+                <TaskRunCard
+                  key={task.taskId}
+                  task={task}
+                  compact={compact}
+                  onClick={() => onTaskClick(task)}
+                />
+              ))}
+              {col.tasks.length === 0 && (
+                <div className="py-8 text-center">
+                  <span className="text-[9px] text-muted-foreground/30">—</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ))}

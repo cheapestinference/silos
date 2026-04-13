@@ -548,6 +548,12 @@ export function handleTaskTracking(
   const taskSessionKey = payload?.sessionKey || selectedSessionKey || 'unknown';
 
   const isSubAgent = taskSessionKey.includes(':subagent:') || taskSessionKey.includes('-subagent-');
+  // Cron runs emit lifecycle events with a runId like "cron:<jobId>:<ts>" and may
+  // target either the parent session key or a ":cron:" child session. Treat them
+  // as tracked tasks so the kanban shows them with the correct runtime badge.
+  const isCronRun =
+    (typeof runId === 'string' && runId.startsWith('cron:')) ||
+    taskSessionKey.includes(':cron:');
 
   const resultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult || '');
   const isBackgroundProcess =
@@ -576,7 +582,7 @@ export function handleTaskTracking(
   }
 
   // CREATE TASK
-  if (!existingTask && ((isLifecycleStart && isSubAgent) || isBackgroundProcess)) {
+  if (!existingTask && ((isLifecycleStart && (isSubAgent || isCronRun)) || isBackgroundProcess)) {
     const newTask: Task = {
       id: generateId(),
       runId: runId,

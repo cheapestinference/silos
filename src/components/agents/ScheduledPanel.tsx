@@ -13,6 +13,7 @@ import {
 import { CronJobList, CronJobForm } from '../cron';
 import useTranslation from '../../i18n';
 import type { CronJob } from '../../types/openclaw';
+import { getGatewayClient } from '../../lib/gateway-client';
 
 export function ScheduledPanel() {
   const { id: agentId } = useParams<{ id: string }>();
@@ -131,6 +132,12 @@ export function ScheduledPanel() {
             onRun={onRun}
             onEdit={handleEdit}
             onDelete={onDelete}
+            onLoadRuns={async (jobId) => {
+              const client = getGatewayClient();
+              if (!client) return [];
+              const res = await client.getCronRuns(jobId, { limit: 25 });
+              return res.runs;
+            }}
             showAgentInfo={false}
             emptyMessage={t('agentDetail.noScheduledTasks')}
           />

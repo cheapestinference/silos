@@ -6,11 +6,17 @@ import useTranslation from '../../i18n';
 import type { TaskRun } from '../../types/tasks';
 import { taskRunStatusConfig, inferRuntime } from '../../types/tasks';
 import type { ChatMessage } from '../../types/openclaw';
+import { CronInfo } from './CronInfo';
+import { SubagentInfo } from './SubagentInfo';
+import { AcpInfo } from './AcpInfo';
+import { GenericTaskInfo } from './GenericTaskInfo';
+import { CopyButton } from './CopyButton';
 
 interface TaskRunDetailProps {
   task: TaskRun;
   onNavigateToFlow?: (flowId: string) => void;
   onNavigateToSession?: (sessionKey: string) => void;
+  onClose?: () => void;
 }
 
 function formatDurationLong(startMs: number, endMs?: number) {
@@ -27,21 +33,24 @@ function formatTimestamp(ts: number) {
   return new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
 }
 
-function InfoRow({ icon, label, value, mono, error, onClick }: {
+function InfoRow({ icon, label, value, mono, error, onClick, copyValue }: {
   icon: React.ReactNode; label: string; value: React.ReactNode;
-  mono?: boolean; error?: boolean; onClick?: () => void;
+  mono?: boolean; error?: boolean; onClick?: () => void; copyValue?: string;
 }) {
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-border last:border-0">
       <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground mb-0.5">{label}</p>
-        <p
+        <div className="text-[11px] text-muted-foreground mb-0.5 flex items-center gap-1">
+          <span>{label}</span>
+          {copyValue && <CopyButton value={copyValue} />}
+        </div>
+        <div
           className={`text-sm ${mono ? 'font-mono' : ''} ${error ? 'text-red-500' : 'text-foreground'} ${onClick ? 'cursor-pointer hover:text-primary underline decoration-dotted' : ''} break-all`}
           onClick={onClick}
         >
           {value}
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -54,9 +63,10 @@ const roleConfig: Record<string, { icon: React.ReactNode; label: string; bg: str
   tool:      { icon: <Wrench className="w-3 h-3" />, label: 'Tool',      bg: 'bg-muted', text: 'text-cyan-600 dark:text-cyan-400' },
 };
 
-export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession }: TaskRunDetailProps) {
+export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession, onClose }: TaskRunDetailProps) {
   const { t } = useTranslation();
   const status = taskRunStatusConfig[task.status] || taskRunStatusConfig.queued;
+  const runtime = inferRuntime(task);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -112,18 +122,25 @@ export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession }: T
         {task.label && <p className="text-sm font-medium text-foreground mt-2">{task.label}</p>}
       </div>
 
+      {/* Runtime-specific info panel */}
+      {runtime === 'cron' && <CronInfo task={task} onClose={onClose} />}
+      {runtime === 'subagent' && <SubagentInfo task={task} onNavigateToSession={onNavigateToSession} onClose={onClose} />}
+      {runtime === 'acp' && <AcpInfo task={task} onNavigateToSession={onNavigateToSession} onClose={onClose} />}
+      {runtime !== 'cron' && runtime !== 'subagent' && runtime !== 'acp' && <GenericTaskInfo task={task} onClose={onClose} />}
+
       {/* Metadata */}
       <div className="px-5">
-        <InfoRow icon={<Hash className="w-3.5 h-3.5" />} label="Task ID" value={task.taskId} mono />
-        {task.runId && <InfoRow icon={<Zap className="w-3.5 h-3.5" />} label="Run ID" value={task.runId} mono />}
+        <InfoRow icon={<Hash className="w-3.5 h-3.5" />} label="Task ID" value={task.taskId} mono copyValue={task.taskId} />
+        {task.runId && <InfoRow icon={<Zap className="w-3.5 h-3.5" />} label="Run ID" value={task.runId} mono copyValue={task.runId} />}
         <InfoRow icon={<Play className="w-3.5 h-3.5" />} label="Runtime" value={inferRuntime(task)} />
-        {task.agentId && <InfoRow icon={<Bot className="w-3.5 h-3.5" />} label="Agent" value={task.agentId} mono />}
+        {task.agentId && <InfoRow icon={<Bot className="w-3.5 h-3.5" />} label="Agent" value={task.agentId} mono copyValue={task.agentId} />}
         {sessionKey && (
           <InfoRow
             icon={<MessageSquare className="w-3.5 h-3.5" />}
             label="Session"
             value={sessionKey}
             mono
+            copyValue={sessionKey}
             onClick={onNavigateToSession ? () => onNavigateToSession(sessionKey) : undefined}
           />
         )}
@@ -133,6 +150,7 @@ export function TaskRunDetail({ task, onNavigateToFlow, onNavigateToSession }: T
             label="Flow"
             value={task.parentFlowId}
             mono
+            copyValue={task.parentFlowId}
             onClick={onNavigateToFlow ? () => onNavigateToFlow(task.parentFlowId!) : undefined}
           />
         )}

@@ -62,11 +62,36 @@ export interface TaskFlowDetail extends TaskFlow {
  * The session key structure encodes the actual runtime type.
  */
 export function inferRuntime(task: TaskRun): TaskRuntime {
+  // cron runs have a distinctive runId prefix (e.g. "cron:<jobId>:<ts>"), even when
+  // their childSessionKey is null (sessionTarget: "main" writes to shared session).
+  if (task.runId?.startsWith('cron:')) return 'cron';
   const key = task.childSessionKey || '';
+  if (key.startsWith('acp:') || task.runtime === 'acp') return 'acp';
   if (key.includes(':subagent:')) return 'subagent';
   if (key.includes(':cron:')) return 'cron';
-  if (key.startsWith('acp:') || task.runtime === 'acp') return 'acp';
   return task.runtime;
+}
+
+/**
+ * For cron tasks, extract the jobId from the runId.
+ * runId format: "cron:<jobId>:<tsMs>" where jobId is a plain UUID (no inner colons).
+ */
+export function extractCronJobId(task: TaskRun): string | undefined {
+  if (!task.runId?.startsWith('cron:')) return undefined;
+  const parts = task.runId.split(':');
+  return parts.length >= 3 ? parts[1] : undefined;
+}
+
+/**
+ * Resolve the best identifier to send to `openclaw tasks cancel <lookup>`.
+ *
+ * The `taskId` we hold in the store is often a client-generated UUID from
+ * `handleTaskTracking` and does NOT exist in the openclaw task registry.
+ * The CLI accepts task id, run id, or session key — runId is the most
+ * reliable because it's emitted verbatim by the gateway lifecycle events.
+ */
+export function taskCancelLookup(task: TaskRun): string {
+  return task.runId || task.childSessionKey || task.taskId;
 }
 
 // Status display config shared across components

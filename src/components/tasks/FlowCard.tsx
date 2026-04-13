@@ -1,4 +1,4 @@
-import { Pause, Lock } from 'lucide-react';
+import { Pause, Lock, ExternalLink } from 'lucide-react';
 import type { TaskFlow } from '../../types/tasks';
 import { taskFlowStatusConfig } from '../../types/tasks';
 
@@ -7,6 +7,7 @@ interface FlowCardProps {
   selected: boolean;
   taskCounts?: { total: number; succeeded: number; running: number; failed: number; queued: number; other: number };
   onClick: () => void;
+  onInspect?: () => void;
 }
 
 function MiniProgressBar({ counts }: { counts: FlowCardProps['taskCounts'] }) {
@@ -38,14 +39,17 @@ function timeAgo(ts: number) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function FlowCard({ flow, selected, taskCounts, onClick }: FlowCardProps) {
+export function FlowCard({ flow, selected, taskCounts, onClick, onInspect }: FlowCardProps) {
   const status = taskFlowStatusConfig[flow.status] || taskFlowStatusConfig.queued;
   const isWaiting = flow.status === 'waiting' || flow.status === 'blocked';
 
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+      className={`relative w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
         selected
           ? 'border-primary bg-primary/5'
           : 'border-border bg-card hover:bg-muted/40'
@@ -56,6 +60,16 @@ export function FlowCard({ flow, selected, taskCounts, onClick }: FlowCardProps)
         <span className="text-xs font-medium text-foreground truncate flex-1">
           {flow.goal || flow.flowId.slice(0, 16)}
         </span>
+        {onInspect && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onInspect(); }}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 transition-colors shrink-0"
+            title="Open details"
+            type="button"
+          >
+            Details <ExternalLink className="w-2.5 h-2.5" />
+          </button>
+        )}
       </div>
 
       {flow.currentStep && (
@@ -74,6 +88,6 @@ export function FlowCard({ flow, selected, taskCounts, onClick }: FlowCardProps)
       <p className="text-[10px] text-muted-foreground mt-1.5 ml-4">
         {timeAgo(flow.updatedAt || flow.createdAt)}
       </p>
-    </button>
+    </div>
   );
 }

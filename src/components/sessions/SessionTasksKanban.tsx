@@ -5,6 +5,7 @@ import { useTranslation } from '../../i18n';
 import { Sparkles, History } from 'lucide-react';
 import type { Task } from '../../types/openclaw';
 import type { TaskRun, TaskRunStatus, TaskRuntime } from '../../types/tasks';
+import { inferRuntime } from '../../types/tasks';
 import { TaskKanban } from '../tasks/TaskKanban';
 import { DetailDrawer } from '../tasks/DetailDrawer';
 import { TaskRunDetail } from '../tasks/TaskRunDetail';
@@ -29,7 +30,7 @@ function setCachedTasks(sessionKey: string, tasks: Task[]) {
 }
 
 function taskToTaskRun(task: Task): TaskRun {
-  return {
+  const base: TaskRun = {
     taskId: task.id,
     runtime: 'subagent' as TaskRuntime,
     sourceId: '',
@@ -44,6 +45,7 @@ function taskToTaskRun(task: Task): TaskRun {
     endedAt: task.completedAt,
     error: task.error,
   };
+  return { ...base, runtime: inferRuntime(base) };
 }
 
 export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
@@ -165,6 +167,7 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
               setSelectedTask(null);
               selectSession(key);
             }}
+            onClose={() => setSelectedTask(null)}
           />
         )}
       </DetailDrawer>
