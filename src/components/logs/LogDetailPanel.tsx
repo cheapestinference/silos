@@ -15,17 +15,17 @@ function JsonTree({ data, depth = 0 }: { data: unknown; depth?: number }) {
 
   if (typeof data === 'string') {
     if (data.length > 120) {
-      return <span className="text-amber-400 whitespace-pre-wrap break-words">&quot;{data}&quot;</span>;
+      return <span className="text-syntax-string whitespace-pre-wrap break-words">&quot;{data}&quot;</span>;
     }
-    return <span className="text-amber-400">&quot;{data}&quot;</span>;
+    return <span className="text-syntax-string">&quot;{data}&quot;</span>;
   }
 
   if (typeof data === 'number') {
-    return <span className="text-emerald-400">{data}</span>;
+    return <span className="text-syntax-number">{data}</span>;
   }
 
   if (typeof data === 'boolean') {
-    return <span className="text-violet-400">{String(data)}</span>;
+    return <span className="text-syntax-boolean">{String(data)}</span>;
   }
 
   if (Array.isArray(data)) {
@@ -55,7 +55,7 @@ function JsonTree({ data, depth = 0 }: { data: unknown; depth?: number }) {
         <div className="ml-4 border-l border-border pl-2">
           {entries.map(([key, val], i) => (
             <div key={key} className="py-0.5">
-              <span className="text-cyan-500">&quot;{key}&quot;</span>
+              <span className="text-syntax-key">&quot;{key}&quot;</span>
               <span className="text-muted-foreground">: </span>
               <JsonTree data={val} depth={depth + 1} />
               {i < entries.length - 1 && <span className="text-muted-foreground/50">,</span>}
@@ -96,7 +96,7 @@ export function LogDetailPanel({ line, onClose }: LogDetailPanelProps) {
             {level.label}
           </span>
           {line.subsystem && (
-            <span className="text-xs text-violet-400/70 font-mono truncate">{line.subsystem}</span>
+            <span className="text-xs text-log-subsystem/80 font-mono truncate">{line.subsystem}</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -105,7 +105,7 @@ export function LogDetailPanel({ line, onClose }: LogDetailPanelProps) {
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Copy JSON"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={onClose}

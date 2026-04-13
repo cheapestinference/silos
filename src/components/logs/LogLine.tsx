@@ -20,17 +20,17 @@ export function LogLine({ line, showTimestamp, selected, onClick }: LogLineProps
     <div
       onClick={onClick}
       className={`flex items-start gap-2 px-3 py-0.5 font-mono text-[11px] leading-relaxed cursor-pointer transition-colors ${
-        selected ? 'bg-cyan-500/10 border-l-2 border-cyan-500' : 'hover:bg-accent/30'
+        selected ? 'bg-log-info/15 border-l-2 border-log-info' : 'hover:bg-accent/30'
       }`}
     >
       {showTimestamp && ts && (
-        <span className="text-muted-foreground/50 shrink-0 select-none tabular-nums w-24">{ts}</span>
+        <span className="text-muted-foreground/60 shrink-0 select-none tabular-nums w-24">{ts}</span>
       )}
       <span className={`${level.color} shrink-0 w-12 text-right font-semibold select-none`}>
         {level.label}
       </span>
       {line.subsystem && (
-        <span className="text-violet-400/70 shrink-0 max-w-28 truncate select-none">[{line.subsystem}]</span>
+        <span className="text-log-subsystem/80 shrink-0 max-w-28 truncate select-none">[{line.subsystem}]</span>
       )}
       <span className="text-foreground/80 flex-1 truncate">{line.message}</span>
       {!!line.payload && (

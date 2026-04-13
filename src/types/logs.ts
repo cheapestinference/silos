@@ -20,11 +20,11 @@ export interface ParsedLogLine {
 }
 
 export const logLevelConfig: Record<LogLevel, { label: string; color: string; bg: string }> = {
-  error: { label: 'ERROR', color: 'text-red-400',    bg: 'bg-red-500/10' },
-  warn:  { label: 'WARN',  color: 'text-amber-400',  bg: 'bg-amber-500/10' },
-  info:  { label: 'INFO',  color: 'text-cyan-400',   bg: 'bg-cyan-500/10' },
-  debug: { label: 'DEBUG', color: 'text-muted-foreground',     bg: 'bg-muted' },
-  trace: { label: 'TRACE', color: 'text-muted-foreground/60', bg: 'bg-muted/60' },
+  error: { label: 'ERROR', color: 'text-log-error',             bg: 'bg-log-error/10' },
+  warn:  { label: 'WARN',  color: 'text-log-warn',              bg: 'bg-log-warn/10' },
+  info:  { label: 'INFO',  color: 'text-log-info',              bg: 'bg-log-info/10' },
+  debug: { label: 'DEBUG', color: 'text-muted-foreground',      bg: 'bg-muted' },
+  trace: { label: 'TRACE', color: 'text-muted-foreground/60',   bg: 'bg-muted/60' },
 };
 
 export function parseLogLine(raw: string): ParsedLogLine {

@@ -29,7 +29,7 @@ export function LogsPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
-          <ScrollText className="w-4 h-4 text-cyan-500" />
+          <ScrollText className="w-4 h-4 text-log-info" />
           <h1 className="text-sm font-semibold text-foreground">Gateway Logs</h1>
           <div className="flex items-center gap-1.5 ml-2">
             <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
@@ -54,7 +54,7 @@ export function LogsPage() {
             onClick={() => setPaused(!paused)}
             className={`p-1.5 rounded-md text-xs transition-colors ${
               paused
-                ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                ? 'bg-log-warn/15 text-log-warn hover:bg-log-warn/25'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             }`}
             title={paused ? 'Resume' : 'Pause'}

@@ -60,6 +60,18 @@ export default {
           active: 'hsl(var(--sidebar-active))',
           border: 'hsl(var(--sidebar-border))',
         },
+        log: {
+          error: 'hsl(var(--log-error))',
+          warn: 'hsl(var(--log-warn))',
+          info: 'hsl(var(--log-info))',
+          subsystem: 'hsl(var(--log-subsystem))',
+        },
+        syntax: {
+          string: 'hsl(var(--syntax-string))',
+          number: 'hsl(var(--syntax-number))',
+          boolean: 'hsl(var(--syntax-boolean))',
+          key: 'hsl(var(--syntax-key))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

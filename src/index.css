@@ -46,6 +46,18 @@
     --glow: 211 100% 50%;
     --surface-elevated: 0 0% 100%;
     --surface-sunken: 220 13% 93%;
+
+    /* Log levels — tuned for light backgrounds (AA contrast over --background) */
+    --log-error:     0 74% 42%;   /* red-700 */
+    --log-warn:     26 90% 37%;   /* amber-700 */
+    --log-info:    192 83% 31%;   /* cyan-700 */
+    --log-subsystem: 263 69% 50%; /* violet-700 */
+
+    /* JSON / syntax highlighting — light */
+    --syntax-string:  26 90% 37%; /* amber-700 */
+    --syntax-number: 162 94% 24%; /* emerald-700 */
+    --syntax-boolean: 263 69% 50%;/* violet-700 */
+    --syntax-key:    192 83% 31%; /* cyan-700 */
   }
 
   .dark {
@@ -90,6 +102,18 @@
     --glow: 211 100% 50%;
     --surface-elevated: 222 47% 16%;
     --surface-sunken: 222 47% 9%;
+
+    /* Log levels — tuned for dark backgrounds */
+    --log-error:      0 91% 71%;  /* red-400 */
+    --log-warn:      43 96% 56%;  /* amber-400 */
+    --log-info:     187 86% 53%;  /* cyan-400 */
+    --log-subsystem:255 92% 76%;  /* violet-400 */
+
+    /* JSON / syntax highlighting — dark */
+    --syntax-string:  43 96% 56%; /* amber-400 */
+    --syntax-number: 160 84% 52%; /* emerald-400 */
+    --syntax-boolean:255 92% 76%; /* violet-400 */
+    --syntax-key:    189 94% 43%; /* cyan-500 */
   }
 }
 
