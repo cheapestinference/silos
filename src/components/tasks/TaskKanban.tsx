@@ -34,29 +34,28 @@ function VerticalKanban({ tasks, compact, onTaskClick }: Omit<TaskKanbanProps, '
     tasks: tasks.filter(t => col.statuses.includes(t.status)),
   }));
 
-  // User overrides persisted in localStorage so they survive navigation
-  const STORAGE_KEY = 'kanban-sections';
-  const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>(() => {
+  // Only one row expanded at a time (accordion). Null = all collapsed.
+  // Persisted in localStorage so the choice survives navigation.
+  const STORAGE_KEY = 'kanban-expanded-section';
+  const [expanded, setExpanded] = useState<string | null>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+      if (!raw) return null;
+      // Accept only a valid column key string; reject legacy record-shaped data
+      if (columns.some(c => c.key === raw)) return raw;
+      return null;
+    } catch { return null; }
   });
 
-  const isOpen = (key: string, hasTasks: boolean): boolean => {
-    // User override takes priority
-    if (key in userOverrides) return userOverrides[key];
-    // Default: open if has tasks, collapsed if empty
-    return hasTasks;
-  };
+  const isOpen = (key: string): boolean => expanded === key;
 
   const toggle = (key: string) => {
-    setUserOverrides(prev => {
-      const col = grouped.find(c => c.key === key);
-      const hasTasks = col ? col.tasks.length > 0 : false;
-      const currentlyOpen = isOpen(key, hasTasks);
-      const next = { ...prev, [key]: !currentlyOpen };
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+    setExpanded(prev => {
+      const next = prev === key ? null : key;
+      try {
+        if (next) localStorage.setItem(STORAGE_KEY, next);
+        else localStorage.removeItem(STORAGE_KEY);
+      } catch { /* quota — ignore */ }
       return next;
     });
   };
@@ -65,16 +64,14 @@ function VerticalKanban({ tasks, compact, onTaskClick }: Omit<TaskKanbanProps, '
     <div className="flex flex-col h-full overflow-hidden">
       {grouped.map(col => {
         const hasTasks = col.tasks.length > 0;
-        const open = isOpen(col.key, hasTasks);
+        const open = isOpen(col.key);
 
         return (
           <div
             key={col.key}
             className="flex flex-col min-h-0"
             style={{
-              flex: open && hasTasks
-                ? `${col.tasks.length} 1 0%`
-                : '0 0 auto',
+              flex: open && hasTasks ? '1 1 0%' : '0 0 auto',
             }}
           >
             {/* Section header — always visible */}
