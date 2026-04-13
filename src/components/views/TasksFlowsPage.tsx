@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { RefreshCw, Loader2, Inbox, Search, Layers, CalendarClock, Terminal, LayoutGrid, User, Activity, Clock, ExternalLink } from 'lucide-react';
+import { RefreshCw, Loader2, Inbox, Search, Layers, CalendarClock, Terminal, User, Activity, Clock, ExternalLink } from 'lucide-react';
 import { fetchTasks, fetchFlows } from '../../lib/tasks-api';
 import type { TaskRun, TaskFlow } from '../../types/tasks';
 import { FlowList } from '../tasks/FlowList';
