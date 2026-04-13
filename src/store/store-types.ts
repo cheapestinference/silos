@@ -16,6 +16,9 @@ import type {
   KnowledgeFileType,
   ModelsListResult,
   ConfigSnapshot,
+  SessionError,
+  LatencyEntry,
+  LatencyOutcome,
 } from '../types/openclaw';
 
 // --- Zustand slice helper types ---
@@ -198,4 +201,25 @@ export interface DashboardStore {
   handleEvent: (event: EventFrame) => void;
   handleHello: (hello: HelloOk) => void;
   autoConnect: () => void;
+
+  // Telemetry: errors + latency per session
+  sessionErrors: Map<string, SessionError[]>;
+  latencyEntries: Map<string, LatencyEntry[]>;
+  runTimings: Map<string, { sessionKey: string; startedAt: number; firstDeltaAt?: number; outputChars: number; model?: string }>;
+  errorTabBadges: Map<string, number>;
+  toolCallCounts: Map<string, number>;
+
+  pushSessionError: (
+    sessionKey: string,
+    partial: Omit<SessionError, 'id' | 'sessionKey' | 'timestamp'>,
+  ) => void;
+  clearErrorBadge: (sessionKey: string) => void;
+  clearSessionErrors: (sessionKey: string) => void;
+  clearSessionLatency: (sessionKey: string) => void;
+  incrementToolCallCount: (sessionKey: string) => void;
+  markRunStart: (runId: string, sessionKey: string, model?: string) => void;
+  markRunFirstDelta: (runId: string) => void;
+  accumulateRunChars: (runId: string, chars: number) => void;
+  finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string) => void;
+  discardRunTiming: (runId: string) => void;
 }

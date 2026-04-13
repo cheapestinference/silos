@@ -203,6 +203,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
         newActiveRunId.set(selectedSessionKey, result.runId);
         set({ activeRunId: newActiveRunId });
 
+        get().markRunStart(result.runId, selectedSessionKey);
         get().loadSessions();
       } catch (error) {
         const newChatSending2 = new Map(get().chatSending);
@@ -213,6 +214,12 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
           ),
           chatSending: newChatSending2,
           error: String(error),
+        });
+        get().pushSessionError(selectedSessionKey, {
+          kind: 'network',
+          source: 'chat.send',
+          message: String(error),
+          raw: error,
         });
       }
     },
@@ -318,11 +325,18 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
         const newActiveRunId = new Map(get().activeRunId);
         newActiveRunId.set(sessionKey, result.runId);
         set({ activeRunId: newActiveRunId });
+        get().markRunStart(result.runId, sessionKey);
       } catch (error) {
         set({
           chatMessages: get().chatMessages.map(m =>
             m.id === next.id ? { ...m, status: 'error' as const } : m
           ),
+        });
+        get().pushSessionError(sessionKey, {
+          kind: 'network',
+          source: 'chat.send (queued)',
+          message: String(error),
+          raw: error,
         });
         setTimeout(() => get()._dispatchNextQueued(sessionKey), 0);
       }

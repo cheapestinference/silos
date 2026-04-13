@@ -330,6 +330,46 @@ export interface Task {
   toolName?: string;
 }
 
+// ============== Telemetry: Errors + Latency ==============
+
+export type SessionErrorKind =
+  | 'provider'
+  | 'rate_limit'
+  | 'tool'
+  | 'chat'
+  | 'network'
+  | 'aborted'
+  | 'unknown';
+
+export interface SessionError {
+  id: string;
+  sessionKey: string;
+  timestamp: number;
+  kind: SessionErrorKind;
+  source: string;
+  message: string;
+  runId?: string;
+  toolName?: string;
+  raw?: unknown;
+}
+
+export type LatencyOutcome = 'ok' | 'error' | 'aborted';
+
+export interface LatencyEntry {
+  id: string;
+  sessionKey: string;
+  runId: string;
+  startedAt: number;
+  completedAt: number;
+  latencyMs: number;
+  ttfbMs?: number;
+  outputChars?: number;
+  outputTokens?: number;
+  tokensPerSecond?: number;
+  outcome: LatencyOutcome;
+  model?: string;
+}
+
 // ============== Channels ==============
 
 export interface ChannelAccountSnapshot {

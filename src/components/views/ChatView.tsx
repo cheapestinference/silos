@@ -13,6 +13,9 @@ import {
   Monitor,
   FolderOpen,
   Wrench,
+  AlertCircle,
+  Activity,
+  CalendarClock,
 } from 'lucide-react';
 import { formatNumber, cn } from '../../lib/utils';
 import { resolveSessionKey } from '../../lib/session-utils';
@@ -24,6 +27,9 @@ import { WorkspacePanel } from '../agents/WorkspacePanel';
 import { BrainPanel } from '../agents/BrainPanel';
 import { AgentToolsPanel } from '../agents/AgentToolsPanel';
 import { SkillsPanel } from '../agents/SkillsPanel';
+import { SessionErrorsPanel } from '../sessions/SessionErrorsPanel';
+import { SessionLatencyPanel } from '../sessions/SessionLatencyPanel';
+import { SessionCronsPanel } from '../sessions/SessionCronsPanel';
 
 // Chat components — extracted from this file for maintainability
 import {
@@ -87,6 +93,42 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const isSplitDragging = useRef(false);
   const toolsSplitRef = useRef(toolsSplit);
   toolsSplitRef.current = toolsSplit;
+
+  // Bottom tab bar: Tools / Errors / Latency
+  type BottomTab = 'tools' | 'errors' | 'latency';
+  const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>(() => {
+    const saved = localStorage.getItem('silos-chat-bottom-tab') as BottomTab | null;
+    return saved === 'errors' || saved === 'latency' ? saved : 'tools';
+  });
+  useEffect(() => {
+    localStorage.setItem('silos-chat-bottom-tab', activeBottomTab);
+  }, [activeBottomTab]);
+
+  // Auto-switch to Errors when a new error arrives for this session
+  const errorBadge = useDashboardStore(s => s.errorTabBadges.get(sessionKey) || 0);
+  const clearErrorBadge = useDashboardStore(s => s.clearErrorBadge);
+  const prevErrorBadgeRef = useRef(errorBadge);
+  useEffect(() => {
+    if (errorBadge > prevErrorBadgeRef.current) {
+      setActiveBottomTab('errors');
+    }
+    prevErrorBadgeRef.current = errorBadge;
+  }, [errorBadge]);
+  useEffect(() => {
+    if (activeBottomTab === 'errors' && errorBadge > 0) {
+      clearErrorBadge(sessionKey);
+    }
+  }, [activeBottomTab, errorBadge, sessionKey, clearErrorBadge]);
+
+  // Auto-switch to Tools when a new tool call starts for this session
+  const toolCallCount = useDashboardStore(s => s.toolCallCounts.get(sessionKey) || 0);
+  const prevToolCallCountRef = useRef(toolCallCount);
+  useEffect(() => {
+    if (toolCallCount > prevToolCallCountRef.current) {
+      setActiveBottomTab('tools');
+    }
+    prevToolCallCountRef.current = toolCallCount;
+  }, [toolCallCount]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -612,9 +654,10 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
               <>
                 <div className="flex border-b border-border shrink-0">
                   {([
-                    { id: 'tasks' as const, icon: Sparkles, label: 'Pipeline', color: 'text-amber-500' },
-                    { id: 'browser' as const, icon: Monitor, label: 'Browser', color: 'text-primary' },
-                    { id: 'workspace' as const, icon: FolderOpen, label: 'Workspace', color: 'text-emerald-500' },
+                    { id: 'tasks'     as const, icon: Sparkles,      label: 'Pipeline',  color: 'text-amber-500' },
+                    { id: 'crons'     as const, icon: CalendarClock, label: 'Crons',     color: 'text-log-info' },
+                    { id: 'browser'   as const, icon: Monitor,       label: 'Browser',   color: 'text-primary' },
+                    { id: 'workspace' as const, icon: FolderOpen,    label: 'Workspace', color: 'text-emerald-500' },
                   ]).map(tab => (
                     <button
                       key={tab.id}
@@ -645,6 +688,9 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                   {activeTopTab === 'tasks' && (
                     <SessionTasksKanban sessionKey={effectiveKey} />
                   )}
+                  {activeTopTab === 'crons' && (
+                    <SessionCronsPanel sessionKey={effectiveKey} />
+                  )}
                   {activeTopTab === 'browser' && (
                     <BrowserPanel embedded />
                   )}
@@ -670,14 +716,54 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-0.5 w-8 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
           </div>
 
-          {/* Bottom: Tools (always visible) */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/40 shrink-0">
-              <Wrench className="h-3 w-3 text-cyan-500" />
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tools</span>
+          {/* Bottom: Tools / Errors / Latency tabs */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex items-stretch border-b border-border/40 shrink-0">
+              {([
+                { id: 'tools'   as const, icon: Wrench,      label: 'Tools',   tone: 'info'  as const },
+                { id: 'errors'  as const, icon: AlertCircle, label: 'Errors',  tone: 'error' as const, badge: errorBadge },
+                { id: 'latency' as const, icon: Activity,    label: 'Latency', tone: 'info'  as const },
+              ] as const).map(tab => {
+                const active = activeBottomTab === tab.id;
+                const activeColor =
+                  tab.tone === 'error' ? 'text-log-error'
+                  : 'text-log-info';
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveBottomTab(tab.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors relative",
+                      active
+                        ? `${activeColor}`
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <tab.icon className="w-3 h-3" />
+                    {tab.label}
+                    {'badge' in tab && tab.badge > 0 && (
+                      <span className={cn(
+                        "ml-0.5 min-w-[14px] h-[14px] px-1 rounded-full text-[9px] font-bold flex items-center justify-center",
+                        active ? "bg-log-error/20 text-log-error" : "bg-log-error text-white"
+                      )}>
+                        {tab.badge > 99 ? '99+' : tab.badge}
+                      </span>
+                    )}
+                    {active && (
+                      <span className={cn(
+                        "absolute bottom-0 left-0 right-0 h-[2px]",
+                        tab.tone === 'error' ? "bg-log-error" : "bg-log-info"
+                      )} />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-            <div className="h-[calc(100%-28px)]">
-              <ToolsPanel messages={chatMessages} />
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {activeBottomTab === 'tools'   && <ToolsPanel messages={chatMessages} />}
+              {activeBottomTab === 'errors'  && <SessionErrorsPanel  sessionKey={sessionKey} />}
+              {activeBottomTab === 'latency' && <SessionLatencyPanel sessionKey={sessionKey} />}
             </div>
           </div>
         </div>

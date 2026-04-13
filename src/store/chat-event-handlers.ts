@@ -10,6 +10,31 @@ import type { ChatMessage, Task } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 import { isSilentReply } from '../lib/reasoning-tags';
 
+/**
+ * Extract a human-readable error message from a tool result payload.
+ * Returns the message string if the tool errored, or null if it succeeded.
+ */
+function detectToolError(result: unknown, data: Record<string, unknown> | undefined): string | null {
+  if (data && (data as any).isError === true) {
+    return String((data as any).error || (data as any).message || 'Tool call failed');
+  }
+  if (!result) return null;
+  if (typeof result === 'string') {
+    if (/^(error|failed|exception)\b[:\s]/i.test(result.trim())) return result.trim().slice(0, 500);
+    return null;
+  }
+  if (typeof result === 'object') {
+    const r = result as Record<string, unknown>;
+    if (r.isError === true || r.error) {
+      return String(r.error || r.message || 'Tool call failed').slice(0, 500);
+    }
+    if (typeof r.status === 'string' && /^(error|failed|fail)$/i.test(r.status)) {
+      return String(r.message || r.status).slice(0, 500);
+    }
+  }
+  return null;
+}
+
 function describeBrowserAction(input: Record<string, unknown>): string {
   const action = (input?.action as string) || (input?.command as string) || 'working';
   const url = input?.url as string;
@@ -68,6 +93,11 @@ export function handleAgentDisplayEvent(
   const isCurrentSessionEvent = eventSessionKey === currentEffectiveKey || !eventSessionKey;
   const shouldShowInChat = isCurrentSessionEvent;
 
+  // ── RUN START (telemetry timing) ──
+  if (payload?.stream === 'lifecycle' && payload?.data?.phase === 'start' && payload?.runId && eventSessionKey) {
+    get().markRunStart(payload.runId, eventSessionKey);
+  }
+
   // ── TOOL EVENTS ──
   if (shouldShowInChat && payload?.stream === 'tool') {
     const toolName = payload?.data?.name || payload?.data?.toolName;
@@ -97,6 +127,11 @@ export function handleAgentDisplayEvent(
         set({ runHadTools: newRunHadTools });
       }
 
+      // Telemetry signal: flip bottom tab to Tools when a new call starts
+      if (eventSessionKey) {
+        get().incrementToolCallCount(eventSessionKey);
+      }
+
       set((state: any) => {
         const toolCallId = payload?.data?.toolCallId as string | undefined;
         const toolCallMessage: ChatMessage = {
@@ -123,6 +158,19 @@ export function handleAgentDisplayEvent(
       const toolResult = payload?.data?.result;
       const toolArgs = payload?.data?.args || payload?.data?.input;
       const toolCallId = payload?.data?.toolCallId as string | undefined;
+
+      // Capture tool failures as session errors
+      const toolErrored = detectToolError(toolResult, payload?.data);
+      if (toolErrored && eventSessionKey) {
+        get().pushSessionError(eventSessionKey, {
+          kind: 'tool',
+          source: `tool:${toolName}`,
+          message: toolErrored,
+          runId: payload?.runId,
+          toolName,
+          raw: toolResult,
+        });
+      }
 
       set((state: any) => {
         // Match by toolCallId first (stable ID from gateway, same as OpenClaw UI)
@@ -172,11 +220,36 @@ export function handleAgentDisplayEvent(
 
   // ── AGENT ERROR ──
   if (shouldShowInChat && payload?.stream === 'lifecycle' && (payload?.data?.phase === 'error' || (payload?.data?.phase === 'end' && payload?.data?.isError))) {
-    set((state: any) => {
-      const runId = payload?.runId || (state.selectedSessionKey ? state.activeRunId.get(state.selectedSessionKey) : undefined);
-      const errorDetail = payload?.data?.error || payload?.data?.message || '';
+    const preRunId = payload?.runId || (get().selectedSessionKey ? get().activeRunId.get(get().selectedSessionKey) : undefined);
+    const errorDetail = String(payload?.data?.error || payload?.data?.message || '');
+    const rateLimitFlag = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
 
-      const isRateLimit = errorDetail.includes('429') || /rate limit/i.test(errorDetail);
+    // Push to telemetry errors stream (separate from chat-visible system message below)
+    if (eventSessionKey) {
+      const limitType = rateLimitFlag
+        ? (/budget/i.test(errorDetail) ? 'BUDGET'
+          : /requests?\s*per\s*minute|rpm/i.test(errorDetail) ? 'RPM'
+            : /tokens?\s*per\s*minute|tpm/i.test(errorDetail) ? 'TPM'
+              : 'RATE_LIMIT')
+        : null;
+      get().pushSessionError(eventSessionKey, {
+        kind: rateLimitFlag ? 'rate_limit' : 'provider',
+        source: rateLimitFlag ? `rate_limit:${limitType}` : 'agent.lifecycle',
+        message: errorDetail || 'Unknown agent error',
+        runId: preRunId,
+        raw: payload?.data,
+      });
+    }
+
+    // Close out any latency run as errored
+    if (preRunId) {
+      get().finalizeRunLatency(preRunId, 'error');
+    }
+
+    set((state: any) => {
+      const runId = preRunId;
+
+      const isRateLimit = rateLimitFlag;
       if (isRateLimit) {
         const limitType = /budget/i.test(errorDetail) ? 'BUDGET'
           : /requests?\s*per\s*minute|rpm/i.test(errorDetail) ? 'RPM'
@@ -293,9 +366,14 @@ export function handleChatEvent(
               ? { ...m, status: 'delivered' as const, runId }
               : m
           );
+          get().markRunFirstDelta(runId);
         }
 
         set(updates);
+
+        if (runId) {
+          get().accumulateRunChars(runId, chatDeltaText.length);
+        }
       }
     }
   }
@@ -303,6 +381,8 @@ export function handleChatEvent(
   // ── ABORTED ──
   if (payload?.state === 'aborted') {
     const targetKey = eventSessionKey || get().selectedSessionKey;
+    const abortRunId = payload?.runId || (targetKey ? get().activeRunId.get(targetKey) : undefined);
+    if (abortRunId) get().finalizeRunLatency(abortRunId, 'aborted');
 
     set((state: any) => {
       const runId = payload?.runId || (targetKey ? state.activeRunId.get(targetKey) : undefined);
@@ -349,6 +429,18 @@ export function handleChatEvent(
   // ── CHAT ERROR ──
   if (payload?.state === 'error') {
     const targetKey = eventSessionKey || get().selectedSessionKey;
+    const errRunId = payload?.runId || (targetKey ? get().activeRunId.get(targetKey) : undefined);
+    if (targetKey) {
+      get().pushSessionError(targetKey, {
+        kind: 'chat',
+        source: 'chat.state',
+        message: String(payload?.errorMessage || 'Chat error'),
+        runId: errRunId,
+        raw: payload,
+      });
+    }
+    if (errRunId) get().finalizeRunLatency(errRunId, 'error');
+
     set((state: any) => {
       const newActiveRunId = new Map(state.activeRunId);
       const newChatSending = new Map(state.chatSending);
@@ -373,6 +465,10 @@ export function handleChatEvent(
   // ── COMPLETION ──
   if (payload?.status === 'ok' || payload?.status === 'done' || payload?.state === 'final' || payload?.state === 'done') {
     const sessionKey = get().selectedSessionKey;
+    const completionRunId = payload?.runId || (sessionKey ? get().activeRunId.get(sessionKey) : undefined);
+    if (completionRunId) {
+      get().finalizeRunLatency(completionRunId, 'ok');
+    }
 
     // Cross-run guard
     const currentActiveRunId = sessionKey ? get().activeRunId.get(sessionKey) : undefined;

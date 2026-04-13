@@ -13,6 +13,7 @@ import { createTaskSlice } from './slices/task-slice';
 import { createFilesSlice } from './slices/files-slice';
 import { createUiSlice } from './slices/ui-slice';
 import { createEventSlice } from './slices/event-slice';
+import { createTelemetrySlice } from './slices/telemetry-slice';
 
 // Re-export the store interface for consumers that import it
 export type { DashboardStore } from './store-types';
@@ -33,6 +34,7 @@ export const useDashboardStore = create<DashboardStore>()(
       ...createFilesSlice(set, get),
       ...createUiSlice(set, get),
       ...createEventSlice(set, get),
+      ...createTelemetrySlice(set, get),
     }),
     {
       name: 'silos-dashboard',
