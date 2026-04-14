@@ -205,9 +205,11 @@ export interface DashboardStore {
   // Telemetry: errors + latency per session
   sessionErrors: Map<string, SessionError[]>;
   latencyEntries: Map<string, LatencyEntry[]>;
-  runTimings: Map<string, { sessionKey: string; startedAt: number; firstDeltaAt?: number; outputChars: number; model?: string }>;
+  runTimings: Map<string, { sessionKey: string; startedAt: number; firstDeltaAt?: number; lastDeltaAt?: number; outputChars: number; toolCallCount: number; seenToolCallIds: Set<string>; toolTimeMs: number; model?: string }>;
   errorTabBadges: Map<string, number>;
   toolCallCounts: Map<string, number>;
+  lastAgentActivity: Map<string, number>;
+  lastKnownRunId: Map<string, string>;
 
   pushSessionError: (
     sessionKey: string,
@@ -217,9 +219,12 @@ export interface DashboardStore {
   clearSessionErrors: (sessionKey: string) => void;
   clearSessionLatency: (sessionKey: string) => void;
   incrementToolCallCount: (sessionKey: string) => void;
+  recordAgentActivity: (sessionKey: string, runId?: string) => void;
   markRunStart: (runId: string, sessionKey: string, model?: string) => void;
   markRunFirstDelta: (runId: string) => void;
   accumulateRunChars: (runId: string, chars: number) => void;
+  recordRunDelta: (runId: string) => void;
+  recordRunToolCall: (runId: string, toolCallId?: string) => void;
   finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string) => void;
   discardRunTiming: (runId: string) => void;
 }

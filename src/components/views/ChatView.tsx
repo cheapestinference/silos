@@ -221,9 +221,24 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const chatSending = chatSendingMap.get(sessionKey) || false;
   const hasActiveRun = !!activeRunIdMap.get(sessionKey);
 
+  // Activity-based fallback: agent is considered working if we've seen any
+  // tool/lifecycle/delta event in the last RECENT_ACTIVITY_MS. This bridges
+  // the gap when OpenClaw's compaction retry momentarily clears activeRunId
+  // between a context overflow and the resumed run.
+  const RECENT_ACTIVITY_MS = 15_000;
+  const lastActivity = useDashboardStore(s => s.lastAgentActivity.get(sessionKey) || 0);
+  // Re-evaluate every second so the "recently active" flag ticks down on its own
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    if (lastActivity === 0) return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [lastActivity]);
+  const isRecentlyActive = lastActivity > 0 && nowTick - lastActivity < RECENT_ACTIVITY_MS;
+
   // Agent working state (for status dot)
   const tasks = useDashboardStore((s) => s.tasks);
-  const isAgentWorking = chatSending || hasActiveRun || tasks.some(
+  const isAgentWorking = chatSending || hasActiveRun || isRecentlyActive || tasks.some(
     t => t.status === 'running' && t.sessionKey === effectiveKey
   );
 

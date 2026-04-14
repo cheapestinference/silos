@@ -225,10 +225,13 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
     },
 
     abortChat: async () => {
-      const { client, activeRunId, selectedSessionKey, tasks } = get();
+      const { client, activeRunId, selectedSessionKey, tasks, lastKnownRunId } = get();
       if (!client || !selectedSessionKey) return;
 
-      const runId = activeRunId.get(selectedSessionKey);
+      // Prefer the currently tracked runId; fall back to the last runId we saw
+      // activity on (in case compaction retry transparently swapped runs).
+      const runId = activeRunId.get(selectedSessionKey)
+        || lastKnownRunId.get(selectedSessionKey);
       const effectiveSessionKey = resolveSessionKey(selectedSessionKey);
 
       // Helper: clear run state (was duplicated in try/catch)

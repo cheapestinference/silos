@@ -98,6 +98,14 @@ export function handleAgentDisplayEvent(
     get().markRunStart(payload.runId, eventSessionKey);
   }
 
+  // ── ACTIVITY SIGNAL ──
+  // Any tool/lifecycle event means the agent is actively working. Record the
+  // timestamp + runId so the UI can keep showing "busy" + Stop button even when
+  // OpenClaw's compaction retry momentarily clears activeRunId.
+  if (eventSessionKey && (payload?.stream === 'tool' || payload?.stream === 'lifecycle')) {
+    get().recordAgentActivity(eventSessionKey, payload?.runId);
+  }
+
   // ── TOOL EVENTS ──
   if (shouldShowInChat && payload?.stream === 'tool') {
     const toolName = payload?.data?.name || payload?.data?.toolName;
@@ -130,6 +138,12 @@ export function handleAgentDisplayEvent(
       // Telemetry signal: flip bottom tab to Tools when a new call starts
       if (eventSessionKey) {
         get().incrementToolCallCount(eventSessionKey);
+      }
+
+      // Record tool call count + dedupe by toolCallId per run for latency metrics
+      if (rid) {
+        const toolCallIdForRun = payload?.data?.toolCallId as string | undefined;
+        get().recordRunToolCall(rid, toolCallIdForRun);
       }
 
       set((state: any) => {
@@ -373,6 +387,14 @@ export function handleChatEvent(
 
         if (runId) {
           get().accumulateRunChars(runId, chatDeltaText.length);
+          // Record the delta timestamp for gap detection. Any gap > threshold
+          // between deltas is attributed to tool/wait time, not streaming.
+          get().recordRunDelta(runId);
+        }
+
+        // Streaming deltas are also the strongest "agent is alive" signal
+        if (selKey) {
+          get().recordAgentActivity(selKey, runId);
         }
       }
     }
@@ -640,7 +662,6 @@ export function handleTaskTracking(
   const runId = payload?.runId;
   const stream = payload?.stream;
   const phase = payload?.data?.phase;
-  const toolResult = payload?.data?.result;
   const taskSessionKey = payload?.sessionKey || selectedSessionKey || 'unknown';
 
   const isSubAgent = taskSessionKey.includes(':subagent:') || taskSessionKey.includes('-subagent-');
@@ -651,12 +672,11 @@ export function handleTaskTracking(
     (typeof runId === 'string' && runId.startsWith('cron:')) ||
     taskSessionKey.includes(':cron:');
 
-  const resultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult || '');
-  const isBackgroundProcess =
-    resultStr.includes('still running') ||
-    resultStr.includes('Command still running') ||
-    resultStr.includes('background') ||
-    resultStr.includes('pid ');
+  // Background-process detection removed: the substring heuristic on
+  // "still running" / "background" / "pid " produced far more false positives
+  // than real signal, and the resulting tasks had no cancellation semantics
+  // (dashboard can't kill arbitrary PIDs). Real background tracking, if ever
+  // needed, belongs in a dedicated panel driven by structured tool output.
 
   const isLifecycleStart = stream === 'lifecycle' && phase === 'start';
   const isLifecycleEnd = stream === 'lifecycle' && (phase === 'end' || phase === 'error');
@@ -678,7 +698,7 @@ export function handleTaskTracking(
   }
 
   // CREATE TASK
-  if (!existingTask && ((isLifecycleStart && (isSubAgent || isCronRun)) || isBackgroundProcess)) {
+  if (!existingTask && isLifecycleStart && (isSubAgent || isCronRun)) {
     const newTask: Task = {
       id: generateId(),
       runId: runId,
