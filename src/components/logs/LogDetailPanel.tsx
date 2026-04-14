@@ -132,17 +132,30 @@ export function LogDetailPanel({ line, onClose }: LogDetailPanelProps) {
         </div>
       )}
 
-      {/* JSON tree */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        <p className="text-[10px] text-muted-foreground/60 mb-2">Payload</p>
-        <div className="font-mono text-[11px] leading-relaxed">
-          {line.payload ? (
-            <JsonTree data={line.payload} />
-          ) : (
-            <pre className="text-foreground/60 whitespace-pre-wrap break-words">{line.raw}</pre>
-          )}
-        </div>
-      </div>
+      {/* Payload — skip if it's just the same string as Message to avoid duplication */}
+      {(() => {
+        const payloadIsSameAsMessage = typeof line.payload === 'string' && line.payload === line.message;
+        if (payloadIsSameAsMessage) return null;
+        return (
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <p className="text-[10px] text-muted-foreground/60 mb-2">Payload</p>
+            <div className="font-mono text-[11px] leading-relaxed">
+              {line.payload !== undefined && line.payload !== null ? (
+                typeof line.payload === 'string' ? (
+                  // Preserve fixed-width formatting (CLI tables, ASCII art, etc.)
+                  <pre className="text-foreground/80 whitespace-pre-wrap break-words bg-muted/20 p-2 rounded border border-border/40">
+                    {line.payload}
+                  </pre>
+                ) : (
+                  <JsonTree data={line.payload} />
+                )
+              ) : (
+                <pre className="text-foreground/60 whitespace-pre-wrap break-words">{line.raw}</pre>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

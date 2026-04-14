@@ -37,9 +37,39 @@ export function parseLogLine(raw: string): ParsedLogLine {
       let message = '';
       let payload: unknown = undefined;
 
-      // The "0" field contains the actual log content (often stringified JSON)
-      const content = obj['0'] ?? obj['1'] ?? obj.msg ?? obj.message ?? '';
-      if (typeof content === 'string') {
+      // OpenClaw's tslog passes the tag object (e.g. `{subsystem: 'agent/embedded'}`)
+      // serialized as "0" and the actual message text as "1". If "0" is ONLY a
+      // tag-shaped object (subsystem/module/name and nothing else), skip it so we
+      // don't render "subsystem" as the message. Prefer "1" for the real content.
+      const isTagOnlyObject = (s: string): boolean => {
+        try {
+          const p = JSON.parse(s);
+          if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
+          const tagKeys = new Set(['subsystem', 'module', 'name', 'component', 'scope']);
+          const keys = Object.keys(p);
+          return keys.length > 0 && keys.every((k) => tagKeys.has(k));
+        } catch {
+          return false;
+        }
+      };
+
+      const zero = obj['0'];
+      const one = obj['1'];
+      const preferOne = typeof zero === 'string' && isTagOnlyObject(zero);
+      const content = (preferOne ? one : zero) ?? one ?? zero ?? obj.msg ?? obj.message ?? '';
+
+      // Extract subsystem from the tag object if present (overrides meta.name which
+      // may contain the serialized tag string itself).
+      if (preferOne && typeof zero === 'string') {
+        try {
+          const tag = JSON.parse(zero) as Record<string, unknown>;
+          const tagValue = (tag.subsystem ?? tag.module ?? tag.name ?? tag.component ?? tag.scope);
+          if (typeof tagValue === 'string') {
+            meta.name = tagValue;
+          }
+        } catch { /* ignore */ }
+      }
+      if (typeof content === 'string' && content.length > 0) {
         try {
           payload = JSON.parse(content);
           // Extract a short summary from the parsed payload
@@ -53,15 +83,46 @@ export function parseLogLine(raw: string): ParsedLogLine {
           message = content.slice(0, 200);
           payload = content;
         }
-      } else {
+      } else if (content && typeof content === 'object') {
         message = JSON.stringify(content).slice(0, 200);
         payload = content;
+      } else {
+        // No primary content field — fall back to summarizing the whole object
+        // excluding meta/time/internal fields, so warn-only entries still show something
+        // instead of rendering an empty row.
+        const rest = { ...obj };
+        delete rest._meta;
+        delete rest.time;
+        delete rest['0'];
+        delete rest['1'];
+        delete rest.msg;
+        delete rest.message;
+        const keys = Object.keys(rest);
+        if (keys.length > 0) {
+          message = summarizePayload(rest);
+          payload = rest;
+        } else {
+          // Truly empty entry — surface subsystem + level as the message so users
+          // aren't staring at a blank row.
+          message = `[${meta.logLevelName || 'log'}] ${meta.name || 'unknown'}`;
+          payload = obj;
+        }
+      }
+
+      // meta.name sometimes arrives as a serialized tag JSON string — unwrap it
+      let subsystem = meta.name || '';
+      if (typeof subsystem === 'string' && subsystem.startsWith('{') && subsystem.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(subsystem);
+          const tagValue = parsed?.subsystem ?? parsed?.module ?? parsed?.name ?? parsed?.component;
+          if (typeof tagValue === 'string') subsystem = tagValue;
+        } catch { /* ignore */ }
       }
 
       return {
         timestamp: obj.time || meta.date || '',
         level: normalizeLevel(meta.logLevelName || 'info'),
-        subsystem: meta.name || '',
+        subsystem,
         message,
         raw,
         payload,
