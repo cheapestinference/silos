@@ -54,7 +54,15 @@ export function AppSidebar() {
 
   const agentList = agents?.agents || [];
   const sessionList = sessions?.sessions || [];
-  const runningTasksCount = tasks.filter(t => t.status === 'running').length;
+  // Only count tasks that are (a) status=running AND (b) started recently.
+  // The store can hold stale entries from localStorage cache (orphaned subagent
+  // runs whose completion event was never received) — those would inflate the
+  // badge without showing up in /tasks (which fetches live from the gateway).
+  const RUNNING_STALE_AFTER_MS = 60 * 60 * 1000; // 1h
+  const nowMs = Date.now();
+  const runningTasksCount = tasks.filter(
+    t => t.status === 'running' && (nowMs - (t.startedAt || 0)) < RUNNING_STALE_AFTER_MS,
+  ).length;
 
   const [creatingSessionForAgent, setCreatingSessionForAgent] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState('');
