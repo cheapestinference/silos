@@ -365,7 +365,14 @@ export interface LatencyEntry {
   ttfbMs?: number;
   outputChars?: number;
   outputTokens?: number;
+  /** Raw tok/s over the full generation window (completedAt - firstDeltaAt). */
   tokensPerSecond?: number;
+  /** tok/s excluding non-streaming gaps (likely tool/wait time). */
+  effectiveTokensPerSecond?: number;
+  /** Number of tool calls dispatched during the run. */
+  toolCallCount?: number;
+  /** Time spent waiting (gaps between text deltas > threshold — likely tools). */
+  toolTimeMs?: number;
   outcome: LatencyOutcome;
   model?: string;
 }

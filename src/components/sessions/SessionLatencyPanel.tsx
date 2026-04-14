@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Activity, Zap, Timer, CheckCircle2, XCircle, Ban, Trash2 } from 'lucide-react';
+import { Activity, Zap, Timer, CheckCircle2, XCircle, Ban, Trash2, Wrench } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { formatDistanceToNow } from 'date-fns';
 import type { LatencyEntry } from '../../types/openclaw';
@@ -38,24 +38,43 @@ function OutcomeIcon({ outcome }: { outcome: LatencyEntry['outcome'] }) {
 
 function EntryRow({ entry }: { entry: LatencyEntry }) {
   const when = formatDistanceToNow(entry.completedAt, { addSuffix: true });
+  const hasTools = (entry.toolCallCount ?? 0) > 0;
+
+  // Tooltip: explain why effective differs from raw tok/s
+  const tokRateTitle = entry.effectiveTokensPerSecond !== undefined && entry.effectiveTokensPerSecond !== entry.tokensPerSecond
+    ? `${entry.tokensPerSecond ?? 0} tok/s raw (includes ${fmtMs(entry.toolTimeMs)} of tool/wait gaps)\n${entry.effectiveTokensPerSecond} tok/s effective (streaming only)`
+    : 'Estimated tokens per second (chars/4)';
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 border-b border-border/50 last:border-b-0 hover:bg-muted/30 transition-colors">
       <OutcomeIcon outcome={entry.outcome} />
-      <div className="flex items-center gap-1 w-16 shrink-0">
+      <div className="flex items-center gap-1 w-16 shrink-0" title={`Total: ${fmtMs(entry.latencyMs)}${entry.toolTimeMs ? ` (incl. ${fmtMs(entry.toolTimeMs)} tool time)` : ''}`}>
         <Timer className="w-3 h-3 text-muted-foreground/60" />
         <span className="text-xs font-mono font-semibold text-foreground tabular-nums">{fmtMs(entry.latencyMs)}</span>
       </div>
-      <div className="flex items-center gap-1 w-20 shrink-0" title="Time to first byte">
+      <div className="flex items-center gap-1 w-16 shrink-0" title="Time to first assistant text delta (can include pre-text tool calls)">
         <Zap className="w-3 h-3 text-log-warn" />
         <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
           {entry.ttfbMs !== undefined ? fmtMs(entry.ttfbMs) : '—'}
         </span>
       </div>
-      <div className="flex items-center gap-1 w-20 shrink-0" title="Estimated tokens per second (chars/4)">
+      <div className="flex items-center gap-1 w-24 shrink-0" title={tokRateTitle}>
         <Activity className="w-3 h-3 text-log-info" />
         <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-          {entry.tokensPerSecond ? `${entry.tokensPerSecond} tok/s` : '—'}
+          {entry.effectiveTokensPerSecond
+            ? <>
+                <span className="text-foreground/90">{entry.effectiveTokensPerSecond}</span>
+                <span className="text-muted-foreground/50"> tok/s</span>
+              </>
+            : entry.tokensPerSecond
+              ? `${entry.tokensPerSecond} tok/s`
+              : '—'}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 w-10 shrink-0" title={hasTools ? `${entry.toolCallCount} tool call${entry.toolCallCount === 1 ? '' : 's'}` : 'No tools'}>
+        <Wrench className={cn("w-3 h-3", hasTools ? "text-log-warn" : "text-muted-foreground/20")} />
+        <span className={cn("text-[11px] font-mono tabular-nums", hasTools ? "text-foreground/80" : "text-muted-foreground/30")}>
+          {entry.toolCallCount ?? 0}
         </span>
       </div>
       <span className="flex-1 min-w-0 text-[10px] font-mono text-muted-foreground/60 truncate">
@@ -74,7 +93,10 @@ export function SessionLatencyPanel({ sessionKey }: { sessionKey: string }) {
     const okEntries = entries.filter(e => e.outcome === 'ok');
     const latencies = okEntries.map(e => e.latencyMs);
     const ttfbs = okEntries.map(e => e.ttfbMs).filter((x): x is number => typeof x === 'number');
-    const tokRates = okEntries.map(e => e.tokensPerSecond).filter((x): x is number => typeof x === 'number');
+    const effRates = okEntries.map(e => e.effectiveTokensPerSecond).filter((x): x is number => typeof x === 'number');
+    const rawRates = okEntries.map(e => e.tokensPerSecond).filter((x): x is number => typeof x === 'number');
+    const withTools = okEntries.filter(e => (e.toolCallCount ?? 0) > 0);
+    const withoutTools = okEntries.filter(e => !(e.toolCallCount ?? 0));
 
     const avg = (xs: number[]) => xs.length === 0 ? undefined : xs.reduce((a, b) => a + b, 0) / xs.length;
 
@@ -87,7 +109,12 @@ export function SessionLatencyPanel({ sessionKey }: { sessionKey: string }) {
       p50: percentile(latencies, 50),
       p95: percentile(latencies, 95),
       avgTtfb: avg(ttfbs),
-      medianTokRate: percentile(tokRates, 50),
+      medianEffRate: percentile(effRates, 50),
+      medianRawRate: percentile(rawRates, 50),
+      withToolsCount: withTools.length,
+      withoutToolsCount: withoutTools.length,
+      avgLatencyWithTools: avg(withTools.map(e => e.latencyMs)),
+      avgLatencyWithoutTools: avg(withoutTools.map(e => e.latencyMs)),
     };
   }, [entries]);
 
@@ -135,14 +162,28 @@ export function SessionLatencyPanel({ sessionKey }: { sessionKey: string }) {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <StatCell label="Avg total" value={fmtMs(stats.avgLatency)} />
+          <StatCell
+            label="Avg total"
+            value={fmtMs(stats.avgLatency)}
+            hint={stats.withToolsCount > 0 && stats.withoutToolsCount > 0
+              ? `w/tools: ${fmtMs(stats.avgLatencyWithTools)} · plain: ${fmtMs(stats.avgLatencyWithoutTools)}`
+              : undefined}
+          />
           <StatCell label="P95 total" value={fmtMs(stats.p95)} hint={`p50: ${fmtMs(stats.p50)}`} />
           <StatCell label="Avg TTFB" value={fmtMs(stats.avgTtfb)} />
           <StatCell
             label="Median tok/s"
-            value={stats.medianTokRate ? `${stats.medianTokRate}` : '—'}
-            hint="estimated"
+            value={stats.medianEffRate ? `${stats.medianEffRate}` : stats.medianRawRate ? `${stats.medianRawRate}` : '—'}
+            hint={stats.medianEffRate && stats.medianRawRate && stats.medianEffRate !== stats.medianRawRate
+              ? `effective · raw: ${stats.medianRawRate}`
+              : 'effective (gap-adjusted)'}
           />
+        </div>
+        <div className="mt-1.5 text-[9px] text-muted-foreground/60 flex items-center gap-2">
+          <span>{stats.withToolsCount} w/ tools</span>
+          <span>·</span>
+          <span>{stats.withoutToolsCount} plain</span>
+          <span className="ml-auto italic">Gaps &gt; 1s counted as tool/wait time</span>
         </div>
       </div>
       <div className={cn("flex-1 overflow-y-auto")}>
