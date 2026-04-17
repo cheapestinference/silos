@@ -281,11 +281,29 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
       const authPath = path.join(authDir, 'auth-profiles.json');
 
       let store = { version: 1, profiles: {} };
+      let raw;
       try {
-        const raw = await fs.readFile(authPath, 'utf8');
-        store = JSON.parse(raw);
+        raw = await fs.readFile(authPath, 'utf8');
+      } catch (readErr) {
+        if (readErr.code !== 'ENOENT') {
+          return res.status(500).json({
+            error: 'Unable to read auth-profiles.json — check file permissions.',
+          });
+        }
+        // File doesn't exist yet — use the default empty store
+      }
+      if (raw !== undefined) {
+        // raw is "" for an empty file — JSON.parse("") throws, which is
+        // the correct behavior: an empty file is corrupt, not "no data yet."
+        try {
+          store = JSON.parse(raw);
+        } catch {
+          return res.status(500).json({
+            error: 'auth-profiles.json contains invalid JSON — refusing to overwrite. Please fix the file manually.',
+          });
+        }
         if (!store.profiles) store.profiles = {};
-      } catch { /* file doesn't exist yet */ }
+      }
 
       store.profiles[profileId] = {
         type: 'token',
