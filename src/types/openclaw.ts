@@ -286,6 +286,8 @@ export interface CronRunLogEntry {
 
 export type MessageStatus = 'queued' | 'sending' | 'delivered' | 'error';
 
+export type AssistantPhase = 'commentary' | 'final_answer';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
