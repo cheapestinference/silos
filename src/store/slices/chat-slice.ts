@@ -1,6 +1,6 @@
 import type { ChatMessage } from '../../types/openclaw';
 import { generateId } from '../../lib/utils';
-import { isSilentReply } from '../../lib/reasoning-tags';
+import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
 import { resolveSessionKey, stripInboundMeta } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
 import { extractAssistantTextForPhase } from '../../lib/phase-filter';
@@ -58,7 +58,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
             textContent = m.content;
           } else if (Array.isArray(m.content)) {
             if (m.role === 'assistant') {
-              textContent = extractAssistantTextForPhase(m, 'final_answer');
+              textContent = stripReasoningTags(extractAssistantTextForPhase(m, 'final_answer'));
             } else {
               const textParts = m.content
                 .filter((item: any) => !item || typeof item === 'string' || item?.type === 'text')
@@ -68,14 +68,15 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
             }
 
             for (const item of m.content) {
-              if (item?.type === 'tool_use' && item.name) {
+              const isToolUse = item?.type === 'tool_use' || item?.type === 'toolCall';
+              if (isToolUse && item.name) {
                 extractedToolUseMessages.push({
                   id: item.id || `tool-${m.id || i}-${item.name}`,
                   role: 'tool',
                   content: '',
                   timestamp: m.timestamp || Date.now(),
                   toolName: item.name,
-                  toolCall: item.input,
+                  toolCall: item.input ?? item.arguments,
                   runId: m.runId,
                   status: 'delivered',
                 });
@@ -99,6 +100,8 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
           if (m.role === 'toolResult') return false;
           if (m.role === 'user' && (!m.content || !m.content.trim())) return false;
           if (m.role === 'assistant' && isSilentReply(m.content)) return false;
+          // Drop assistant turns whose only content was tool calls (promoted to separate tool msgs).
+          if (m.role === 'assistant' && !m.content?.trim() && !m.toolName && !m.toolCall) return false;
           return true;
         });
 
