@@ -140,6 +140,41 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
     }
   });
 
+  // DeepInfra's public /models endpoint exposes rich metadata including
+  // tags:['vision','reasoning','prompt_cache','reasoning_effort']. This is
+  // the ONLY generally-available source of machine-readable capability data
+  // for hosted OSS models. We query it unauthenticated, cache the result
+  // for 24 h, and use it as a secondary source to annotate every provider's
+  // model list with `input: ['text'|'image']` when the upstream proxy
+  // (LiteLLM, etc.) strips the metadata before Silos sees it.
+  let deepInfraCache = null; // { at, models: Map<id, { tags }> }
+  const DEEP_INFRA_CACHE_MS = 24 * 60 * 60 * 1000;
+  async function fetchDeepInfraCatalog() {
+    if (deepInfraCache && Date.now() - deepInfraCache.at < DEEP_INFRA_CACHE_MS) {
+      return deepInfraCache.models;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const r = await fetch('https://api.deepinfra.com/v1/openai/models?limit=400', { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!r.ok) return deepInfraCache?.models || new Map();
+      const data = await r.json();
+      const arr = Array.isArray(data?.data) ? data.data : [];
+      const map = new Map();
+      for (const m of arr) {
+        const id = m?.id;
+        if (typeof id !== 'string') continue;
+        const tags = Array.isArray(m?.metadata?.tags) ? m.metadata.tags : [];
+        map.set(id, { tags });
+      }
+      deepInfraCache = { at: Date.now(), models: map };
+      return map;
+    } catch {
+      return deepInfraCache?.models || new Map();
+    }
+  }
+
   // Fetch available models from LLM providers configured in openclaw.json
   // Reads provider config (with real API keys) directly from the filesystem,
   // since the gateway's config.get RPC redacts apiKey fields.
@@ -188,6 +223,21 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
         }
       } catch { /* ignore */ }
 
+      // Fetch DeepInfra catalog in parallel with provider queries — used to
+      // annotate models with `input: ['text'|'image']` based on the `vision`
+      // tag DeepInfra publishes. When the upstream proxy (LiteLLM etc.)
+      // strips this metadata, DeepInfra's public endpoint is our only source.
+      const deepInfraMap = await fetchDeepInfraCatalog();
+
+      /** Resolve input capabilities for a model id using the DeepInfra map. */
+      function resolveInput(modelId) {
+        if (!modelId) return undefined;
+        const entry = deepInfraMap.get(modelId);
+        if (!entry) return undefined; // unknown to DeepInfra — caller decides
+        const tags = Array.isArray(entry.tags) ? entry.tags : [];
+        return tags.includes('vision') ? ['text', 'image'] : ['text'];
+      }
+
       const results = {};
       await Promise.all(Object.entries(providers).map(async ([name, provider]) => {
         try {
@@ -210,19 +260,27 @@ export function createApiRouter(config, authMiddleware, openclawBase) {
           if (!response.ok) return;
           const data = await response.json();
           const models = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-          results[name] = models.map(m => ({
-            id: m.id,
-            name: m.display_name || m.id,
-            contextWindow: m.max_input_tokens || m.context_window || m.context_length || m.max_model_len || null,
-            type: m.type || null,
-          }));
+          results[name] = models.map(m => {
+            const input = resolveInput(m.id);
+            return {
+              id: m.id,
+              name: m.display_name || m.id,
+              contextWindow: m.max_input_tokens || m.context_window || m.context_length || m.max_model_len || null,
+              type: m.type || null,
+              ...(input ? { input } : {}),
+            };
+          });
         } catch { /* skip failed providers */ }
       }));
 
-      // Merge static models for providers that didn't return from the API
+      // Merge static models for providers that didn't return from the API.
+      // Also annotate static entries with DeepInfra's input when available.
       for (const [name, models] of Object.entries(staticModels)) {
         if (!results[name]) {
-          results[name] = models;
+          results[name] = models.map(m => {
+            const input = resolveInput(m.id);
+            return input ? { ...m, input } : m;
+          });
         }
       }
 

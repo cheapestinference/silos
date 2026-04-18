@@ -59,7 +59,7 @@ export interface DashboardStore {
   channels: ChannelsStatusSnapshot | null;
   presence: PresenceEntry[];
   models: ModelsListResult | null;
-  availableModels: Record<string, Array<{ id: string; name: string; contextWindow?: number }>> | null;
+  availableModels: Record<string, Array<{ id: string; name: string; contextWindow?: number; input?: Array<'text' | 'image'> }>> | null;
   gatewayConfig: ConfigSnapshot | null;
 
   // UI State

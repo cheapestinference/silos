@@ -98,21 +98,35 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const removeDraftAttachment = useDashboardStore(s => s.removeDraftAttachment);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
-  // Whether the current session's model accepts image inputs. Trusts the
-  // gateway catalog as the only source of truth — if the provider didn't
-  // declare `input` with 'image', we assume the model does NOT support
-  // images. No hardcoded model-family heuristics: if a new vision model
-  // lands, the provider needs to declare it correctly in its /models
-  // response (input: ['text', 'image']) and Silos picks it up immediately.
-  // Only exception: no session model yet (fresh session) → permit.
+  // Whether the current session's model accepts image inputs. Two data
+  // sources, checked in order:
+  //   1. availableModels[provider][modelId].input — populated by Silos's
+  //      /api/provider-models, which cross-references the provider's
+  //      /models response with DeepInfra's public catalog (tags:['vision']).
+  //      Primary source: most up-to-date, reflects what the hosting
+  //      platform actually supports.
+  //   2. Gateway catalog (models.list) — fallback when DeepInfra doesn't
+  //      know the model; typically from OpenClaw's hardcoded per-provider
+  //      extensions.
+  // If neither source declares `input`, assume the model does NOT support
+  // images. Prevents the silent gateway-drop path where the agent replies
+  // "I didn't see an image".
   const sessionModelSupportsImages = useMemo(() => {
     const resolvedKey = resolveSessionKey(sessionKey);
     const currentSession = sessions?.sessions?.find(s => s.key === resolvedKey || s.key === sessionKey);
     const modelId = currentSession?.model;
     if (!modelId) return true;
-    const entry = models?.models?.find(m => m.id === modelId);
-    return entry?.input?.includes('image') === true;
-  }, [sessions, sessionKey, models]);
+    const provider = currentSession?.modelProvider;
+    if (provider && availableModels) {
+      const providerModels = availableModels[provider];
+      const enriched = providerModels?.find(m => m.id === modelId);
+      if (enriched?.input) {
+        return enriched.input.includes('image');
+      }
+    }
+    const catalogEntry = models?.models?.find(m => m.id === modelId);
+    return catalogEntry?.input?.includes('image') === true;
+  }, [sessions, sessionKey, models, availableModels]);
 
   // Right panel: top section tabs
   const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
