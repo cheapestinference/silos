@@ -75,6 +75,7 @@ export function createConnectionSlice(set: StoreSet, get: StoreGet) {
               connected: false, connecting: false, token: null, client: null,
               agents: null, sessions: null, tasks: [], cronJobs: [], cronStatus: null,
               channels: null, models: null, availableModels: null, gatewayConfig: null,
+              selectedSessionKey: null, chatMessages: [],
               error: 'Session expired. Please sign in again.',
             });
             return;
@@ -118,6 +119,8 @@ export function createConnectionSlice(set: StoreSet, get: StoreGet) {
         initialLoading: false,
         error: null,
         token: null,
+        selectedSessionKey: null,
+        chatMessages: [],
       });
     },
   };

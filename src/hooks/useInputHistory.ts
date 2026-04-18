@@ -59,7 +59,7 @@ export function useInputHistory(
         requestAnimationFrame(() => {
           ta.selectionStart = ta.selectionEnd = text.length;
         });
-        if (text === '' || text === getDraft()) {
+        if (text === '') {
           inHistoryRef.current = false;
         }
         return;
