@@ -4,6 +4,7 @@ import type {
   ResponseFrame,
   EventFrame,
   HelloOk,
+  ChatAttachment,
 } from '../types/openclaw';
 
 export type GatewayClientOptions = {
@@ -303,10 +304,31 @@ export class GatewayClient {
     return this.request<{ messages: unknown[]; hasMore?: boolean }>('chat.history', { sessionKey, ...opts });
   }
 
-  async sendChat(sessionKey: string, message: string, opts?: { thinking?: string; idempotencyKey?: string }) {
+  async sendChat(sessionKey: string, message: string, opts?: { thinking?: string; idempotencyKey?: string; attachments?: ChatAttachment[] }) {
+    let payloadMessage: string | Array<unknown> = message;
+    if (opts?.attachments && opts.attachments.length > 0) {
+      const imageBlocks = opts.attachments.map((att) => {
+        const commaIdx = att.dataUrl.indexOf(',');
+        const rawBase64 = commaIdx >= 0 ? att.dataUrl.slice(commaIdx + 1) : att.dataUrl;
+        return {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: att.mimeType,
+            data: rawBase64,
+          },
+        };
+      });
+      const blocks: Array<unknown> = [];
+      if (message && message.trim().length > 0) {
+        blocks.push({ type: 'text', text: message });
+      }
+      blocks.push(...imageBlocks);
+      payloadMessage = blocks;
+    }
     return this.request<import('../types/openclaw').ChatSendResult>('chat.send', {
       sessionKey,
-      message,
+      message: payloadMessage,
       idempotencyKey: opts?.idempotencyKey || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       thinking: opts?.thinking,
     });
