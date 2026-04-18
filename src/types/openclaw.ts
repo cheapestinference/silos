@@ -370,6 +370,17 @@ export interface ChatAttachment {
   size?: number;        // Bytes.
 }
 
+/**
+ * A pinned message reference, stored per-session in localStorage.
+ * Silos extends control-UI's pin model with an optional user `note`
+ * so you can record WHY you pinned something.
+ */
+export interface PinnedEntry {
+  messageId: string;
+  pinnedAt: number;
+  note?: string;
+}
+
 export interface ChatHistoryResult {
   messages: ChatMessage[];
   hasMore?: boolean;

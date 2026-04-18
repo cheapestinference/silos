@@ -20,6 +20,7 @@ import type {
   SessionError,
   LatencyEntry,
   LatencyOutcome,
+  PinnedEntry,
 } from '../types/openclaw';
 
 // --- Zustand slice helper types ---
@@ -244,4 +245,19 @@ export interface DashboardStore {
   historyPrev: (sessionKey: string, liveDraft: string) => string | null;
   historyNext: (sessionKey: string) => string;
   historyResetCursor: (sessionKey: string) => void;
+
+  // Pinned messages per session (LS-backed)
+  pinnedBySession: Map<string, Map<string, PinnedEntry>>;
+  togglePinned: (sessionKey: string, messageId: string, note?: string) => void;
+  setPinnedNote: (sessionKey: string, messageId: string, note: string | undefined) => void;
+  isPinned: (sessionKey: string, messageId: string) => boolean;
+  listPinned: (sessionKey: string) => PinnedEntry[];
+  clearPinnedForSession: (sessionKey: string) => void;
+
+  // Soft-deleted messages per session (LS-backed)
+  deletedBySession: Map<string, Set<string>>;
+  toggleDeleted: (sessionKey: string, messageId: string) => void;
+  isDeleted: (sessionKey: string, messageId: string) => boolean;
+  listDeleted: (sessionKey: string) => string[];
+  clearDeletedForSession: (sessionKey: string) => void;
 }

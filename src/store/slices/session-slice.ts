@@ -38,6 +38,8 @@ export function createSessionSlice(set: StoreSet, get: StoreGet) {
         await client.deleteSession(key);
         try {
           localStorage.removeItem(`silos:history:${key}`);
+          localStorage.removeItem(`silos:pinned:${key}`);
+          localStorage.removeItem(`silos:deleted:${key}`);
         } catch { /* LS errors — ignore */ }
         if (sessions) {
           set({
