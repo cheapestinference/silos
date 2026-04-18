@@ -158,10 +158,22 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
     },
 
     sendMessage: async (message: string) => {
-      const { client, selectedSessionKey, chatSending } = get();
+      const { client, selectedSessionKey, chatSending, activeRunId } = get();
       if (!client || !selectedSessionKey) return;
 
-      const isAlreadySending = chatSending.get(selectedSessionKey) === true;
+      // Gate on activeRunId (real in-flight run), not chatSending alone.
+      // chatSending can get stuck=true after aborted/errored runs that didn't
+      // clean up; activeRunId is tied to real delta/final lifecycle events.
+      const hasActiveRun = activeRunId.has(selectedSessionKey);
+      const isAlreadySending = hasActiveRun;
+
+      // Self-heal: if chatSending was stuck but no real run is active, clear it
+      // so the UI spinner/stop button don't lie.
+      if (!hasActiveRun && chatSending.get(selectedSessionKey) === true) {
+        const healed = new Map(chatSending);
+        healed.delete(selectedSessionKey);
+        set({ chatSending: healed });
+      }
 
       const messageId = generateId();
       const userMessage: ChatMessage = {
