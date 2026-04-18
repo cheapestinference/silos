@@ -1,9 +1,9 @@
 import type { ChatMessage, InterSessionEventMeta } from '../../types/openclaw';
 import { generateId } from '../../lib/utils';
 import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
-import { resolveSessionKey, stripInboundMeta, parseInternalEventSummary } from '../store-utils';
+import { resolveSessionKey, parseInternalEventSummary } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
-import { extractAssistantTextForPhase } from '../../lib/phase-filter';
+import { normalizeMessage, extractToolMessagesFromBlocks } from '../../lib/message-normalizer';
 import { closeOutInterSessionTasks } from '../chat-event-handlers';
 
 /**
@@ -104,64 +104,56 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
         const result = await client.getChatHistory(effectiveKey, { limit: 200 });
 
         const extractedToolUseMessages: ChatMessage[] = [];
-        const messages: ChatMessage[] = (result.messages || []).map((m: any, i: number) => {
-          const interMeta = buildInterSessionMeta(m);
-          let textContent: string;
-          if (m.role === 'user') {
-            // inter-session injections carry the scaffolding in the text — we render them
-            // from `meta` instead; collapse textContent to a short summary fallback.
-            if (interMeta) {
-              textContent = interMeta.task
-                ? `Subagent: ${interMeta.task}`
-                : 'Inter-session event';
-            } else {
-              textContent = stripInboundMeta(m.content);
-            }
-          } else if (typeof m.content === 'string') {
-            textContent = m.content;
-          } else if (Array.isArray(m.content)) {
-            if (m.role === 'assistant') {
-              textContent = stripReasoningTags(extractAssistantTextForPhase(m, 'final_answer'));
-            } else {
-              const textParts = m.content
-                .filter((item: any) => !item || typeof item === 'string' || item?.type === 'text')
-                .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
-                .filter(Boolean);
-              textContent = textParts.join('\n') || '';
-            }
+        const messages: ChatMessage[] = (result.messages || []).map((rawMsg: unknown, i: number) => {
+          const interMeta = buildInterSessionMeta(rawMsg);
+          const normalized = normalizeMessage(rawMsg);
 
-            for (const item of m.content) {
-              const isToolUse = item?.type === 'tool_use' || item?.type === 'toolCall';
-              if (isToolUse && item.name) {
-                extractedToolUseMessages.push({
-                  id: item.id || `tool-${m.id || i}-${item.name}`,
-                  role: 'tool',
-                  content: '',
-                  timestamp: m.timestamp || Date.now(),
-                  toolName: item.name,
-                  toolCall: item.input ?? item.arguments,
-                  runId: m.runId,
-                  status: 'delivered',
-                });
-              }
-            }
-          } else {
-            textContent = '';
+          if (!normalized) {
+            return {
+              id: (rawMsg as { id?: string })?.id || `msg-${i}`,
+              role: 'user' as const,
+              content: '',
+              timestamp: Date.now(),
+            };
           }
 
-          return {
-            id: m.id || `msg-${i}`,
-            role: m.role || 'user',
-            content: textContent,
-            timestamp: m.timestamp || Date.now(),
-            toolName: m.toolName,
-            toolCall: m.toolCall,
-            result: m.result,
-            runId: m.runId,
+          // Extract tool_call blocks into separate tool ChatMessages so the
+          // Tools panel + ToolCard renderer stay in sync with legacy behavior.
+          extractedToolUseMessages.push(
+            ...extractToolMessagesFromBlocks(
+              normalized.id,
+              i,
+              normalized.timestamp,
+              (rawMsg as { runId?: string })?.runId,
+              normalized.contentBlocks,
+            ),
+          );
+
+          // Inter-session events render as event cards — collapse content to
+          // a one-line label so the legacy text path doesn't show scaffolding.
+          const legacyContent = interMeta
+            ? (interMeta.task ? `Subagent: ${interMeta.task}` : 'Inter-session event')
+            : normalized.role === 'assistant'
+              ? stripReasoningTags(normalized.content)
+              : normalized.content;
+
+          const base: ChatMessage = {
+            id: normalized.id || `msg-${i}`,
+            role: normalized.role,
+            content: legacyContent,
+            timestamp: normalized.timestamp,
+            contentBlocks: normalized.contentBlocks,
+            senderLabel: normalized.senderLabel,
+            ...(normalized.phase ? { phase: normalized.phase } : {}),
+            toolName: (rawMsg as { toolName?: string })?.toolName,
+            toolCall: (rawMsg as { toolCall?: unknown })?.toolCall,
+            result: (rawMsg as { result?: unknown })?.result,
+            runId: (rawMsg as { runId?: string })?.runId,
             ...(interMeta ? { meta: interMeta } : {}),
           };
+          return base;
         }).filter((m) => {
-          if (m.role === 'toolResult') return false;
+          if (m.role === 'toolResult' as unknown as typeof m.role) return false;
           // Keep inter-session events even when textContent is a short label.
           if (m.role === 'user' && !m.meta && (!m.content || !m.content.trim())) return false;
           if (m.role === 'assistant' && isSilentReply(m.content)) return false;
