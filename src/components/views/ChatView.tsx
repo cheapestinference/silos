@@ -43,6 +43,8 @@ import {
 } from '../chat';
 import { MessageGroup, groupMessages } from '../chat/MessageGroup';
 import { VirtualMessageList } from '../chat/VirtualMessageList';
+import { AttachmentInput } from '../chat/AttachmentInput';
+import { AttachmentPreview } from '../chat/AttachmentPreview';
 
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
@@ -83,6 +85,12 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   } = useDashboardStore();
 
   const [inputFocused, setInputFocused] = useState(false);
+
+  // Phase 3: per-session draft image attachments
+  const draftAttachments = useDashboardStore(s => s.draftAttachments);
+  const addDraftAttachment = useDashboardStore(s => s.addDraftAttachment);
+  const removeDraftAttachment = useDashboardStore(s => s.removeDraftAttachment);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   // Right panel: top section tabs
   const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
@@ -383,8 +391,9 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (isRateLimited) return;
-    const text = inputRef.current?.value.trim();
-    if (!text) return;
+    const text = inputRef.current?.value.trim() || '';
+    const attachments = effectiveKey ? (draftAttachments.get(effectiveKey) ?? []) : [];
+    if (!text && attachments.length === 0) return;
 
     if (STOP_COMMANDS.has(text.toLowerCase()) && isAgentWorking) {
       inputRef.current!.value = '';
@@ -394,7 +403,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     }
 
     onHistoryBeforeSend(text);
-    sendMessage(text);
+    sendMessage(text, attachments.length > 0 ? attachments : undefined);
     inputRef.current!.value = '';
     inputRef.current!.style.height = 'auto';
   };
@@ -522,18 +531,48 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
 
             <form onSubmit={handleSend} className="relative flex flex-col">
-              <textarea
-                ref={inputRef}
-                className="w-full bg-transparent px-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/40 font-medium resize-none min-h-[56px] max-h-[150px]"
-                placeholder={isRateLimited ? t('chat.rateLimitWait') : chatSending ? 'Agent is processing...' : t('chat.placeholder')}
-                disabled={isRateLimited}
-                onKeyDown={handleKeyDown}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                onChange={handleInputChange}
-                rows={1}
-                autoFocus
-              />
+              {effectiveKey ? (
+                <AttachmentPreview
+                  attachments={draftAttachments.get(effectiveKey) ?? []}
+                  onRemove={(id) => removeDraftAttachment(effectiveKey, id)}
+                />
+              ) : null}
+              {attachmentError ? (
+                <div className="px-4 pt-2 text-[11px] text-red-500 dark:text-red-400 flex items-center justify-between gap-2">
+                  <span>{attachmentError}</span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setAttachmentError(null)}
+                    aria-label="Dismiss attachment error"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : null}
+              <AttachmentInput
+                onAdd={(att) => {
+                  if (effectiveKey) {
+                    addDraftAttachment(effectiveKey, att);
+                    setAttachmentError(null);
+                  }
+                }}
+                onError={(msg) => setAttachmentError(msg)}
+                disabled={!effectiveKey || isRateLimited}
+              >
+                <textarea
+                  ref={inputRef}
+                  className="w-full bg-transparent pl-10 pr-5 py-4 focus:outline-none text-sm placeholder:text-muted-foreground/40 font-medium resize-none min-h-[56px] max-h-[150px]"
+                  placeholder={isRateLimited ? t('chat.rateLimitWait') : chatSending ? 'Agent is processing...' : t('chat.placeholder')}
+                  disabled={isRateLimited}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  onChange={handleInputChange}
+                  rows={1}
+                  autoFocus
+                />
+              </AttachmentInput>
 
               <div className="flex items-center justify-between px-4 pb-3">
                 {/* Left side - status and tools */}
