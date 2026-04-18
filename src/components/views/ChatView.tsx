@@ -86,6 +86,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     setBrowserPanelOpen,
     sessionCumulativeTokens,
     availableModels,
+    models,
     rateLimitedUntil,
   } = useDashboardStore();
 
@@ -96,6 +97,20 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const addDraftAttachment = useDashboardStore(s => s.addDraftAttachment);
   const removeDraftAttachment = useDashboardStore(s => s.removeDraftAttachment);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+
+  // Whether the current session's model accepts image inputs. The gateway
+  // silently DROPS attachments sent to text-only models, which produces
+  // confusing "I didn't receive an image" replies — show a proactive warning
+  // instead. `models` is the gateway's ModelsListResult (with `input`
+  // capabilities); `currentSession.model` is a plain model id string.
+  const sessionModelSupportsImages = useMemo(() => {
+    const currentSession = sessions?.sessions?.find(s => s.key === effectiveKey || s.key === sessionKey);
+    const modelId = currentSession?.model;
+    if (!modelId || !models?.models) return true; // unknown → don't warn
+    const entry = models.models.find(m => m.id === modelId);
+    if (!entry?.input) return true; // model catalog doesn't report → assume OK
+    return entry.input.includes('image');
+  }, [sessions, effectiveKey, sessionKey, models]);
 
   // Right panel: top section tabs
   const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
@@ -690,6 +705,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
                 }}
                 onError={(msg) => setAttachmentError(msg)}
                 disabled={!effectiveKey || isRateLimited}
+                disabledReason={!sessionModelSupportsImages ? 'El modelo seleccionado no soporta imágenes' : undefined}
               >
                 <textarea
                   ref={inputRef}
