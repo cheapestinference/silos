@@ -45,6 +45,7 @@ export const useDashboardStore = create<DashboardStore>()(
         token: state.token,
         darkMode: state.darkMode,
         theme: state.theme,
+        selectedSessionKey: state.selectedSessionKey,
       }),
       onRehydrateStorage: () => () => {
         useDashboardStore.setState({ _hydrated: true });
