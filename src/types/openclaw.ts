@@ -386,6 +386,26 @@ export interface ChatHistoryResult {
   hasMore?: boolean;
 }
 
+/**
+ * Transient status describing an in-progress context compaction run for a
+ * session. Populated opportunistically from gateway events whose `stream` or
+ * `kind` is `compaction`; cleared on run completion.
+ */
+export interface CompactionStatus {
+  phase: 'active' | 'retrying';
+  attemptIndex?: number;
+}
+
+/**
+ * Transient status describing fallback model attempts during a run (e.g. the
+ * primary model failed and the gateway is retrying with a cheaper/secondary
+ * one). Populated from `kind: 'fallback'` events when the gateway emits them.
+ */
+export interface FallbackStatus {
+  attempts: Array<{ model: string; reason?: string; ts: number }>;
+  summaries: string[];
+}
+
 // ============== Tasks/Runs ==============
 
 export type TaskStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timed_out' | 'cancelled' | 'lost';

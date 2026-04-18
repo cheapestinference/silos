@@ -120,6 +120,52 @@ export interface StoreAccessor {
   set: (updater: any) => void;
 }
 
+/**
+ * Best-effort inspection for compaction / fallback status events. Upstream
+ * OpenClaw may not emit these shapes yet — we populate the telemetry slice
+ * when it does and silently no-op otherwise. Defensive on malformed payloads.
+ */
+export function maybeHandleCompactionFallback(
+  payload: any,
+  sessionKey: string | undefined | null,
+  setCompactionStatus: (sk: string, s: any) => void,
+  setFallbackStatus: (sk: string, s: any) => void,
+): void {
+  if (!payload || !sessionKey) return;
+
+  // Compaction markers — look for { kind/stream: 'compaction', phase, attemptIndex? }
+  // Also accept nested { data: { phase, attemptIndex } } since most OpenClaw events
+  // carry their real fields one level down.
+  if (payload.stream === 'compaction' || payload.kind === 'compaction') {
+    const phase = payload.phase ?? payload.data?.phase;
+    const attemptIndex =
+      typeof payload.attemptIndex === 'number' ? payload.attemptIndex
+      : typeof payload.data?.attemptIndex === 'number' ? payload.data.attemptIndex
+      : undefined;
+    if (phase === 'active' || phase === 'retrying') {
+      setCompactionStatus(sessionKey, { phase, attemptIndex });
+    } else {
+      // Any other phase (complete/done/error/...) — clear.
+      setCompactionStatus(sessionKey, null);
+    }
+    return;
+  }
+
+  // Fallback markers — { kind/stream: 'fallback', attempts: [...], summaries?: [...] }
+  if (payload.kind === 'fallback' || payload.stream === 'fallback') {
+    const attempts = Array.isArray(payload.attempts)
+      ? payload.attempts
+      : Array.isArray(payload.data?.attempts) ? payload.data.attempts : null;
+    const summaries = Array.isArray(payload.summaries)
+      ? payload.summaries
+      : Array.isArray(payload.data?.summaries) ? payload.data.summaries : [];
+    if (attempts) {
+      setFallbackStatus(sessionKey, { attempts, summaries });
+    }
+    return;
+  }
+}
+
 // ============================================================================
 // AGENT DISPLAY EVENTS — tools, browser actions, errors
 // ============================================================================
@@ -130,6 +176,19 @@ export function handleAgentDisplayEvent(
   currentEffectiveKey: string | null,
 ) {
   const eventSessionKey = payload?.sessionKey;
+
+  // Best-effort compaction/fallback status population (no-op when gateway
+  // doesn't emit these shapes). Done before the filter below so status toasts
+  // track the session that actually triggered compaction, not just the
+  // currently-selected one.
+  if (eventSessionKey) {
+    maybeHandleCompactionFallback(
+      payload,
+      eventSessionKey,
+      get().setCompactionStatus,
+      get().setFallbackStatus,
+    );
+  }
 
   // Check if this event belongs to our currently selected session
   const isSubagentEvent = eventSessionKey?.includes(':subagent:') || eventSessionKey?.includes('-subagent-');
@@ -468,6 +527,10 @@ export function handleChatEvent(
     const targetKey = eventSessionKey || get().selectedSessionKey;
     const abortRunId = payload?.runId || (targetKey ? get().activeRunId.get(targetKey) : undefined);
     if (abortRunId) get().finalizeRunLatency(abortRunId, 'aborted');
+    if (targetKey) {
+      get().setCompactionStatus(targetKey, null);
+      get().setFallbackStatus(targetKey, null);
+    }
 
     set((state: any) => {
       const runId = payload?.runId || (targetKey ? state.activeRunId.get(targetKey) : undefined);
@@ -525,6 +588,10 @@ export function handleChatEvent(
       });
     }
     if (errRunId) get().finalizeRunLatency(errRunId, 'error');
+    if (targetKey) {
+      get().setCompactionStatus(targetKey, null);
+      get().setFallbackStatus(targetKey, null);
+    }
 
     set((state: any) => {
       const newActiveRunId = new Map(state.activeRunId);
@@ -553,6 +620,14 @@ export function handleChatEvent(
     const completionRunId = payload?.runId || (sessionKey ? get().activeRunId.get(sessionKey) : undefined);
     if (completionRunId) {
       get().finalizeRunLatency(completionRunId, 'ok');
+    }
+
+    // Clear transient compaction/fallback status for the session this run
+    // belongs to. Run is complete — any in-flight toasts should dismiss.
+    const clearKey = eventSessionKey || sessionKey;
+    if (clearKey) {
+      get().setCompactionStatus(clearKey, null);
+      get().setFallbackStatus(clearKey, null);
     }
 
     // Cross-run guard

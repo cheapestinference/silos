@@ -3,6 +3,8 @@ import type {
   SessionError,
   LatencyEntry,
   LatencyOutcome,
+  CompactionStatus,
+  FallbackStatus,
 } from '../../types/openclaw';
 import type { StoreSet, StoreGet } from '../store-types';
 
@@ -39,6 +41,12 @@ export interface TelemetrySlice {
   lastAgentActivity: Map<string, number>;
   /** Last runId we saw activity on, for abort fallback when activeRunId is empty. */
   lastKnownRunId: Map<string, string>;
+  /** Per-session compaction status — populated while the gateway is compacting
+   *  a run, cleared on final/complete. */
+  compactionStatus: Map<string, CompactionStatus>;
+  /** Per-session fallback-model status — records which models the gateway is
+   *  falling back to during a run. Cleared on final/complete. */
+  fallbackStatus: Map<string, FallbackStatus>;
 
   pushSessionError: (
     sessionKey: string,
@@ -64,6 +72,9 @@ export interface TelemetrySlice {
     model?: string,
   ) => void;
   discardRunTiming: (runId: string) => void;
+
+  setCompactionStatus: (sessionKey: string, status: CompactionStatus | null) => void;
+  setFallbackStatus: (sessionKey: string, status: FallbackStatus | null) => void;
 }
 
 export function createTelemetrySlice(set: StoreSet, get: StoreGet): TelemetrySlice {
@@ -75,6 +86,8 @@ export function createTelemetrySlice(set: StoreSet, get: StoreGet): TelemetrySli
     toolCallCounts: new Map<string, number>(),
     lastAgentActivity: new Map<string, number>(),
     lastKnownRunId: new Map<string, string>(),
+    compactionStatus: new Map<string, CompactionStatus>(),
+    fallbackStatus: new Map<string, FallbackStatus>(),
 
     pushSessionError: (sessionKey, partial) => {
       set((state) => {
@@ -309,6 +322,34 @@ export function createTelemetrySlice(set: StoreSet, get: StoreGet): TelemetrySli
         const newTimings = new Map(state.runTimings);
         newTimings.delete(runId);
         return { runTimings: newTimings };
+      });
+    },
+
+    setCompactionStatus: (sessionKey, status) => {
+      if (!sessionKey) return;
+      set((state) => {
+        const next = new Map(state.compactionStatus);
+        if (!status) {
+          if (!next.has(sessionKey)) return state;
+          next.delete(sessionKey);
+        } else {
+          next.set(sessionKey, status);
+        }
+        return { compactionStatus: next };
+      });
+    },
+
+    setFallbackStatus: (sessionKey, status) => {
+      if (!sessionKey) return;
+      set((state) => {
+        const next = new Map(state.fallbackStatus);
+        if (!status) {
+          if (!next.has(sessionKey)) return state;
+          next.delete(sessionKey);
+        } else {
+          next.set(sessionKey, status);
+        }
+        return { fallbackStatus: next };
       });
     },
   };

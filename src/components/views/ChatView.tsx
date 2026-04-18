@@ -47,6 +47,7 @@ import { AttachmentInput } from '../chat/AttachmentInput';
 import { AttachmentPreview } from '../chat/AttachmentPreview';
 import { SearchBar } from '../chat/SearchBar';
 import { ExportMenu } from '../chat/ExportMenu';
+import { ChatToasts } from '../chat/ChatToasts';
 import { matchMessage } from '../../lib/search-match';
 import { exportChatToMarkdown } from '../../lib/chat-export';
 
@@ -330,6 +331,10 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  // Phase 4: transient compaction/fallback status toasts
+  const compactionStatus = useDashboardStore(s => s.compactionStatus);
+  const fallbackStatus = useDashboardStore(s => s.fallbackStatus);
 
   // Phase 4: in-chat search (Ctrl/Cmd+F)
   const chatSearchOpen = useDashboardStore(s => s.chatSearchOpen);
@@ -961,6 +966,12 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
           </div>
         </div>
       </div>
+
+      {/* Transient compaction / fallback status toasts (fixed bottom-right) */}
+      <ChatToasts
+        compaction={effectiveKey ? compactionStatus.get(effectiveKey) ?? null : null}
+        fallback={effectiveKey ? fallbackStatus.get(effectiveKey) ?? null : null}
+      />
     </div>
   );
 }

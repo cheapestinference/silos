@@ -21,6 +21,8 @@ import type {
   LatencyEntry,
   LatencyOutcome,
   PinnedEntry,
+  CompactionStatus,
+  FallbackStatus,
 } from '../types/openclaw';
 
 // --- Zustand slice helper types ---
@@ -228,6 +230,8 @@ export interface DashboardStore {
   toolCallCounts: Map<string, number>;
   lastAgentActivity: Map<string, number>;
   lastKnownRunId: Map<string, string>;
+  compactionStatus: Map<string, CompactionStatus>;
+  fallbackStatus: Map<string, FallbackStatus>;
 
   pushSessionError: (
     sessionKey: string,
@@ -245,6 +249,8 @@ export interface DashboardStore {
   recordRunToolCall: (runId: string, toolCallId?: string) => void;
   finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string) => void;
   discardRunTiming: (runId: string) => void;
+  setCompactionStatus: (sessionKey: string, status: CompactionStatus | null) => void;
+  setFallbackStatus: (sessionKey: string, status: FallbackStatus | null) => void;
 
   // Input history per session (LS-backed)
   _inputHistoryDrafts: Map<string, string>;
