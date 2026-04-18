@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { formatNumber, cn } from '../../lib/utils';
 import { resolveSessionKey } from '../../lib/session-utils';
+import { useInputHistory } from '../../hooks/useInputHistory';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { SessionTasksKanban } from '../sessions/SessionTasksKanban';
@@ -365,6 +366,17 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     }
   }, []);
 
+  const { onKeyDown: onHistoryKeyDown, onBeforeSend: onHistoryBeforeSend } = useInputHistory(
+    effectiveKey,
+    () => inputRef.current?.value ?? '',
+    (text) => {
+      if (inputRef.current) {
+        inputRef.current.value = text;
+        handleInputChange();
+      }
+    }
+  );
+
   const STOP_COMMANDS = new Set(['stop', '/stop', 'abort', '/abort', 'esc', '/esc']);
 
   const handleSend = (e: React.FormEvent) => {
@@ -380,6 +392,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
       return;
     }
 
+    onHistoryBeforeSend(text);
     sendMessage(text);
     inputRef.current!.value = '';
     inputRef.current!.style.height = 'auto';
@@ -393,7 +406,9 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     }
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    onHistoryKeyDown(e);
+    if (e.defaultPrevented) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
