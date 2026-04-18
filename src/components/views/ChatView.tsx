@@ -98,46 +98,20 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const removeDraftAttachment = useDashboardStore(s => s.removeDraftAttachment);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
-  // Whether the current session's model accepts image inputs. Mirrors the
-  // gateway's resolveGatewayModelSupportsImages (session-utils.ts:1065):
-  //   - model not set → permissive (assume OK).
-  //   - model in catalog with input:['image',...] → true.
-  //   - model in catalog WITHOUT image → false.
-  //   - model NOT in catalog → check a small well-known-vision heuristic
-  //     (covers GPT-4o/o-series, Claude 3/4, Gemini 1.5/2, Qwen VL,
-  //     Pixtral, LLaVA). Otherwise false.
-  // Being strict prevents the silent gateway-drop path where the agent
-  // replies "I didn't see an image".
+  // Whether the current session's model accepts image inputs. Trusts the
+  // gateway catalog as the only source of truth — if the provider didn't
+  // declare `input` with 'image', we assume the model does NOT support
+  // images. No hardcoded model-family heuristics: if a new vision model
+  // lands, the provider needs to declare it correctly in its /models
+  // response (input: ['text', 'image']) and Silos picks it up immediately.
+  // Only exception: no session model yet (fresh session) → permit.
   const sessionModelSupportsImages = useMemo(() => {
     const resolvedKey = resolveSessionKey(sessionKey);
     const currentSession = sessions?.sessions?.find(s => s.key === resolvedKey || s.key === sessionKey);
     const modelId = currentSession?.model;
     if (!modelId) return true;
-    if (models?.models) {
-      const entry = models.models.find(m => m.id === modelId);
-      if (entry?.input) {
-        return entry.input.includes('image');
-      }
-    }
-    // Fallback heuristic when the gateway catalog doesn't declare input caps.
-    const id = modelId.toLowerCase();
-    const KNOWN_VISION_PATTERNS = [
-      /gpt-4o/,           // gpt-4o, gpt-4o-mini
-      /gpt-4-turbo/,
-      /gpt-4-vision/,
-      /^o[134]/,           // o1, o3, o4 (but not o-mini text-only variants)
-      /claude-3/,
-      /claude-4/,
-      /claude-(opus|sonnet|haiku)/,
-      /gemini-1\.5/,
-      /gemini-2/,
-      /qwen.*-?vl/,        // qwen2-vl, qwen-vl-plus, qwen2.5-vl
-      /pixtral/,
-      /llava/,
-      /internvl/,
-      /cogvlm/,
-    ];
-    return KNOWN_VISION_PATTERNS.some((re) => re.test(id));
+    const entry = models?.models?.find(m => m.id === modelId);
+    return entry?.input?.includes('image') === true;
   }, [sessions, sessionKey, models]);
 
   // Right panel: top section tabs
