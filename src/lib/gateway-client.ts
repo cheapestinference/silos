@@ -305,33 +305,34 @@ export class GatewayClient {
   }
 
   async sendChat(sessionKey: string, message: string, opts?: { thinking?: string; idempotencyKey?: string; attachments?: ChatAttachment[] }) {
-    let payloadMessage: string | Array<unknown> = message;
-    if (opts?.attachments && opts.attachments.length > 0) {
-      const imageBlocks = opts.attachments.map((att) => {
-        const commaIdx = att.dataUrl.indexOf(',');
-        const rawBase64 = commaIdx >= 0 ? att.dataUrl.slice(commaIdx + 1) : att.dataUrl;
-        return {
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: att.mimeType,
-            data: rawBase64,
-          },
-        };
-      });
-      const blocks: Array<unknown> = [];
-      if (message && message.trim().length > 0) {
-        blocks.push({ type: 'text', text: message });
-      }
-      blocks.push(...imageBlocks);
-      payloadMessage = blocks;
-    }
-    return this.request<import('../types/openclaw').ChatSendResult>('chat.send', {
+    // Canonical chat.send shape (verified in openclaw/src/gateway/server-methods/chat.ts:1409):
+    //   { sessionKey, message: string, attachments?: Array<{type, mimeType, fileName?, content: string}>, ... }
+    // `message` MUST be a string (gateway schema rejects arrays with
+    // "at /message: must be string"). Attachments travel as a SEPARATE
+    // top-level field, not nested inside message. `content` accepts
+    // either raw base64 or a full `data:<mime>;base64,...` URL — the
+    // gateway strips the prefix internally.
+    const payload: {
+      sessionKey: string;
+      message: string;
+      idempotencyKey: string;
+      thinking?: string;
+      attachments?: Array<{ type: string; mimeType: string; fileName?: string; content: string }>;
+    } = {
       sessionKey,
-      message: payloadMessage,
+      message,
       idempotencyKey: opts?.idempotencyKey || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       thinking: opts?.thinking,
-    });
+    };
+    if (opts?.attachments && opts.attachments.length > 0) {
+      payload.attachments = opts.attachments.map((att) => ({
+        type: 'image',
+        mimeType: att.mimeType,
+        ...(att.name ? { fileName: att.name } : {}),
+        content: att.dataUrl, // gateway accepts full data URL or raw base64
+      }));
+    }
+    return this.request<import('../types/openclaw').ChatSendResult>('chat.send', payload);
   }
 
   async abortChat(sessionKey: string, runId?: string) {
