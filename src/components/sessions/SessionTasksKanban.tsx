@@ -109,15 +109,22 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
     };
   }, [sessionKey, reconcileSessionTasks, reapProvisionalTasks]);
 
+  // Lineage-based filter — a task belongs to this session if ANY of:
+  //   - task.sessionKey === session             (direct cron target, etc.)
+  //   - task.ownerKey   === session             (spawned from this session)
+  //   - subagentParents.get(task.sessionKey) === session   (subagent child)
+  // Agent-id alone is NOT enough — it over-matches the agent's whole history
+  // across every session it ever had.
+  const subagentParents = useDashboardStore(s => s.subagentParents);
   const sessionTasks = tasks.filter(task => {
     if (task.sessionKey === sessionKey) return true;
-    if (sessionAgentId && task.agentId === sessionAgentId) return true;
-    if (sessionAgentId) {
-      const taskAgentId = extractAgentId(task.sessionKey);
-      if (taskAgentId === sessionAgentId) return true;
-    }
+    if (task.ownerKey === sessionKey) return true;
+    const parent = subagentParents.get(task.sessionKey);
+    if (parent === sessionKey) return true;
     return false;
   });
+  // Suppress unused-var warning while keeping the helper for future extensions.
+  void sessionAgentId;
 
   // Persist session tasks to localStorage whenever they change
   useEffect(() => {

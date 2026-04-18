@@ -350,6 +350,14 @@ export interface Task {
   outputTokens?: number;
   toolName?: string;
   /**
+   * Canonical `ownerKey` from the OpenClaw task registry — the session (or
+   * system:cron:...) that spawned this task. Used by the pipeline kanban to
+   * identify tasks as "belonging to" a given session (subagents share an
+   * agentId with their parent but live in a different sessionKey, so an
+   * agentId-based filter alone over-matches).
+   */
+  ownerKey?: string;
+  /**
    * True while we're provisionally tracking a task we synthesized from a
    * `lifecycle:start` event but haven't yet confirmed (via a delta event,
    * a task-registry match, or an inter-session announce). After

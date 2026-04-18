@@ -26,6 +26,7 @@ function taskRunToTask(run: TaskRun): Task {
     id: run.taskId,
     runId: run.runId || run.taskId,
     sessionKey,
+    ownerKey: run.ownerKey,
     agentId: run.agentId || extractAgentIdFromKey(sessionKey) || undefined,
     status: run.status,
     startedAt: run.startedAt ?? run.createdAt,
@@ -155,11 +156,13 @@ export function createTaskSlice(set: StoreSet, get: StoreGet) {
         return;
       }
 
-      // Filter registry to runs relevant to this session's agent.
+      // Strict filter: only tasks that directly belong to THIS session.
+      //   - ownerKey === sessionKey   → spawned from this session (subagents)
+      //   - childSessionKey === sessionKey → delivered to this session (cron)
+      // NOT by agent id alone — that over-matches across the agent's whole
+      // history (all sessions of bright-helper, not just this one).
       const relevant = registry.filter((run) => {
-        const ownerAgent = extractAgentIdFromKey(run.ownerKey);
-        const childAgent = extractAgentIdFromKey(run.childSessionKey);
-        return ownerAgent === sessionAgentId || childAgent === sessionAgentId;
+        return run.ownerKey === sessionKey || run.childSessionKey === sessionKey;
       });
 
       const { tasks } = get();
@@ -189,6 +192,7 @@ export function createTaskSlice(set: StoreSet, get: StoreGet) {
             id: run.taskId,
             runId: local.runId || run.runId || run.taskId,
             sessionKey: run.childSessionKey || local.sessionKey,
+            ownerKey: run.ownerKey,
             status: run.status,
             startedAt: run.startedAt ?? local.startedAt,
             completedAt: run.endedAt ?? local.completedAt,
