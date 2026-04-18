@@ -36,7 +36,8 @@ export function extractTextCached(
   }
 
   const text = computeText(message, phase);
-  const next = existing ? [...existing, { phase: wanted, text }] : [{ phase: wanted, text }];
+  const entry: TextCacheEntry = { phase: wanted, text };
+  const next = existing ? [...existing, entry] : [entry];
   textCache.set(key, next);
   return text;
 }
