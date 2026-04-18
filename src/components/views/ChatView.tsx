@@ -34,7 +34,6 @@ import { SessionCronsPanel } from '../sessions/SessionCronsPanel';
 
 // Chat components — extracted from this file for maintainability
 import {
-  MessageBubble,
   TypingIndicator,
   ActivityBar,
   AgentStatusDot,
@@ -42,6 +41,7 @@ import {
   CodeBlock,
   setCodeBlockComponent,
 } from '../chat';
+import { MessageGroup, groupMessages } from '../chat/MessageGroup';
 
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
@@ -458,24 +458,19 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
             </div>
           )}
 
-          {filteredMessages.map((msg, i, arr) => {
-            if (streamingContent && streamingComplete && msg.role === 'assistant' && i === arr.length - 1) {
-              return null;
-            }
-            const showAvatar = i === 0 ||
-              arr[i-1].role !== msg.role ||
-              Boolean(arr[i-1].timestamp && msg.timestamp - arr[i-1].timestamp > 60000);
-
-            return (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                showAvatar={showAvatar}
-                agents={agentList}
-                sessionKey={effectiveKey}
-              />
-            );
-          })}
+          {groupMessages(
+            streamingContent && streamingComplete && filteredMessages.length > 0 &&
+              filteredMessages[filteredMessages.length - 1].role === 'assistant'
+              ? filteredMessages.slice(0, -1)
+              : filteredMessages
+          ).map((group, gIdx) => (
+            <MessageGroup
+              key={group[0].id + ':' + gIdx}
+              messages={group}
+              agents={agentList}
+              sessionKey={effectiveKey}
+            />
+          ))}
 
           {/* Streaming / Typing Indicator */}
           {(streamingContent || chatSending) && (
