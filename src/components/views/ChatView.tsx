@@ -42,6 +42,7 @@ import {
   setCodeBlockComponent,
 } from '../chat';
 import { MessageGroup, groupMessages } from '../chat/MessageGroup';
+import { VirtualMessageList } from '../chat/VirtualMessageList';
 
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
@@ -458,19 +459,21 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
             </div>
           )}
 
-          {groupMessages(
-            streamingContent && streamingComplete && filteredMessages.length > 0 &&
-              filteredMessages[filteredMessages.length - 1].role === 'assistant'
-              ? filteredMessages.slice(0, -1)
-              : filteredMessages
-          ).map((group, gIdx) => (
-            <MessageGroup
-              key={group[0].id + ':' + gIdx}
-              messages={group}
-              agents={agentList}
-              sessionKey={effectiveKey}
-            />
-          ))}
+          <VirtualMessageList>
+            {groupMessages(
+              streamingContent && streamingComplete && filteredMessages.length > 0 &&
+                filteredMessages[filteredMessages.length - 1].role === 'assistant'
+                ? filteredMessages.slice(0, -1)
+                : filteredMessages
+            ).map((group, gIdx) => (
+              <MessageGroup
+                key={group[0].id + ':' + gIdx}
+                messages={group}
+                agents={agentList}
+                sessionKey={effectiveKey}
+              />
+            ))}
+          </VirtualMessageList>
 
           {/* Streaming / Typing Indicator */}
           {(streamingContent || chatSending) && (
