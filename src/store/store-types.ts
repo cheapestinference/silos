@@ -138,7 +138,7 @@ export interface DashboardStore {
   loadChatHistory: (key: string) => Promise<void>;
 
   // Chat actions
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, attachments?: ChatAttachment[]) => Promise<void>;
   abortChat: () => Promise<void>;
 
   // Cron actions

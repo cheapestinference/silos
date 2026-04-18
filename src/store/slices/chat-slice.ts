@@ -1,4 +1,4 @@
-import type { ChatMessage, InterSessionEventMeta } from '../../types/openclaw';
+import type { ChatMessage, ChatAttachment, InterSessionEventMeta } from '../../types/openclaw';
 import { generateId } from '../../lib/utils';
 import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
 import { resolveSessionKey, parseInternalEventSummary } from '../store-utils';
@@ -230,7 +230,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
       }
     },
 
-    sendMessage: async (message: string) => {
+    sendMessage: async (message: string, attachments?: ChatAttachment[]) => {
       const { client, selectedSessionKey, chatSending, activeRunId } = get();
       if (!client || !selectedSessionKey) return;
 
@@ -258,6 +258,9 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
       };
 
       if (isAlreadySending) {
+        // TODO(phase-4): support attachments in queued sends. Queue items are
+        // {id, text} today, which can't represent attachments without
+        // expanding the queue type.
         const newQueue = new Map(get().messageQueue);
         const sessionQueue = [...(newQueue.get(selectedSessionKey) || []), { id: messageId, text: message }];
         newQueue.set(selectedSessionKey, sessionQueue);
@@ -284,6 +287,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
       try {
         const result = await client.sendChat(effectiveSessionKey, message, {
           idempotencyKey: messageId,
+          attachments,
         });
 
         set({
@@ -298,6 +302,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
 
         get().markRunStart(result.runId, selectedSessionKey);
         get().loadSessions();
+        get().clearDraftAttachments(selectedSessionKey);
       } catch (error) {
         const newChatSending2 = new Map(get().chatSending);
         newChatSending2.delete(selectedSessionKey);
