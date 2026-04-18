@@ -289,6 +289,29 @@ export type MessageStatus = 'queued' | 'sending' | 'delivered' | 'error';
 export type AssistantPhase = 'commentary' | 'final_answer';
 
 /**
+ * Image source for an `image` content block. Matches OpenClaw's canonical
+ * shape (content-UI uses the same union), accepting either an inline
+ * base64-encoded payload or a remote URL.
+ */
+export type ImageSource =
+  | { type: 'base64'; mediaType: string; data: string }
+  | { type: 'url'; url: string };
+
+/**
+ * Canonical message content block. Mirrors OpenClaw's content-items model
+ * (`src/gateway/open-responses.schema.ts` + `src/shared/chat-message-content.ts`)
+ * without the OpenAI Responses-API aliases, which Silos's gateway never emits.
+ * Assistant thinking + phase-signatured text remain separate blocks — they do
+ * NOT collapse into `text`.
+ */
+export type ContentBlock =
+  | { type: 'text'; text: string; phase?: AssistantPhase }
+  | { type: 'tool_call'; name: string; args?: unknown; toolCallId?: string }
+  | { type: 'tool_result'; text: string; toolCallId?: string; isError?: boolean }
+  | { type: 'thinking'; thinking: string; phase?: AssistantPhase }
+  | { type: 'image'; source: ImageSource };
+
+/**
  * Structured data extracted from a user message whose `provenance.kind`
  * is `inter_session` (OpenClaw injects these when a subagent/child task
  * announces a result). Rendered as an event card instead of a user bubble.
@@ -320,6 +343,13 @@ export interface ChatMessage {
   status?: MessageStatus;
   /** Non-user-authored metadata (e.g. inter-session subagent announcements). */
   meta?: InterSessionEventMeta;
+  /** Canonical content blocks (Phase 2+). When present, renderers prefer
+   *  this over the legacy `content: string`. */
+  contentBlocks?: ContentBlock[];
+  /** Assistant phase at the message level (when uniform across blocks). */
+  phase?: AssistantPhase;
+  /** Optional sender label for multi-party channel messages. */
+  senderLabel?: string | null;
 }
 
 export interface ChatSendResult {
