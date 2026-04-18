@@ -61,11 +61,13 @@ const thinkingCache = new WeakMap<object, string>();
  * Return the plain-text content of a canonical gateway message.
  * Accepts:
  *   - string content → returned as-is
- *   - array content with { type: 'text', text, textSignature? } blocks → joined
+ *   - array content with { type: 'text', text, textSignature? } blocks → joined with '\n'
  * If `phase` is specified, only text blocks whose textSignature resolves to
  * the requested phase are kept. If no signatures are present, all text is returned.
  *
  * Results are memoized per (message, phase) tuple, WeakMap-keyed on the message.
+ * Assumes the message reference is immutable once observed; mutating a cached
+ * message's `content` after first call returns a stale result.
  */
 export function extractTextCached(
   message: unknown,
@@ -91,6 +93,7 @@ export function extractTextCached(
  * Return the `thinking` text from a canonical gateway message, if any.
  * Accepts `{ type: 'thinking', thinking }` blocks in array content; falls back
  * to legacy `<think>...</think>` in a string content.
+ * Assumes the message reference is immutable once observed.
  */
 export function extractThinkingCached(message: unknown): string {
   if (!message || typeof message !== 'object') return '';
@@ -116,7 +119,7 @@ function computeText(message: unknown, phase?: AssistantPhase): string {
   for (const block of content) {
     if (!block || typeof block !== 'object') continue;
     const type = (block as { type?: unknown }).type;
-    if (type !== 'text' && type !== 'output_text' && type !== 'input_text') continue;
+    if (type !== 'text') continue;
     const text = (block as { text?: unknown }).text;
     if (typeof text !== 'string') continue;
 
@@ -127,7 +130,7 @@ function computeText(message: unknown, phase?: AssistantPhase): string {
     }
     parts.push(text);
   }
-  return parts.join('');
+  return parts.join('\n');
 }
 
 function computeThinking(message: unknown): string {
@@ -155,10 +158,7 @@ function computeThinking(message: unknown): string {
 function resolvePhase(block: unknown): AssistantPhase | undefined {
   if (!block || typeof block !== 'object') return undefined;
   const sig = (block as { textSignature?: unknown }).textSignature;
-  if (typeof sig !== 'string') {
-    const phase = (block as { phase?: unknown }).phase;
-    return phase === 'commentary' || phase === 'final_answer' ? phase : undefined;
-  }
+  if (typeof sig !== 'string') return undefined;
   try {
     const parsed = JSON.parse(sig);
     if (parsed && typeof parsed === 'object') {
