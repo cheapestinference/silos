@@ -46,7 +46,9 @@ import { VirtualMessageList } from '../chat/VirtualMessageList';
 import { AttachmentInput } from '../chat/AttachmentInput';
 import { AttachmentPreview } from '../chat/AttachmentPreview';
 import { SearchBar } from '../chat/SearchBar';
+import { ExportMenu } from '../chat/ExportMenu';
 import { matchMessage } from '../../lib/search-match';
+import { exportChatToMarkdown } from '../../lib/chat-export';
 
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
@@ -299,6 +301,36 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, effectiveKey, isDeletedFn, deletedBySession]);
 
+  // Phase 4: export current chat to markdown (respects current filters)
+  const handleExportMarkdown = useCallback((): string => {
+    return exportChatToMarkdown(filteredMessages, {
+      sessionKey: effectiveKey ?? sessionKey,
+      isDeleted: effectiveKey ? (id) => isDeletedFn(effectiveKey, id) : undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredMessages, effectiveKey, sessionKey, isDeletedFn, deletedBySession]);
+
+  const handleExportCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(handleExportMarkdown());
+    } catch { /* ignore */ }
+  };
+
+  const handleExportDownload = () => {
+    const md = handleExportMarkdown();
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeKey = (effectiveKey ?? 'chat').replace(/[^\w-]+/g, '_');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.download = `silos-${safeKey}-${ts}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Phase 4: in-chat search (Ctrl/Cmd+F)
   const chatSearchOpen = useDashboardStore(s => s.chatSearchOpen);
   const chatSearchQuery = useDashboardStore(s => s.chatSearchQuery);
@@ -497,8 +529,8 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
       <div className="flex flex-1 min-h-0">
         {/* LEFT: Chat Column */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
-          {deletedCount > 0 ? (
-            <div className="px-4 pt-1 pb-0 flex justify-end">
+          <div className="flex items-center justify-between px-4 pt-1 pb-0 gap-2">
+            {deletedCount > 0 ? (
               <button
                 type="button"
                 onClick={() => setChatShowDeleted(!chatShowDeleted)}
@@ -507,8 +539,13 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
               >
                 {chatShowDeleted ? `Hide deleted (${deletedCount})` : `Show deleted (${deletedCount})`}
               </button>
-            </div>
-          ) : null}
+            ) : <span />}
+            <ExportMenu
+              onCopy={handleExportCopy}
+              onDownload={handleExportDownload}
+              disabled={filteredMessages.length === 0}
+            />
+          </div>
           {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar">
           {chatSearchOpen ? (
