@@ -3,6 +3,7 @@ import { generateId } from '../../lib/utils';
 import { isSilentReply } from '../../lib/reasoning-tags';
 import { resolveSessionKey, stripInboundMeta } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
+import { extractAssistantTextForPhase } from '../../lib/phase-filter';
 
 let _chatHistoryGen = 0;
 
@@ -56,11 +57,15 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
           } else if (typeof m.content === 'string') {
             textContent = m.content;
           } else if (Array.isArray(m.content)) {
-            const textParts = m.content
-              .filter((item: any) => !item || typeof item === 'string' || item?.type === 'text')
-              .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
-              .filter(Boolean);
-            textContent = textParts.join('\n') || '';
+            if (m.role === 'assistant') {
+              textContent = extractAssistantTextForPhase(m, 'final_answer');
+            } else {
+              const textParts = m.content
+                .filter((item: any) => !item || typeof item === 'string' || item?.type === 'text')
+                .map((item: any) => (typeof item === 'string' ? item : item?.text ?? null))
+                .filter(Boolean);
+              textContent = textParts.join('\n') || '';
+            }
 
             for (const item of m.content) {
               if (item?.type === 'tool_use' && item.name) {
