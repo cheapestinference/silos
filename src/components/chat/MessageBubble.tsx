@@ -10,6 +10,8 @@ import { ToolCallExpander } from './ToolCallExpander';
 import { MessageAvatar } from './MessageAvatar';
 import { InterSessionEventCard } from './InterSessionEventCard';
 import { MessageContent } from './MessageContent';
+import { MessageActions } from './MessageActions';
+import { useDashboardStore } from '../../store/dashboard-store';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -34,11 +36,34 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
   // NEW: canonical content blocks (Phase 2)
   if (message.contentBlocks && message.contentBlocks.length > 0) {
     const isUserMsg = message.role === 'user';
+    const key = sessionKey ?? '';
+    // Don't subscribe to entire map; read once on render — Zustand re-renders on any mutation.
+    const isPinned = useDashboardStore(s => key ? s.isPinned(key, message.id) : false);
+    const isDeletedMsg = useDashboardStore(s => key ? s.isDeleted(key, message.id) : false);
+    const togglePinned = useDashboardStore(s => s.togglePinned);
+    const toggleDeleted = useDashboardStore(s => s.toggleDeleted);
+
+    const copyText = async () => {
+      const text = message.content || '';
+      try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+    };
+
+    const actions = key ? (
+      <MessageActions
+        isPinned={isPinned}
+        isDeleted={isDeletedMsg}
+        onTogglePin={(note) => togglePinned(key, message.id, note)}
+        onToggleDelete={() => toggleDeleted(key, message.id)}
+        onCopy={copyText}
+      />
+    ) : null;
+
     if (isUserMsg) {
       return (
         <div className="flex justify-end w-full">
-          <div className="max-w-2xl rounded-2xl px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-foreground">
+          <div className="group relative max-w-2xl rounded-2xl px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-foreground">
             <MessageContent blocks={message.contentBlocks} />
+            {actions}
           </div>
         </div>
       );
@@ -47,8 +72,9 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
     // and assistant are visually paired without the assistant dominating.
     return (
       <div className="flex justify-start w-full">
-        <div className="max-w-2xl rounded-2xl px-4 py-2 bg-card border border-border/50 text-foreground">
+        <div className="group relative max-w-2xl rounded-2xl px-4 py-2 bg-card border border-border/50 text-foreground">
           <MessageContent blocks={message.contentBlocks} phase="final_answer" />
+          {actions}
         </div>
       </div>
     );
