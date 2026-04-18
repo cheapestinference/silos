@@ -227,4 +227,12 @@ export interface DashboardStore {
   recordRunToolCall: (runId: string, toolCallId?: string) => void;
   finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string) => void;
   discardRunTiming: (runId: string) => void;
+
+  // Input history per session (LS-backed)
+  _inputHistoryDrafts: Map<string, string>;
+  _inputHistoryCursors: Map<string, number>;
+  pushHistoryEntry: (sessionKey: string, text: string) => void;
+  historyPrev: (sessionKey: string, liveDraft: string) => string | null;
+  historyNext: (sessionKey: string) => string | null;
+  historyResetCursor: (sessionKey: string) => void;
 }

@@ -14,6 +14,7 @@ import { createFilesSlice } from './slices/files-slice';
 import { createUiSlice } from './slices/ui-slice';
 import { createEventSlice } from './slices/event-slice';
 import { createTelemetrySlice } from './slices/telemetry-slice';
+import { createInputHistorySlice } from './slices/input-history-slice';
 
 // Re-export the store interface for consumers that import it
 export type { DashboardStore } from './store-types';
@@ -35,6 +36,7 @@ export const useDashboardStore = create<DashboardStore>()(
       ...createUiSlice(set, get),
       ...createEventSlice(set, get),
       ...createTelemetrySlice(set, get),
+      ...createInputHistorySlice(set, get),
     }),
     {
       name: 'silos-dashboard',
