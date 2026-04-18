@@ -19,23 +19,6 @@ function extractAgentIdFromKey(key: string | undefined): string | null {
   return null;
 }
 
-/** Map a registry TaskRun to Silos's in-memory Task shape. */
-function taskRunToTask(run: TaskRun): Task {
-  const sessionKey = run.childSessionKey || run.ownerKey;
-  return {
-    id: run.taskId,
-    runId: run.runId || run.taskId,
-    sessionKey,
-    ownerKey: run.ownerKey,
-    agentId: run.agentId || extractAgentIdFromKey(sessionKey) || undefined,
-    status: run.status,
-    startedAt: run.startedAt ?? run.createdAt,
-    completedAt: run.endedAt,
-    error: run.error,
-    toolName: run.label,
-  };
-}
-
 /** Does an in-memory task likely correspond to a registry run? */
 function matchesRegistryRun(local: Task, run: TaskRun): boolean {
   if (run.runId && local.runId === run.runId) return true;
@@ -167,58 +150,95 @@ export function createTaskSlice(set: StoreSet, get: StoreGet) {
 
       const { tasks } = get();
       const now = Date.now();
-      const registryByKey = new Map<string, TaskRun>();
-      for (const run of relevant) {
-        if (run.runId) registryByKey.set(`runId:${run.runId}`, run);
-        registryByKey.set(`taskId:${run.taskId}`, run);
-        if (run.childSessionKey) registryByKey.set(`child:${run.childSessionKey}`, run);
-      }
 
+      // 1-to-1 matching. Iterate registry runs and claim AT MOST one
+      // not-yet-claimed local task per run. This prevents the prior bug
+      // where N cron tasks all share childSessionKey === sessionKey and
+      // the first-match-wins `find()` assigned the same registry taskId
+      // to every local cron, producing duplicates.
+      const usedLocalIdx = new Set<number>();
       const matchedRegistryIds = new Set<string>();
       const nextTasks: Task[] = [];
-      for (const local of tasks) {
-        // Only reconcile tasks that belong to this agent; leave others alone.
+
+      // Pass 1: every relevant registry run becomes a task in the output,
+      // merging in one local match if we can find one.
+      for (const run of relevant) {
+        let localIdx = -1;
+        for (let i = 0; i < tasks.length; i++) {
+          if (usedLocalIdx.has(i)) continue;
+          const local = tasks[i];
+          const localAgent = local.agentId || extractAgentIdFromKey(local.sessionKey);
+          if (localAgent !== sessionAgentId) continue;
+          if (matchesRegistryRun(local, run)) {
+            localIdx = i;
+            break;
+          }
+        }
+        const local = localIdx !== -1 ? tasks[localIdx] : undefined;
+        if (localIdx !== -1) usedLocalIdx.add(localIdx);
+        matchedRegistryIds.add(run.taskId);
+        const sessionKeyOut = run.childSessionKey || local?.sessionKey || run.ownerKey;
+        nextTasks.push({
+          ...(local || {}),
+          id: run.taskId,
+          runId: local?.runId || run.runId || run.taskId,
+          sessionKey: sessionKeyOut,
+          ownerKey: run.ownerKey,
+          agentId:
+            local?.agentId ||
+            run.agentId ||
+            extractAgentIdFromKey(sessionKeyOut) ||
+            undefined,
+          status: run.status,
+          startedAt: run.startedAt ?? local?.startedAt ?? run.createdAt,
+          completedAt: run.endedAt ?? local?.completedAt,
+          error: run.error ?? local?.error,
+          toolName: run.label ?? local?.toolName,
+          provisional: false,
+          provisionalUntil: undefined,
+        });
+      }
+
+      // Pass 2: locals we didn't claim in pass 1.
+      //   - Tasks for a different agent → keep untouched (not our concern).
+      //   - Semantic duplicates of an already-claimed registry run → drop.
+      //     Happens when >1 local shares a sessionKey that matches a registry
+      //     run (e.g. multiple client cron tasks with childSessionKey === S;
+      //     pass 1 claims one per run, pass 2 drops the rest).
+      //   - Same-agent provisionals past TTL without registry backing → drop.
+      //   - Everything else same-agent → keep (may be a freshly-spawned run
+      //     that the registry hasn't surfaced yet; next reconcile catches it).
+      for (let i = 0; i < tasks.length; i++) {
+        if (usedLocalIdx.has(i)) continue;
+        const local = tasks[i];
         const localAgent = local.agentId || extractAgentIdFromKey(local.sessionKey);
         if (localAgent !== sessionAgentId) {
           nextTasks.push(local);
           continue;
         }
-
-        const run = relevant.find((r) => matchesRegistryRun(local, r));
-        if (run) {
-          matchedRegistryIds.add(run.taskId);
-          nextTasks.push({
-            ...local,
-            id: run.taskId,
-            runId: local.runId || run.runId || run.taskId,
-            sessionKey: run.childSessionKey || local.sessionKey,
-            ownerKey: run.ownerKey,
-            status: run.status,
-            startedAt: run.startedAt ?? local.startedAt,
-            completedAt: run.endedAt ?? local.completedAt,
-            error: run.error ?? local.error,
-            toolName: run.label ?? local.toolName,
-            provisional: false,
-            provisionalUntil: undefined,
-          });
+        if (relevant.some((r) => matchesRegistryRun(local, r))) {
+          // A registry run represents this task; pass 1 already emitted it.
           continue;
         }
-
-        // No registry match.
-        if (local.provisional && typeof local.provisionalUntil === 'number' && local.provisionalUntil < now) {
-          // Expired provisional with no registry backing — drop as orphan.
+        if (
+          local.provisional &&
+          typeof local.provisionalUntil === 'number' &&
+          local.provisionalUntil < now
+        ) {
           continue;
         }
         nextTasks.push(local);
       }
 
-      // Registry rows with no matching in-memory task → add.
-      for (const run of relevant) {
-        if (matchedRegistryIds.has(run.taskId)) continue;
-        nextTasks.push(taskRunToTask(run));
+      // Finally, dedupe by id as a belt-and-braces measure.
+      const byId = new Map<string, Task>();
+      for (const t of nextTasks) {
+        byId.set(t.id, t);
       }
+      set({ tasks: Array.from(byId.values()) });
 
-      set({ tasks: nextTasks });
+      // Matched-registry accounting retained for future metrics/logging.
+      void matchedRegistryIds;
     },
 
     /**
