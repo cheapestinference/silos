@@ -233,6 +233,6 @@ export interface DashboardStore {
   _inputHistoryCursors: Map<string, number>;
   pushHistoryEntry: (sessionKey: string, text: string) => void;
   historyPrev: (sessionKey: string, liveDraft: string) => string | null;
-  historyNext: (sessionKey: string) => string | null;
+  historyNext: (sessionKey: string) => string;
   historyResetCursor: (sessionKey: string) => void;
 }

@@ -8,7 +8,7 @@
 //   - onBeforeSend() snapshots the text into history.
 //   - Escape resets to live draft.
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useDashboardStore } from '../store/dashboard-store';
 
@@ -18,6 +18,10 @@ export function useInputHistory(
   setDraft: (text: string) => void
 ) {
   const inHistoryRef = useRef(false);
+
+  useEffect(() => {
+    inHistoryRef.current = false;
+  }, [sessionKey]);
 
   const historyPrev = useDashboardStore(s => s.historyPrev);
   const historyNext = useDashboardStore(s => s.historyNext);
@@ -51,14 +55,12 @@ export function useInputHistory(
         if (!inHistoryRef.current) return; // only intercept in history mode
         event.preventDefault();
         const text = historyNext(sessionKey);
-        if (text !== null) {
-          setDraft(text);
-          requestAnimationFrame(() => {
-            ta.selectionStart = ta.selectionEnd = text.length;
-          });
-          if (text === '' || text === getDraft()) {
-            inHistoryRef.current = false;
-          }
+        setDraft(text);
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = text.length;
+        });
+        if (text === '' || text === getDraft()) {
+          inHistoryRef.current = false;
         }
         return;
       }

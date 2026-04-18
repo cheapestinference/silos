@@ -67,7 +67,7 @@ export function createInputHistorySlice(set: StoreSet, get: StoreGet) {
       return entries[entries.length - 1 - cursor];
     },
 
-    historyNext: (sessionKey: string): string | null => {
+    historyNext: (sessionKey: string): string => {
       const entries = loadEntries(sessionKey);
       const cursors = new Map(get()._inputHistoryCursors);
       const drafts = new Map(get()._inputHistoryDrafts);
