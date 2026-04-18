@@ -6,9 +6,72 @@
  * while maintaining the same store mutation semantics.
  */
 
-import type { ChatMessage, Task } from '../types/openclaw';
+import type { ChatMessage, Task, TaskStatus } from '../types/openclaw';
 import { generateId } from '../lib/utils';
 import { isSilentReply } from '../lib/reasoning-tags';
+
+/**
+ * How long a provisional task (created from `lifecycle:start` but not yet
+ * confirmed by any follow-up event or registry match) survives before the
+ * reaper drops it. Long enough to absorb reconnect gaps and WS jitter;
+ * short enough to clean up stillborn spawn attempts (e.g. "No session
+ * found" errors that never produce a matching lifecycle:end).
+ */
+export const PROVISIONAL_TASK_TTL_MS = 20_000;
+
+/**
+ * Map an inter-session announce status string onto our canonical TaskStatus.
+ * Errs on the side of 'succeeded' for unknown strings that contain "completed"
+ * (e.g. "completed successfully"), and 'failed' for explicit error words.
+ */
+export function mapAnnounceStatusToTaskStatus(raw: string | undefined): TaskStatus {
+  if (!raw) return 'succeeded';
+  const s = raw.toLowerCase();
+  if (/\b(fail|error|denied|aborted|timed[\s-]?out)\b/.test(s)) {
+    return /timed[\s-]?out/.test(s) ? 'timed_out'
+      : /aborted|cancell?ed/.test(s) ? 'cancelled'
+      : 'failed';
+  }
+  if (/\b(success|ok|done|completed|finished)\b/.test(s)) return 'succeeded';
+  return 'succeeded';
+}
+
+/**
+ * Close out (mark succeeded/failed) any in-memory tasks whose sessionKey
+ * matches the child session reported in an inter-session announce event.
+ * Call this as soon as we see the announce — it's the canonical "this
+ * subagent finished" signal, more reliable than relying on lifecycle:end
+ * events which occasionally go missing for abortive spawn attempts.
+ *
+ * Accepts a store-like object with `tasks` + `set`, so it can be invoked
+ * from both live event handlers and history-load post-processing.
+ */
+export function closeOutInterSessionTasks(
+  storeLike: { getState: () => { tasks: Task[] }; setState: (partial: any) => void },
+  childSessionKey: string | undefined,
+  announceStatus: string | undefined,
+): void {
+  if (!childSessionKey) return;
+  const nextStatus = mapAnnounceStatusToTaskStatus(announceStatus);
+  const state = storeLike.getState();
+  let changed = false;
+  const updated = state.tasks.map((t) => {
+    if (t.sessionKey !== childSessionKey) return t;
+    // Already terminal → nothing to do.
+    if (t.status !== 'running' && t.status !== 'queued') return t;
+    changed = true;
+    return {
+      ...t,
+      status: nextStatus,
+      completedAt: t.completedAt ?? Date.now(),
+      provisional: false,
+      provisionalUntil: undefined,
+    };
+  });
+  if (changed) {
+    storeLike.setState({ tasks: updated });
+  }
+}
 
 /**
  * Extract a human-readable error message from a tool result payload.
@@ -697,7 +760,8 @@ export function handleTaskTracking(
     }
   }
 
-  // CREATE TASK
+  // CREATE TASK (provisional — confirmed by first delta, registry match, or
+  // inter-session announce; reaped after PROVISIONAL_TASK_TTL_MS if none).
   if (!existingTask && isLifecycleStart && (isSubAgent || isCronRun)) {
     const newTask: Task = {
       id: generateId(),
@@ -706,8 +770,29 @@ export function handleTaskTracking(
       agentId: agentId || undefined,
       status: 'running',
       startedAt: Date.now(),
+      provisional: true,
+      provisionalUntil: Date.now() + PROVISIONAL_TASK_TTL_MS,
     };
     set((state: any) => ({ tasks: [...state.tasks, newTask] }));
+  }
+
+  // CONFIRM TASK (any real activity on this runId clears provisional).
+  if (existingTask && existingTask.provisional) {
+    const isProgress =
+      stream === 'delta' ||
+      isToolStart ||
+      isToolEnd ||
+      stream === 'tool' ||
+      stream === 'lifecycle';
+    if (isProgress) {
+      set((state: any) => ({
+        tasks: state.tasks.map((t: Task) =>
+          t.runId === runId
+            ? { ...t, provisional: false, provisionalUntil: undefined }
+            : t,
+        ),
+      }));
+    }
   }
 
   // Track spawn parent

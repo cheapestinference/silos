@@ -349,6 +349,16 @@ export interface Task {
   inputTokens?: number;
   outputTokens?: number;
   toolName?: string;
+  /**
+   * True while we're provisionally tracking a task we synthesized from a
+   * `lifecycle:start` event but haven't yet confirmed (via a delta event,
+   * a task-registry match, or an inter-session announce). After
+   * `provisionalUntil` passes without confirmation the reaper drops it,
+   * so stillborn spawn attempts don't leave orphan `running` rows.
+   */
+  provisional?: boolean;
+  /** ms epoch when a provisional task should be reaped if unconfirmed. */
+  provisionalUntil?: number;
 }
 
 // ============== Telemetry: Errors + Latency ==============

@@ -146,6 +146,8 @@ export interface DashboardStore {
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   abortTask: (runId: string) => Promise<void>;
   loadTaskHistory: () => Promise<void>;
+  reconcileSessionTasks: (sessionKey: string) => Promise<void>;
+  reapProvisionalTasks: () => void;
   clearQueue: () => void;
   removeLastQueued: () => void;
   taskHistoryLoading: boolean;

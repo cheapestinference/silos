@@ -50,7 +50,14 @@ function taskToTaskRun(task: Task): TaskRun {
 
 export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
   const { t } = useTranslation();
-  const { tasks, loadTaskHistory, taskHistoryLoading, selectSession } = useDashboardStore();
+  const {
+    tasks,
+    loadTaskHistory,
+    taskHistoryLoading,
+    selectSession,
+    reconcileSessionTasks,
+    reapProvisionalTasks,
+  } = useDashboardStore();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Extract agent ID from sessionKey to match tasks by agent, not exact key
@@ -77,6 +84,30 @@ export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
       useDashboardStore.setState({ tasks: [...currentTasks, ...newTasks] });
     }
   }, [sessionKey]);
+
+  // Reconcile against the authoritative OpenClaw task registry on session
+  // change and on a slow poll. Absorbs orphans left by failed spawn events
+  // whose lifecycle:end never arrived, and catches registry status changes
+  // that didn't emit a lifecycle event we recognized.
+  useEffect(() => {
+    if (!sessionKey) return;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      reconcileSessionTasks(sessionKey).catch(() => {});
+      reapProvisionalTasks();
+    };
+    // Immediate + short follow-up (sidecar TTL is 3s, so a second tick after
+    // 4s covers the common "just spawned" case) + steady 15s thereafter.
+    tick();
+    const t1 = window.setTimeout(tick, 4_000);
+    const t2 = window.setInterval(tick, 15_000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t1);
+      window.clearInterval(t2);
+    };
+  }, [sessionKey, reconcileSessionTasks, reapProvisionalTasks]);
 
   const sessionTasks = tasks.filter(task => {
     if (task.sessionKey === sessionKey) return true;

@@ -4,6 +4,7 @@ import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
 import { resolveSessionKey, stripInboundMeta, parseInternalEventSummary } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
 import { extractAssistantTextForPhase } from '../../lib/phase-filter';
+import { closeOutInterSessionTasks } from '../chat-event-handlers';
 
 /**
  * Extract raw text from a gateway message content (string or content-blocks
@@ -210,6 +211,22 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
         set({ chatMessages: queued.length > 0 ? [...merged, ...queued] : merged, chatLoading: false });
         if (queued.length > 0 && !get().activeRunId.get(key)) {
           setTimeout(() => get()._dispatchNextQueued(key), 100);
+        }
+
+        // Close out any in-memory tasks whose child session just announced
+        // completion. The announce is the canonical "subagent finished"
+        // signal; using it here catches orphans left by stillborn spawns
+        // whose lifecycle:end never matched.
+        {
+          const storeLike = {
+            getState: () => ({ tasks: get().tasks }),
+            setState: (partial: { tasks: ChatMessage[] }) => set(partial as unknown as Parameters<typeof set>[0]),
+          };
+          for (const m of merged) {
+            if (m.meta?.kind === 'inter_session' && m.meta.sourceSessionKey) {
+              closeOutInterSessionTasks(storeLike, m.meta.sourceSessionKey, m.meta.status);
+            }
+          }
         }
       } catch (error) {
         if (get().selectedSessionKey !== key || gen !== _chatHistoryGen) return;
