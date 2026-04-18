@@ -104,13 +104,14 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   // instead. `models` is the gateway's ModelsListResult (with `input`
   // capabilities); `currentSession.model` is a plain model id string.
   const sessionModelSupportsImages = useMemo(() => {
-    const currentSession = sessions?.sessions?.find(s => s.key === effectiveKey || s.key === sessionKey);
+    const resolvedKey = resolveSessionKey(sessionKey);
+    const currentSession = sessions?.sessions?.find(s => s.key === resolvedKey || s.key === sessionKey);
     const modelId = currentSession?.model;
     if (!modelId || !models?.models) return true; // unknown → don't warn
     const entry = models.models.find(m => m.id === modelId);
     if (!entry?.input) return true; // model catalog doesn't report → assume OK
     return entry.input.includes('image');
-  }, [sessions, effectiveKey, sessionKey, models]);
+  }, [sessions, sessionKey, models]);
 
   // Right panel: top section tabs
   const [activeTopTab, setActiveTopTab] = useState<string>('tasks');
