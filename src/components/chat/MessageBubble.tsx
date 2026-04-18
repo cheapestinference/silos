@@ -9,6 +9,7 @@ import { CompactSystemMessage } from './CompactSystemMessage';
 import { ToolCallExpander } from './ToolCallExpander';
 import { MessageAvatar } from './MessageAvatar';
 import { InterSessionEventCard } from './InterSessionEventCard';
+import { MessageContent } from './MessageContent';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -26,6 +27,25 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
     return (
       <div className="flex justify-center w-full my-1">
         <InterSessionEventCard meta={message.meta} timestamp={message.timestamp} />
+      </div>
+    );
+  }
+
+  // NEW: canonical content blocks (Phase 2)
+  if (message.contentBlocks && message.contentBlocks.length > 0) {
+    const isUserMsg = message.role === 'user';
+    if (isUserMsg) {
+      return (
+        <div className="flex justify-end w-full">
+          <div className="max-w-2xl rounded-2xl px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-foreground">
+            <MessageContent blocks={message.contentBlocks} />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="w-full">
+        <MessageContent blocks={message.contentBlocks} phase="final_answer" />
       </div>
     );
   }
