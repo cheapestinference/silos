@@ -210,6 +210,10 @@ export interface DashboardStore {
   // Chat UI flags
   chatShowDeleted: boolean;
   setChatShowDeleted: (show: boolean) => void;
+  chatSearchOpen: boolean;
+  chatSearchQuery: string;
+  setChatSearchOpen: (open: boolean) => void;
+  setChatSearchQuery: (q: string) => void;
 
   // Event handlers
   handleEvent: (event: EventFrame) => void;

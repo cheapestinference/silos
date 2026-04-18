@@ -281,3 +281,11 @@ body::before {
 .bg-gradient-conic {
   background: conic-gradient(from 0deg, var(--tw-gradient-stops));
 }
+
+/* In-chat search: brief yellow ring highlight around matched message */
+[data-search-highlight="true"] {
+  outline: 2px solid rgb(234 179 8 / 0.7);
+  outline-offset: 2px;
+  border-radius: 16px;
+  transition: outline 200ms ease-out;
+}

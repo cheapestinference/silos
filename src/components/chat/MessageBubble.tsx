@@ -60,7 +60,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
 
     if (isUserMsg) {
       return (
-        <div className="flex justify-end w-full">
+        <div className="flex justify-end w-full" data-message-id={message.id}>
           <div className={cn('group relative max-w-2xl rounded-2xl px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-foreground', isDeletedMsg && 'opacity-50')}>
             <div className={cn(isDeletedMsg && 'line-through')}>
               <MessageContent blocks={message.contentBlocks} />
@@ -73,7 +73,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
     // Assistant / tool / system: left-aligned bubble with subtler tone so user
     // and assistant are visually paired without the assistant dominating.
     return (
-      <div className="flex justify-start w-full">
+      <div className="flex justify-start w-full" data-message-id={message.id}>
         <div className={cn('group relative max-w-2xl rounded-2xl px-4 py-2 bg-card border border-border/50 text-foreground', isDeletedMsg && 'opacity-50')}>
           <div className={cn(isDeletedMsg && 'line-through')}>
             <MessageContent blocks={message.contentBlocks} phase="final_answer" />
@@ -203,7 +203,9 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
   }
 
   return (
-    <div className={cn(
+    <div
+      data-message-id={message.id}
+      className={cn(
       "flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300 min-w-0",
       isUser && "flex-row-reverse zoom-in-95"
     )}>

@@ -45,6 +45,8 @@ import { MessageGroup, groupMessages } from '../chat/MessageGroup';
 import { VirtualMessageList } from '../chat/VirtualMessageList';
 import { AttachmentInput } from '../chat/AttachmentInput';
 import { AttachmentPreview } from '../chat/AttachmentPreview';
+import { SearchBar } from '../chat/SearchBar';
+import { matchMessage } from '../../lib/search-match';
 
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
@@ -297,6 +299,54 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, effectiveKey, isDeletedFn, deletedBySession]);
 
+  // Phase 4: in-chat search (Ctrl/Cmd+F)
+  const chatSearchOpen = useDashboardStore(s => s.chatSearchOpen);
+  const chatSearchQuery = useDashboardStore(s => s.chatSearchQuery);
+  const setChatSearchOpen = useDashboardStore(s => s.setChatSearchOpen);
+  const setChatSearchQuery = useDashboardStore(s => s.setChatSearchQuery);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setChatSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setChatSearchOpen]);
+
+  const searchMatches = useMemo(() => {
+    if (!chatSearchQuery.trim()) return [] as string[];
+    return filteredMessages.filter(m => matchMessage(m, chatSearchQuery)).map(m => m.id);
+  }, [filteredMessages, chatSearchQuery]);
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
+  useEffect(() => { setCurrentMatchIdx(0); }, [chatSearchQuery]);
+
+  const scrollToMatch = useCallback((idx: number) => {
+    const id = searchMatches[idx];
+    if (!id) return;
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.setAttribute('data-search-highlight', 'true');
+    setTimeout(() => el.removeAttribute('data-search-highlight'), 1500);
+  }, [searchMatches]);
+
+  const onSearchPrev = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const next = (currentMatchIdx - 1 + searchMatches.length) % searchMatches.length;
+    setCurrentMatchIdx(next);
+    scrollToMatch(next);
+  }, [searchMatches, currentMatchIdx, scrollToMatch]);
+
+  const onSearchNext = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const next = (currentMatchIdx + 1) % searchMatches.length;
+    setCurrentMatchIdx(next);
+    scrollToMatch(next);
+  }, [searchMatches, currentMatchIdx, scrollToMatch]);
+
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
 
@@ -461,6 +511,17 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
           ) : null}
           {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar">
+          {chatSearchOpen ? (
+            <SearchBar
+              query={chatSearchQuery}
+              onQueryChange={setChatSearchQuery}
+              matchCount={searchMatches.length}
+              currentIdx={searchMatches.length === 0 ? 0 : currentMatchIdx + 1}
+              onPrev={onSearchPrev}
+              onNext={onSearchNext}
+              onClose={() => setChatSearchOpen(false)}
+            />
+          ) : null}
           {/* Empty State */}
           {chatMessages.length === 0 && !chatLoading && (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">

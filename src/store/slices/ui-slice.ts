@@ -1,14 +1,22 @@
 import type { StoreSet, StoreGet } from '../store-types';
 
-export function createUiSlice(set: StoreSet, _get: StoreGet) {
+export function createUiSlice(set: StoreSet, get: StoreGet) {
   return {
     unreadCounts: new Map<string, number>(),
     browserPanelOpen: false,
     browserDetached: 'none' as 'none' | 'overlay' | 'popout',
     browserAgentAction: null as string | null,
     chatShowDeleted: false,
+    chatSearchOpen: false,
+    chatSearchQuery: '',
 
     setChatShowDeleted: (show: boolean) => set({ chatShowDeleted: show }),
+
+    setChatSearchOpen: (open: boolean) => set({
+      chatSearchOpen: open,
+      chatSearchQuery: open ? get().chatSearchQuery : '',
+    }),
+    setChatSearchQuery: (q: string) => set({ chatSearchQuery: q }),
 
     markSessionRead: (sessionKey: string) => {
       set((state) => {
