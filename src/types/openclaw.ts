@@ -288,6 +288,23 @@ export type MessageStatus = 'queued' | 'sending' | 'delivered' | 'error';
 
 export type AssistantPhase = 'commentary' | 'final_answer';
 
+/**
+ * Structured data extracted from a user message whose `provenance.kind`
+ * is `inter_session` (OpenClaw injects these when a subagent/child task
+ * announces a result). Rendered as an event card instead of a user bubble.
+ */
+export interface InterSessionEventMeta {
+  kind: 'inter_session';
+  sourceTool?: string;            // e.g. "subagent_announce"
+  sourceSessionKey?: string;      // "agent:bright-helper:subagent:..."
+  sourceChannel?: string;
+  task?: string;
+  status?: string;
+  result?: string;                // parsed UNTRUSTED_CHILD_RESULT body
+  announceType?: string;
+  replyInstruction?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -301,6 +318,8 @@ export interface ChatMessage {
   stream?: string;
   /** Status for user messages - tracks if message is queued, being processed, or delivered */
   status?: MessageStatus;
+  /** Non-user-authored metadata (e.g. inter-session subagent announcements). */
+  meta?: InterSessionEventMeta;
 }
 
 export interface ChatSendResult {

@@ -1,9 +1,62 @@
-import type { ChatMessage } from '../../types/openclaw';
+import type { ChatMessage, InterSessionEventMeta } from '../../types/openclaw';
 import { generateId } from '../../lib/utils';
 import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
-import { resolveSessionKey, stripInboundMeta } from '../store-utils';
+import { resolveSessionKey, stripInboundMeta, parseInternalEventSummary } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
 import { extractAssistantTextForPhase } from '../../lib/phase-filter';
+
+/**
+ * Extract raw text from a gateway message content (string or content-blocks
+ * array). Used to feed parseInternalEventSummary, which wants the original
+ * text including the <<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>> delimiters.
+ */
+function rawTextOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    const parts: string[] = [];
+    for (const block of content) {
+      if (block && typeof block === 'object') {
+        const t = (block as { type?: unknown }).type;
+        const text = (block as { text?: unknown }).text;
+        if ((t === 'text' || t === 'output_text' || t === 'input_text') && typeof text === 'string') {
+          parts.push(text);
+        }
+      } else if (typeof block === 'string') {
+        parts.push(block);
+      }
+    }
+    return parts.join('\n');
+  }
+  return '';
+}
+
+/**
+ * Detect a gateway user message whose `provenance.kind === 'inter_session'`
+ * (e.g. subagent announce). Returns a structured meta blob if so, else null.
+ */
+function buildInterSessionMeta(raw: unknown): InterSessionEventMeta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const m = raw as { role?: unknown; provenance?: unknown; content?: unknown };
+  if (m.role !== 'user') return null;
+  const prov = m.provenance;
+  if (!prov || typeof prov !== 'object') return null;
+  const p = prov as Record<string, unknown>;
+  if (p.kind !== 'inter_session') return null;
+
+  const summary = parseInternalEventSummary(rawTextOf(m.content));
+  return {
+    kind: 'inter_session',
+    sourceTool: typeof p.sourceTool === 'string' ? p.sourceTool : summary?.announceType,
+    sourceSessionKey:
+      typeof p.sourceSessionKey === 'string' ? p.sourceSessionKey : summary?.sourceSessionKey,
+    sourceChannel: typeof p.sourceChannel === 'string' ? p.sourceChannel : undefined,
+    task: summary?.task,
+    status: summary?.status,
+    result: summary?.result,
+    announceType: summary?.announceType,
+    replyInstruction: summary?.replyInstruction,
+  };
+}
 
 let _chatHistoryGen = 0;
 
@@ -51,9 +104,18 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
 
         const extractedToolUseMessages: ChatMessage[] = [];
         const messages: ChatMessage[] = (result.messages || []).map((m: any, i: number) => {
+          const interMeta = buildInterSessionMeta(m);
           let textContent: string;
           if (m.role === 'user') {
-            textContent = stripInboundMeta(m.content);
+            // inter-session injections carry the scaffolding in the text — we render them
+            // from `meta` instead; collapse textContent to a short summary fallback.
+            if (interMeta) {
+              textContent = interMeta.task
+                ? `Subagent: ${interMeta.task}`
+                : 'Inter-session event';
+            } else {
+              textContent = stripInboundMeta(m.content);
+            }
           } else if (typeof m.content === 'string') {
             textContent = m.content;
           } else if (Array.isArray(m.content)) {
@@ -95,10 +157,12 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
             toolCall: m.toolCall,
             result: m.result,
             runId: m.runId,
+            ...(interMeta ? { meta: interMeta } : {}),
           };
         }).filter((m) => {
           if (m.role === 'toolResult') return false;
-          if (m.role === 'user' && (!m.content || !m.content.trim())) return false;
+          // Keep inter-session events even when textContent is a short label.
+          if (m.role === 'user' && !m.meta && (!m.content || !m.content.trim())) return false;
           if (m.role === 'assistant' && isSilentReply(m.content)) return false;
           // Drop assistant turns whose only content was tool calls (promoted to separate tool msgs).
           if (m.role === 'assistant' && !m.content?.trim() && !m.toolName && !m.toolCall) return false;

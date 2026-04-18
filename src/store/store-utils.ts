@@ -158,6 +158,92 @@ export function stripInternalRuntimeContext(text: string): string {
   return stripLegacyInternalRuntimeContext(withoutDelimitedBlocks);
 }
 
+/**
+ * Parsed internal runtime context block.
+ * Mirrors `formatTaskCompletionEvent` in OpenClaw's `src/agents/internal-events.ts`.
+ */
+export interface InternalEventSummary {
+  source?: string;             // e.g. "subagent"
+  sourceSessionKey?: string;   // "agent:bright-helper:subagent:..."
+  sourceSessionId?: string;
+  announceType?: string;       // e.g. "subagent_announce"
+  task?: string;
+  status?: string;
+  result?: string;             // untrusted child result body
+  replyInstruction?: string;
+}
+
+function extractField(block: string, key: string): string | undefined {
+  const re = new RegExp(`^${key}:\\s*(.*?)\\s*$`, 'm');
+  const m = block.match(re);
+  return m ? m[1] : undefined;
+}
+
+function extractBetween(block: string, start: string, end: string): string | undefined {
+  const s = block.indexOf(start);
+  if (s === -1) return undefined;
+  const e = block.indexOf(end, s + start.length);
+  if (e === -1) return undefined;
+  return block.slice(s + start.length, e).trim();
+}
+
+/**
+ * Parse an internal-runtime-context user message into a structured summary.
+ * Returns null if no recognizable block is present. Safe on arbitrary text.
+ */
+export function parseInternalEventSummary(rawText: string): InternalEventSummary | null {
+  if (!rawText) return null;
+  // Find the delimited block OR the legacy header. Work on the substring
+  // between delimiters when possible to avoid confusing nearby user text.
+  const beginIdx = rawText.indexOf(INTERNAL_RUNTIME_CONTEXT_BEGIN);
+  const legacyIdx = rawText.indexOf(LEGACY_INTERNAL_CONTEXT_HEADER);
+  if (beginIdx === -1 && legacyIdx === -1) return null;
+
+  let body: string;
+  if (beginIdx !== -1) {
+    const endIdx = rawText.indexOf(INTERNAL_RUNTIME_CONTEXT_END, beginIdx);
+    body = endIdx === -1
+      ? rawText.slice(beginIdx + INTERNAL_RUNTIME_CONTEXT_BEGIN.length)
+      : rawText.slice(beginIdx + INTERNAL_RUNTIME_CONTEXT_BEGIN.length, endIdx);
+  } else {
+    body = rawText.slice(legacyIdx);
+  }
+
+  const source = extractField(body, 'source');
+  const sourceSessionKey = extractField(body, 'session_key');
+  const sourceSessionId = extractField(body, 'session_id');
+  const announceType = extractField(body, 'type');
+  const task = extractField(body, 'task');
+  const status = extractField(body, 'status');
+  const result = extractBetween(
+    body,
+    LEGACY_UNTRUSTED_RESULT_BEGIN,
+    LEGACY_UNTRUSTED_RESULT_END,
+  );
+
+  // Reply instruction lives after "Action:" and runs to end-of-body.
+  let replyInstruction: string | undefined;
+  const actionMarker = '\n\nAction:\n';
+  const actionIdx = body.indexOf(actionMarker);
+  if (actionIdx !== -1) {
+    replyInstruction = body.slice(actionIdx + actionMarker.length).trim();
+  }
+
+  if (!source && !sourceSessionKey && !announceType && !task && !result) {
+    return null;
+  }
+  return {
+    source,
+    sourceSessionKey,
+    sourceSessionId,
+    announceType,
+    task,
+    status,
+    result,
+    replyInstruction,
+  };
+}
+
 // Pre-compiled fast-path regex — avoids line-by-line parse when no blocks present.
 const SENTINEL_FAST_RE = new RegExp(
   [...INBOUND_META_SENTINELS, UNTRUSTED_CONTEXT_HEADER]
@@ -211,14 +297,14 @@ export function stripInboundMeta(content: unknown): string {
     text = String(content);
   }
 
-  // Strip OpenClaw's internal runtime context blocks FIRST — they get injected
-  // into user messages when the agent relays task-completion / subagent events,
-  // carry <<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>…<<<END_…>>> delimiters (or the
-  // legacy header form), and must never surface to the user.
-  const withoutInternal = stripInternalRuntimeContext(text);
+  // NOTE: internal-runtime-context (<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>…)
+  // is NOT stripped here anymore. Those messages carry `provenance.kind ===
+  // 'inter_session'` and are rendered as dedicated event cards higher in the
+  // stack (loadChatHistory parses them into ChatMessage.meta). Stripping them
+  // here would hide useful "subagent finished" signals from the user.
 
   // ── Canonical parser (ported from OpenClaw) ─────────────────────────────
-  const withoutTimestamp = withoutInternal.replace(LEADING_TIMESTAMP_PREFIX_RE, '');
+  const withoutTimestamp = text.replace(LEADING_TIMESTAMP_PREFIX_RE, '');
   if (!SENTINEL_FAST_RE.test(withoutTimestamp) && !/^System\s*\(untrusted\):/m.test(withoutTimestamp)) {
     // Fast path: no sentinels found, just strip the timestamp + trim
     return withoutTimestamp.trim();

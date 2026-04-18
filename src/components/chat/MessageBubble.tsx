@@ -8,6 +8,7 @@ import { extractMessageText, isStructuredMessage, renderMarkdown } from './chat-
 import { CompactSystemMessage } from './CompactSystemMessage';
 import { ToolCallExpander } from './ToolCallExpander';
 import { MessageAvatar } from './MessageAvatar';
+import { InterSessionEventCard } from './InterSessionEventCard';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -18,6 +19,17 @@ interface MessageBubbleProps {
 
 export const MessageBubble = React.memo(function MessageBubble({ message, showAvatar, agents, sessionKey }: MessageBubbleProps) {
   const { t } = useTranslation();
+
+  // Inter-session events (subagent announces etc.) render as a dedicated event
+  // card, centered, without avatar/user-bubble chrome.
+  if (message.meta?.kind === 'inter_session') {
+    return (
+      <div className="flex justify-center w-full my-1">
+        <InterSessionEventCard meta={message.meta} timestamp={message.timestamp} />
+      </div>
+    );
+  }
+
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isTool = message.role === 'tool' || message.toolName || message.toolCall || message.result;
