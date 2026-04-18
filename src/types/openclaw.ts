@@ -357,6 +357,19 @@ export interface ChatSendResult {
   status: 'started' | 'in_flight' | 'ok';
 }
 
+/**
+ * Draft image attachment held in client state before send. Once sent,
+ * serialized into a canonical `{type:'image'}` content block by
+ * gateway-client.sendChat and NOT persisted as a separate entity.
+ */
+export interface ChatAttachment {
+  id: string;
+  dataUrl: string;      // Full base64 data URL — ready for <img src>.
+  mimeType: string;     // 'image/*'.
+  name?: string;        // Original filename (from file picker / drop).
+  size?: number;        // Bytes.
+}
+
 export interface ChatHistoryResult {
   messages: ChatMessage[];
   hasMore?: boolean;

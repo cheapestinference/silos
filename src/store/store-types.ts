@@ -7,6 +7,7 @@ import type {
   CronRunLogEntry,
   Task,
   ChatMessage,
+  ChatAttachment,
   ChannelsStatusSnapshot,
   PresenceEntry,
   EventFrame,
@@ -75,6 +76,12 @@ export interface DashboardStore {
   unreadCounts: Map<string, number>;
   sessionCumulativeTokens: Map<string, { total: number; lastInput: number; lastOutput: number }>;
   rateLimitedUntil: number;
+
+  // Draft image attachments per session (Phase 3).
+  draftAttachments: Map<string, ChatAttachment[]>;
+  addDraftAttachment: (sessionKey: string, att: ChatAttachment) => void;
+  removeDraftAttachment: (sessionKey: string, id: string) => void;
+  clearDraftAttachments: (sessionKey: string) => void;
 
   // Loading states
   agentsLoading: boolean;
