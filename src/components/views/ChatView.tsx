@@ -255,12 +255,20 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   // Rate limit from store (survives unmount/remount)
   const isRateLimited = Date.now() < rateLimitedUntil;
 
+  // Phase 4: soft-delete filter
+  const chatShowDeleted = useDashboardStore(s => s.chatShowDeleted);
+  const setChatShowDeleted = useDashboardStore(s => s.setChatShowDeleted);
+  const isDeletedFn = useDashboardStore(s => s.isDeleted);
+  // Subscribe so filter re-computes on toggle
+  const deletedBySession = useDashboardStore(s => s.deletedBySession);
+
   // Memoize filtered messages
   const filteredMessages = useMemo(
     () => {
       const msgs = chatMessages.filter(msg =>
         !(msg.role === 'tool' || msg.toolName || msg.toolCall || msg.result) &&
-        msg.status !== 'queued'
+        msg.status !== 'queued' &&
+        !(!chatShowDeleted && effectiveKey && isDeletedFn(effectiveKey, msg.id))
       );
       const seenUserContent = new Map<string, { timestamp: number; status?: string }>();
       return msgs.filter((msg, i) => {
@@ -278,8 +286,16 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
         return msg.runId !== msgs[i - 1].runId;
       });
     },
-    [chatMessages]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chatMessages, chatShowDeleted, effectiveKey, isDeletedFn, deletedBySession]
   );
+
+  // Count soft-deleted messages (for toggle label)
+  const deletedCount = useMemo(() => {
+    if (!effectiveKey) return 0;
+    return chatMessages.filter(m => isDeletedFn(effectiveKey, m.id)).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatMessages, effectiveKey, isDeletedFn, deletedBySession]);
 
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
@@ -431,6 +447,18 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
       <div className="flex flex-1 min-h-0">
         {/* LEFT: Chat Column */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
+          {deletedCount > 0 ? (
+            <div className="px-4 pt-1 pb-0 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setChatShowDeleted(!chatShowDeleted)}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                aria-pressed={chatShowDeleted}
+              >
+                {chatShowDeleted ? `Hide deleted (${deletedCount})` : `Show deleted (${deletedCount})`}
+              </button>
+            </div>
+          ) : null}
           {/* Messages Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar">
           {/* Empty State */}

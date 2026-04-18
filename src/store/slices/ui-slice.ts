@@ -6,6 +6,9 @@ export function createUiSlice(set: StoreSet, _get: StoreGet) {
     browserPanelOpen: false,
     browserDetached: 'none' as 'none' | 'overlay' | 'popout',
     browserAgentAction: null as string | null,
+    chatShowDeleted: false,
+
+    setChatShowDeleted: (show: boolean) => set({ chatShowDeleted: show }),
 
     markSessionRead: (sessionKey: string) => {
       set((state) => {

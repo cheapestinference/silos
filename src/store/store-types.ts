@@ -207,6 +207,10 @@ export interface DashboardStore {
   setBrowserDetached: (mode: 'none' | 'overlay' | 'popout') => void;
   setBrowserAgentAction: (action: string | null) => void;
 
+  // Chat UI flags
+  chatShowDeleted: boolean;
+  setChatShowDeleted: (show: boolean) => void;
+
   // Event handlers
   handleEvent: (event: EventFrame) => void;
   handleHello: (hello: HelloOk) => void;

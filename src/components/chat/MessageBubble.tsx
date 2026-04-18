@@ -61,8 +61,10 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
     if (isUserMsg) {
       return (
         <div className="flex justify-end w-full">
-          <div className="group relative max-w-2xl rounded-2xl px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-foreground">
-            <MessageContent blocks={message.contentBlocks} />
+          <div className={cn('group relative max-w-2xl rounded-2xl px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-foreground', isDeletedMsg && 'opacity-50')}>
+            <div className={cn(isDeletedMsg && 'line-through')}>
+              <MessageContent blocks={message.contentBlocks} />
+            </div>
             {actions}
           </div>
         </div>
@@ -72,8 +74,10 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAv
     // and assistant are visually paired without the assistant dominating.
     return (
       <div className="flex justify-start w-full">
-        <div className="group relative max-w-2xl rounded-2xl px-4 py-2 bg-card border border-border/50 text-foreground">
-          <MessageContent blocks={message.contentBlocks} phase="final_answer" />
+        <div className={cn('group relative max-w-2xl rounded-2xl px-4 py-2 bg-card border border-border/50 text-foreground', isDeletedMsg && 'opacity-50')}>
+          <div className={cn(isDeletedMsg && 'line-through')}>
+            <MessageContent blocks={message.contentBlocks} phase="final_answer" />
+          </div>
           {actions}
         </div>
       </div>
