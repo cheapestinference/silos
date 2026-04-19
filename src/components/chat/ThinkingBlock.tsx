@@ -1,5 +1,5 @@
 // src/components/chat/ThinkingBlock.tsx
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ChevronRight, Brain } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -9,7 +9,7 @@ interface ThinkingBlockProps {
   defaultExpanded?: boolean;
 }
 
-export function ThinkingBlock({ thinking, defaultExpanded = false }: ThinkingBlockProps) {
+export const ThinkingBlock = memo(function ThinkingBlock({ thinking, defaultExpanded = false }: ThinkingBlockProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const trimmed = thinking.trim();
   if (!trimmed) return null;
@@ -37,4 +37,4 @@ export function ThinkingBlock({ thinking, defaultExpanded = false }: ThinkingBlo
       )}
     </div>
   );
-}
+});

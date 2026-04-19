@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Activity, Zap, Timer, CheckCircle2, XCircle, Ban, Trash2, Wrench } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { formatDistanceToNow } from 'date-fns';
@@ -6,6 +6,7 @@ import type { LatencyEntry } from '../../types/openclaw';
 import { cn } from '../../lib/utils';
 
 const EMPTY_ENTRIES: LatencyEntry[] = [];
+const MAX_RUNS_RETAINED = 200;
 
 function fmtMs(ms: number | undefined): string {
   if (ms === undefined || ms === null) return '—';
@@ -58,7 +59,7 @@ function EntryRow({ entry }: { entry: LatencyEntry }) {
           {entry.ttfbMs !== undefined ? fmtMs(entry.ttfbMs) : '—'}
         </span>
       </div>
-      <div className="flex items-center gap-1 w-24 shrink-0" title={tokRateTitle}>
+      <div className="flex items-center gap-1 w-24 shrink-0" title={`${tokRateTitle}\n\nTokens are estimated as output chars ÷ 4 — real values depend on provider tokenizer.`}>
         <Activity className="w-3 h-3 text-log-info" />
         <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
           {entry.effectiveTokensPerSecond
@@ -88,6 +89,11 @@ function EntryRow({ entry }: { entry: LatencyEntry }) {
 export function SessionLatencyPanel({ sessionKey }: { sessionKey: string }) {
   const entries = useDashboardStore(s => s.latencyEntries.get(sessionKey) ?? EMPTY_ENTRIES);
   const clearSessionLatency = useDashboardStore(s => s.clearSessionLatency);
+  const hydrateLatencyForSession = useDashboardStore(s => s.hydrateLatencyForSession);
+
+  useEffect(() => {
+    hydrateLatencyForSession(sessionKey);
+  }, [sessionKey, hydrateLatencyForSession]);
 
   const stats = useMemo(() => {
     const okEntries = entries.filter(e => e.outcome === 'ok');
@@ -183,7 +189,13 @@ export function SessionLatencyPanel({ sessionKey }: { sessionKey: string }) {
           <span>{stats.withToolsCount} w/ tools</span>
           <span>·</span>
           <span>{stats.withoutToolsCount} plain</span>
-          <span className="ml-auto italic">Gaps &gt; 1s counted as tool/wait time</span>
+          {entries.length >= MAX_RUNS_RETAINED && (
+            <>
+              <span>·</span>
+              <span className="text-log-warn">showing last {MAX_RUNS_RETAINED}</span>
+            </>
+          )}
+          <span className="ml-auto italic">Gaps &gt; 3s during active tool calls counted as tool time</span>
         </div>
       </div>
       <div className={cn("flex-1 overflow-y-auto")}>

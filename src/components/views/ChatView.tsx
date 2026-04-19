@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboardStore } from '../../store/dashboard-store';
+import type { AgentSummary } from '../../types/openclaw';
 import { useTranslation } from '../../i18n';
 import {
   ArrowLeft,
@@ -54,6 +55,10 @@ import { exportChatToMarkdown } from '../../lib/chat-export';
 // Register CodeBlock with the markdown renderer (avoids circular dependency)
 setCodeBlockComponent(CodeBlock);
 
+// Module-level stable empty array used as fallback when the agents list
+// hasn't loaded yet. Prevents `[] !== []` churn from breaking memoization.
+const EMPTY_AGENTS: AgentSummary[] = [];
+
 // ============== Main ChatView Component ==============
 
 export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessionKey: string; agentPanel?: string | null; onCloseAgentPanel?: () => void }) {
@@ -66,29 +71,33 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useTranslation();
 
-  const {
-    chatMessages,
-    sendMessage,
-    chatLoading,
-    chatSending: chatSendingMap,
-    activeRunId: activeRunIdMap,
-    streamingContent,
-    streamingComplete,
-    selectSession,
-    agents,
-    sessions,
-    loadAgents,
-    loadSessions,
-    connected,
-    browserPanelOpen,
-    browserDetached,
-    browserAgentAction,
-    setBrowserPanelOpen,
-    sessionCumulativeTokens,
-    availableModels,
-    models,
-    rateLimitedUntil,
-  } = useDashboardStore();
+  // Narrow selectors — subscribing to each field individually means a store
+  // mutation only re-renders ChatView when a field it actually reads changes.
+  // Previously this destructured the entire store, so every unrelated mutation
+  // (tool count, unread badge, telemetry) forced a full re-render under the
+  // streaming-delta hot path (~50 deltas/sec).
+  const chatMessages = useDashboardStore(s => s.chatMessages);
+  const chatLoading = useDashboardStore(s => s.chatLoading);
+  const chatSendingMap = useDashboardStore(s => s.chatSending);
+  const activeRunIdMap = useDashboardStore(s => s.activeRunId);
+  const streamingContent = useDashboardStore(s => s.streamingContent);
+  const streamingComplete = useDashboardStore(s => s.streamingComplete);
+  const agents = useDashboardStore(s => s.agents);
+  const sessions = useDashboardStore(s => s.sessions);
+  const connected = useDashboardStore(s => s.connected);
+  const browserPanelOpen = useDashboardStore(s => s.browserPanelOpen);
+  const browserDetached = useDashboardStore(s => s.browserDetached);
+  const browserAgentAction = useDashboardStore(s => s.browserAgentAction);
+  const sessionCumulativeTokens = useDashboardStore(s => s.sessionCumulativeTokens);
+  const availableModels = useDashboardStore(s => s.availableModels);
+  const models = useDashboardStore(s => s.models);
+  const rateLimitedUntil = useDashboardStore(s => s.rateLimitedUntil);
+  // Action references are stable — grab once.
+  const sendMessage = useDashboardStore(s => s.sendMessage);
+  const selectSession = useDashboardStore(s => s.selectSession);
+  const loadAgents = useDashboardStore(s => s.loadAgents);
+  const loadSessions = useDashboardStore(s => s.loadSessions);
+  const setBrowserPanelOpen = useDashboardStore(s => s.setBrowserPanelOpen);
 
   const [inputFocused, setInputFocused] = useState(false);
 
@@ -271,16 +280,28 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   // tool/lifecycle/delta event in the last RECENT_ACTIVITY_MS. This bridges
   // the gap when OpenClaw's compaction retry momentarily clears activeRunId
   // between a context overflow and the resumed run.
+  //
+  // PERF: we must NOT subscribe to the raw timestamp. It updates on every
+  // delta (50/s during streaming) and would force ChatView to re-render at
+  // that rate, plus recreate the setInterval per delta. Instead we subscribe
+  // only to a coarse boolean (has this session ever been active?) and peek at
+  // the live timestamp via getState() inside a 1Hz tick.
   const RECENT_ACTIVITY_MS = 15_000;
-  const lastActivity = useDashboardStore(s => s.lastAgentActivity.get(sessionKey) || 0);
-  // Re-evaluate every second so the "recently active" flag ticks down on its own
-  const [nowTick, setNowTick] = useState(Date.now());
+  const hasAnyActivity = useDashboardStore(s => (s.lastAgentActivity.get(sessionKey) ?? 0) > 0);
+  const [isRecentlyActive, setIsRecentlyActive] = useState(false);
   useEffect(() => {
-    if (lastActivity === 0) return;
-    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    if (!hasAnyActivity) {
+      setIsRecentlyActive(false);
+      return;
+    }
+    const check = () => {
+      const ts = useDashboardStore.getState().lastAgentActivity.get(sessionKey) ?? 0;
+      setIsRecentlyActive(ts > 0 && Date.now() - ts < RECENT_ACTIVITY_MS);
+    };
+    check();
+    const t = setInterval(check, 1000);
     return () => clearInterval(t);
-  }, [lastActivity]);
-  const isRecentlyActive = lastActivity > 0 && nowTick - lastActivity < RECENT_ACTIVITY_MS;
+  }, [sessionKey, hasAnyActivity]);
 
   // Agent working state (for status dot)
   const tasks = useDashboardStore((s) => s.tasks);
@@ -388,6 +409,21 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
     if (!chatSearchQuery.trim()) return [] as string[];
     return filteredMessages.filter(m => matchMessage(m, chatSearchQuery)).map(m => m.id);
   }, [filteredMessages, chatSearchQuery]);
+
+  // Memoize the grouped messages so MessageGroup (memoized) receives a stable
+  // messages prop when filteredMessages hasn't changed. Without this, groupMessages()
+  // re-runs every render and produces fresh array references — React.memo fails shallow
+  // comparison and every group re-renders on every parent update.
+  //
+  // CRITICAL: deps must not include streamingContent (changes per delta). We only
+  // care whether we're in the "skip last assistant msg" transitional window —
+  // collapse that into a stable boolean so useMemo stays valid across deltas.
+  const lastMsg = filteredMessages[filteredMessages.length - 1];
+  const skipLastAssistant = streamingComplete && !!streamingContent && !!lastMsg && lastMsg.role === 'assistant';
+  const messageGroups = useMemo(() => {
+    const source = skipLastAssistant ? filteredMessages.slice(0, -1) : filteredMessages;
+    return groupMessages(source);
+  }, [filteredMessages, skipLastAssistant]);
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
   useEffect(() => { setCurrentMatchIdx(0); }, [chatSearchQuery]);
 
@@ -418,7 +454,9 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
   // Count queued messages
   const queuedCount = chatMessages.filter(m => m.role === 'user' && m.status === 'queued').length;
 
-  const agentList = agents?.agents || [];
+  // Stable reference when agents is null/empty — the `|| []` fallback would
+  // create a new array on every render, breaking MessageGroup's React.memo.
+  const agentList = useMemo(() => agents?.agents ?? EMPTY_AGENTS, [agents]);
 
   // Load data when component mounts or connection changes
   useEffect(() => {
@@ -631,12 +669,7 @@ export function ChatView({ sessionKey, agentPanel, onCloseAgentPanel }: { sessio
           )}
 
           <VirtualMessageList>
-            {groupMessages(
-              streamingContent && streamingComplete && filteredMessages.length > 0 &&
-                filteredMessages[filteredMessages.length - 1].role === 'assistant'
-                ? filteredMessages.slice(0, -1)
-                : filteredMessages
-            ).map((group, gIdx) => (
+            {messageGroups.map((group, gIdx) => (
               <MessageGroup
                 key={group[0].id + ':' + gIdx}
                 messages={group}

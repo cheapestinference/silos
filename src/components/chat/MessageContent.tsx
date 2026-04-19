@@ -1,5 +1,5 @@
 // src/components/chat/MessageContent.tsx
-import { Fragment } from 'react';
+import { Fragment, memo } from 'react';
 import { cn } from '../../lib/utils';
 import type { ContentBlock, AssistantPhase } from '../../types/openclaw';
 import { renderMarkdown } from './chat-utils';
@@ -16,7 +16,7 @@ interface MessageContentProps {
   className?: string;
 }
 
-export function MessageContent({ blocks, phase, onExpandTool, className }: MessageContentProps) {
+export const MessageContent = memo(function MessageContent({ blocks, phase, onExpandTool, className }: MessageContentProps) {
   const toolCards = extractToolCardsFromBlocks(blocks);
   // We render cards in-order, interleaved with text/thinking/images.
   // To keep a stable layout, iterate blocks and dispatch per type.
@@ -82,4 +82,4 @@ export function MessageContent({ blocks, phase, onExpandTool, className }: Messa
       })}
     </div>
   );
-}
+});

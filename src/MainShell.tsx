@@ -9,7 +9,7 @@ import { useDashboardStore } from './store/dashboard-store';
 import useTranslation from './i18n';
 
 function ReconnectToast() {
-  const { connected } = useDashboardStore();
+  const connected = useDashboardStore(s => s.connected);
   const { addToast } = useToast();
   const { t } = useTranslation();
   const wasConnectedRef = useRef(false);
@@ -35,7 +35,11 @@ function ReconnectToast() {
 }
 
 function ConnectionOverlay() {
-  const { connected, connecting, initialLoading, reconnectAttempt, connect } = useDashboardStore();
+  const connected = useDashboardStore(s => s.connected);
+  const connecting = useDashboardStore(s => s.connecting);
+  const initialLoading = useDashboardStore(s => s.initialLoading);
+  const reconnectAttempt = useDashboardStore(s => s.reconnectAttempt);
+  const connect = useDashboardStore(s => s.connect);
   const { t } = useTranslation();
 
   if (connected && !initialLoading) return null;
@@ -78,7 +82,9 @@ function ConnectionOverlay() {
 }
 
 export function MainShell() {
-  const { connected, initialLoading, token } = useDashboardStore();
+  const connected = useDashboardStore(s => s.connected);
+  const initialLoading = useDashboardStore(s => s.initialLoading);
+  const token = useDashboardStore(s => s.token);
 
   // No token at all → redirect to login
   if (!token) {

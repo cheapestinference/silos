@@ -295,6 +295,13 @@ export function handleAgentDisplayEvent(
       const toolArgs = payload?.data?.args || payload?.data?.input;
       const toolCallId = payload?.data?.toolCallId as string | undefined;
 
+      // Decrement active-tool counter so streaming-gap attribution stops
+      // crediting subsequent pauses to tool time. Deduped by toolCallId to
+      // tolerate duplicate result events (progress updates, provider retries).
+      if (payload?.runId) {
+        get().recordRunToolResult(payload.runId, toolCallId);
+      }
+
       // Capture tool failures as session errors
       const toolErrored = detectToolError(toolResult, payload?.data);
       if (toolErrored && eventSessionKey) {
@@ -379,7 +386,7 @@ export function handleAgentDisplayEvent(
 
     // Close out any latency run as errored
     if (preRunId) {
-      get().finalizeRunLatency(preRunId, 'error');
+      get().finalizeRunLatency(preRunId, 'error', undefined, eventSessionKey || undefined);
     }
 
     set((state: any) => {
@@ -507,17 +514,11 @@ export function handleChatEvent(
 
         set(updates);
 
-        if (runId) {
-          get().accumulateRunChars(runId, chatDeltaText.length);
-          // Record the delta timestamp for gap detection. Any gap > threshold
-          // between deltas is attributed to tool/wait time, not streaming.
-          get().recordRunDelta(runId);
-        }
-
-        // Streaming deltas are also the strongest "agent is alive" signal
-        if (selKey) {
-          get().recordAgentActivity(selKey, runId);
-        }
+        // Single batched telemetry write — previously 3 separate set() calls
+        // (accumulateRunChars + recordRunDelta + recordAgentActivity) fired per
+        // delta, each cloning a Map and triggering a re-render of everything
+        // subscribed to the store.
+        get().recordDelta(runId, selKey || undefined, chatDeltaText.length);
       }
     }
   }
@@ -526,7 +527,7 @@ export function handleChatEvent(
   if (payload?.state === 'aborted') {
     const targetKey = eventSessionKey || get().selectedSessionKey;
     const abortRunId = payload?.runId || (targetKey ? get().activeRunId.get(targetKey) : undefined);
-    if (abortRunId) get().finalizeRunLatency(abortRunId, 'aborted');
+    if (abortRunId) get().finalizeRunLatency(abortRunId, 'aborted', undefined, targetKey || undefined);
     if (targetKey) {
       get().setCompactionStatus(targetKey, null);
       get().setFallbackStatus(targetKey, null);
@@ -587,7 +588,7 @@ export function handleChatEvent(
         raw: payload,
       });
     }
-    if (errRunId) get().finalizeRunLatency(errRunId, 'error');
+    if (errRunId) get().finalizeRunLatency(errRunId, 'error', undefined, targetKey || undefined);
     if (targetKey) {
       get().setCompactionStatus(targetKey, null);
       get().setFallbackStatus(targetKey, null);
@@ -619,7 +620,7 @@ export function handleChatEvent(
     const sessionKey = get().selectedSessionKey;
     const completionRunId = payload?.runId || (sessionKey ? get().activeRunId.get(sessionKey) : undefined);
     if (completionRunId) {
-      get().finalizeRunLatency(completionRunId, 'ok');
+      get().finalizeRunLatency(completionRunId, 'ok', undefined, (eventSessionKey || sessionKey) || undefined);
     }
 
     // Clear transient compaction/fallback status for the session this run

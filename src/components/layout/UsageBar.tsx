@@ -19,7 +19,8 @@ function formatTimeLeft(resetsAt: string): string {
 }
 
 export function UsageBar() {
-  const { connected, token } = useDashboardStore();
+  const connected = useDashboardStore(s => s.connected);
+  const token = useDashboardStore(s => s.token);
   const [usage, setUsage] = useState<UsageData | null>(null);
 
   useEffect(() => {

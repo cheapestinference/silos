@@ -1,5 +1,5 @@
 // src/components/chat/ToolCard.tsx
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ChevronDown, Check, Copy, AlertTriangle, Play, Wrench } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { ToolCardView } from '../../lib/content-blocks';
@@ -11,7 +11,7 @@ interface ToolCardProps {
   onExpand?: (card: ToolCardView) => void;
 }
 
-export function ToolCard({ card, onExpand }: ToolCardProps) {
+export const ToolCard = memo(function ToolCard({ card, onExpand }: ToolCardProps) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -96,4 +96,4 @@ export function ToolCard({ card, onExpand }: ToolCardProps) {
       )}
     </div>
   );
-}
+});

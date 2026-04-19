@@ -38,7 +38,12 @@ function PageTracker() {
 }
 
 function App() {
-  const { connected, token, autoConnect, setToken, setGatewayUrl, disconnect } = useDashboardStore();
+  const connected = useDashboardStore(s => s.connected);
+  const token = useDashboardStore(s => s.token);
+  const autoConnect = useDashboardStore(s => s.autoConnect);
+  const setToken = useDashboardStore(s => s.setToken);
+  const setGatewayUrl = useDashboardStore(s => s.setGatewayUrl);
+  const disconnect = useDashboardStore(s => s.disconnect);
   const { user, loading: authLoading, getIdToken, signOut } = useAuth();
   const { t } = useTranslation();
   const [verifying, setVerifying] = useState(false);

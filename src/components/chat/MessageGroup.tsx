@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { MessageAvatar } from './MessageAvatar';
 import { MessageBubble } from './MessageBubble';
 import type { AgentSummary, ChatMessage } from '../../types/openclaw';
@@ -22,7 +23,7 @@ function extractAgentFromKey(key: string | undefined): string | null {
   return null;
 }
 
-export function MessageGroup({ messages, agents, sessionKey }: MessageGroupProps) {
+export const MessageGroup = memo(function MessageGroup({ messages, agents, sessionKey }: MessageGroupProps) {
   if (messages.length === 0) return null;
   const first = messages[0];
   const last = messages[messages.length - 1];
@@ -57,7 +58,7 @@ export function MessageGroup({ messages, agents, sessionKey }: MessageGroupProps
       </div>
     </div>
   );
-}
+});
 
 export function groupMessages(messages: ChatMessage[]): ChatMessage[][] {
   const groups: ChatMessage[][] = [];

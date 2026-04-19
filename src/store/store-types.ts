@@ -225,7 +225,7 @@ export interface DashboardStore {
   // Telemetry: errors + latency per session
   sessionErrors: Map<string, SessionError[]>;
   latencyEntries: Map<string, LatencyEntry[]>;
-  runTimings: Map<string, { sessionKey: string; startedAt: number; firstDeltaAt?: number; lastDeltaAt?: number; outputChars: number; toolCallCount: number; seenToolCallIds: Set<string>; toolTimeMs: number; model?: string }>;
+  runTimings: Map<string, { sessionKey: string; startedAt: number; firstDeltaAt?: number; lastDeltaAt?: number; outputChars: number; toolCallCount: number; seenToolCallIds: Set<string>; seenToolResultIds: Set<string>; toolTimeMs: number; toolActiveCount: number; model?: string }>;
   errorTabBadges: Map<string, number>;
   toolCallCounts: Map<string, number>;
   lastAgentActivity: Map<string, number>;
@@ -240,6 +240,7 @@ export interface DashboardStore {
   clearErrorBadge: (sessionKey: string) => void;
   clearSessionErrors: (sessionKey: string) => void;
   clearSessionLatency: (sessionKey: string) => void;
+  hydrateLatencyForSession: (sessionKey: string) => void;
   incrementToolCallCount: (sessionKey: string) => void;
   recordAgentActivity: (sessionKey: string, runId?: string) => void;
   markRunStart: (runId: string, sessionKey: string, model?: string) => void;
@@ -247,8 +248,9 @@ export interface DashboardStore {
   accumulateRunChars: (runId: string, chars: number) => void;
   recordRunDelta: (runId: string) => void;
   recordRunToolCall: (runId: string, toolCallId?: string) => void;
-  finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string) => void;
-  discardRunTiming: (runId: string) => void;
+  recordRunToolResult: (runId: string, toolCallId?: string) => void;
+  recordDelta: (runId: string | undefined, sessionKey: string | undefined, chars: number) => void;
+  finalizeRunLatency: (runId: string, outcome: LatencyOutcome, model?: string, fallbackSessionKey?: string) => void;
   setCompactionStatus: (sessionKey: string, status: CompactionStatus | null) => void;
   setFallbackStatus: (sessionKey: string, status: FallbackStatus | null) => void;
 

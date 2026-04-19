@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
-const VIRTUALIZE_THRESHOLD = 500;
+// Threshold for kicking in virtualization. Previously 500 meant typical
+// conversations (100-300 msgs) paid the full-render cost. 80 is a sweet spot:
+// small chats stay simple, mid-sized ones benefit.
+const VIRTUALIZE_THRESHOLD = 80;
 const BUFFER = 30;
 
 interface VirtualMessageListProps {

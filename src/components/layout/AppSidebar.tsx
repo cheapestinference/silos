@@ -24,20 +24,21 @@ import { SubagentGroup } from '../sidebar/SubagentGroup';
 import { ProfileMenu } from '../sidebar/ProfileMenu';
 
 export function AppSidebar() {
-  const {
-    agents,
-    sessions,
-    connected,
-    tasks,
-    selectedSessionKey,
-    loadAgents,
-    loadSessions,
-    loadGatewayConfig,
-    patchSession,
-    deleteSession,
-    addSessionOptimistic,
-    unreadCounts,
-  } = useDashboardStore();
+  // Narrow selectors — the sidebar is rendered constantly, previously any
+  // store mutation (streaming deltas, tool events, etc.) triggered a full
+  // re-render of agents + sessions + subagent groups.
+  const agents = useDashboardStore(s => s.agents);
+  const sessions = useDashboardStore(s => s.sessions);
+  const connected = useDashboardStore(s => s.connected);
+  const tasks = useDashboardStore(s => s.tasks);
+  const selectedSessionKey = useDashboardStore(s => s.selectedSessionKey);
+  const unreadCounts = useDashboardStore(s => s.unreadCounts);
+  const loadAgents = useDashboardStore(s => s.loadAgents);
+  const loadSessions = useDashboardStore(s => s.loadSessions);
+  const loadGatewayConfig = useDashboardStore(s => s.loadGatewayConfig);
+  const patchSession = useDashboardStore(s => s.patchSession);
+  const deleteSession = useDashboardStore(s => s.deleteSession);
+  const addSessionOptimistic = useDashboardStore(s => s.addSessionOptimistic);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();

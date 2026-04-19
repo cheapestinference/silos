@@ -71,17 +71,15 @@ export function SessionDetailView() {
   const { t } = useTranslation();
   const { key: sessionKey } = useParams<{ key: string }>();
   const navigate = useNavigate();
-  const {
-    agents,
-    sessions,
-    loadAgents,
-    loadSessions,
-    connected,
-    loadAgentConfig,
-    gatewayConfig,
-    availableModels,
-    loadAvailableModels,
-  } = useDashboardStore();
+  const agents = useDashboardStore(s => s.agents);
+  const sessions = useDashboardStore(s => s.sessions);
+  const connected = useDashboardStore(s => s.connected);
+  const gatewayConfig = useDashboardStore(s => s.gatewayConfig);
+  const availableModels = useDashboardStore(s => s.availableModels);
+  const loadAgents = useDashboardStore(s => s.loadAgents);
+  const loadSessions = useDashboardStore(s => s.loadSessions);
+  const loadAgentConfig = useDashboardStore(s => s.loadAgentConfig);
+  const loadAvailableModels = useDashboardStore(s => s.loadAvailableModels);
 
   const agentId = sessionKey ? extractAgentIdFromSessionKey(sessionKey) : null;
 

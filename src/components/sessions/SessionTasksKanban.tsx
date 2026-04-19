@@ -50,14 +50,12 @@ function taskToTaskRun(task: Task): TaskRun {
 
 export function SessionTasksKanban({ sessionKey }: SessionTasksKanbanProps) {
   const { t } = useTranslation();
-  const {
-    tasks,
-    loadTaskHistory,
-    taskHistoryLoading,
-    selectSession,
-    reconcileSessionTasks,
-    reapProvisionalTasks,
-  } = useDashboardStore();
+  const tasks = useDashboardStore(s => s.tasks);
+  const taskHistoryLoading = useDashboardStore(s => s.taskHistoryLoading);
+  const loadTaskHistory = useDashboardStore(s => s.loadTaskHistory);
+  const selectSession = useDashboardStore(s => s.selectSession);
+  const reconcileSessionTasks = useDashboardStore(s => s.reconcileSessionTasks);
+  const reapProvisionalTasks = useDashboardStore(s => s.reapProvisionalTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Extract agent ID from sessionKey to match tasks by agent, not exact key
