@@ -10,7 +10,6 @@ import {
   Check,
   X,
   ScrollText,
-  BarChart3,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreateAgentModal } from '../modals/CreateAgentModal';
@@ -160,7 +159,6 @@ export function AppSidebar() {
       <div className="px-2 py-2 border-b border-sidebar-border space-y-0.5">
         <NavItem icon={Home} label={t('nav.home')} active={isActive('/')} onClick={() => navigate('/')} />
         <NavItem icon={ListTodo} label={t('nav.tasks')} active={isActive('/tasks')} onClick={() => navigate('/tasks')} badge={runningTasksCount > 0 ? runningTasksCount : undefined} />
-        <NavItem icon={BarChart3} label="Usage" active={isActive('/usage')} onClick={() => navigate('/usage')} />
         <NavItem icon={ScrollText} label="Logs" active={isActive('/logs')} onClick={() => navigate('/logs')} />
         <NavItem icon={Settings} label={t('nav.settings')} active={location.pathname.startsWith('/settings')} onClick={() => navigate('/settings')} />
       </div>

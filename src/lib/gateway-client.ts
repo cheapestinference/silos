@@ -434,36 +434,6 @@ export class GatewayClient {
     return this.request<import('../types/openclaw').ModelsListResult>('models.list');
   }
 
-  // Usage (Phase 5) — `usage.cost` is the aggregated $/tokens per day; use
-  // `sessions.usage` for the per-session breakdown; `sessions.usage.timeseries`
-  // for a single session's turn-by-turn chart. Dates are YYYY-MM-DD strings
-  // per gateway schema.
-  async getUsageCost(opts?: {
-    startDate?: string;
-    endDate?: string;
-    days?: number;
-    mode?: 'utc' | 'gateway' | 'specific';
-    utcOffset?: string;
-  }) {
-    return this.request<import('../types/openclaw').UsageCostSummary>('usage.cost', opts ?? {});
-  }
-
-  async getSessionsUsage(opts?: {
-    key?: string;
-    startDate?: string;
-    endDate?: string;
-    limit?: number;
-    mode?: 'utc' | 'gateway' | 'specific';
-    utcOffset?: string;
-    includeContextWeight?: boolean;
-  }) {
-    return this.request<import('../types/openclaw').SessionsUsageResult>('sessions.usage', opts ?? {});
-  }
-
-  async getSessionUsageTimeseries(key: string, opts?: { bucketMs?: number }) {
-    return this.request<import('../types/openclaw').SessionUsageTimeseries>('sessions.usage.timeseries', { key, ...opts });
-  }
-
   // Logs
   async tailLogs(params?: { cursor?: number; limit?: number; maxBytes?: number }) {
     return this.request<import('../types/logs').LogTailResult>('logs.tail', params);

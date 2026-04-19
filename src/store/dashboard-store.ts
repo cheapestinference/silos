@@ -18,7 +18,6 @@ import { createInputHistorySlice } from './slices/input-history-slice';
 import { createAttachmentsSlice } from './slices/attachments-slice';
 import { createPinnedSlice } from './slices/pinned-slice';
 import { createDeletedSlice } from './slices/deleted-slice';
-import { createUsageSlice } from './slices/usage-slice';
 
 // Re-export the store interface for consumers that import it
 export type { DashboardStore } from './store-types';
@@ -44,7 +43,6 @@ export const useDashboardStore = create<DashboardStore>()(
       ...createAttachmentsSlice(set, get),
       ...createPinnedSlice(set, get),
       ...createDeletedSlice(set, get),
-      ...createUsageSlice(set, get),
     }),
     {
       name: 'silos-dashboard',

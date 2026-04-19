@@ -17,7 +17,6 @@ import { ScheduledPanel } from './components/agents/ScheduledPanel';
 import { ConfigPanel } from './components/agents/ConfigPanel';
 import { SessionDetailView } from './components/views/SessionDetailView';
 import { TasksFlowsPage } from './components/views/TasksFlowsPage';
-import { UsageView } from './components/views/UsageView';
 import { LogsPage } from './components/views/LogsPage';
 import { SettingsPage } from './components/views/SettingsPage';
 import { UnifiedDashboard } from './components/views/UnifiedDashboard';
@@ -264,7 +263,6 @@ function App() {
               <Route path="config" element={<ConfigPanel />} />
             </Route>
             <Route path="/tasks" element={<TasksFlowsPage />} />
-            <Route path="/usage" element={<UsageView />} />
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/cron" element={<CronPage />} />
             <Route path="/account" element={<AccountPage />} />

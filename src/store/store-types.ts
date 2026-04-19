@@ -23,9 +23,6 @@ import type {
   PinnedEntry,
   CompactionStatus,
   FallbackStatus,
-  UsageCostSummary,
-  SessionsUsageResult,
-  SessionUsageTimeseries,
 } from '../types/openclaw';
 
 // --- Zustand slice helper types ---
@@ -277,17 +274,4 @@ export interface DashboardStore {
   isDeleted: (sessionKey: string, messageId: string) => boolean;
   listDeleted: (sessionKey: string) => string[];
   clearDeletedForSession: (sessionKey: string) => void;
-
-  // Usage (Phase 5)
-  usageCostSummary: UsageCostSummary | null;
-  usageCostLoading: boolean;
-  usageCostUpdatedAt: number;
-  sessionsUsage: SessionsUsageResult | null;
-  sessionsUsageLoading: boolean;
-  sessionsUsageUpdatedAt: number;
-  sessionUsageTimeseries: Map<string, SessionUsageTimeseries>;
-  sessionUsageTimeseriesLoading: Map<string, boolean>;
-  loadUsageCost: (opts?: { days?: number; force?: boolean }) => Promise<void>;
-  loadSessionsUsage: (opts?: { days?: number; limit?: number; force?: boolean }) => Promise<void>;
-  loadSessionUsageTimeseries: (key: string, opts?: { force?: boolean }) => Promise<void>;
 }
