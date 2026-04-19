@@ -1,44 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, ArrowUpDown, Loader2, ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line, Legend } from 'recharts';
+import { useEffect, useMemo, useState } from 'react';
+import { BarChart3, Loader2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn, formatNumber } from '../../lib/utils';
-import type { SessionsUsageEntry, SessionUsageTimeseries } from '../../types/openclaw';
 
 type RangeDays = 7 | 30 | 90;
-type SortKey = 'tokens' | 'cost' | 'updatedAt';
-
-function formatBytes(n: number): string {
-  return formatNumber(n);
-}
 
 function formatCost(n: number | undefined | null): string {
   if (!n || !Number.isFinite(n)) return '—';
   if (n < 0.01) return `$${n.toFixed(4)}`;
   if (n < 1) return `$${n.toFixed(3)}`;
   return `$${n.toFixed(2)}`;
-}
-
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function totalsFromSession(entry: SessionsUsageEntry): { tokens: number; cost: number } {
-  let tokens = 0;
-  let cost = 0;
-  for (const day of entry.usage.dailyBreakdown ?? []) {
-    tokens += day.tokens || 0;
-    cost += day.cost || 0;
-  }
-  return { tokens, cost };
 }
 
 export function UsageView() {
@@ -50,17 +22,6 @@ export function UsageView() {
   const sessionsUsageLoading = useDashboardStore(s => s.sessionsUsageLoading);
 
   const [days, setDays] = useState<RangeDays>(30);
-  const [sortKey, setSortKey] = useState<SortKey>('tokens');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
-
-  const sessionUsageTimeseries = useDashboardStore(s => s.sessionUsageTimeseries);
-  const sessionUsageTimeseriesLoading = useDashboardStore(s => s.sessionUsageTimeseriesLoading);
-  const loadSessionUsageTimeseries = useDashboardStore(s => s.loadSessionUsageTimeseries);
-
-  useEffect(() => {
-    if (expandedKey) loadSessionUsageTimeseries(expandedKey);
-  }, [expandedKey, loadSessionUsageTimeseries]);
 
   useEffect(() => {
     loadUsageCost({ days, force: true });
@@ -70,33 +31,10 @@ export function UsageView() {
   const chartData = useMemo(() => {
     const daily = usageCostSummary?.daily ?? [];
     return daily.map(d => ({
-      date: d.date.slice(5),                   // MM-DD
+      date: d.date.slice(5), // MM-DD
       tokens: d.totalTokens ?? 0,
-      cost: d.totalCost ?? 0,
     }));
   }, [usageCostSummary]);
-
-  const sortedSessions = useMemo(() => {
-    const list = sessionsUsage?.sessions ?? [];
-    const withTotals = list.map((s) => ({ s, ...totalsFromSession(s) }));
-    withTotals.sort((a, b) => {
-      let av = 0, bv = 0;
-      if (sortKey === 'tokens') { av = a.tokens; bv = b.tokens; }
-      else if (sortKey === 'cost') { av = a.cost; bv = b.cost; }
-      else { av = a.s.updatedAt; bv = b.s.updatedAt; }
-      return sortDir === 'desc' ? bv - av : av - bv;
-    });
-    return withTotals;
-  }, [sessionsUsage, sortKey, sortDir]);
-
-  const onHeaderSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir('desc');
-    }
-  };
 
   const totals = usageCostSummary?.totals;
 
@@ -110,7 +48,7 @@ export function UsageView() {
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-semibold text-foreground">Usage</h1>
           <p className="text-[11px] text-muted-foreground">
-            Tokens + cost across sessions, last {days} days
+            Tokens + cost, last {days} days
           </p>
         </div>
         <div className="flex items-center gap-1 border rounded-md bg-card overflow-hidden text-[11px]">
@@ -137,12 +75,12 @@ export function UsageView() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Totals strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Total tokens" value={formatBytes(totals?.totalTokens ?? 0)} loading={usageCostLoading} />
+          <KpiCard label="Total tokens" value={formatNumber(totals?.totalTokens ?? 0)} loading={usageCostLoading} />
           <KpiCard label="Total cost" value={formatCost(totals?.totalCost)} loading={usageCostLoading} />
           <KpiCard label="Sessions" value={String(sessionsUsage?.sessions?.length ?? 0)} loading={sessionsUsageLoading} />
           <KpiCard
             label="Missing cost entries"
-            value={formatBytes(totals?.missingCostEntries ?? 0)}
+            value={formatNumber(totals?.missingCostEntries ?? 0)}
             tone={(totals?.missingCostEntries ?? 0) > 0 ? 'warn' : undefined}
             loading={usageCostLoading}
           />
@@ -168,79 +106,13 @@ export function UsageView() {
                   <Tooltip
                     cursor={{ fill: 'rgba(8, 145, 178, 0.08)' }}
                     contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                    formatter={(value) => formatBytes(Number(value))}
+                    formatter={(value) => formatNumber(Number(value))}
                   />
                   <Bar dataKey="tokens" fill="rgb(8, 145, 178)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-        </section>
-
-        {/* Sessions table */}
-        <section className="rounded-lg border bg-card">
-          <div className="px-4 py-2 border-b flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-foreground">Sessions</h2>
-            {sessionsUsageLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-          </div>
-          {sortedSessions.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">
-              {sessionsUsageLoading ? 'Loading…' : 'No sessions in range.'}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-background/40 text-muted-foreground">
-                    <th className="px-3 py-2 text-left font-medium">Session</th>
-                    <th className="px-3 py-2 text-left font-medium">Agent</th>
-                    <th className="px-3 py-2 text-left font-medium">Model</th>
-                    <SortHeader label="Tokens" active={sortKey === 'tokens'} dir={sortDir} onClick={() => onHeaderSort('tokens')} className="text-right" />
-                    <SortHeader label="Cost" active={sortKey === 'cost'} dir={sortDir} onClick={() => onHeaderSort('cost')} className="text-right" />
-                    <SortHeader label="Updated" active={sortKey === 'updatedAt'} dir={sortDir} onClick={() => onHeaderSort('updatedAt')} className="text-right" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedSessions.map(({ s, tokens, cost }) => {
-                    const expanded = expandedKey === s.key;
-                    const ts = sessionUsageTimeseries.get(s.key);
-                    const tsLoading = sessionUsageTimeseriesLoading.get(s.key) === true;
-                    return (
-                      <React.Fragment key={s.key}>
-                        <tr
-                          className={cn(
-                            'border-b last:border-b-0 cursor-pointer hover:bg-muted/40 transition-colors',
-                            expanded && 'bg-muted/40',
-                          )}
-                          onClick={() => setExpandedKey(prev => prev === s.key ? null : s.key)}
-                          aria-expanded={expanded}
-                        >
-                          <td className="px-3 py-2 font-mono text-[11px] truncate max-w-[20rem]" title={s.key}>
-                            <span className="inline-flex items-center gap-1">
-                              <ChevronRight className={cn('w-3 h-3 text-muted-foreground transition-transform shrink-0', expanded && 'rotate-90')} />
-                              {s.key}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">{s.agentId || <span className="text-muted-foreground">—</span>}</td>
-                          <td className="px-3 py-2 font-mono text-[10px]">{s.model || <span className="text-muted-foreground">—</span>}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatBytes(tokens)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatCost(cost)}</td>
-                          <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{formatRelativeTime(s.updatedAt)}</td>
-                        </tr>
-                        {expanded ? (
-                          <tr className="border-b last:border-b-0 bg-background/40">
-                            <td colSpan={6} className="p-4">
-                              <SessionTimeseriesPanel timeseries={ts} loading={tsLoading} />
-                            </td>
-                          </tr>
-                        ) : null}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
       </div>
     </div>
@@ -275,88 +147,5 @@ function KpiCard({
         {value}
       </div>
     </div>
-  );
-}
-
-function SessionTimeseriesPanel({
-  timeseries, loading,
-}: {
-  timeseries?: SessionUsageTimeseries;
-  loading?: boolean;
-}) {
-  const chartData = useMemo(() => {
-    const points = timeseries?.points ?? [];
-    return points.map((p, i) => ({
-      turn: i + 1,
-      perTurn: p.totalTokens,
-      cumulative: p.cumulativeTokens,
-    }));
-  }, [timeseries]);
-
-  if (loading && !timeseries) {
-    return (
-      <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
-        <Loader2 className="w-3 h-3 animate-spin mr-2" />
-        Loading time-series…
-      </div>
-    );
-  }
-  if (!timeseries || timeseries.points.length === 0) {
-    return (
-      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
-        No turn data for this session.
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[11px] font-semibold text-foreground">
-          Per-turn tokens ({timeseries.points.length})
-        </h3>
-        {loading ? <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" /> : null}
-      </div>
-      <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.08} />
-            <XAxis dataKey="turn" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-            <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6 }} formatter={(value) => formatNumber(Number(value))} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Line yAxisId="left" type="monotone" dataKey="perTurn" stroke="rgb(8, 145, 178)" strokeWidth={2} dot={false} name="Per-turn tokens" />
-            <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="rgb(234, 179, 8)" strokeWidth={2} dot={false} name="Cumulative tokens" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function SortHeader({
-  label, active, dir, onClick, className,
-}: {
-  label: string;
-  active: boolean;
-  dir: 'asc' | 'desc';
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <th className={cn('px-3 py-2 font-medium', className)}>
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          'inline-flex items-center gap-1 transition-colors',
-          active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-        )}
-      >
-        {label}
-        <ArrowUpDown className={cn('w-3 h-3', active && (dir === 'desc' ? 'text-foreground' : 'text-foreground rotate-180'))} />
-      </button>
-    </th>
   );
 }
