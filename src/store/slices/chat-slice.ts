@@ -3,7 +3,7 @@ import { generateId } from '../../lib/utils';
 import { isSilentReply, stripReasoningTags } from '../../lib/reasoning-tags';
 import { resolveSessionKey, parseInternalEventSummary } from '../store-utils';
 import type { StoreSet, StoreGet } from '../store-types';
-import { normalizeMessage, extractToolMessagesFromBlocks } from '../../lib/message-normalizer';
+import { normalizeMessage, extractToolMessagesFromBlocks, buildToolResultMap, injectToolResultBlocks } from '../../lib/message-normalizer';
 import { closeOutInterSessionTasks } from '../chat-event-handlers';
 
 /**
@@ -103,6 +103,13 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
       try {
         const result = await client.getChatHistory(effectiveKey, { limit: 200 });
 
+        // Pre-pass: build toolCallId → tool_result lookup. Catches both
+        // OpenClaw's native shape (separate role='toolResult' messages) and
+        // the Anthropic-style tool_result content blocks. Without this,
+        // tool cards render as forever-running because the result info is
+        // structurally separate from the tool_call block.
+        const resultByCallId = buildToolResultMap(result.messages || []);
+
         const extractedToolUseMessages: ChatMessage[] = [];
         const messages: ChatMessage[] = (result.messages || []).map((rawMsg: unknown, i: number) => {
           const interMeta = buildInterSessionMeta(rawMsg);
@@ -117,8 +124,15 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
             };
           }
 
+          // Inject synthetic tool_result blocks next to each matching
+          // tool_call so inline MessageContent sees them paired (→ ToolCard
+          // renders with output, not amber running).
+          const pairedBlocks = injectToolResultBlocks(normalized.contentBlocks, resultByCallId);
+
           // Extract tool_call blocks into separate tool ChatMessages so the
-          // Tools panel + ToolCard renderer stay in sync with legacy behavior.
+          // Tools panel + ToolCallExpander get result text. The map is the
+          // authoritative source; pass normalized.contentBlocks since the
+          // function only reads tool_call blocks from it.
           extractedToolUseMessages.push(
             ...extractToolMessagesFromBlocks(
               normalized.id,
@@ -126,6 +140,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
               normalized.timestamp,
               (rawMsg as { runId?: string })?.runId,
               normalized.contentBlocks,
+              resultByCallId,
             ),
           );
 
@@ -142,7 +157,7 @@ export function createChatSlice(set: StoreSet, get: StoreGet) {
             role: normalized.role,
             content: legacyContent,
             timestamp: normalized.timestamp,
-            contentBlocks: normalized.contentBlocks,
+            contentBlocks: pairedBlocks,
             senderLabel: normalized.senderLabel,
             ...(normalized.phase ? { phase: normalized.phase } : {}),
             toolName: (rawMsg as { toolName?: string })?.toolName,

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeMessage, extractToolMessagesFromBlocks } from './message-normalizer';
+import {
+  normalizeMessage,
+  extractToolMessagesFromBlocks,
+  buildToolResultMap,
+  injectToolResultBlocks,
+} from './message-normalizer';
 
 describe('normalizeMessage', () => {
   it('returns null for non-objects', () => {
@@ -87,5 +92,93 @@ describe('extractToolMessagesFromBlocks', () => {
     expect(tools).toHaveLength(2);
     expect(tools[0]).toMatchObject({ toolName: 'cron', toolCall: { a: 1 }, runId: 'run1' });
     expect(tools[1]).toMatchObject({ toolName: 'shell' });
+  });
+
+  it('pairs tool_call with its result via resultByCallId map', () => {
+    const map = new Map([['c1', { text: 'ok, done', isError: false }]]);
+    const tools = extractToolMessagesFromBlocks('msg', 0, 1_000, 'run', [
+      { type: 'tool_call', name: 'cron', args: {}, toolCallId: 'c1' },
+    ], map);
+    expect(tools).toHaveLength(1);
+    expect(tools[0].result).toBe('ok, done');
+    expect(tools[0].content).toBe('ok, done');
+  });
+
+  it('marks orphan tool_calls with an abort notice when no matching result', () => {
+    const tools = extractToolMessagesFromBlocks('msg', 0, 1_000, 'run', [
+      { type: 'tool_call', name: 'browser', toolCallId: 'orphan' },
+    ], new Map());
+    expect(tools).toHaveLength(1);
+    expect(tools[0].result).toBeUndefined();
+    expect(tools[0].content).toMatch(/aborted|no result/i);
+  });
+});
+
+describe('buildToolResultMap', () => {
+  it('collects OpenClaw-style top-level role=toolResult messages', () => {
+    const map = buildToolResultMap([
+      { role: 'assistant', content: [{ type: 'toolCall', name: 'browser', toolCallId: 'tc1' }] },
+      {
+        role: 'toolResult',
+        toolCallId: 'tc1',
+        toolName: 'browser',
+        content: [{ type: 'text', text: 'page loaded' }],
+        isError: false,
+      },
+    ]);
+    expect(map.size).toBe(1);
+    expect(map.get('tc1')).toEqual({ text: 'page loaded', isError: false });
+  });
+
+  it('collects Anthropic-style tool_result content blocks', () => {
+    const map = buildToolResultMap([
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'shell', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'stdout: ok' }] },
+    ]);
+    expect(map.size).toBe(1);
+    expect(map.get('t1')?.text).toBe('stdout: ok');
+  });
+
+  it('propagates isError flag', () => {
+    const map = buildToolResultMap([
+      { role: 'toolResult', toolCallId: 'x', content: 'boom', isError: true },
+    ]);
+    expect(map.get('x')).toEqual({ text: 'boom', isError: true });
+  });
+
+  it('ignores messages without a toolCallId', () => {
+    const map = buildToolResultMap([{ role: 'toolResult', content: 'orphan' }]);
+    expect(map.size).toBe(0);
+  });
+});
+
+describe('injectToolResultBlocks', () => {
+  it('inserts a synthetic tool_result immediately after each matching tool_call', () => {
+    const map = new Map([['c1', { text: 'done' }]]);
+    const out = injectToolResultBlocks(
+      [
+        { type: 'text', text: 'calling' },
+        { type: 'tool_call', name: 'browser', toolCallId: 'c1' },
+        { type: 'text', text: 'after' },
+      ],
+      map,
+    );
+    expect(out).toHaveLength(4);
+    expect(out[1]).toMatchObject({ type: 'tool_call', toolCallId: 'c1' });
+    expect(out[2]).toMatchObject({ type: 'tool_result', toolCallId: 'c1', text: 'done' });
+    expect(out[3]).toMatchObject({ type: 'text', text: 'after' });
+  });
+
+  it('leaves tool_calls without a match alone', () => {
+    const out = injectToolResultBlocks(
+      [{ type: 'tool_call', name: 'x', toolCallId: 'missing' }],
+      new Map(),
+    );
+    expect(out).toHaveLength(1);
+  });
+
+  it('returns the same blocks ref (no extra allocs) when map is empty', () => {
+    const blocks = [{ type: 'text' as const, text: 'a' }];
+    expect(injectToolResultBlocks(blocks, new Map())).toBe(blocks);
   });
 });
