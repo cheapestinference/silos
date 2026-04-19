@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, ArrowUpDown, Loader2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BarChart3, ArrowUpDown, Loader2, ChevronRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line, Legend } from 'recharts';
 import { useDashboardStore } from '../../store/dashboard-store';
 import { cn, formatNumber } from '../../lib/utils';
-import type { SessionsUsageEntry } from '../../types/openclaw';
+import type { SessionsUsageEntry, SessionUsageTimeseries } from '../../types/openclaw';
 
 type RangeDays = 7 | 30 | 90;
 type SortKey = 'tokens' | 'cost' | 'updatedAt';
@@ -52,6 +52,15 @@ export function UsageView() {
   const [days, setDays] = useState<RangeDays>(30);
   const [sortKey, setSortKey] = useState<SortKey>('tokens');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const sessionUsageTimeseries = useDashboardStore(s => s.sessionUsageTimeseries);
+  const sessionUsageTimeseriesLoading = useDashboardStore(s => s.sessionUsageTimeseriesLoading);
+  const loadSessionUsageTimeseries = useDashboardStore(s => s.loadSessionUsageTimeseries);
+
+  useEffect(() => {
+    if (expandedKey) loadSessionUsageTimeseries(expandedKey);
+  }, [expandedKey, loadSessionUsageTimeseries]);
 
   useEffect(() => {
     loadUsageCost({ days, force: true });
@@ -192,19 +201,42 @@ export function UsageView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedSessions.map(({ s, tokens, cost }) => (
-                    <tr
-                      key={s.key}
-                      className="border-b last:border-b-0 hover:bg-muted/40 transition-colors"
-                    >
-                      <td className="px-3 py-2 font-mono text-[11px] truncate max-w-[20rem]" title={s.key}>{s.key}</td>
-                      <td className="px-3 py-2">{s.agentId || <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-3 py-2 font-mono text-[10px]">{s.model || <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatBytes(tokens)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatCost(cost)}</td>
-                      <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{formatRelativeTime(s.updatedAt)}</td>
-                    </tr>
-                  ))}
+                  {sortedSessions.map(({ s, tokens, cost }) => {
+                    const expanded = expandedKey === s.key;
+                    const ts = sessionUsageTimeseries.get(s.key);
+                    const tsLoading = sessionUsageTimeseriesLoading.get(s.key) === true;
+                    return (
+                      <React.Fragment key={s.key}>
+                        <tr
+                          className={cn(
+                            'border-b last:border-b-0 cursor-pointer hover:bg-muted/40 transition-colors',
+                            expanded && 'bg-muted/40',
+                          )}
+                          onClick={() => setExpandedKey(prev => prev === s.key ? null : s.key)}
+                          aria-expanded={expanded}
+                        >
+                          <td className="px-3 py-2 font-mono text-[11px] truncate max-w-[20rem]" title={s.key}>
+                            <span className="inline-flex items-center gap-1">
+                              <ChevronRight className={cn('w-3 h-3 text-muted-foreground transition-transform shrink-0', expanded && 'rotate-90')} />
+                              {s.key}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">{s.agentId || <span className="text-muted-foreground">—</span>}</td>
+                          <td className="px-3 py-2 font-mono text-[10px]">{s.model || <span className="text-muted-foreground">—</span>}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatBytes(tokens)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatCost(cost)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{formatRelativeTime(s.updatedAt)}</td>
+                        </tr>
+                        {expanded ? (
+                          <tr className="border-b last:border-b-0 bg-background/40">
+                            <td colSpan={6} className="p-4">
+                              <SessionTimeseriesPanel timeseries={ts} loading={tsLoading} />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -241,6 +273,63 @@ function KpiCard({
         )}
       >
         {value}
+      </div>
+    </div>
+  );
+}
+
+function SessionTimeseriesPanel({
+  timeseries, loading,
+}: {
+  timeseries?: SessionUsageTimeseries;
+  loading?: boolean;
+}) {
+  const chartData = useMemo(() => {
+    const points = timeseries?.points ?? [];
+    return points.map((p, i) => ({
+      turn: i + 1,
+      perTurn: p.totalTokens,
+      cumulative: p.cumulativeTokens,
+    }));
+  }, [timeseries]);
+
+  if (loading && !timeseries) {
+    return (
+      <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
+        <Loader2 className="w-3 h-3 animate-spin mr-2" />
+        Loading time-series…
+      </div>
+    );
+  }
+  if (!timeseries || timeseries.points.length === 0) {
+    return (
+      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+        No turn data for this session.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-[11px] font-semibold text-foreground">
+          Per-turn tokens ({timeseries.points.length})
+        </h3>
+        {loading ? <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" /> : null}
+      </div>
+      <div className="h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.08} />
+            <XAxis dataKey="turn" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+            <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
+            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6 }} formatter={(value) => formatNumber(Number(value))} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Line yAxisId="left" type="monotone" dataKey="perTurn" stroke="rgb(8, 145, 178)" strokeWidth={2} dot={false} name="Per-turn tokens" />
+            <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="rgb(234, 179, 8)" strokeWidth={2} dot={false} name="Cumulative tokens" />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
