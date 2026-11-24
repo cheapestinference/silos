@@ -1,0 +1,29 @@
+# Who must review a change before it merges (GOVERNANCE.md says what each role
+# may do). The last matching line wins. Today every path has one owner; when a
+# maintainer takes an area, their handle goes on that area's line.
+
+*                       @cheapestinference
+
+# Areas — a maintainer of an area is added here
+/server/                @cheapestinference
+/web/                   @cheapestinference
+/plugin/                @cheapestinference
+/plugin-opencode/       @cheapestinference
+/server/src/harnesses/  @cheapestinference
+/docs/standard/         @cheapestinference
+/docs/                  @cheapestinference
+
+# Owner only, whatever the area: what can publish, what guards the repository,
+# what holds the security model and the product's direction.
+/.github/               @cheapestinference
+/Dockerfile             @cheapestinference
+/deploy/                @cheapestinference
+/scripts/pack-npm.mjs   @cheapestinference
+/silos-id/              @cheapestinference
+/package.json           @cheapestinference
+/package-lock.json      @cheapestinference
+/SECURITY.md            @cheapestinference
+/GOVERNANCE.md          @cheapestinference
+/LICENSE                @cheapestinference
+/docs/product.md        @cheapestinference
+/docs/releasing.md      @cheapestinference

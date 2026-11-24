@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    # a major version is a decision, taken by hand with its migration: no
+    # pull request for it (security updates still come, whatever the size)
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
       minor-and-patch:
         update-types:
@@ -16,3 +21,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

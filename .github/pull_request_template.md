@@ -4,3 +4,4 @@
 
 - [ ] `docs/architecture.md` / `README.md` updated if a mechanism or the setup changed
 - [ ] No real paths, names, emails or transcripts in code, tests or fixtures
+- [ ] The issue this closes (features and UX changes start with one): #

@@ -52,10 +52,16 @@ const MESSAGE_MAX_BYTES = 256 * 1024
 // store (no tolerant reader: `urgent`/`delivery` left with the move)
 const FIELDS = new Set(['id', 'from', 'to', 'at', 'text', 'state', 'replyTo', 'answer', 'run', 'readOutside', 'root'])
 
+// the ms part never repeats nor goes back within a process: two messages
+// sent in the same millisecond keep their creation order (lists sort by
+// `at`, then by id — a random suffix alone would shuffle them)
+let lastIdMs = 0
 function newId(): string {
+  const ms = Math.max(Date.now(), lastIdMs + 1)
+  lastIdMs = ms
   let rand = ''
   for (let i = 0; i < 6; i++) rand += B36[randomInt(36)]
-  return `${Date.now().toString(36)}-${rand}`
+  return `${ms.toString(36)}-${rand}`
 }
 
 export function isMessageState(s: unknown): s is AgentMessageState {

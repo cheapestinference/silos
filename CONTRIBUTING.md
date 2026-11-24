@@ -5,6 +5,24 @@ coding agents as identities; it is used every day to run real work, so the
 bar is "does this make an operator's day clearer", not "does it add a
 feature".
 
+## Where to start
+
+- **A silo** is the smallest complete contribution: one declarative
+  `silo.json`, no server or UI code. [Writing a silo](docs/standard/authoring.md);
+  the shipped ones in [`docs/standard/reference/`](docs/standard/reference/)
+  are working examples.
+- **An engine** is one folder under `server/src/harnesses/` plus one
+  registration line: [docs/harnesses.md](docs/harnesses.md).
+- **An issue** labelled
+  [`good first issue`](https://github.com/cheapestinference/silos/labels/good%20first%20issue)
+  or [`help wanted`](https://github.com/cheapestinference/silos/labels/help%20wanted).
+  Say on the issue that you are taking it, so nobody duplicates the work.
+- **A question or an idea** that is not yet an issue goes in
+  [Discussions](https://github.com/cheapestinference/silos/discussions).
+
+Coding agents are welcome: [AGENTS.md](AGENTS.md) carries these rules in the
+form they read. You answer for what your agent opens.
+
 ## Before you start
 
 - **Bugs:** open an issue with what you did, what you expected, what
@@ -167,6 +185,19 @@ what counts.
   `README.md` when you change how Silos is installed or configured.
 - By contributing you agree your contribution is licensed under the
   [MIT License](LICENSE).
+
+## What happens to your pull request
+
+1. It gets its area labels by itself, and CI runs (`test` and `e2e`; a fork's
+   run has no secrets).
+2. A maintainer of the area — or the owner — reviews it. Expect a first
+   answer within a week; if it goes quiet, say so on the pull request.
+3. It merges when CI is green and the code owner of every path it touches
+   has approved. Changes are squashed or rebased onto `main`; the branch is
+   deleted on merge.
+
+Who may label, review, merge and release, and how to become a triager or a
+maintainer, is in [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Conduct
 

@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Question, idea or show-and-tell
+    url: https://github.com/cheapestinference/silos/discussions
+    about: Ask how something works, share a silo you wrote, or think out loud before opening an issue.
   - name: Security vulnerability
     url: https://github.com/cheapestinference/silos/security/advisories/new
     about: Report privately — never in a public issue.

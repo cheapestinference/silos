@@ -57,22 +57,33 @@ test('home', async ({ browser }) => {
   await close()
 })
 
-test('conversation', async ({ browser }) => {
-  const { page, close } = await open(browser, '/')
-  await expect(page.getByText('Silos').first()).toBeVisible()
-  await page.locator('aside').first().getByText(DEMO_CONVERSATION_TITLE).first().click()
-  await expect(page.locator('main').getByText(DEMO_CONVERSATION_TITLE)).toBeVisible()
-  await settle(page)
-  await page.screenshot({ path: join(OUT, 'conversation.png') })
-  await close()
-})
+// the README opens on the conversation in dark; the light one is its
+// <picture> fallback for a reader on a light theme
+for (const dark of [true, false]) {
+  test(`conversation${dark ? '-dark' : ''}`, async ({ browser }) => {
+    const { page, close } = await open(browser, '/', dark)
+    await expect(page.getByText('Silos').first()).toBeVisible()
+    await page.locator('aside').first().getByText(DEMO_CONVERSATION_TITLE).first().click()
+    await expect(page.locator('main').getByText(DEMO_CONVERSATION_TITLE)).toBeVisible()
+    await settle(page)
+    await page.screenshot({ path: join(OUT, `conversation${dark ? '-dark' : ''}.png`) })
+    await close()
+  })
 
-test('agent', async ({ browser }) => {
-  const { page, close } = await open(browser, `/agent/${DEMO_AGENT_ID}`)
-  await settle(page)
-  await page.screenshot({ path: join(OUT, 'agent.png') })
-  await close()
-})
+  test(`agent${dark ? '-dark' : ''}`, async ({ browser }) => {
+    const { page, close } = await open(browser, `/agent/${DEMO_AGENT_ID}`, dark)
+    await settle(page)
+    await page.screenshot({ path: join(OUT, `agent${dark ? '-dark' : ''}.png`) })
+    await close()
+  })
+
+  test(`silos${dark ? '-dark' : ''}`, async ({ browser }) => {
+    const { page, close } = await open(browser, '/settings/silos', dark)
+    await settle(page)
+    await page.screenshot({ path: join(OUT, `silos${dark ? '-dark' : ''}.png`) })
+    await close()
+  })
+}
 
 test('home-dark', async ({ browser }) => {
   const { page, close } = await open(browser, '/', true)

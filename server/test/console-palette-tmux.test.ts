@@ -13,16 +13,22 @@ import { AgentRegistry } from '../src/agent-registry.js'
 import { TerminalService } from '../src/terminal-service.js'
 import { CONSOLE_PALETTE, consoleSkinFor } from '../src/harnesses/opencode/console-theme.js'
 
-// asks slots 5 and 6 after a TUI-like boot pause, writes what came back
+// Asks slots 5 and 6 after a TUI-like boot pause, writes what came back.
+// It re-asks once a second until answered: what the test protects is the
+// answer and its index, not when the answerer gets armed — on a loaded
+// 2-core CI runner the answerer can come up after a one-shot question,
+// which a real TUI survives too (its redraws keep asking).
 const ASKER = `
 import os, sys, select, termios, time, tty
 out = sys.argv[1]
 fd = sys.stdin.fileno(); tty.setraw(fd)
 time.sleep(1.0)
 q = b'\\x1b]4;5;?\\x07\\x1b]4;6;?\\x07'
-os.write(1, b'\\x1bPtmux;' + q.replace(b'\\x1b', b'\\x1b\\x1b') + b'\\x1b\\\\')
-got = b''; t = time.time()
-while time.time() - t < 6 and got.count(b'rgb:') < 2:
+wrapped = b'\\x1bPtmux;' + q.replace(b'\\x1b', b'\\x1b\\x1b') + b'\\x1b\\\\'
+got = b''; t = time.time(); last = 0.0
+while time.time() - t < 10 and got.count(b'rgb:') < 2:
+    if time.time() - last >= 1.0:
+        os.write(1, wrapped); last = time.time()
     r, _, _ = select.select([fd], [], [], 0.2)
     if r: got += os.read(fd, 4096)
 open(out, 'wb').write(got)

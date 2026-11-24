@@ -1,0 +1,34 @@
+name: Feature or UX change
+description: Propose something new or different
+labels: ['enhancement', 'needs: triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Silos is judged by "does this make an operator's day clearer", not by feature count.
+        A proposal that names its moment gets a fast answer. A new way of working is often a **silo**, not a core change — see [Writing a silo](https://github.com/cheapestinference/silos/blob/main/docs/standard/authoring.md).
+  - type: textarea
+    id: moment
+    attributes:
+      label: The moment it serves
+      description: Which moment of the product (docs/product.md), and where the user reaches it from.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What is hard today
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you build it?
+      options:
+        - label: I would open a pull request for this

@@ -2,7 +2,7 @@
 // <dataDir>/messages/<to>/<id>.json, memory the truth, sealed; the move from
 // the old store (each agent's state, inbox/) as a one-time cut; «read» marked
 // by the class of the turn served (message-reads.ts).
-import { describe, expect, it, afterEach } from 'vitest'
+import { describe, expect, it, afterEach, vi } from 'vitest'
 import { mkdtempSync, mkdirSync, statSync, existsSync, writeFileSync, readFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,6 +46,19 @@ describe('MessageStore', () => {
     expect(store.list('finance', 'new').map((m) => m.id)).toEqual([b.id])
     expect(store.setState('finance', 'nope-000000', 'read')).toBeNull()
     expect(store.setState('finance', '../../etc', 'read')).toBeNull()
+  })
+
+  it('messages sent in the same millisecond keep their creation order, in every list and across inboxes', () => {
+    const { store } = mk()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000)
+    try {
+      const sent = Array.from({ length: 8 }, (_, i) => store.send({ from: 'builder', to: i % 2 ? 'writer' : 'finance', text: String(i) }))
+      expect(new Set(sent.map((m) => m.id)).size).toBe(8)
+      expect(store.sentBy('builder').map((m) => m.text)).toEqual(['0', '1', '2', '3', '4', '5', '6', '7'])
+      expect(store.list('finance').map((m) => m.text)).toEqual(['0', '2', '4', '6'])
+    } finally {
+      clock.mockRestore()
+    }
   })
 
   it('the parser is strict: urgent/delivery or any unknown field is no message of this store', () => {

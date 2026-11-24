@@ -1,0 +1,58 @@
+name: Bug report
+description: Something does not work as it should
+labels: ['bug', 'needs: triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Transcripts and logs usually contain secrets: redact before pasting.
+        Security problems never go here — use **Security › Report a vulnerability**.
+  - type: textarea
+    id: did
+    attributes:
+      label: What you did
+      description: The steps, from a state someone else can reach.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Logs and screenshots welcome (redacted).
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it runs
+      options:
+        - Local (npx / npm)
+        - Local, from source
+        - Railway template
+        - Docker Compose / VPS
+        - Behind a tunnel
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      options:
+        - Claude Code
+        - OpenCode
+        - Both / not about an engine
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: 'Silos version (Settings › About, or `silos --version`), OS, `node --version`, `claude --version`. `silos doctor` prints most of it.'
+    validations:
+      required: true

@@ -10,8 +10,12 @@ export default defineConfig({
   // one private temp dir per run, removed at the end (e2e/global-tmp.ts)
   globalSetup: './e2e/global-tmp.ts',
   timeout: 30_000,
+  // A hosted CI runner (2 cores, shared) paints and boots slower than a dev
+  // machine: give every expect more room and one more retry there. Locally
+  // nothing changes.
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   fullyParallel: true,
-  retries: 1,
+  retries: process.env.CI ? 2 : 1,
   workers: 2,
   reporter: 'list',
   use: {

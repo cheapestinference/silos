@@ -1,0 +1,22 @@
+# Area labels by path (.github/workflows/labeler.yml) — the same areas as CODEOWNERS.
+'area: server':
+  - changed-files:
+      - any-glob-to-any-file: ['server/**']
+'area: web':
+  - changed-files:
+      - any-glob-to-any-file: ['web/**']
+'area: plugin':
+  - changed-files:
+      - any-glob-to-any-file: ['plugin/**', 'plugin-opencode/**']
+'area: engines':
+  - changed-files:
+      - any-glob-to-any-file: ['server/src/harnesses/**', 'docs/harnesses.md']
+'area: silo standard':
+  - changed-files:
+      - any-glob-to-any-file: ['docs/standard/**', 'server/src/silos/**']
+'area: deploy':
+  - changed-files:
+      - any-glob-to-any-file: ['Dockerfile', 'deploy/**', 'docs/deploy/**', 'silos-id/**', '.github/workflows/**']
+'documentation':
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', '*.md']
