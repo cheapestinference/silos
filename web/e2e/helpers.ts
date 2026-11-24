@@ -2952,8 +2952,20 @@ export async function startServer(opts?: {
   })
   child.on('exit', (code, signal) => {
     if (stopping) return
+    // a crash's stack goes to the server's own log file (server-log.ts),
+    // not to stderr: its FATAL lines are the why
+    let fatal = ''
+    try {
+      fatal = readFileSync(join(dataDir, 'logs', 'server.log'), 'utf8')
+        .split('\n')
+        .filter((l) => /FATAL|^\s+at /.test(l))
+        .slice(-40)
+        .join('\n')
+    } catch {
+      /* no log yet */
+    }
     console.error(
-      `[e2e] the server on :${port} exited unasked (code ${code}, signal ${signal})\n--- stderr (tail) ---\n${stderr}\n--- stdout (tail) ---\n${stdout}`,
+      `[e2e] the server on :${port} exited unasked (code ${code}, signal ${signal})\n--- server.log FATAL ---\n${fatal}\n--- stderr (tail) ---\n${stderr}`,
     )
   })
 
