@@ -97,6 +97,9 @@ export interface LiveTurnsOptions {
   /** whether a console's tmux still runs — absent: every console counts as alive */
   consoleAlive?: (key: string) => ConsoleLiveness
   now?: () => Date
+  /** told once per turn minted and per console spawned (instance-usage.ts
+   *  counts them); `attended` as the entry records it */
+  onTurn?: (attended: boolean) => void
 }
 
 // The trace of a console turn taken away on tmux's word — always written
@@ -148,7 +151,16 @@ export class LiveTurns {
       ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
       at: this.now().toISOString(),
     })
+    this.told(input.unattended === true || !ATTENDED.has(d.class))
     return token
+  }
+
+  private told(unattended: boolean): void {
+    try {
+      this.opts.onTurn?.(!unattended)
+    } catch {
+      /* counting never breaks a turn */
+    }
   }
 
   /** A console TerminalService is about to spawn: its token, persisted
@@ -167,7 +179,7 @@ export class LiveTurns {
   /** The spawn took: `token` is now the key's ONLY console token — the
    *  earlier claude under the key is gone (tmux said so before the spawn). */
   commitConsole(key: string, token: string): void {
-    this.staging.delete(token)
+    if (this.staging.delete(token)) this.told(false)
     let changed = false
     for (const [t, e] of this.turns)
       if (e.class === 'console' && e.consoleKey === key && t !== token) {

@@ -61,6 +61,7 @@ against an explicit builder setting. Set the builder to Dockerfile explicitly.
 | `SILOS_ID_URL`      | preset in the image           | The Silos ID broker (`https://auth.silosplatform.com`): turns on **Continue with Google** for this instance on whatever domain Railway gives it (see _Google login_ below). The image carries it as a default — a generated template cannot carry a literal default value, only `${{…}}` expressions. Set it empty to turn the broker off.                                                       |
 | `SILOS_OWNER_EMAIL` | **yes** (with `SILOS_ID_URL`) | Who may sign in — one email or a comma list. In the composer it is a required variable with no default and the description «The email you will sign in with — a Google account, or any address (you get a sign-in link)», so whoever deploys types their own. Nobody else gets in; there is no "first login claims the instance". Unset: sign-in stays off and only the `?token=` link opens it. |
 | `SILOS_PUBLIC_URL`  | no                            | This instance's public origin. Defaults to `https://$RAILWAY_PUBLIC_DOMAIN`, which Railway injects.                                                                                                                                                                                                                                                                                              |
+| `SILOS_TELEMETRY`   | no                            | On by default: once a day the instance tells its Silos ID broker how it was used — the UTC hours it was open, how many turns you started and how many Silos started on its own, and its version. Nothing else: no names, prompts, files or agents. Signed with a key only this instance holds. `off` stops it.                                                                                   |
 | `PORT`              | no                            | Injected by Railway.                                                                                                                                                                                                                                                                                                                                                                             |
 
 Nothing else. In particular **no `ANTHROPIC_API_KEY`**: Silos removes every
@@ -236,7 +237,7 @@ SILOS_OWNER_EMAIL="owner@example.com, teammate@example.com"
 
 One `KEY=VALUE` per line; blank lines and lines starting with `#` are
 skipped; a value may be wrapped in matching `"…"` or `'…'` (taken literally).
-It holds only `SILOS_ID_URL`, `SILOS_PUBLIC_URL` and `SILOS_OWNER_EMAIL` — any
+It holds only `SILOS_ID_URL`, `SILOS_PUBLIC_URL`, `SILOS_OWNER_EMAIL` and `SILOS_TELEMETRY` — any
 other key, and any line that is not `KEY=VALUE`, is ignored and named (keys
 only) in one warning at boot. A variable set in the real environment wins
 over the file. The values are never copied into the server's environment,

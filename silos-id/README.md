@@ -94,13 +94,33 @@ Put the local values in a `.dev.vars` file, which git ignores:
   takes Source Serif 4 and Inter from Google Fonts (Georgia and the system
   face if they don't load). No static assets to deploy.
 - **Privacy:** KV holds `origin:<origin>` → id and `id:<id>` → the
-  instance's record: `{origin, registeredAt}` plus its usage — boots
-  (`boots`, `lastBootAt`), passes issued (`logins`, `lastLoginAt`) and, per
-  UTC day for the last 90 days, the emails that signed in with their pass
-  count. Tell the people who sign in through your broker. No route serves
-  usage: read it with `npm run usage` (your `wrangler login`; `-- --json`
-  for the raw records). Counts are best effort — KV is read then written,
-  so two writes racing may lose one.
+  instance's record: `{origin, registeredAt}`, its reporting key, and its
+  usage — boots (`boots`, `lastBootAt`), passes issued (`logins`,
+  `lastLoginAt`) and, per UTC day for the last 90 days, the emails that
+  signed in with their pass count, plus what the instance reported (the
+  hours it was open, turns started by its owner and by Silos, its version).
+  Tell the people who sign in through your broker. Counts are best effort —
+  KV is read then written, so two writes racing may lose one.
+
+## Usage
+
+`https://<your broker>/stats` — sign in with Google; only the emails in
+`SILOS_ID_ADMIN_EMAILS` (a Worker variable, comma-separated; unset = nobody)
+see it. Per instance: version, days active this week, hours open per active
+day, turns this week (yours · Silos'), people in 30 days, last sign-in; open
+a row for its last 30 days. Then everyone who signed in.
+
+- **Reports are signed.** The first registration that asks (`reports:
+true`, what current instances send) gets the instance's key, once; its
+  reports carry `x-silos-signature` (HMAC-SHA256 of the body). Nobody can
+  report for an instance whose key they don't hold.
+- **An operator's own report can't be proven** — they run the code. A row
+  is flagged _unverified_ when it reported activity this week but no pass
+  was issued to it for 8 days (a session lasts 7). Days are capped (24
+  hours, `MAX_TURNS_PER_DAY` turns), so no row inflates the totals far.
+- **A lost key** (the instance lost its data dir, or someone else asked
+  first): the row says _not reporting_. Delete the `key` field from its
+  `id:<id>` record in KV and the instance gets a new one at its next boot.
 
 ## Tests
 

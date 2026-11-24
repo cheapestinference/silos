@@ -27,3 +27,6 @@ SILOS_ID_FIREBASE_PROJECT = "<firebase-project-id>"
 # SILOS_ID_FIREBASE_AUTH_DOMAIN = "auth.example.com"
 # the broker's own origin: the passes' `iss`, the SILOS_ID_URL instances set
 SILOS_ID_PUBLIC_URL = "https://auth.example.com"
+# who may open /stats (usage of every instance): comma-separated emails;
+# unset = nobody
+# SILOS_ID_ADMIN_EMAILS = "you@example.com"

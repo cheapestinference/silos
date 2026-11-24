@@ -19,7 +19,7 @@
 // no SDK) and the login routes' rate limit. PASS_TTL_S, INSTANCE_ID, STATE and the origin rule are
 // the wire contract with silos-id/src/broker.ts (its end-to-end test pins
 // the two together).
-import { createPublicKey, createVerify, randomBytes, timingSafeEqual, type KeyObject } from 'node:crypto'
+import { createHmac, createPublicKey, createVerify, randomBytes, timingSafeEqual, type KeyObject } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { atomicWriteJson } from './json-store.js'
@@ -205,6 +205,9 @@ export class SilosIdClient {
   private readonly now: () => number
   private readonly certs: JwksCache
   private instanceId: string | null = null
+  /** the reporting key the broker gave this instance at its registration —
+   *  only it can sign this instance's usage (instance-usage.ts) */
+  private key: string | null = null
   private registering: Promise<string> | null = null
   private pending = new Map<string, Pending>()
 
@@ -216,16 +219,19 @@ export class SilosIdClient {
     this.fetchImpl = opts?.fetchImpl ?? fetch
     this.now = opts?.now ?? Date.now
     this.certs = new JwksCache({ fetchImpl: this.fetchImpl, now: this.now, url: `${this.brokerUrl}/jwks` })
-    this.instanceId = this.readStored()
+    const stored = this.readStored()
+    this.instanceId = stored?.instanceId ?? null
+    this.key = stored?.key ?? null
   }
 
-  /** the persisted id, only when it was registered for THIS broker and origin */
-  private readStored(): string | null {
+  /** the persisted id (and key), only when registered for THIS broker and origin */
+  private readStored(): { instanceId: string; key: string | null } | null {
     if (this.file === null || !existsSync(this.file)) return null
     try {
       const o = JSON.parse(readFileSync(this.file, 'utf8')) as Record<string, unknown>
-      if (o.broker === this.brokerUrl && o.origin === this.publicOrigin && typeof o.instanceId === 'string' && INSTANCE_ID.test(o.instanceId))
-        return o.instanceId
+      if (o.broker === this.brokerUrl && o.origin === this.publicOrigin && typeof o.instanceId === 'string' && INSTANCE_ID.test(o.instanceId)) {
+        return { instanceId: o.instanceId, key: typeof o.key === 'string' && o.key !== '' ? o.key : null }
+      }
     } catch {
       /* re-register */
     }
@@ -241,14 +247,20 @@ export class SilosIdClient {
       const res = await this.fetchImpl(`${this.brokerUrl}/register`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: this.publicOrigin }),
+        // reports: this instance keeps the reporting key if the broker has one to give
+        body: JSON.stringify({ url: this.publicOrigin, reports: true }),
       })
-      const body = (await res.json().catch(() => ({}))) as { instanceId?: unknown; error?: unknown }
+      const body = (await res.json().catch(() => ({}))) as { instanceId?: unknown; key?: unknown; error?: unknown }
       if (!res.ok || typeof body.instanceId !== 'string' || !INSTANCE_ID.test(body.instanceId)) {
         throw new Error(`Silos ID refused the registration (${typeof body.error === 'string' ? body.error : `HTTP ${res.status}`})`)
       }
+      // the broker hands the key out once; a later registration keeps ours
+      // (a new id never inherits the key of the old one)
+      if (typeof body.key === 'string' && body.key !== '') this.key = body.key
+      else if (body.instanceId !== this.instanceId) this.key = null
       this.instanceId = body.instanceId
-      if (this.file) atomicWriteJson(this.file, { broker: this.brokerUrl, origin: this.publicOrigin, instanceId: body.instanceId })
+      if (this.file)
+        atomicWriteJson(this.file, { broker: this.brokerUrl, origin: this.publicOrigin, instanceId: body.instanceId, ...(this.key ? { key: this.key } : {}) })
       return body.instanceId
     })().finally(() => {
       this.registering = null
@@ -265,6 +277,26 @@ export class SilosIdClient {
       if (first === undefined) break
       this.pending.delete(first)
     }
+  }
+
+  /** Whether this instance can sign usage reports (it holds its key). */
+  get canReport(): boolean {
+    return this.instanceId !== null && this.key !== null
+  }
+
+  /** Hands finished days to the broker, signed with this instance's key
+   *  (HMAC-SHA256 of the raw body — the broker's usageSignature). true =
+   *  they landed. No key (an id registered before keys, whose key another
+   *  registration took): false, nothing sent. */
+  async reportUsage(report: { days: unknown[] }, version: string): Promise<boolean> {
+    if (!this.instanceId || !this.key) return false
+    const raw = JSON.stringify({ instance: this.instanceId, version, days: report.days })
+    const res = await this.fetchImpl(`${this.brokerUrl}/usage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-silos-signature': usageSignature(this.key, raw) },
+      body: raw,
+    })
+    return res.ok
   }
 
   /** A login attempt: a single-use state bound to this browser by `bind`
@@ -304,6 +336,12 @@ export class SilosIdClient {
     if (c.email_verified !== true) throw new Error("the Google account's email is not verified")
     return { email: c.email, name: typeof c.name === 'string' ? c.name : null, picture: typeof c.picture === 'string' ? c.picture : null }
   }
+}
+
+/** HMAC-SHA256 of `body` with `key`, hex — the broker checks the same
+ *  (silos-id/src/broker.ts usageSignature). */
+export function usageSignature(key: string, body: string): string {
+  return createHmac('sha256', key).update(body).digest('hex')
 }
 
 /** a cookie's value from a Cookie header */

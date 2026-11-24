@@ -6,6 +6,9 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { createSign, generateKeyPairSync } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   createBroker,
   brokerConfig,
@@ -16,7 +19,9 @@ import {
   SIGN_IN_EMAIL,
   readSignInPick,
   countLogin,
+  usageSignature,
   USAGE_DAYS,
+  MAX_TURNS_PER_DAY,
   type Broker,
   type Env,
   type InstanceRecord,
@@ -52,6 +57,13 @@ function memoryKV(): Env['INSTANCES'] & { map: Map<string, string> } {
     put: async (k, v) => {
       map.set(k, v)
     },
+    // paged by 2, like a real listing that needs a cursor
+    list: async ({ prefix, cursor }) => {
+      const all = [...map.keys()].filter((k) => k.startsWith(prefix)).sort()
+      const from = cursor ? Number(cursor) : 0
+      const keys = all.slice(from, from + 2).map((name) => ({ name }))
+      return from + 2 >= all.length ? { keys, list_complete: true } : { keys, list_complete: false, cursor: String(from + 2) }
+    },
   }
 }
 
@@ -85,10 +97,25 @@ const call = (path: string, init?: { method?: string; body?: unknown; ip?: strin
     env,
   )
 
-async function register(url: string, ip?: string): Promise<string> {
-  const res = await call('/register', { body: { url }, ...(ip ? { ip } : {}) })
+async function registerFull(url: string, ip?: string, reports = true): Promise<{ instanceId: string; key?: string }> {
+  const res = await call('/register', { body: { url, ...(reports ? { reports: true } : {}) }, ...(ip ? { ip } : {}) })
   expect(res.status, url).toBe(200)
-  return ((await res.json()) as { instanceId: string }).instanceId
+  return (await res.json()) as { instanceId: string; key?: string }
+}
+async function register(url: string, ip?: string): Promise<string> {
+  return (await registerFull(url, ip)).instanceId
+}
+
+async function report(body: Record<string, unknown>, key: string, sigOver?: string): Promise<Response> {
+  const raw = JSON.stringify(body)
+  return broker.fetch(
+    new Request(BROKER + '/usage', {
+      method: 'POST',
+      body: raw,
+      headers: { 'content-type': 'application/json', 'x-silos-signature': await usageSignature(key, sigOver ?? raw) },
+    }),
+    env,
+  )
 }
 
 const exchange = (body: Record<string, unknown>, ip?: string): Promise<Response> => call('/login/exchange', { body, ...(ip ? { ip } : {}) })
@@ -307,6 +334,108 @@ describe('usage', () => {
   })
 })
 
+describe('instance reports', () => {
+  const today = new Date(NOW).toISOString().slice(0, 10)
+  const day = (over: Record<string, unknown> = {}): Record<string, unknown> => ({ day: today, hours: [9, 10], attended: 3, unattended: 7, ...over })
+  const recordOf = (id: string): InstanceRecord => JSON.parse((env.INSTANCES as ReturnType<typeof memoryKV>).map.get(`id:${id}`)!) as InstanceRecord
+
+  it('the key goes once: to the first registration, never to a later one of the same origin', async () => {
+    const first = await registerFull(INSTANCE)
+    expect(first.key).toMatch(/^[A-Za-z0-9_-]{40,}$/)
+    expect((await registerFull(INSTANCE)).key).toBeUndefined()
+    // a record from before keys existed gets one at its next registration — once
+    const kv = env.INSTANCES as ReturnType<typeof memoryKV>
+    const { key: _k, ...old } = recordOf(first.instanceId)
+    kv.map.set(`id:${first.instanceId}`, JSON.stringify(old))
+    // an instance that doesn't ask (older code) never spends it
+    expect((await registerFull(INSTANCE, undefined, false)).key).toBeUndefined()
+    expect((await registerFull(INSTANCE)).key).toMatch(/^[A-Za-z0-9_-]{40,}$/)
+    expect((await registerFull(INSTANCE)).key).toBeUndefined()
+    expect((await registerFull('https://fresh.example.com', undefined, false)).key).toBeUndefined()
+    expect((await registerFull('https://fresh.example.com')).key).toMatch(/^[A-Za-z0-9_-]{40,}$/)
+  })
+
+  it('takes a report signed with the instance’s key, and nothing else', async () => {
+    const a = await registerFull(INSTANCE)
+    const b = await registerFull('https://other.example.com')
+    const body = { instance: a.instanceId, version: '0.1.0+abc1234', days: [day()] }
+    expect((await report(body, b.key!)).status).toBe(401) // another instance's key
+    expect((await report(body, a.key!, JSON.stringify({ ...body, days: [day({ attended: 999 })] }))).status).toBe(401) // tampered body
+    expect((await report({ ...body, instance: 'x'.repeat(22) }, a.key!)).status).toBe(401) // unknown id: same answer
+    const noSig = await broker.fetch(new Request(BROKER + '/usage', { method: 'POST', body: JSON.stringify(body) }), env)
+    expect(noSig.status).toBe(401)
+    expect(recordOf(a.instanceId).days?.[today]?.hours).toBeUndefined()
+    expect((await report(body, a.key!)).status).toBe(200)
+    expect(recordOf(a.instanceId)).toMatchObject({
+      version: '0.1.0+abc1234',
+      lastReportAt: NOW,
+      days: { [today]: { hours: [9, 10], attended: 3, unattended: 7 } },
+    })
+  })
+
+  it('a report replaces its days’ reported fields and keeps the broker’s own counts', async () => {
+    const a = await registerFull(INSTANCE)
+    expect((await exchange({ idToken: idToken(), instance: a.instanceId, state: STATE_A })).status).toBe(200)
+    expect((await report({ instance: a.instanceId, days: [day()] }, a.key!)).status).toBe(200)
+    expect((await report({ instance: a.instanceId, days: [day({ hours: [11], attended: 1 })] }, a.key!)).status).toBe(200)
+    expect(recordOf(a.instanceId).days?.[today]).toMatchObject({ logins: 1, hours: [11], attended: 1, unattended: 7 })
+  })
+
+  it('refuses days out of range, repeated, future, and hours or turns past their bounds', async () => {
+    const a = await registerFull(INSTANCE)
+    const old = new Date(NOW - USAGE_DAYS * 86_400_000).toISOString().slice(0, 10)
+    const tomorrow = new Date(NOW + 86_400_000).toISOString().slice(0, 10)
+    for (const days of [
+      [],
+      [day({ day: old })],
+      [day({ day: tomorrow })],
+      [day(), day()],
+      [day({ hours: [24] })],
+      [day({ hours: [3, 3] })],
+      [day({ attended: -1 })],
+      [day({ unattended: MAX_TURNS_PER_DAY + 1 })],
+      [day({ day: '2026-13-45' })],
+      Array.from({ length: 32 }, () => day()),
+    ]) {
+      expect((await report({ instance: a.instanceId, days }, a.key!)).status, JSON.stringify(days).slice(0, 80)).toBe(400)
+    }
+  })
+})
+
+describe('stats', () => {
+  const data = (token: string): Promise<Response> => call('/stats/data', { body: { idToken: token } })
+  it('/stats/data answers only an admin’s verified Google sign-in, with every instance and never a key', async () => {
+    env = envWith({ SILOS_ID_ADMIN_EMAILS: 'Boss@example.com, other@example.com' })
+    const ids = [await register(INSTANCE), await register('https://b.example.com'), await register('https://c.example.com')]
+    expect((await data(idToken({ email: OWNER }))).status).toBe(403)
+    expect((await data(idToken({ email: 'boss@example.com', email_verified: false }))).status).toBe(401)
+    expect((await data('nope')).status).toBe(401)
+    const res = await data(idToken({ email: 'boss@example.com' }))
+    expect(res.status).toBe(200)
+    const raw = await res.text()
+    const body = JSON.parse(raw) as { rows: Array<{ id: string; reporting: boolean }> }
+    expect(body.rows.map((r) => r.id).sort()).toEqual([...ids].sort())
+    expect(body.rows.every((r) => r.reporting)).toBe(true)
+    for (const id of ids) expect(raw).not.toContain(JSON.parse((env.INSTANCES as ReturnType<typeof memoryKV>).map.get(`id:${id}`)!).key)
+  })
+
+  it('no admin set: nobody sees usage', async () => {
+    await register(INSTANCE)
+    expect((await data(idToken())).status).toBe(403)
+  })
+
+  it('flags an instance that reports this week with no sign-in for 8 days', async () => {
+    const a = await registerFull(INSTANCE)
+    const today = new Date(NOW).toISOString().slice(0, 10)
+    expect((await report({ instance: a.instanceId, days: [{ day: today, hours: [9], attended: 1, unattended: 0 }] }, a.key!)).status).toBe(200)
+    env = { ...env, SILOS_ID_ADMIN_EMAILS: OWNER }
+    const rows = async (): Promise<Array<{ unverified: boolean }>> => ((await (await data(idToken())).json()) as { rows: Array<{ unverified: boolean }> }).rows
+    expect((await rows())[0]!.unverified).toBe(true)
+    expect((await exchange({ idToken: idToken(), instance: a.instanceId, state: STATE_A })).status).toBe(200)
+    expect((await rows())[0]!.unverified).toBe(false)
+  })
+})
+
 describe('signing key', () => {
   it('/jwks publishes the public half only, under a kid stable across isolates', async () => {
     const a = (await (await call('/jwks')).json()) as { keys: Array<Record<string, unknown>> }
@@ -356,6 +485,42 @@ describe('end to end: the Worker signs, the instance verifies', () => {
 
   const client = (): instanceSide.SilosIdClient =>
     new instanceSide.SilosIdClient({ brokerUrl: BROKER, publicOrigin: INSTANCE, ownerEmails: [OWNER] }, { fetchImpl: brokerFetch, now: () => clock })
+
+  it('the instance keeps its key across restarts and re-registrations, and its signed report lands', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'silos-id-usage-'))
+    try {
+      const mk = (): instanceSide.SilosIdClient =>
+        new instanceSide.SilosIdClient(
+          { brokerUrl: BROKER, publicOrigin: INSTANCE, ownerEmails: [OWNER] },
+          { dataDir, fetchImpl: brokerFetch, now: () => clock },
+        )
+      const first = mk()
+      expect(first.canReport).toBe(false)
+      const id = await first.ensureRegistered(true)
+      expect(first.canReport).toBe(true)
+      // a restart: read from disk, then the boot's forced re-registration
+      // (the broker gives no key this time) keeps it
+      const again = mk()
+      expect(await again.ensureRegistered(true)).toBe(id)
+      expect(again.canReport).toBe(true)
+      const today = new Date(NOW).toISOString().slice(0, 10)
+      expect(await again.reportUsage({ days: [{ day: today, hours: [8], attended: 2, unattended: 5 }] }, '0.1.0')).toBe(true)
+      const rec = JSON.parse((env.INSTANCES as ReturnType<typeof memoryKV>).map.get(`id:${id}`)!) as InstanceRecord
+      expect(rec.days?.[today]).toMatchObject({ hours: [8], attended: 2, unattended: 5 })
+      // another instance claiming this id signs with a key it doesn't hold
+      expect(instanceSide.usageSignature('guess', '{}')).not.toBe(await usageSignature(rec.key!, '{}'))
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('an instance whose key another registration took sends nothing', async () => {
+    const c = client()
+    await register(INSTANCE) // someone else registers the origin first and takes the key
+    await c.ensureRegistered(true)
+    expect(c.canReport).toBe(false)
+    expect(await c.reportUsage({ days: [] }, '0.1.0')).toBe(false)
+  })
 
   it('a pass from the Worker completes the sign-in on the instance', async () => {
     const c = client()

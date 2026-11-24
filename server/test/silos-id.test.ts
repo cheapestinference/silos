@@ -119,7 +119,7 @@ function brokerFetch(b: TestBroker): typeof fetch {
   }) as typeof fetch
 }
 
-async function instance(opts: { client: SilosIdClient }): Promise<FastifyInstance> {
+async function instance(opts: { client: SilosIdClient; onOwnerActivity?: () => void }): Promise<FastifyInstance> {
   const base = mkdtempSync(join(tmpdir(), 'silos-id-'))
   const root = join(base, 'projects')
   const dataDir = join(base, 'data')
@@ -152,6 +152,7 @@ async function instance(opts: { client: SilosIdClient }): Promise<FastifyInstanc
     liveMs: 120_000,
     authNow: () => NOW,
     silosId: opts.client,
+    ...(opts.onOwnerActivity ? { onOwnerActivity: opts.onOwnerActivity } : {}),
   })
 }
 
@@ -263,6 +264,27 @@ describe('Silos ID on the instance', () => {
     const bad = await to('?method=email&email=nope')
     expect(bad.origin).toBe(INSTANCE)
     expect(new URLSearchParams(bad.hash.slice(1)).get('silos-id-error')).toMatch(/email/)
+  })
+
+  // instance-usage.ts marks the hour on this: only the owner's credential
+  // (a session from the sign-in, or the token) — never an anonymous read,
+  // a refused credential, or the public sign-in routes
+  it('owner activity is told for the owner’s credential only', async () => {
+    let told = 0
+    const counted = await instance({
+      client,
+      onOwnerActivity: () => {
+        told++
+      },
+    })
+    expect((await counted.inject({ url: '/api/agents' })).statusCode).toBe(200) // local, anonymous read
+    expect((await counted.inject({ url: '/api/agents', headers: { ...REMOTE, 'x-token': 'wrong' } })).statusCode).toBe(401)
+    expect((await counted.inject({ url: '/api/agents', headers: { authorization: 'Bearer nope' } })).statusCode).toBe(401)
+    expect((await counted.inject({ url: '/api/auth/config', headers: REMOTE })).statusCode).toBe(200)
+    expect(told).toBe(0)
+    expect((await counted.inject({ url: '/api/agents', headers: { ...REMOTE, 'x-token': TOKEN } })).statusCode).toBe(200)
+    expect(told).toBe(1)
+    await counted.close()
   })
 
   it('config announces the broker flow and leaks nothing', async () => {
@@ -462,7 +484,7 @@ describe('Silos ID client mode from the environment', () => {
     const dir = mkdtempSync(join(tmpdir(), 'silos-id-reg-'))
     const c1 = new SilosIdClient({ brokerUrl: BROKER, publicOrigin: INSTANCE, ownerEmails: [OWNER] }, { dataDir: dir, fetchImpl: brokerFetch(b) })
     const id = await c1.ensureRegistered()
-    expect(JSON.parse(readFileSync(join(dir, 'silos-id.json'), 'utf8'))).toEqual({ broker: BROKER, origin: INSTANCE, instanceId: id })
+    expect(JSON.parse(readFileSync(join(dir, 'silos-id.json'), 'utf8'))).toEqual({ broker: BROKER, origin: INSTANCE, instanceId: id, key: expect.any(String) })
     let fetched = 0
     const counting = (async (...a: Parameters<typeof fetch>) => {
       fetched++

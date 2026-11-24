@@ -176,7 +176,10 @@ export const DATA_DIR_REGIMES: Readonly<Record<string, RegimeDecl>> = {
   'server.lock': unnamed('the instance lock (instance-lock.ts)'),
   backups: unnamed('backups'),
   'silos-id.json': unnamed(
-    "this instance's Silos ID registration (silos-id.ts): a public id the broker hands out, re-registered every boot — no authority: a pass still needs an allowed, verified email",
+    "this instance's Silos ID registration (silos-id.ts): a public id the broker hands out, re-registered every boot, and the key that signs its usage reports — no sign-in authority: a pass still needs an allowed, verified email",
+  ),
+  'instance-usage.json': unnamed(
+    "this instance's use per UTC day not yet told to its Silos ID broker (instance-usage.ts): hours open, turns started — counts, no content",
   ),
 }
 

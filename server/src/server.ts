@@ -464,6 +464,8 @@ export interface ServerDeps {
   // Silos ID (silos-id.ts): the one remote sign-in, through the broker.
   // null/undefined = off, NOTHING changes (the usual local token flow).
   silosId?: SilosIdClient | null
+  /** the owner's credential reached the API (instance-usage.ts marks the hour) */
+  onOwnerActivity?: () => void
   // Injectable clock for the sign-in rate limit (window tests).
   authNow?: () => number
   // Per-login sessions — remote login mints its own session token instead
@@ -1186,6 +1188,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     // (x-token / ?token=) or a login session — local or remote alike.
     if (authed(req)) {
       req.ownerCredential = true
+      deps.onOwnerActivity?.()
       return
     }
     // Nobody is the owner by default: a genuinely

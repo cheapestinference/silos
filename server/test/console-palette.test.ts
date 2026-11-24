@@ -44,13 +44,13 @@ describe('startPaletteResponder', () => {
     onExit: (cb) => {
       exit = cb
     },
-    write: (d) => {
-      written.push(d)
-    },
     kill: () => {
       killed++
     },
   })
+  const deliver = (d: string): void => {
+    written.push(d)
+  }
   const palette = Array.from({ length: 16 }, (_, i) => `#0000${i.toString(16).padStart(2, '0')}`)
 
   beforeEach(() => {
@@ -65,7 +65,7 @@ describe('startPaletteResponder', () => {
   })
 
   it('answers each question from the palette and leaves after the questions go quiet', () => {
-    startPaletteResponder({ spawn: client, palette, quietMs: 1000, maxMs: 30_000 })
+    startPaletteResponder({ spawn: client, deliver, palette, quietMs: 1000, maxMs: 30_000 })
     data!('\x1b]4;6;?\x07\x1b]4;99;?\x07')
     expect(written).toEqual([paletteReply(6, '#000006')]) // no slot 99: no reply
     vi.advanceTimersByTime(900)
@@ -79,10 +79,10 @@ describe('startPaletteResponder', () => {
   })
 
   it('leaves at maxMs when the TUI never asks, and stops cleanly if the console dies first', () => {
-    startPaletteResponder({ spawn: client, palette, maxMs: 5000 })
+    startPaletteResponder({ spawn: client, deliver, palette, maxMs: 5000 })
     vi.advanceTimersByTime(5000)
     expect(killed).toBe(1)
-    startPaletteResponder({ spawn: client, palette, maxMs: 5000 })
+    startPaletteResponder({ spawn: client, deliver, palette, maxMs: 5000 })
     exit!()
     vi.advanceTimersByTime(10_000)
     expect(killed).toBe(1) // exited on its own: never killed again
@@ -94,6 +94,7 @@ describe('startPaletteResponder', () => {
         spawn: () => {
           throw new Error('no tmux')
         },
+        deliver,
         palette,
       }).stop(),
     ).not.toThrow()

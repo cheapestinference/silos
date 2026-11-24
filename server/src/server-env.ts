@@ -21,7 +21,7 @@ import { join } from 'node:path'
 export const SERVER_ENV_FILE = 'server.env'
 
 /** The settings server.env may hold. */
-export const SERVER_ENV_KEYS = ['SILOS_ID_URL', 'SILOS_PUBLIC_URL', 'SILOS_OWNER_EMAIL'] as const
+export const SERVER_ENV_KEYS = ['SILOS_ID_URL', 'SILOS_PUBLIC_URL', 'SILOS_OWNER_EMAIL', 'SILOS_TELEMETRY'] as const
 export type ServerEnvKey = (typeof SERVER_ENV_KEYS)[number]
 export type ServerSettings = Partial<Record<ServerEnvKey, string>>
 

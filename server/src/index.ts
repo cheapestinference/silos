@@ -142,6 +142,7 @@ import { CONSOLE_BUSY, CONSOLE_UNSURE, TaskModeEngine, TASK_MODE_SILO } from './
 import { OwnerNoteLedger } from './task-mode/owner-notes.js'
 import { SILOS_AUTHOR } from './system-author.js'
 import { SilosIdClient, silosIdSettingsFromEnv } from './silos-id.js'
+import { InstanceUsage, silosVersion, telemetryOn } from './instance-usage.js'
 import { readServerEnv, serverEnvWarning, serverSettings } from './server-env.js'
 import { SessionTokenStore } from './session-tokens.js'
 import { buildServer } from './server.js'
@@ -974,7 +975,10 @@ const context = new ContextService()
 // chat turn and every console, read by the classification of bearer writes;
 // console entries persist in live-turns.json (an SDK turn never survives a
 // restart — a console does)
-const liveTurns = new LiveTurns({ file: join(cfg.dataDir, 'live-turns.json') })
+// usage told to Silos ID (instance-usage.ts) — set once Silos ID is known
+// below; every turn counts from the first
+let instanceUsage: InstanceUsage | null = null
+const liveTurns = new LiveTurns({ file: join(cfg.dataDir, 'live-turns.json'), onTurn: (attended) => instanceUsage?.countTurn(attended) })
 // the serving of an inbox, marked by the class of the turn — one for
 // the chat engines and the messages route
 const messageReads = new MessageReads(messages, liveTurns, (agentId) => taskAsksBox.v?.asksTo(agentId) ?? [])
@@ -2005,6 +2009,11 @@ const silosIdSettings = silosIdSettingsFromEnv({ ...process.env, ...serverSettin
 if (silosIdSettings && 'off' in silosIdSettings) console.warn(`warning: Silos ID login disabled — ${silosIdSettings.off}`)
 const silosId = silosIdSettings && !('off' in silosIdSettings) ? new SilosIdClient(silosIdSettings, { dataDir: cfg.dataDir }) : null
 const allowlist = (): string[] => (silosId ? silosId.ownerEmails : [])
+// on by default with Silos ID; SILOS_TELEMETRY=off (env or server.env) stops it
+if (silosId && telemetryOn(serverSettings(process.env, serverEnv.values).SILOS_TELEMETRY)) {
+  const version = silosVersion(process.env)
+  instanceUsage = new InstanceUsage({ file: join(cfg.dataDir, 'instance-usage.json'), send: (r) => silosId.reportUsage(r, version) })
+}
 
 // The seal's in-life half: what each agent's engine loads (its folders'
 // configFiles and .claude/settings*.json, the ~/.claude home layer), then
@@ -2120,6 +2129,7 @@ const app = buildServer({
   // «Check now» starts the engine through the same SDK query as the chats
   checkQueryFn: sdkQueryFn,
   silosId,
+  onOwnerActivity: () => instanceUsage?.markActive(),
   sessions,
   allowlist,
   seals,
@@ -2397,7 +2407,16 @@ app
     // broker that lost its registry learns it again); a failure retries lazily
     // on the first sign-in
     silosId?.ensureRegistered(true).then(
-      (id) => console.log(`Silos ID: registered ${silosId.publicOrigin} with ${silosId.brokerUrl} (${id})`),
+      (id) => {
+        console.log(`Silos ID: registered ${silosId.publicOrigin} with ${silosId.brokerUrl} (${id})`)
+        if (instanceUsage && !silosId.canReport)
+          console.warn('Silos ID: this instance holds no reporting key — its usage is not sent (silos-id/README.md › Usage)')
+        // finished days go at boot, then the first hour after each day ends
+        void instanceUsage?.report()
+        setInterval(() => {
+          void instanceUsage?.report()
+        }, 3_600_000).unref()
+      },
       (err: unknown) => console.warn(`Silos ID: registration failed — ${err instanceof Error ? err.message : err}`),
     )
     const url = `http://${cfg.host}:${cfg.port}/?token=${seals.ownerToken() ?? token}`

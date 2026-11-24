@@ -1500,6 +1500,14 @@ export class TerminalService extends EventEmitter {
     const env = { ...cleanEnv(), TERM: 'xterm-256color', HOME: homedir() }
     startPaletteResponder({
       palette,
+      // the reply goes to the pane's stdin by tmux itself: typed into the
+      // listening client it never arrives on tmux ≥ 3.5 (console-palette.ts)
+      deliver: (reply) => {
+        const hex = [...Buffer.from(reply, 'latin1')].map((b) => b.toString(16).padStart(2, '0'))
+        void this.run(['send-keys', '-t', this.consolePane(key), '-H', ...hex]).catch(() => {
+          /* console gone: nothing to theme */
+        })
+      },
       spawn: () =>
         pty.spawn('tmux', ['-u', '-L', this.tmuxSocket, '-f', TMUX_CONF, 'attach-session', '-f', 'ignore-size', '-t', `=${this.consoleName(key)}`], {
           name: 'xterm-256color',

@@ -15,8 +15,13 @@
 //     stays on its own theme for the life of the process.
 // So the answer cannot hinge on when a browser happens to attach. Silos
 // attaches its own short-lived tmux client to a newborn console (`-f
-// ignore-size`: it never sizes the window), answers every palette question
-// with the palette Silos chose for that console, and leaves. The browser's
+// ignore-size`: it never sizes the window) as EARS: the passthrough-wrapped
+// question reaches attached clients only. The answer does NOT go back
+// through that client: tmux ≥ 3.5 consumes OSC replies typed at a client as
+// answers to its own queries and never forwards them to the pane (verified
+// 24-11 on tmux 3.6 — ten typed replies, none delivered; tmux 3.4 forwarded
+// them). The reply is delivered with `send-keys -H` straight to the pane,
+// which every tmux version turns into the program's stdin. The browser's
 // xterm swallows the same questions (TerminalView), so exactly one palette
 // is ever reported.
 
@@ -59,17 +64,21 @@ export class PaletteQueryScanner {
   }
 }
 
-/** The slice of a node-pty process the responder needs. */
+/** The slice of a node-pty process the responder needs — a listener only:
+ *  replies go through `deliver`, never typed into the client (tmux ≥ 3.5
+ *  would eat them). */
 export interface PaletteClient {
   onData(cb: (data: string) => void): unknown
   onExit(cb: () => void): unknown
-  write(data: string): void
   kill(): void
 }
 
 export interface PaletteResponderOptions {
   /** spawns the tmux client attached to the console (`-f ignore-size`) */
   spawn: () => PaletteClient
+  /** hands the reply to the pane's program (`send-keys -H`); never throws
+   *  into the responder — a failed delivery is a kept OpenCode theme */
+  deliver: (reply: string) => void
   /** 16 `#rrggbb` colours, ANSI slot order */
   palette: readonly string[]
   /** leave this long after the last question answered (default 4 s) */
@@ -111,7 +120,13 @@ export function startPaletteResponder(opts: PaletteResponderOptions): { stop(): 
     const asked = scanner.feed(data)
     if (asked.length === 0) return
     const reply = asked.map((n) => (opts.palette[n] ? paletteReply(n, opts.palette[n]!) : '')).join('')
-    if (reply) client.write(reply)
+    if (reply) {
+      try {
+        opts.deliver(reply)
+      } catch {
+        /* a failed delivery is a kept OpenCode theme */
+      }
+    }
     if (quiet) clearTimeout(quiet)
     quiet = setTimeout(stop, quietMs)
     quiet.unref?.()

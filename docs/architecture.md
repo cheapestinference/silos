@@ -101,8 +101,18 @@ When Silos launches its `claude` it adds, by documented means only:
   the instance id, nonce = a single-use state bound to the browser by a
   cookie, 120 s); the instance verifies it against the broker's `/jwks` and
   `SILOS_OWNER_EMAIL`, and mints its 7-day session (`session-tokens.ts`;
-  setup: `docs/deploy/railway-template.md`). The Silos ID settings
-  (`SILOS_ID_URL`, `SILOS_PUBLIC_URL`, `SILOS_OWNER_EMAIL`) come from the
+  setup: `docs/deploy/railway-template.md`). An instance on a broker also
+  tells it its use (`instance-usage.ts`, on unless `SILOS_TELEMETRY=off`):
+  per UTC day the hours the owner's credential reached the API (the
+  `onRequest` hook) and the turns started — attended (chat, console
+  spawned) or not (heartbeat, wake, run) — counted where `LiveTurns` mints
+  them (`onTurn`); kept in `<data>/instance-usage.json`, finished days sent
+  at boot and hourly to `POST /usage`, signed HMAC-SHA256 with the key the
+  broker gave this instance once at registration (`silos-id.json`), dropped
+  once they land. The broker keeps them on the instance's record beside its
+  own counts (boots, passes issued, who signed in) and shows them to
+  `SILOS_ID_ADMIN_EMAILS` at `/stats`. The Silos ID settings
+  (`SILOS_ID_URL`, `SILOS_PUBLIC_URL`, `SILOS_OWNER_EMAIL`, `SILOS_TELEMETRY`) come from the
   environment merged with `<data dir>/server.env` (`server-env.ts`), read
   once at boot so a hand-started or `npm run dev` server keeps them across
   restarts: `KEY=VALUE` lines, blank lines and `#` lines skipped, the value
@@ -2949,18 +2959,19 @@ and carry no compatibility promise, with two exceptions that are contracts:
 
 _Operator settings:_
 
-| Variable                            | Default                              | What                                                                                                                                      |
-| ----------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `SILOS_DATA_DIR`                    | `~/.silos`                           | Silos' own state (agents, token, trash, cache, silos…)                                                                                    |
-| `SILOS_ROOT`                        | `~/.claude/projects`                 | where Claude Code's transcripts are read                                                                                                  |
-| `SILOS_HOST`                        | `127.0.0.1`                          | bind address (`0.0.0.0` only in a container behind its proxy)                                                                             |
-| `SILOS_PORT` / `PORT`               | `3210`                               | listening port; `PORT` is the PaaS fallback, `SILOS_PORT` wins                                                                            |
-| `SILOS_TOKEN`                       | generated into `<data>/token`        | fixes the owner's access token (and rotates it when changed)                                                                              |
-| `SILOS_PUBLIC_URL`                  | Railway's domain, if any             | this instance's public origin (its Silos ID registration); may also live in `<data>/server.env`                                           |
-| `SILOS_ID_URL`, `SILOS_OWNER_EMAIL` | —                                    | remote sign-in through a Silos ID broker (`docs/deploy/railway-template.md`); may also live in `<data>/server.env` (the environment wins) |
-| `SILOS_OPENCODE_BIN`                | `opencode` on `PATH`                 | the OpenCode binary                                                                                                                       |
-| `SILOS_OPENCODE_DATA`               | `$XDG_DATA_HOME` or `~/.local/share` | where OpenCode's database is read                                                                                                         |
-| `SILOS_TMUX_SOCKET`                 | `silos`                              | the tmux socket name the consoles live on                                                                                                 |
+| Variable                            | Default                              | What                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SILOS_DATA_DIR`                    | `~/.silos`                           | Silos' own state (agents, token, trash, cache, silos…)                                                                                                     |
+| `SILOS_ROOT`                        | `~/.claude/projects`                 | where Claude Code's transcripts are read                                                                                                                   |
+| `SILOS_HOST`                        | `127.0.0.1`                          | bind address (`0.0.0.0` only in a container behind its proxy)                                                                                              |
+| `SILOS_PORT` / `PORT`               | `3210`                               | listening port; `PORT` is the PaaS fallback, `SILOS_PORT` wins                                                                                             |
+| `SILOS_TOKEN`                       | generated into `<data>/token`        | fixes the owner's access token (and rotates it when changed)                                                                                               |
+| `SILOS_PUBLIC_URL`                  | Railway's domain, if any             | this instance's public origin (its Silos ID registration); may also live in `<data>/server.env`                                                            |
+| `SILOS_ID_URL`, `SILOS_OWNER_EMAIL` | —                                    | remote sign-in through a Silos ID broker (`docs/deploy/railway-template.md`); may also live in `<data>/server.env` (the environment wins)                  |
+| `SILOS_TELEMETRY`                   | on                                   | `off` stops telling the Silos ID broker this instance's daily use (hours open, turns, version — `instance-usage.ts`); may also live in `<data>/server.env` |
+| `SILOS_OPENCODE_BIN`                | `opencode` on `PATH`                 | the OpenCode binary                                                                                                                                        |
+| `SILOS_OPENCODE_DATA`               | `$XDG_DATA_HOME` or `~/.local/share` | where OpenCode's database is read                                                                                                                          |
+| `SILOS_TMUX_SOCKET`                 | `silos`                              | the tmux socket name the consoles live on                                                                                                                  |
 
 _Test-harness switches_ (the e2e harness and isolated servers; not product
 settings): `SILOS_HOME` (the home whose `~/.claude` is read),

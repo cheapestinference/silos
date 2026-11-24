@@ -80,7 +80,8 @@ describe("a skinned console answers its TUI's palette question", () => {
     expect(opt(['show-options', '-w', '-v', '-t', name, 'window-style'])).toBe('bg=#faf9f5,fg=#141413')
     expect(opt(['show-options', '-p', '-v', '-t', name, 'allow-passthrough'])).toBe('on')
 
-    const deadline = Date.now() + 10_000
+    // the asker writes its file after up to 1 s of boot + 10 s of asking
+    const deadline = Date.now() + 15_000
     while (!existsSync(out) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100))
     const got = readFileSync(out, 'utf8')
     const hex = (c: string): string =>

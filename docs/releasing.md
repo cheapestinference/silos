@@ -74,7 +74,7 @@ takes fixes without features.
 
 The workflow runs in the `release` environment, which only accepts `v*`
 tags — and a repository rule lets only the owner create, move or delete
-those ([GOVERNANCE.md](../GOVERNANCE.md)). The environment needs one secret,
-`NPM_TOKEN` (an npm automation token with publish rights on `silosplatform`):
-Settings › Environments › release › Environment secrets. The image is pushed
-with the workflow's own `GITHUB_TOKEN`.
+those ([GOVERNANCE.md](../GOVERNANCE.md)). It needs one secret, `NPM_TOKEN`
+(an npm automation token with publish rights on `silosplatform`), as a
+repository secret (Settings › Secrets and variables › Actions). The image is
+pushed with the workflow's own `GITHUB_TOKEN`.

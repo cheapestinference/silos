@@ -15,7 +15,7 @@ jobs:
   publish:
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
-    # the `release` environment holds NPM_TOKEN and only runs for v* tags,
+    # the `release` environment only runs for v* tags,
     # which only the owner can create (GOVERNANCE.md)
     environment: release
     steps:
