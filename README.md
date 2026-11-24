@@ -4,10 +4,10 @@
 
 # Silos
 
-**Run your Claude Code agents like a team.**
+**The open framework for running Claude Code and OpenCode agents your way.**
 
-A coding agent in a terminal hides what it loaded, what it remembers, what it costs and what it left running.<br>
-Silos puts all of it on one screen — for one agent or ten — and lets you steer them from there.
+Create agents with a name, a mission and their real console. Give them any job.<br>
+Shape how they work with silos — installable pieces you add, remove or write yourself.
 
 [![CI](https://github.com/cheapestinference/silos/actions/workflows/ci.yml/badge.svg)](https://github.com/cheapestinference/silos/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -150,9 +150,9 @@ Remote sign-in is opt-in and has one way in: Silos ID (`SILOS_ID_URL` + `SILOS_O
 
 ## Deploying
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/silos)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/silos?referralCode=aDkqEf)
 
-**Railway, one click — sign-in included.** The supported way to run Silos in the cloud is the [Railway](https://railway.com?referralCode=wLj_vg) template: one service running the released image (`ghcr.io/cheapestinference/silos`, kept up to date by Railway's image auto-updates), one volume at `/data` (it holds `~/.claude` and `~/.silos`), and an access token generated for you. Sign-in is **Silos ID** and it is already wired: the template asks for one thing, `SILOS_OWNER_EMAIL`, and you log in with Google or an email link on your instance's own domain — no auth provider to set up, no Firebase project of your own. Silos ID only vouches for who you are; your instance checks the email and mints its own session, and nothing of your data leaves it. Settings and details: [docs/deploy/railway-template.md](docs/deploy/railway-template.md).
+**Railway, one click — sign-in included.** The supported way to run Silos in the cloud is the [Railway](https://railway.com?referralCode=aDkqEf) template: one service running the released image (`ghcr.io/cheapestinference/silos`, kept up to date by Railway's image auto-updates), one volume at `/data` (it holds `~/.claude` and `~/.silos`), and an access token generated for you. Sign-in is **Silos ID** and it is already wired: the template asks for one thing, `SILOS_OWNER_EMAIL`, and you log in with Google or an email link on your instance's own domain — no auth provider to set up, no Firebase project of your own. Silos ID only vouches for who you are; your instance checks the email and mints its own session, and nothing of your data leaves it. Settings and details: [docs/deploy/railway-template.md](docs/deploy/railway-template.md).
 
 <sub>The Railway links on this page carry the maintainer's referral code: deploying through them supports the project at no cost to you.</sub>
 

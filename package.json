@@ -2,7 +2,7 @@
   "name": "silos",
   "version": "0.1.0",
   "private": true,
-  "description": "Run your Claude Code and OpenCode agents like a team: what a terminal hides — what each agent loaded, remembers, costs and left running — on one screen, on your machine.",
+  "description": "The open framework for running Claude Code and OpenCode agents your way: create and manage agents for any job, and shape how they work with installable silos.",
   "keywords": [
     "claude-code",
     "claude-agent-sdk",
