@@ -149,8 +149,8 @@ describe('the turn sentence names the person', () => {
   })
 })
 
-describe('one cause, one meaning: nine, blocker-unowned retired', () => {
-  it('the nine causes, each from its own shape', () => {
+describe('one cause, one meaning: ten, blocker-unowned retired', () => {
+  it('the ten causes, each from its own shape', () => {
     expect([...STALLED_CAUSES].sort()).toEqual([
       'blocked-on-nothing',
       'blocker-cancelled',
@@ -159,6 +159,7 @@ describe('one cause, one meaning: nine, blocker-unowned retired', () => {
       'blocker-parked',
       'in-progress-nothing-live',
       'owner-cannot-run',
+      'owner-outside-project',
       'review-without-reviewer',
       'unowned',
     ])
@@ -173,6 +174,14 @@ describe('one cause, one meaning: nine, blocker-unowned retired', () => {
     expect(flow('a', [T('a', 'teller', 'pending')], { env: { ...ENV, startable: () => false } }).stalledCause).toBe('owner-cannot-run')
     expect(said('a', [T('a', 'teller', 'in_review')])).toBe('review-without-reviewer')
     expect(said('a', [T('a', 'writer', 'in_progress')])).toBe('in-progress-nothing-live')
+    expect(
+      taskFlow(T('a', 'writer', 'pending'), [T('a', 'writer', 'pending')], DICT, {
+        now: NOW,
+        isAgent,
+        location: 'folder:/w',
+        taskEnv: { ...ENV, ownerOutside: () => true },
+      }).stalledCause,
+    ).toBe('owner-outside-project')
   })
   it("«unowned» says «it» or «a blocker» by stalledBy === id; the turn says the seat's words", () => {
     expect(flow('a', [T('a', '', 'pending')])).toMatchObject({ stalledBy: 'a', stalledAt: 'a' })
@@ -405,5 +414,80 @@ describe("the stall episode sees its blockers' states", () => {
     })
     expect(keys).toHaveLength(2)
     expect(new Set(keys).size).toBe(2)
+  })
+})
+
+// (R3) Silos acts only inside the project the task lives in: an agent owner
+// that does not work there is never moved — whatever the event — and the
+// owner reads why (project-scope.ts ownerOutside, the one resolver)
+describe('a task whose owner does not work in its project', () => {
+  const OUT = new Set(['builder'])
+  const env: TaskEnv = { ...ENV, ownerOutside: (o, loc) => loc === 'folder:/w' && OUT.has(o) }
+  const at = (id: string, tasks: Json[]) =>
+    taskFlow(
+      tasks.find((t) => t.id === id)!,
+      tasks,
+      DICT,
+      { now: NOW, isAgent, taskEnv: env, location: 'folder:/w' },
+    )
+  it("reads owner-outside-project — before a live conversation, never idle, its way out the owner's row", () => {
+    expect(at('a', [T('a', 'builder', 'pending')])).toMatchObject({ stalled: true, stalledCause: 'owner-outside-project', stalledAt: 'a', idle: false })
+    const live = taskFlow(
+      T('a', 'builder', 'in_progress', [], { conversations: ['s1'] }),
+      [T('a', 'builder', 'in_progress', [], { conversations: ['s1'] })],
+      DICT,
+      { now: NOW, isAgent, taskEnv: { ...env, isLive: () => true }, location: 'folder:/w' },
+    )
+    expect(live.stalledCause).toBe('owner-outside-project')
+    expect(stallExit(at('a', [T('a', 'builder', 'pending')]), { id: 'a', owner: 'builder', bound: (o) => BOUND.has(o) })).toBe('row')
+    // an agent of the project, the same plan: moved as before
+    expect(at('a', [T('a', 'writer', 'pending')])).toMatchObject({ stalled: false, idle: true })
+    // without the location (a reader that has none), nothing is judged
+    expect(taskFlow(T('a', 'builder', 'pending'), [T('a', 'builder', 'pending')], DICT, { now: NOW, isAgent, taskEnv: env }).stalledCause).toBe(null)
+  })
+  it('a blocker owned outside the project is the seat of what it holds', () => {
+    expect(at('a', [T('a', 'writer', 'blocked', ['b']), T('b', 'builder', 'pending')])).toMatchObject({
+      stalled: true,
+      stalledCause: 'owner-outside-project',
+      stalledBy: 'b',
+      stalledAt: 'b',
+    })
+  })
+  it('the location reaches the flow from the record (KindRecord.location) — no wake, the task forgotten by Task mode', () => {
+    const tasks = [T('a', 'builder', 'pending', [], { nextCheckAt: new Date(NOW - 60_000).toISOString() })]
+    const base: KindRecord[] = [baseRecordOf({ record: { id: 'p', tasks }, anchors: {}, location: 'folder:/w', file: '' })]
+    const facts = taskFlowRecords(MANIFEST, base, { now: NOW, isAgent, taskEnv: env })
+    expect(facts.get('folder:/w/p/tasks/a')?.cause).toBe('owner-outside-project')
+    const reading = {
+      records: [
+        {
+          silo: 'plans',
+          kind: 'plan',
+          source: 'plans',
+          file: '/w/plans/p.plan.json',
+          rel: 'p.plan.json',
+          location: 'folder:/w',
+          anchors: {},
+          mtimeMs: 0,
+          raw: {},
+          record: { id: 'p', title: 'P', tasks },
+          remarks: [],
+          partial: [],
+        },
+      ],
+      unreadable: [],
+      problems: [],
+      sources: {},
+      lastWrite: null,
+      truncated: [],
+    } as unknown as SiloReading
+    const snaps = taskSnapshots(reading, facts)
+    // bound and of the project: its next check wakes it
+    const inside = evaluateTaskWakes({ tasks: snaps.map((t) => ({ ...t, owner: 'writer' })), bound: BOUND, prev: {}, now: NOW })
+    expect(inside.wakes.map((w) => w.reason)).toEqual(['next-check'])
+    // the same task, its bound owner of another project: nothing fires, nothing is kept
+    const outside = evaluateTaskWakes({ tasks: snaps.map((t) => ({ ...t, ownerOutside: true })), bound: BOUND, prev: inside.observations, now: NOW })
+    expect(outside.wakes).toEqual([])
+    expect(outside.observations).toEqual({})
   })
 })

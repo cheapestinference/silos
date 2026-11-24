@@ -34,12 +34,15 @@ const temp = (p: string): string => {
   return d
 }
 
-const agents = (n: number, hostile = false) => ({
+// one project: builder works in `root`, every other agent in a folder inside
+// it — so builder knows them all, and a session started by hand in `root`
+// is told them all
+const agents = (n: number, hostile = false, root = '/home/u/projects') => ({
   agents: Array.from({ length: n }, (_, i) => ({
     id: i === 0 ? 'builder' : `agent${i}`,
     name: i === 0 ? 'Builder' : `Agent ${i}`,
     emoji: '🛠',
-    folder: hostile ? `/p/${'deep/'.repeat(400)}${i}` : `/home/u/projects/p${i % 5}`,
+    folder: i === 0 ? root : hostile ? `${root}/${'deep/'.repeat(400)}${i}` : `${root}/p${i % 5}`,
     folders: i % 3 === 0 ? [`/home/u/shared/area-${i}`] : [],
     mission: { text: hostile ? 'x'.repeat(5000) : `Keeps part ${i} of the business running and reports weekly. Then more.` },
   })),
@@ -84,12 +87,15 @@ async function hook(r: Run): Promise<{ ctx: string; raw: string }> {
     mkdirSync(join(proj, '.claude', 'skills', s), { recursive: true })
     writeFileSync(join(proj, '.claude', 'skills', s, 'SKILL.md'), 'x')
   }
+  // a session with no identity reads the roster from the file, never the API
+  mkdirSync(join(home, '.silos'))
+  writeFileSync(join(home, '.silos', 'agents.json'), JSON.stringify(agents(r.roster, r.hostile, proj)))
   const server = createServer((req, res) => {
     res.setHeader('content-type', 'application/json')
     const u = req.url ?? ''
     if (u.startsWith('/api/agents/')) return res.end(JSON.stringify({ messages: inbox(r.msgs, r.hostile) }))
     if (u.startsWith('/api/tasks/by-session')) return res.end(JSON.stringify(tasks(r.tasks ?? 0)))
-    res.end(JSON.stringify(agents(r.roster, r.hostile)))
+    res.end(JSON.stringify(agents(r.roster, r.hostile, proj)))
   })
   servers.push(server)
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok))
@@ -121,7 +127,8 @@ const AGENT = { SILOS_AGENT_ID: 'builder', SILOS_AGENT_TOKEN: 't', SILOS_TURN: '
 const BRIEFED = { ...AGENT, ...BRIEFED_ENV }
 const HEAD = '# You are running inside Silos'
 const SLIM = '# Silos runs on this machine' // what a session without a bearer gets instead
-const FLEET = 'Your fleet (Silos):'
+const FLEET = 'Your projects (Silos):'
+const HERE = "This folder's agents (Silos):" // what a session with no identity is told
 
 describe('session-start hook: always under the cap', () => {
   const skillSets = [[], ['team-plan'], [...BRIEFING_FRAGMENTS]]
@@ -140,7 +147,7 @@ describe('session-start hook: always under the cap', () => {
   // part. Kept: the smallest (1 agent, no message — the most briefing; the
   // hand-started ones measured 9,421 of 9,500), the fullest shown in full
   // (7 agents, 7 messages — 9,472, the highest measured) and the truncated
-  // one (30 agents: 12 shown and «and 18 more»); the hostile fields below.
+  // one (30 agents: builder is told 29 — 12 shown and «and 17 more»); the hostile fields below.
   const fleets: Array<[number, number]> = [
     [1, 0],
     [7, 7],
@@ -185,7 +192,8 @@ describe('session-start hook: always under the cap', () => {
 
   it('a roster or a task list too long to show says how many more and where', async () => {
     const { ctx } = await hook({ skills: [], roster: 30, msgs: 0, env: BRIEFED, source: 'clear', tasks: 10 })
-    expect(ctx).toContain('- … and 18 more — the whole fleet: GET ${SILOS_API:-http://127.0.0.1:3210}/api/agents')
+    // 30 agents of one project: builder is told the other 29 — 12 shown, 17 more
+    expect(ctx).toContain('- … and 17 more — GET ${SILOS_API:-http://127.0.0.1:3210}/api/agents')
     expect(ctx.split('This console was working on').length - 1).toBe(3)
     expect(ctx).toContain(
       '… and 7 more tasks this console works — the list: GET ${SILOS_API:-http://127.0.0.1:3210}/api/tasks/by-session?session=$SILOS_SESSION_ID',
@@ -259,7 +267,7 @@ describe('session-start hook: each source sends what the context does not carry 
       const { ctx } = await hook({ ...base, env: {}, source })
       expect(ctx.startsWith(SLIM), source).toBe(true)
       expect(ctx, source).not.toContain(HEAD)
-      expect(ctx, source).toContain(FLEET)
+      expect(ctx, source).toContain(HERE)
       const agent = await hook({ ...base, env: AGENT, source })
       expect(agent.ctx.startsWith(HEAD), source).toBe(true)
     }

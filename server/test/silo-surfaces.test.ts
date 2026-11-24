@@ -42,6 +42,7 @@ function setup(
     archived?: Set<string>
     escalatedRow?: (silo: string, entry: number, key: string) => { since: string; asked: string[] } | null
     escalations?: () => SiloNeedsYou[]
+    ofLocation?: (agentId: string, location: string) => boolean
   } = {},
 ) {
   const dataDir = join(base, 'data')
@@ -78,6 +79,7 @@ function setup(
     ...(opts.archived ? { inPlay: (v: string) => isAgent(v) && !opts.archived!.has(v) } : {}),
     ...(opts.escalatedRow ? { escalatedRow: opts.escalatedRow } : {}),
     ...(opts.escalations ? { escalations: opts.escalations } : {}),
+    ...(opts.ofLocation ? { ofLocation: opts.ofLocation } : {}),
   })
   kernel.refresh()
   return {
@@ -521,6 +523,19 @@ describe("audience: producer-agent — the entry's rows go to the producer, coun
   it('a record whose writer is no longer bound falls to the first producer in play', () => {
     const { surfaces, now } = setup([routedInvoices()], { producers: ['writer'] })
     expect(surfaces.board(now()).withProducer).toMatchObject([{ agentId: 'writer', count: 1 }])
+  })
+
+  it('(R3) a record routes only to a producer of its location — writer or fallback; none there, the owner keeps it', () => {
+    const ofLocation = (a: string, loc: string): boolean => loc === `agent:${a}`
+    // the writer is of its own state: routed to it, as before
+    const mine = setup([routedInvoices()], { producers: ['writer', 'finance'], ofLocation })
+    expect(mine.surfaces.routedRows(mine.now())).toMatchObject([{ producer: 'finance', location: 'agent:finance' }])
+    // finance's record, only writer bound: the fallback is not of finance's state — no route
+    const other = setup([routedInvoices()], { producers: ['writer'], ofLocation })
+    expect(other.surfaces.routedRows(other.now())).toEqual([])
+    const b = other.surfaces.board(other.now())
+    expect(b.withProducer).toEqual([])
+    expect(b.needsYou.map((n) => n.key)).toEqual(['agent:finance/a1'])
   })
 
   it('a binding with an archived agent first routes to the next agent in play', () => {

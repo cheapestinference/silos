@@ -73,6 +73,20 @@ export function defaultHeartbeat(id: string): Heartbeat {
   return { period: defaultPeriod(id) }
 }
 
+/** A proactive agent's rounds when the owner asked for Proactive at birth:
+ *  every 3 hours between 08:00 and 20:00 (the «Make X proactive» sheet's
+ *  own fallback, web/src/lib/proactive.ts SHEET_FALLBACK), with Silos'
+ *  default limits — PROACTIVE_PER_DAY tasks a day, its tools on. Changed
+ *  on its page. Stamped like any PATCH's period: `since` today, `at` the
+ *  agent's staggered minute from the band's start. */
+export const PROACTIVE_BIRTH_PERIOD: Period = { every: 3, unit: 'hours', between: { from: '08:00', to: '20:00' } }
+export function proactiveAtBirth(id: string, now: number): { heartbeat: Heartbeat; proactive: Proactive } {
+  return {
+    heartbeat: { period: stampPeriod(PROACTIVE_BIRTH_PERIOD, { prior: null, today: periodDay(now), staggerMinute: staggeredMinute(id) }) },
+    proactive: { perDay: PROACTIVE_PER_DAY, tools: true },
+  }
+}
+
 const HEARTBEAT_KEYS: ReadonlySet<string> = new Set(['period', 'sleepUntil', 'sleepWhy'])
 
 /** The heartbeat as stored. The field absent, or an

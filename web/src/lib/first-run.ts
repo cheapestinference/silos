@@ -15,10 +15,19 @@ export interface TourChoice {
   start?: Record<string, boolean> // At start: only the classes the owner toggled (for `engine`)
 }
 
-// the tour's steps: «At start» only for an engine that declares what a new
-// project starts with — one that declares nothing has the four steps
-export function tourSteps(classes: readonly unknown[]): (typeof TOUR_STEPS)[number][] {
-  return TOUR_STEPS.filter((s) => s.id !== 'at-start' || classes.length > 0)
+// the tour's steps: «Engine» only when this machine can run more than one
+// (the birth model's rule — with one, it is that one, see engineOf), «At
+// start» only for an engine that declares what a new project starts with
+export function tourSteps(classes: readonly unknown[], engines: readonly { usable: boolean }[]): (typeof TOUR_STEPS)[number][] {
+  const usable = engines.filter((r) => r.usable).length
+  return TOUR_STEPS.filter((s) => (s.id !== 'at-start' || classes.length > 0) && (s.id !== 'engine' || usable > 1))
+}
+
+// the engine a tour without its Engine step runs: the one usable engine
+// when the pick can't run here; otherwise the pick stands
+export function engineOf(picked: string, engines: readonly { id: string; usable: boolean }[]): string {
+  const usable = engines.filter((r) => r.usable)
+  return usable.length === 1 && !usable.some((r) => r.id === picked) ? usable[0]!.id : picked
 }
 
 export interface EngineRow {
@@ -88,15 +97,22 @@ export function agentPayloadExtras(choice: TourChoice, defaultEngine: string): {
 }
 
 // How an agent works — asked at birth, never inferred from whether a
-// mission was written: «when you give it work» (Only when told; a mission
-// only describes the job) or «also on its own» (it wakes on its rhythm and
-// answers for its mission — so it needs one).
-export type Works = 'told' | 'own'
+// mission was written: the control ladder's three rungs as one choice —
+// «when you give it work» (Only when told; a mission only describes the
+// job), «also on its own» (it wakes on its rhythm and answers for its
+// mission) or «proactive» (on its own and it looks for work, born with
+// Silos' default limits). The last two need a mission.
+export type Works = 'told' | 'own' | 'proactive'
 export function worksProblem(works: Works, missionText: string, name: string): string | null {
-  return works === 'own' && missionText.trim() === '' ? `On its own, ${name || 'it'} needs a mission — write what it takes care of.` : null
+  return works !== 'told' && missionText.trim() === ''
+    ? `${works === 'own' ? 'On its own' : 'Proactive'}, ${name || 'it'} needs a mission — write what it takes care of.`
+    : null
 }
-// the server makes a mission On its own unless told otherwise: the one ask
-export function worksPayload(works: Works, missionText: string): { control?: 'told' } {
+// the server makes a mission On its own unless told otherwise: the two asks
+// a birth takes (server/src/routes/agents.ts) — told with a mission, or
+// proactive (the server gives it its default rounds and limits)
+export function worksPayload(works: Works, missionText: string): { control?: 'told' | 'proactive' } {
+  if (works === 'proactive') return { control: 'proactive' }
   return works === 'told' && missionText.trim() !== '' ? { control: 'told' } : {}
 }
 

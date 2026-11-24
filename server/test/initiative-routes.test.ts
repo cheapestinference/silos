@@ -91,7 +91,7 @@ async function world() {
     proposals: new SiloProposals(siloRegistry.root),
     agentStateBase: join(dataDir, 'agent-state'),
     isAgent,
-    agentMayReadLocation: () => false,
+    agentMayReadLocation: (_id, loc) => loc === `folder:${proj}` /* every agent here works in proj (bearer-scope.ts) */,
   })
   const chat = new ChatService({
     registry,

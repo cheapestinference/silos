@@ -53,11 +53,12 @@ function MainPane() {
   if (page?.kind === 'background') return <BackgroundPage />
   if (page?.kind === 'usage') return <UsagePage />
   if (page?.kind === 'tasks') return <TasksView />
-  if (page?.kind === 'task') return <TaskPage key={`${page.plan}/${page.task}`} planKey={page.plan} taskId={page.task} from={page.from} />
+  if (page?.kind === 'task')
+    return <TaskPage key={`${page.plan}/${page.task}`} planKey={page.plan} taskId={page.task} from={page.from} give={page.give === true} />
   if (page?.kind === 'map') return <MapPage />
   if (page?.kind === 'system') return <SystemPage />
   if (page?.kind === 'files') return <FilesPage />
-  if (page?.kind === 'vault') return <VaultPage sign={page.sign} entry={page.entry} />
+  if (page?.kind === 'vault') return <VaultPage sign={page.sign} entry={page.entry} add={page.add} />
   if (page?.kind === 'silo') return <SiloPage />
   return <AgentPage />
 }

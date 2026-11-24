@@ -12,7 +12,8 @@ repeat it.
 ## The job
 
 The user runs a fleet of Claude Code agents that work for them — a business,
-a codebase, an operation. They hire Silos to:
+a codebase, an operation, or several kept apart on one install. They hire
+Silos to:
 
 > know what matters, decide what's theirs to decide, and hand out work in a
 > sentence — without living on top of the agents.
@@ -57,7 +58,8 @@ Agent, Project, Task and Conversation. Other things *look like* a task or a
 plan and are **not** Silos nouns.
 
 - **Agent** — someone with a name, a mission and a folder (Silos).
-- **Project** — the place where work happens: a folder (Silos).
+- **Project** — the place where work happens: a folder (Silos) — and the
+  edge of what its agents know and reach. Folders that nest are one project.
 - **Task** — a piece of work with an owner, a status and its history
   (Silos). A task belongs to a project; a task without a project does not
   exist (no fenced agent could read it). «New task» asks what, who and —
@@ -83,6 +85,44 @@ it and never turns it into a task. What has an owner in the team is a Silos
 Task. «Your own steps inside this conversation stay here — in the engine's
 checklist when it has one — never as Silos tasks. Plan mode's proposal is
 Claude Code's; it never goes in `plans/`.»
+
+**A project is a boundary.** An agent works in one or more folders; the
+agents that work in a project of its own are the only ones it knows.
+Silos tells an agent about, and lets it reach, only that: those agents
+in its roster, messages and asks among them, the tasks of its projects'
+plans, the files of its folders. Every other project of the install —
+its agents, tasks, files and conversations — does not exist for it.
+**Only you open a way across**: an agent asks you and you carry it, or
+you give the agent that folder (its Profile › Runs on) — it is then of
+that project, in sight of everyone there, and it knows both. What you
+set up on this machine and what your Claude account sends stay above
+every project: they are the engine's and yours, shown on each project
+under «From This machine» and «From Your Claude account» and switched
+there.
+
+**Where projects live** (owner 24-11, after an adversarial review). A new
+project is born in the **Projects folder** — `~/Silos` unless changed, one
+per install, `<Projects folder>/<project>`. A folder you already work in (a
+repo with its Claude Code history) is **registered where it is**: nothing is
+moved, linked or copied, because Claude Code keys a folder's conversations,
+memory and permissions by its absolute path — moving it would start them
+over. What a project is, is Silos' record (the agents and their folders,
+sealed), never what sits on disk: the Projects folder shows the new ones,
+it is never read back to decide anything. Every door that gives an agent a
+folder (Welcome, New agent, its Profile, a role pack) goes through one
+check, on the folder's real path: never your home, `/`, Silos' or the
+engine's own folders, the Projects folder itself, nor a folder that holds
+another project or sits inside one — an agent works in its project's
+folder, never a subfolder of it; working in two projects is giving it the
+second folder. A project keeps its name and place: renaming it would mean
+moving it. Removing a registered project forgets it and never touches its
+files. No agent may write a file the engine loads from above a project (a
+`CLAUDE.md` in the Projects folder would reach every project). Inside a
+project, `CLAUDE.md` and `.claude/` are the engine's, shared by every agent
+there; `plans/` holds its tasks, `context/shared/` what all its agents
+read, `context/<agent>/<topic>/` what each one delivers. An agent's own
+identity — name, mission, its «Never» lines — is Silos', kept outside the
+project: only you write it.
 
 ### How tasks work
 
@@ -226,8 +266,9 @@ block, filled with that task.
 it owns (+ `dependsOn` if you wait) — creating it wakes nobody; a message is
 read at its next conversation, never a wake; to move it now, the owner
 starts it (its row says «Not started», and an agent On its own may pick it
-up when it next thinks). In another agent's territory, only the message,
-which the receiver turns into a task. A wait on a person is their task +
+up when it next thinks). In a folder that is another agent's of your
+projects and not yours, only the message, which the receiver turns into a
+task. Outside its projects an agent has nobody to message: it asks you. A wait on a person is their task +
 `dependsOn`, or `waitingOn {owner, action, asked}` on yours; `in_review`
 only when that task IS the review. A wait on the owner always says what it
 asks (`asked`, and `options` when the answer is a choice): Needs you quotes
@@ -250,13 +291,19 @@ wait was written by hand): then it is a Needs-you row, «X waits on Y —
 says so — «X wrote a wait on itself — <what>».
 
 **Give it to someone who will move it** (moment 2). A
-task nobody moves — nobody's, an archived agent's, the wrong agent's — is
+task nobody moves — nobody's, an archived agent's, the wrong agent's, an
+agent's that does not work in its project — is
 given on its page: «Give to… ›», beside Drop, lists you and the agents
 whose folders hold its project, none picked for you. One gesture: the new
 owner, a note saying who it came from, the old conversations let go; an
 agent On its own starts on it, one Only when told waits for you («Open Y
 ›»). Needs you's «N tasks sit untouched» leads there through its lens — no
-row gives a task in one tap. Writing to a closed task of an agent reopens
+row gives a task in one tap. A task whose owner works in another project
+says so on the row («…its owner works in another project; give it to an
+agent of its own»); its Untouched line ends in «Give to… ›» and opens the
+page on the form, and the page's banner names the agents of its project as
+the way out («Give it to Builder, Finance … or you») — each a pick, Give
+still the one gesture. Writing to a closed task of an agent reopens
 it; writing on a person's is for the record.
 
 **New work is one gesture** (moment 3). New task, the
@@ -428,20 +475,31 @@ the pulse.
   decision with its Undo (moment 2: what an agent decided alone goes to its
   page and to Since, never to Needs you); the plan's use by account lives
   in This week's meter. A fresh install opens on
-  Welcome instead — a short tour of four steps on one card (five when its
-  engine declares what a new project starts with), each saying in
-  a line what the thing is, a rail on top naming what each step has picked:
-  **Who** («Who do you want working for you?»: its first agent — a loose
-  conversation is not offered here, the «+» menu keeps it — a name, how it
-  works, asked and never inferred (*When you give it work*, recommended, or
-  *Also on its own*: it wakes once a week for its mission, so then the
-  mission is required; a line names the third rung, Proactive, chosen
-  later on its page), what it takes care of (the mission — optional when it
-  works only when given work, and in every case the head of each of its
-  conversations), where its files are (`~/Silos/<id>`, its project; change
-  it if they live elsewhere)), **Engine** (every
+  Welcome instead — a short tour on one card, each step saying in a line
+  what the thing is, a rail on top naming only the steps that exist and
+  what each has picked; it draws the same birth model as the New agent
+  form (`lib/birth.ts`), in two steps where the form has one dialog:
+  **Project** first («What are you working on?», and that a project is a
+  folder its agents work in, the edge of what they know: a fresh install
+  knows none, so it is a new one by name, made at `~/Silos/<project>` —
+  the folder said under it —, named like the agent until you name it
+  yourself; never a path), **Who** («Who do you want working for you?»:
+  its first agent — a loose conversation is not offered here, the «+» menu
+  keeps it —: a name,
+  how it works, asked and never inferred — the control ladder's three rungs
+  as one choice: *When you give it work* (recommended), *Also on its own*
+  (it wakes once a week for its mission) or *Proactive* (on its own, and it
+  looks for work: born with Silos' default limits — a round every 3 hours
+  by day, up to 5 tasks a day —, changed on its page); the two upper rungs
+  need a mission and the Task mode silo —, and what it takes care of (the
+  mission — optional when it works only when given work, and in every case
+  the head of each of its conversations)), **Engine** (only when this
+  machine can run more than one — with one, it is that one: every
   registered engine with its version here, the default recommended; one
-  this machine can't run is shown with its verdict and can't be picked),
+  this machine can't run is shown with its verdict and can't be picked;
+  one line says Silos connects to it, the detail — Claude Code's two
+  hooks, which Create installs — lives in Settings › Engines, which
+  removes them),
   **Runs on** (the machine's own login first — signing in to Claude in
   place —, another account or an API key, connected right there; on an
   engine with its own sign-in by link, its subscriptions too — a ChatGPT
@@ -450,8 +508,10 @@ the pulse.
   Accounts & providers),
   **At start** («What should <Name> start with?» — only on an engine that
   declares what a new project starts with; Claude Code does: *Included* is
-  what you set up on this machine, a fact with its counts — what this
-  machine keeps off named apart, never «always on» —, and the skills
+  what you set up on this machine, a class with its counts and a box,
+  Recommended on — what this machine keeps off named apart, never «always
+  on»; unticked, a new project turns each of them off in its own Tools and
+  Skills, and this machine is not changed —, and the skills
   your Claude account sends, untickable with one line of what goes; *Add if
   you like* are the plugins and the connectors your Claude account sends,
   each naming what the login sends when Silos knows it; «Create» saves the
@@ -461,7 +521,18 @@ the pulse.
   ones that need no agent offered to add). Every step starts
   on its recommended value and «Create» is live from the first: a name and
   «Create» is still the whole first run, no commands; «Skip for now» makes
-  nothing and gives the pane to Home. While the install is still empty the
+  nothing and gives the pane to Home. Every later agent is born the same way: the
+  **New agent** form (the «+» menu's New agent, a project's «+ agent»,
+  New project's proposal — which opens on its project) asks only Project
+  (first: a project Silos knows, or a new one by name, by default named like
+  the agent), Name, How it works (the same three rungs), Mission and —
+  only when this machine can run more than one — Engine; a door that
+  opens it on a project has that project picked. No path is typed (adopting
+  a folder from outside is New project's), and the agent's folder is its
+  project's folder itself. The rest is chosen later: the model per
+  conversation (its Run on panel), skills and files on its page («Give
+  <Name> something to work with»), what a project starts with in that
+  project's Tools. While the install is still empty the
   sidebar's list holds one door, «Start a conversation or a project», and
   its «+» a quiet terracotta mark, both gone once anything exists. The new
   agent's page proves it is alive («<Name> is reading its mission…», then
@@ -508,6 +579,11 @@ the pulse.
   the configuration says could. **Org is one word**: Home's date line, a project's tile, the Map's tab, the way back from a count («‹ Org»,
   from the Map or from the reporting silo's page) and that page's section
   all say «Org»; «who reports to whom» is what it draws, never its name.
+  One org per project (folders that nest are one project). A line whose
+  two agents share no project is drawn **kept apart** under the org of
+  the one that reports — a broken stroke, «out of every chain» — with
+  «Redraw ›» to the reporting silo's page; the agent's Who card says the
+  same in its «Reports to» line.
   On a phone Home is the first screen: the app opens on it, browser back
   returns to it, the list of agents and conversations is one tap away
   (the date line's panel button), and the lens line hides — lenses are
@@ -637,7 +713,8 @@ the pulse.
   its «N more yours to do ›» opens Yours to do — the set it left out.
 - **Agent page** — tabs under the header: **Now · Messages · Automations ·
   Files · Memory · Skills · Tools · Secrets · At start · Profile**. **Messages** holds
-  both halves of what passes between agents in ONE list — what it received
+  both halves of what passes between it and the agents of its projects in
+  ONE list — what it received
   (↙) and what it sent (↗), each with the other side, where it stands in the
   recipient's inbox and the answer it got (the moment: «what did it ask,
   what was it asked, who still owes an answer?», across all its
@@ -665,7 +742,14 @@ the pulse.
   top (why it acts, its Never rules, its proposals), then two cards, each
   with its own Edit: **Who** (name, whom it reports to) and **Runs on**
   (engine, model, the voice it answers in, provider, folders, and its
-  territory with its switch and its token). No second level.
+  territory with its switch and its token). Under the folders, one derived
+  line — **Works with** «Finance and Ops», per folder when it has several,
+  or «The only agent in its projects». Changing its folders says before
+  Save what that opens and closes: «Scribe will also work in beta: it will
+  know and reach Maker there, open that folder, and may carry what it
+  learns between acme and beta. Its conversations still start in acme.» —
+  and that it takes effect in new conversations (the ones open now keep
+  what they started with). No second level.
   Nouns, never questions. ONE tab at a time; every link (a URL facet, the
   conversation's column) lands on its tab. **Now** is the cover — what is
   alive, then a door line per tab. Memory, Files, Skills and Tools show
@@ -780,6 +864,26 @@ the pulse.
   plugin that is off) is never offered. On OpenCode, which loads Silos'
   skills from its own skills path too, a held name is denied at launch
   (`permission.skill`), so held is off there as well.
+  **An agent never writes a skill — it proposes it.** The three states say
+  whether a skill loads, never who may change it: an agent reads and uses
+  an active skill and does not edit it, in any turn. When it wants a new
+  skill of its own, or a better version of one its project has, it writes
+  the whole skill aside and proposes it; you meet it in Needs you («Builder ·
+  changed a skill — support — in <project>»), read every file that would
+  load — a changed one opens as its diff against the project's copy, a
+  removed one struck — and Accept or Dismiss. Accept puts it in place (the
+  copy it replaces goes to the trash) and it loads at the next
+  conversation; if either side changed after it was proposed, Accept
+  refuses and asks you to read it again. An agent proposes only for its own
+  project folders, and never over Silos' own skills.
+  **What an agent proposes in a conversation is decided there too.** While
+  you talk to it, its proposal (a skill, an automation, its mission) shows
+  in that conversation's column as «Proposed here» — what it is, the
+  agent's why, Accept or Dismiss, and «Read it all» for the same sheet as
+  Needs you — so you never leave the conversation to say yes. It is the
+  column, never a window over the conversation, and only the conversation
+  it was proposed in carries it; Needs you keeps the row for when you were
+  not there. A mission and a command stay «Review ›»: their editor decides.
   **At start** answers "why does it
   write like that?": what every conversation receives before its first
   message, read from disk by its engine and never run — the start hooks
@@ -791,7 +895,9 @@ the pulse.
   <project> ›»). An engine
   that can't say hides it.
   Its Profile tab holds who it is and what it runs on — with its
-  **territory**: whether its fence is on (switched there; the roster in
+  **territory**: whether its fence is on — off, it is still kept out of
+  other projects' folders, conversations and memory and of the credentials
+  Silos keeps (switched there; the roster in
   Settings › Territory is the fleet's view of the three surfaces, and the door
   for network and private paths), what it works in, its token. No conversation
   section: its conversations live in the sidebar — the sidebar is navigation, and an
@@ -851,7 +957,10 @@ the pulse.
   Memory · Files · Skills · Tools · Map** — the agent page's nouns in its
   order (each id is its
   tab's name, `/project/<folder>/<tab>`, no aliases): Now is the Home scoped
-  to the folder (pulse, inbox, agents, its plans, orphaned conversations);
+  to the folder (pulse, inbox, agents, its plans, orphaned conversations;
+  its agents follow the one resolver — an agent whose folder is around
+  this one is of it too, and its tile says «from acme»; a nested folder's
+  page shows its project's Org);
   **Memory** is the house of «this project» for the one class every
   conversation reads before you say anything: **every instruction file
   Claude Code loads here** (owner 24-11) — your machine's (`~/.claude/CLAUDE.md`,
@@ -957,7 +1066,7 @@ the pulse.
   and is it working?». Reached from the project's tabs, the agent's Tools
   foot and row doors, the column's alert, At start's «Tools in <project>
   ›», a plugin skill's door, the first minute's «Tools from your Claude
-  account ›» and the New agent form's line.
+  account ›».
   - **State**, the capability grammar: on (this project loads it) · turned
     off (a thing of yours or the project's, off here) · «could add» (a thing
     the Claude account sends that this project has not added). The word
@@ -1139,16 +1248,19 @@ the pulse.
   (the first time a folder is given to an agent of an engine, as its folder
   or an extra one): what you set up on this machine loads — except what
   this machine itself keeps off, named —, and the project switches any of it
-  item by item; what your Claude account sends
+  item by item. It is a class of its own, Recommended on (nothing changes
+  for an install with one business); off, the birth writes, in the new
+  folder's local settings and nowhere else, the per-item «off» entries
+  «Turn all off in this project» writes, for what exists at that moment —
+  what you set up later will load. No control writes `~/.claude` for it,
+  and Silos never guesses which project a machine thing belongs to. What
+  your Claude account sends
   follows the install's choice — Silos recommends its plugins and
   connectors off and its skills on. A choice already in the folder's file
   wins, a project that already exists is never changed, and undo is the
-  group's head in Tools. The New agent form says it in one line («Starts
-  with what you set up on this machine and the skills your Claude account
-  sends; the plugins and connectors it sends stay off · change ›»; for a
-  folder that exists, whom it reaches; for a folder that is already a
-  project, that it joins it and loads what it loads · Tools ›); it no
-  longer says «always on»: it counts what the machine loads and names what
+  group's head in Tools. It is a project's thing, never asked when an
+  agent is born: the New agent form says nothing of it, and Welcome's At
+  start (the first project) counts what the machine loads and names what
   it keeps off («12 plugins · 3 MCP servers — 2 off on this machine»).
   The agent page's At start points here — the folder is the one house.
 - **Conversation** — the work itself: transcript or console, composer, and
@@ -1313,7 +1425,13 @@ the pulse.
   System door (its Vault tab) and ⌘K; the agent's Secrets tab keeps the per-agent view (what
   reaches THIS agent and why) — the page manages the ring, the tab edits
   its own. The secret is the thing, the Vault the place: «Add a
-  secret»; every agent an entry names is the door to that agent's Secrets;
+  secret» starts on the place it was opened from — the agent's Secrets
+  adds for that agent and opens the Vault on its project («For all of
+  acme ›», `/vault?add=project:<folder>`); from the Vault itself nothing is
+  picked for you. An entry for every agent says the projects it reaches by
+  name — «Every agent · acme + beta», on its row and before it is saved —
+  once the install has more than one. Every agent an entry names is the
+  door to that agent's Secrets;
   every row of the Secrets tab that is not its own alone (shared, its
   project's, everyone's) says «in the Vault ›» and opens the Vault on that
   entry (`/vault?entry=<id>`).
@@ -1327,18 +1445,24 @@ the pulse.
   its devices and the digest hour; then «From Claude Code's app», its phone
   push, written in `~/.claude/settings.json`). **Fleet** — Accounts &
   providers (unattended turns, Claude accounts with this machine's own,
-  then «New projects — what your Claude account sends»: one line each for
-  its plugins, its connectors and its skills with a switch, «Recommended»
+  then «New projects — what they start with»: one line for what you set
+  up on this machine and one each for the plugins, the connectors and the
+  skills your Claude account sends, each with a switch, «Recommended»
   said on each, and «Back to recommended» when one differs; a line this
   machine keeps off says «Off for this whole machine — new projects can't
   add it · change ›», opening its machine line right there — the one house
-  of what a new project starts with, reached from Welcome's At start, the
-  New agent form's «change ›», an account group's head in any Tools and
+  of what a new project starts with, reached from Welcome's At start, an
+  account group's head in any Tools and
   ⌘K; it changes new projects only —, key providers, each engine's
   providers) · Engines (per engine: version
   and Update, the compatibility verdict, transcript retention, Silos hooks —
   every «update your engine» door lands here) · Territory (the roster of the
-  three surfaces, what holds each, private paths) · Archived agents
+  three surfaces, what holds each — the Files post holds other projects'
+  folders, conversations and memory for every agent, territory on or off,
+  and each agent says what stayed open and why; under each agent's name,
+  what the file fence refused today by the project of the path — «12
+  refused in beta ›», «2 refused elsewhere ›» — opening its row on the
+  conversations where it happened —, private paths) · Archived agents
   (Restore). **Library** — Memories (in three sections, «This machine» ·
   «Projects» · «Agents»: your machine's instruction files, rules
   included, listed, created and edited here — and from every page that
@@ -1456,7 +1580,10 @@ are not that, and a long page you must scroll through is not a virtue.
   see where you are, you aren't showing your work.
 - **Text has a measure.** Running text ~62ch; timestamps mono; one accent
   voice (terracotta) spent on the single live thing per page.
-- **One vocabulary.** Conversations (not threads). Plan (not team plan). An
+- **One vocabulary.** Conversations (not threads). Plan (not team plan).
+  «Fleet» is the owner's word for the whole install and is never said to
+  an agent: to an agent it is «your projects» and «the agents of your
+  projects». An
   action keeps its name through the whole flow. Native things keep their
   native names: Claude Code's
   per-conversation list (TaskCreate, Ctrl+T) is the **Checklist** — never
@@ -1575,8 +1702,10 @@ working when a subscription limit nears, or a cheaper engine for
 unattended work (disclosed in `README.md`).
 
 What this rules in: identity per agent — the deny-rule territory fence
-and a bearer per agent, agent identity on the API, agents that message
-each other (a message is read at the recipient's next conversation) and
+and a bearer per agent, agent identity on the API, agents of one project
+that message each other (a message is read at the recipient's next
+conversation); the project as the edge of what an agent is told, reaches
+and opens, the owner the only one who opens a way across; agents that
 wake on an assigned task, and the role's own skills (a plugin per agent,
 `agent-state/<id>/plugin`, loaded per launch on both engines). The Claude
 ACCOUNT is interchangeable fuel that follows the conversation (it can as
@@ -1585,7 +1714,10 @@ isolation a `CLAUDE_CONFIG_DIR` per identity (or a container per agent)
 would give is out of scope. Then a complete Needs you (failed run, stuck
 agent, a message nobody read) that reaches the phone; role templates the
 fleet can export and import; and the packaging — install in two minutes,
-deploy buttons. What it rules out in the core: org charts (a hierarchy is
+deploy buttons. Projects kept apart are not tenants — one owner sees
+everything, and the wall is the fence's kind: what Silos tells, offers and
+does, and what file tools open; not a process that sets out to cross it.
+What it rules out in the core: org charts (a hierarchy is
 an optional silo — Hierarchy — that an operator installs; without it
 there is no Org view, no team lens, and escalation goes straight to the
 owner), a task database replacing the plan files (tasks come first, but

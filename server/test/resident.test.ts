@@ -954,6 +954,38 @@ describe('Resident — watch trigger (check: command)', () => {
   })
 })
 
+describe('Resident — watch trigger (check: http)', () => {
+  it("a url an agent wrote (publicOnly) goes through the guarded fetch on every check; the owner's url through the plain fetch", async () => {
+    store.create(
+      mkAutomation({
+        id: 'h1',
+        trigger: { kind: 'watch', every: '* * * * *', check: { type: 'http', url: 'http://example.com/a', publicOnly: true }, runWhen: 'changed' },
+      }),
+    )
+    store.create(
+      mkAutomation({ id: 'h2', trigger: { kind: 'watch', every: '* * * * *', check: { type: 'http', url: 'http://example.com/b' }, runWhen: 'changed' } }),
+    )
+    const guarded: string[] = []
+    const plain: string[] = []
+    const resident = mkResident({
+      guardedFetchFn: async (url) => {
+        guarded.push(url)
+        return { status: 200, body: 'x' }
+      },
+      fetchFn: (async (url: string) => {
+        plain.push(url)
+        return new Response('x')
+      }) as unknown as typeof fetch,
+    })
+    await resident.tick(clock)
+    clock = new Date(Math.max(Date.parse(store.get('h1')!.nextRunAt as string), Date.parse(store.get('h2')!.nextRunAt as string)))
+    await resident.tick(clock)
+    await resident.drain()
+    expect(guarded).toEqual(['http://example.com/a'])
+    expect(plain).toEqual(['http://example.com/b'])
+  })
+})
+
 describe('Resident — cron trigger.tz', () => {
   it('schedules a cron in its own zone; a cron whose zone is unknown is paused, not looped', async () => {
     store.create(mkAutomation({ id: 'tz1', trigger: { kind: 'cron', expr: '0 9 * * *', tz: 'America/New_York' } }))

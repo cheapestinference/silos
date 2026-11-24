@@ -707,6 +707,7 @@ function seedAutomations(dataDir: string): void {
 // automation Create makes never fires during the suite. Older than the
 // seeded failed run, so that row keeps the top of Home.
 export const E2E_PROPOSAL_ID = 'e2e00000-0000-4000-8000-000000000001'
+export const E2E_SKILL_CHANGE_ID = 'e2e00000-0000-4000-8000-000000000002'
 function seedProposals(dataDir: string, agentFolder: string): void {
   const at = new Date(Date.now() - 30 * 3600_000).toISOString()
   const input = {
@@ -726,6 +727,40 @@ function seedProposals(dataDir: string, agentFolder: string): void {
             .map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`)
             .join(',')}}`
         : JSON.stringify(v)
+  // a change the UX agent proposed to a skill its project has: the whole
+  // new skill in its proposed/, the project's copy untouched until Accept
+  const uxFolder = (JSON.parse(readFileSync(join(dataDir, 'agents.json'), 'utf8')) as { agents: Array<{ id: string; folder: string }> }).agents.find(
+    (a) => a.id === 'ux',
+  )!.folder
+  const before = {
+    'SKILL.md': '---\nname: handoff\ndescription: How a design is handed to engineering\n---\n\nSend the mockup.\nList the tokens it uses.\n',
+    'checklist.md': '- contrast\n',
+    'old-template.md': 'retired\n',
+  }
+  const after = {
+    'SKILL.md':
+      '---\nname: handoff\ndescription: How a design is handed to engineering\n---\n\nSend the mockup and its states (empty, loading, error).\nList the tokens it uses.\n',
+    'checklist.md': '- contrast\n',
+    'states.md': 'Every screen ships its empty, loading and error state.\n',
+  }
+  // the server's tree hash (skill-accept.ts readSkillTree), for a flat tree
+  const treeHash = (files: Record<string, string>): string => {
+    const h = createHash('sha256')
+    for (const name of Object.keys(files).sort()) {
+      const b = Buffer.from(files[name]!)
+      h.update(`f\0${name}\0${b.length}\0`)
+      h.update(b)
+    }
+    return h.digest('hex')
+  }
+  const put = (dir: string, files: Record<string, string>): void => {
+    mkdirSync(dir, { recursive: true })
+    for (const [n, t] of Object.entries(files)) writeFileSync(join(dir, n), t)
+  }
+  put(join(uxFolder, '.claude', 'skills', 'handoff'), before)
+  put(join(dataDir, 'agent-state', 'ux', 'proposed', 'handoff'), after)
+  const skillAt = new Date(Date.now() - 31 * 3600_000).toISOString()
+  const skillInput = { name: 'handoff', folder: uxFolder }
   writeFileSync(
     join(dataDir, 'proposals.json'),
     JSON.stringify(
@@ -741,6 +776,21 @@ function seedProposals(dataDir: string, agentFolder: string): void {
             input,
             expiresAt: new Date(Date.parse(at) + 14 * 86_400_000).toISOString(),
             inputHash: createHash('sha256').update(canonical(input)).digest('hex'),
+          },
+          {
+            // proposed in the UX agent's seeded conversation (ux1): its column shows it
+            id: E2E_SKILL_CHANGE_ID,
+            by: 'ux',
+            at: skillAt,
+            session: 'ux1',
+            kind: 'skill',
+            state: 'pending',
+            reason: 'engineering keeps asking for the missing states',
+            input: skillInput,
+            expiresAt: new Date(Date.parse(skillAt) + 14 * 86_400_000).toISOString(),
+            inputHash: createHash('sha256').update(canonical(skillInput)).digest('hex'),
+            contentHash: treeHash(after),
+            baseHash: treeHash(before),
           },
         ],
       },
@@ -1560,12 +1610,15 @@ function seedTasks(root: string, dataDir: string, agentFolder: string): string {
   writeFileSync(join(agentFolder, 'docs', 'launch.md'), '# Launch post\n')
   const agentsFile = join(dataDir, 'agents.json')
   const parsed = JSON.parse(readFileSync(agentsFile, 'utf8')) as { agents: unknown[] }
+  // Web works in the docs site AND in the launch plan's folder: its tasks
+  // there (l5, l6, l8) are of a project of its own (project-scope.ts)
   parsed.agents.push({
     id: 'web',
     name: 'Web',
     emoji: '🌐',
     mission: { text: 'The public site and its copy', never: [] },
     folder: webFolder,
+    folders: [agentFolder],
     skills: [],
     default: true,
   })
@@ -2932,11 +2985,31 @@ export async function startServer(opts?: {
     throw new Error('environment overrides were not set correctly: aborting to avoid touching real data')
   }
 
+  // its own process group: tsx runs the server in a CHILD node, so a signal
+  // to tsx alone can leave that node writing into the data dir while
+  // cleanupTempDirs walks it (the ENOTEMPTY flake) — stop() signals the group
   const child = spawn(TSX_BIN, ['server/src/index.ts'], {
     cwd: REPO_ROOT,
     env,
     stdio: 'pipe',
+    detached: true,
   })
+  const group = child.pid
+  const closed = new Promise<void>((resolve) => {
+    child.once('close', () => resolve())
+  })
+  let isClosed = false
+  void closed.then(() => {
+    isClosed = true
+  })
+  if (group !== undefined)
+    process.on('exit', () => {
+      try {
+        process.kill(-group, 'SIGKILL')
+      } catch {
+        /* gone */
+      }
+    })
   // Both pipes are DRAINED: an unread stdout fills its pipe (~64 KB) and a
   // pipe write on Linux is synchronous — the server then hangs mid-request.
   // Only a tail is kept, and printed if the server exits unasked.
@@ -3023,12 +3096,21 @@ export async function startServer(opts?: {
       } catch {
         /* best effort */
       }
-      if (child.exitCode !== null || child.signalCode !== null) return
-      child.kill('SIGTERM')
-      await new Promise<void>((resolve) => {
-        child.once('exit', () => resolve())
-        setTimeout(resolve, 5000).unref()
-      })
+      // 'close' fires once EVERY holder of the server's pipes is gone — the
+      // node under tsx included — so nothing writes into the data dir after
+      // this returns; a group that ignores SIGTERM is killed
+      if (group === undefined || isClosed) return
+      const signal = (sig: NodeJS.Signals): void => {
+        try {
+          process.kill(-group, sig)
+        } catch {
+          /* gone */
+        }
+      }
+      signal('SIGTERM')
+      const t = setTimeout(() => signal('SIGKILL'), 8000)
+      await closed
+      clearTimeout(t)
     },
   }
 }

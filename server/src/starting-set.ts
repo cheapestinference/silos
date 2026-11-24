@@ -28,6 +28,11 @@ export interface StartingSetDeps {
   home: string
   /** the user's choices per engine (a class absent: Recommended) */
   settings: { startingSet(engine: string): Record<string, boolean> }
+  /** (D6) «what you set up on this machine» off at a birth: the project's
+   *  bulk «Turn all off in this project» on the machine's groups, for what
+   *  exists now (loads-bulk.ts machineOffAtBirth). Absent: the class is
+   *  written as nothing — a server built without the loads store. */
+  machineOff?: (folder: string, engine: string) => void
 }
 
 type AgentFolders = Pick<Agent, 'id' | 'folder' | 'folders' | 'framework' | 'archived'>
@@ -96,9 +101,11 @@ export function applyStartingSet(deps: StartingSetDeps, after: AgentFolders & Pi
   if (!ss || engine === null) return undefined
   const set = Object.fromEntries(startingSetFor(engine, deps.settings).map((c) => [c.id, c.on]))
   const failed: { folder: string; cause: string }[] = []
+  const machineOff = ss.classes.some((c) => c.covers === 'machine' && set[c.id] === false)
   for (const folder of born) {
     try {
       ss.apply({ folder, home: deps.home }, set)
+      if (machineOff && deps.machineOff) deps.machineOff(folder, engine)
     } catch (err) {
       const cause = err instanceof Error ? err.message : String(err)
       console.warn(`starting-set: could not set what ${folder} starts with:`, cause)
@@ -150,6 +157,7 @@ export function startingFacts(classes: readonly StartingSetClass[], read: { rows
   ].filter((m) => m.n > 0 || m.off.length > 0)
   const sends: Record<string, string[]> = {}
   for (const c of classes) {
+    if (c.covers === 'machine') continue // counted above, per kind
     const names =
       c.covers === 'skill'
         ? (read.skills?.accounts ?? []).flatMap((a) => a.skills.map((x) => x.name))

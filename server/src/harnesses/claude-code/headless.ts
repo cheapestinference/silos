@@ -210,6 +210,7 @@ export class ClaudeHeadless {
         this.hooks.appendFor(agent, has, { sessionId: conversationOf, cwd, turnId: input.turnId }),
         has,
         input.turnToken,
+        cwd,
       )
       const append = this.withSkillsNote(cwd, briefed.append, has)
       // The birth record (bornId, minted above) is written before query()
@@ -423,7 +424,14 @@ export class ClaudeHeadless {
   //    turn token's class (message-reads.ts).
   // `has`: the skills THIS turn loads, so the briefing never
   // points at a skill the turn does not have (sdkTurnSkills).
-  private withBriefing(agent: Agent, hooksOff: boolean, append: string, has: readonly string[], turnToken?: string): { append: string; briefed: boolean } {
+  private withBriefing(
+    agent: Agent,
+    hooksOff: boolean,
+    append: string,
+    has: readonly string[],
+    turnToken?: string,
+    cwd?: string,
+  ): { append: string; briefed: boolean } {
     if (!hooksOff) {
       let text = ''
       try {
@@ -435,7 +443,11 @@ export class ClaudeHeadless {
     }
     let brief = ''
     try {
-      brief = silosBriefing(this.deps.registry.list(), agent.id, { withBearer: 'SILOS_AGENT_TOKEN' in this.deps.agentStateEnv(agent.id), has })
+      brief = silosBriefing(this.deps.registry.list(), agent.id, {
+        withBearer: 'SILOS_AGENT_TOKEN' in this.deps.agentStateEnv(agent.id),
+        has,
+        cwd: cwd ?? null,
+      })
     } catch {
       /* the briefing never breaks a turn */
     }

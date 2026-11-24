@@ -181,41 +181,58 @@ export function agentWriteNeedsTurn(method: string, url: string): boolean {
   return !TURN_EXEMPT_WRITES.some((exempt) => exempt(m, seg))
 }
 
-// Reads by an agent bearer: an ALLOW-list (controller ruling, Task 6
-// review round 2) — the roster (`/api/agents` exactly), the agent's own
-// subtree (`/api/agents/<self>/**`), automations (`/api/automations/**`)
-// and, as a silo's producer, its own merged view and proposals (support's
-// cases included, now a silo — /api/support is gone). Everything
-// else under /api is the owner's. Paths outside /api (the static web app,
-// /healthz) are not this check's business.
 // Reads with NO identity (a genuinely local request carrying no credential
-// — server.ts isLocalRequest): an ALLOW-list too, smaller than an agent's.
-// Only what the plugin's SessionStart hook reads in a session that has no
-// identity of its own: the roster (`/api/agents` exactly) and which tasks a
-// conversation is on (`/api/tasks/by-session`). Everything else under /api
-// — files, transcripts, memory, the vault, settings — needs a credential:
-// any process on the machine can make a local request, an agent's shell
-// included, and a fence on its files means nothing if the server reads
-// them for it. A new route is closed to it by default.
+// — server.ts isLocalRequest): nothing under /api. A request that names
+// nobody is answered nothing (the project boundary, R4): what the plugin's
+// SessionStart hook needs in a session with no identity — the agents of the
+// folder it runs in — it renders itself from agents.json on disk
+// (roster.py), and the tasks of a conversation it reads only with the
+// conversation's bearer. Any process on the machine can make a local
+// request — an agent's shell that drops its bearer included — and a fence
+// on its files, or a wall around its projects, means nothing if the server
+// answers it. Paths outside /api (the static web app, /healthz) are not
+// this check's business.
 export function anonymousMayRead(url: string): boolean {
   if ((url.split('?')[0] ?? '') === '/') return true // the web app's root
   const seg = decodedSegments(url)
   if (seg === null) return false
-  if (seg[0] !== 'api') return true
-  if (seg.length === 2 && seg[1] === 'agents') return true
-  if (seg.length === 3 && seg[1] === 'tasks' && seg[2] === 'by-session') return true
-  return false
+  return seg[0] !== 'api'
 }
 
+// Reads by an agent bearer: a LIST OF ROUTES, each served with its bound
+// (docs/architecture.md «The agent-facing subset»; the project boundary,
+// project-scope.ts). What the plugin's hooks and skills read is short, and
+// that is the whole list:
+//   GET /api/agents                          itself + the agents of its projects (roster rows)
+//   GET /api/agents/<self>/messages[/sent]   its inbox, served (messages.ts servable) · what it sent
+//   GET /api/agents/<self>/asks              the asks it was given
+//   GET /api/agents/<self>/vault             the entries that reach it
+//   GET /api/automations, /pending, /:id, /:id/runs   its own (the routes filter)
+//   GET /api/automations/templates[/:tid[/file]]       the built-in ones
+//   GET /api/tasks/by-session, /api/sessions/:folder/:id/tasks   its own conversations
+//   GET /api/silos/:id/agents/<self>/merged|proposals              its projects
+// The rest of the agent page's reads under /api/agents/<id>/… (territory,
+// the skills catalog, output styles, loaded, started-with, context, tools)
+// are the owner's screen: 403. Paths outside /api (the static web app,
+// /healthz) are not this check's business.
 export function agentMayRead(agentId: string, url: string): boolean {
   if ((url.split('?')[0] ?? '') === '/') return true // the web app's root
   const seg = decodedSegments(url)
   if (seg === null) return false
   if (seg[0] !== 'api') return true
-  if (seg[1] === 'agents') return seg.length === 2 || seg[2] === agentId
-  // automations — but never a command run's log (the output of an exec the
-  // fence never saw: /api/automations/:id/runs/:runId/log is the owner's)
-  if (seg[1] === 'automations') return !(seg.length === 6 && seg[3] === 'runs' && seg[5] === 'log')
+  if (seg[1] === 'agents') {
+    if (seg.length === 2) return true
+    if (seg[2] !== agentId) return false
+    if (seg.length === 4) return seg[3] === 'messages' || seg[3] === 'asks' || seg[3] === 'vault'
+    return seg.length === 5 && seg[3] === 'messages' && seg[4] === 'sent'
+  }
+  if (seg[1] === 'automations') {
+    if (seg.length === 2) return true
+    if (seg[2] === 'templates') return seg.length === 3 || seg.length === 4 || (seg.length === 5 && seg[4] === 'file')
+    // never a command run's log (the output of an exec the fence never saw:
+    // /api/automations/:id/runs/:runId/log is the owner's)
+    return seg.length === 3 || (seg.length === 4 && seg[3] === 'runs')
+  }
   // a silo's producer reads the merged view and its own proposals — under
   // /agents/<self>/ only; the rest of /api/silos is the owner's
   if (seg[1] === 'silos') return seg.length === 6 && seg[3] === 'agents' && seg[4] === agentId && (seg[5] === 'merged' || seg[5] === 'proposals')

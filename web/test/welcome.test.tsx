@@ -1,6 +1,8 @@
-// Creating an agent without decisions: Welcome asks a name,
-// what it takes care of and where its files are (derived), sends no id and
-// no folder unless one was chosen, and lands on the agent's first minute —
+// Creating an agent without decisions: Welcome asks what the New agent
+// form asks (lib/birth.ts) — its project first, on a step of its own (by
+// default a new one named like the agent, never a path), then a name, how
+// it works, what it takes care of —,
+// sends no id, and lands on the agent's first minute —
 // «<Name> is reading its mission…», the card as it answered, or why it
 // couldn't start; without a mission, «<Name> is here. It does what you give it.»
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,6 +34,15 @@ const agent = (o: Partial<AgentView> = {}): AgentView => ({
   ...o,
 })
 
+// the rail's step by name
+const go = (step: string): void => {
+  fireEvent.click(within(screen.getByRole('list', { name: 'Setup' })).getByRole('button', { name: new RegExp(step) }))
+}
+const named = (name: string): void => {
+  go('Who')
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: name } })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   endFirstMeeting()
@@ -44,38 +55,70 @@ describe('Welcome', () => {
   it('a name, «Also on its own» and a mission: Create sends them alone — the server derives id, folder and control — and opens its first minute', async () => {
     mockedApi.agents.create.mockResolvedValue({ agent: agent() })
     render(<Welcome />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ana' } })
-    expect(screen.getByTestId('welcome-folder')).toHaveTextContent('~/Silos/ana · change')
+    named('Ana')
     fireEvent.click(screen.getByRole('radio', { name: /Also on its own/ }))
     fireEvent.change(screen.getByLabelText('What will Ana take care of?'), { target: { value: 'Taxes and accounts.\nNever: file or pay anything' } })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     })
-    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', mission: { text: 'Taxes and accounts.', never: ['file or pay anything'] } })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({
+      name: 'Ana',
+      project: { name: 'Ana' },
+      mission: { text: 'Taxes and accounts.', never: ['file or pay anything'] },
+    })
     expect(firstMeetingNow()).toEqual({ agentId: 'ana' })
     await waitFor(() => expect(useStore.getState().page).toEqual({ kind: 'agent', id: 'ana' }))
     expect(screen.queryByText(/cp -r|claude plugin install/)).toBeNull()
+  })
+  // the project is the first step; its name follows the agent's until typed
+  it('opens on the project: nothing named, Create waits; named on Who, the project takes the name and Create is live there', async () => {
+    mockedApi.agents.create.mockResolvedValue({ agent: agent({ control: 'told', mission: undefined }) })
+    render(<Welcome />)
+    expect(screen.getByTestId('tour-project')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    named('Ana')
+    go('Project')
+    expect(screen.getByLabelText('The new project’s name')).toHaveValue('Ana')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Ana' } })
+  })
+  it('a project named on its own step is sent as its own — the agent keeps its name', async () => {
+    mockedApi.agents.create.mockResolvedValue({ agent: agent({ control: 'told', mission: undefined }) })
+    render(<Welcome />)
+    fireEvent.change(screen.getByLabelText('The new project’s name'), { target: { value: 'Acme books' } })
+    named('Ana')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Acme books' } })
   })
   // how it works is asked, never inferred from the mission
   it('«When you give it work» (the default) with a mission: sent as Only when told — nothing wakes it', async () => {
     mockedApi.agents.create.mockResolvedValue({ agent: agent({ control: 'told' }) })
     render(<Welcome />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ana' } })
+    named('Ana')
     fireEvent.change(screen.getByLabelText(/What will Ana take care of\?/), { target: { value: 'Taxes and accounts.' } })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     })
-    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', mission: { text: 'Taxes and accounts.', never: [] }, control: 'told' })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({
+      name: 'Ana',
+      project: { name: 'Ana' },
+      mission: { text: 'Taxes and accounts.', never: [] },
+      control: 'told',
+    })
   })
   it('«Also on its own» without a mission: Create waits for one', () => {
     render(<Welcome />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ana' } })
+    named('Ana')
     fireEvent.click(screen.getByRole('radio', { name: /Also on its own/ }))
     expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
   })
   it('«Never» lines alone are no mission yet — said in the field, Create waits', () => {
     render(<Welcome />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ana' } })
+    named('Ana')
     fireEvent.change(screen.getByLabelText(/What will Ana take care of\?/), { target: { value: 'Never: pay' } })
     expect(screen.getByRole('alert')).toHaveTextContent("Write what Ana takes care of — “Never” lines alone aren't a mission yet")
     expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
@@ -147,12 +190,9 @@ describe('Welcome · the tour', () => {
     ],
     available: [{ id: 'hierarchy', name: 'Hierarchy', description: 'Who reports to whom.', version: '0.1.0', producerRole: null }],
   }
-  const named = async (): Promise<void> => {
+  const start = async (): Promise<void> => {
     render(<Welcome />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ana' } })
-  }
-  const go = (step: string): void => {
-    fireEvent.click(within(screen.getByRole('list', { name: 'Setup' })).getByRole('button', { name: new RegExp(step) }))
+    named('Ana')
   }
   beforeEach(() => {
     mockedApi.agents.create.mockResolvedValue({ agent: agent() })
@@ -168,15 +208,16 @@ describe('Welcome · the tour', () => {
   })
 
   it('another engine is sent as the framework', async () => {
-    await named()
+    await start()
     go('Engine')
     fireEvent.click(await screen.findByRole('radio', { name: new RegExp(SECOND!.label) }))
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     })
-    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', framework: SECOND!.id })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Ana' }, framework: SECOND!.id })
   })
-  it('an engine this machine cannot run cannot be picked', async () => {
+  // the birth model's rule: the Engine step only when more than one runs here
+  it('one engine runs here: no Engine step, and Create sends the default', async () => {
     mockedApi.harness.mockResolvedValue({
       harness: FIRST!.id,
       name: '',
@@ -185,15 +226,19 @@ describe('Welcome · the tour', () => {
       checkedAt: '',
       compat: [verdict(FIRST!.id, 'ok'), verdict(SECOND!.id, 'missing')],
     })
-    await named()
-    go('Engine')
-    await waitFor(() => expect(screen.getByRole('radio', { name: new RegExp(SECOND!.label) })).toBeDisabled())
+    await start()
+    const rail = screen.getByRole('list', { name: 'Setup' })
+    await waitFor(() => expect(within(rail).queryByRole('button', { name: /Engine/ })).toBeNull())
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Ana' } })
   })
   it('silos toggled: uninstall, then install + approve with no producers — all before the agent', async () => {
     mockedApi.silos.installAvailable.mockResolvedValue({ submission: { id: 'sub-1' } })
     mockedApi.silos.approve.mockResolvedValue({ kind: 'installed', silo: null })
     mockedApi.silos.uninstall.mockResolvedValue({ uninstalled: 'system' })
-    await named()
+    await start()
     go('Silos')
     fireEvent.click(await screen.findByRole('checkbox', { name: /System/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: /Hierarchy/ }))
@@ -208,7 +253,7 @@ describe('Welcome · the tour', () => {
   })
   it('a silo change that fails is said on the agent’s first minute — the agent is still made', async () => {
     mockedApi.silos.uninstall.mockRejectedValue(new Error('nope'))
-    await named()
+    await start()
     go('Silos')
     fireEvent.click(await screen.findByRole('checkbox', { name: /System/ }))
     await act(async () => {
@@ -229,7 +274,7 @@ describe('Welcome · the tour', () => {
   it('At start ticked: the set is saved, then the agent is made', async () => {
     mockedApi.platformSettings.get.mockResolvedValue({ unattendedProvider: null, keepOwnAccount: [], startingSet })
     mockedApi.platformSettings.setStartingSet.mockResolvedValue({ unattendedProvider: null, keepOwnAccount: [], startingSet })
-    await named()
+    await start()
     await waitFor(() => go('At start'))
     fireEvent.click(await screen.findByRole('checkbox', { name: /Plugins from an account/ }))
     await act(async () => {
@@ -238,14 +283,14 @@ describe('Welcome · the tour', () => {
     expect(mockedApi.platformSettings.setStartingSet).toHaveBeenCalledWith({ [FIRST!.id]: { plugins: true } })
     expect(mockedApi.platformSettings.setStartingSet.mock.invocationCallOrder[0]!).toBeLessThan(mockedApi.agents.create.mock.invocationCallOrder[0]!)
   })
-  it('At start left on Recommended: nothing is saved; an engine with no class shows four steps', async () => {
+  it('At start left on Recommended: nothing is saved; an engine with no class has no At start step', async () => {
     mockedApi.platformSettings.get.mockResolvedValue({ unattendedProvider: null, keepOwnAccount: [], startingSet })
-    await named()
+    await start()
     const rail = screen.getByRole('list', { name: 'Setup' })
-    await waitFor(() => expect(within(rail).getAllByRole('listitem')).toHaveLength(5))
+    await waitFor(() => expect(within(rail).getAllByRole('listitem')).toHaveLength(6))
     go('Engine')
     fireEvent.click(await screen.findByRole('radio', { name: new RegExp(SECOND!.label) }))
-    expect(within(rail).getAllByRole('listitem')).toHaveLength(4)
+    expect(within(rail).getAllByRole('listitem')).toHaveLength(5)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     })
@@ -254,18 +299,18 @@ describe('Welcome · the tour', () => {
   })
   it('silos that can’t be read leave Create working', async () => {
     mockedApi.silos.list.mockRejectedValue(new Error('500'))
-    await named()
+    await start()
     go('Silos')
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     })
-    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana' })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Ana' } })
     expect(mockedApi.silos.uninstall).not.toHaveBeenCalled()
   })
   it('a Create that fails after the silos changed: the retry does not change them again', async () => {
     mockedApi.silos.uninstall.mockResolvedValue({ uninstalled: 'system' })
     mockedApi.agents.create.mockRejectedValueOnce(new Error('that name is taken'))
-    await named()
+    await start()
     go('Silos')
     fireEvent.click(await screen.findByRole('checkbox', { name: /System/ }))
     await act(async () => {
@@ -278,7 +323,7 @@ describe('Welcome · the tour', () => {
     expect(mockedApi.agents.create).toHaveBeenCalledTimes(2)
     expect(mockedApi.silos.uninstall).toHaveBeenCalledTimes(1)
   })
-  it('the default engine this machine cannot run: Create waits until a usable one is picked', async () => {
+  it('the default engine this machine cannot run and one other that runs: no Engine step, Create sends the one that runs', async () => {
     mockedApi.harness.mockResolvedValue({
       harness: FIRST!.id,
       name: '',
@@ -287,11 +332,26 @@ describe('Welcome · the tour', () => {
       checkedAt: '',
       compat: [verdict(FIRST!.id, 'missing'), verdict(SECOND!.id, 'ok')],
     })
-    await named()
+    await start()
+    const rail = screen.getByRole('list', { name: 'Setup' })
+    await waitFor(() => expect(within(rail).queryByRole('button', { name: /Engine/ })).toBeNull())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled())
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    })
+    expect(mockedApi.agents.create).toHaveBeenCalledWith({ name: 'Ana', project: { name: 'Ana' }, framework: SECOND!.id })
+  })
+  it('no engine runs here: Create waits', async () => {
+    mockedApi.harness.mockResolvedValue({
+      harness: FIRST!.id,
+      name: '',
+      console: { version: null, path: null },
+      latest: null,
+      checkedAt: '',
+      compat: [verdict(FIRST!.id, 'missing'), verdict(SECOND!.id, 'missing')],
+    })
+    await start()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled())
-    go('Engine')
-    fireEvent.click(await screen.findByRole('radio', { name: new RegExp(SECOND!.label) }))
-    expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled()
   })
 })
 

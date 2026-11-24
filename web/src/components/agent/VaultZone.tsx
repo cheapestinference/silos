@@ -11,7 +11,7 @@ import { KeyRound, Signature } from 'lucide-react'
 import { effectiveVaultFor, type EffectiveVaultVar } from '../../lib/vault-view'
 import { ConfirmButton } from '../ConfirmButton'
 import { ScopePill, scopeWords } from '../knows/ScopePill'
-import { joinNames } from '../../lib/vault-page'
+import { installProjects, joinNames } from '../../lib/vault-page'
 import { basename } from '../../lib/routes'
 import { MODE_DELIVERED, MODE_SIGNED, SignedCallsFold, egressUrl, hostOf } from '../VaultSigning'
 
@@ -69,12 +69,16 @@ export function AgentVaultZone({ agent }: { agent: AgentView }) {
   // the secret from every agent on the list, so the badge says so. The pill
   // speaks the ONE scope vocabulary: who sees it,
   // never the raw source word.
+  // «everyone» spelled as the projects it reaches, once there are several (D7)
+  const projects = installProjects(agents)
   const badgeOf = (v: EffectiveVaultVar): string =>
-    v.source === 'agent' && v.entry.scope.type === 'agents' && v.entry.scope.agentIds.length > 1
-      ? `Agents · ${joinNames(v.entry.scope.agentIds.map((id) => agents.find((a) => a.id === id)?.name ?? id))}`
-      : v.source === 'agent'
-        ? scopeWords('agent', agent.name)
-        : scopeWords(v.source, agent.name, agent.folder ? basename(agent.folder) : null)
+    v.source === 'global' && projects.length > 1
+      ? `Every agent · ${projects.join(' + ')}`
+      : v.source === 'agent' && v.entry.scope.type === 'agents' && v.entry.scope.agentIds.length > 1
+        ? `Agents · ${joinNames(v.entry.scope.agentIds.map((id) => agents.find((a) => a.id === id)?.name ?? id))}`
+        : v.source === 'agent'
+          ? scopeWords('agent', agent.name)
+          : scopeWords(v.source, agent.name, agent.folder ? basename(agent.folder) : null)
 
   return (
     <div className="rounded-lg border border-line">
@@ -214,6 +218,18 @@ export function AgentVaultZone({ agent }: { agent: AgentView }) {
         <button type="button" onClick={() => changePage({ kind: 'vault' })} className="shrink-0 text-[11px] text-ink-2 hover:text-terracotta">
           Manage in the Vault ›
         </button>
+        {agent.folder ? (
+          // a secret for the whole project, not this agent alone: the Vault's
+          // «Add a secret», started on this agent's project
+          <button
+            type="button"
+            data-testid="secret-for-project"
+            onClick={() => changePage({ kind: 'vault', add: `project:${agent.folder}` })}
+            className="shrink-0 text-[11px] text-ink-2 hover:text-terracotta"
+          >
+            For all of {basename(agent.folder)} ›
+          </button>
+        ) : null}
       </div>
       {error ? <p className="px-3 pb-2 text-xs text-terracotta">{error}</p> : null}
     </div>

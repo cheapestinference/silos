@@ -99,6 +99,7 @@ import {
   composeInbox,
   engineCompatRow,
   engineUnwiredRow,
+  folderRefusedRow,
   inboxSignature,
   RESIDENT_TICK_MS,
   type InboxRow,
@@ -141,6 +142,7 @@ import type { HeartbeatStore } from './heartbeat-store.js'
 import type { OwnTurnsToday } from './own-turns.js'
 import { heartbeatRoutes } from './routes/heartbeat.js'
 import { controlOf, degradedWhy, heartbeatOf, positionOf } from './control.js'
+import { servable } from './project-scope.js'
 import { heartbeatAutomationId } from './heartbeat.js'
 import { LoginRateLimiter, STATE, cookieOf, readSignInPick, type SilosIdClient } from './silos-id.js'
 import { SessionTokenStore } from './session-tokens.js'
@@ -159,6 +161,7 @@ import type { KernelVerbImpl } from './silos/actions.js'
 import { egressRoutes } from './routes/egress.js'
 import { EgressLog, EgressRejectLog } from './egress-log.js'
 import { territoryEgressRoutes } from './routes/territory-egress.js'
+import { refusedSince } from './fence-refusals.js'
 import { LiveTurns, turnOfRequest } from './live-turns.js'
 import type { EscalationEngine } from './escalation/engine.js'
 import type { TaskAsks } from './task-asks.js'
@@ -1197,11 +1200,10 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     // LOCAL request (loopback Host, zero forwarding headers — see
     // isLocalRequest above) with no credential is UNKNOWN. Any process on the
     // machine can make one — an agent's shell with its bearer left out
-    // included — so it reads only the few routes a session with no identity
-    // needs (anonymousMayRead, agent-authz.ts: the roster and a
-    // conversation's tasks); every other read, every write and every
-    // websocket upgrade (terminal input, chat) needs an identity: 401 that
-    // teaches the way. Anything arriving via tunnel/proxy/public host still
+    // included — so nothing under /api answers it (anonymousMayRead,
+    // agent-authz.ts: the project boundary's R4); every read, every write
+    // and every websocket upgrade (terminal input, chat) needs an identity:
+    // 401 that teaches the way. Anything arriving via tunnel/proxy/public host still
     // requires auth.
     if (isLocalRequest(req)) {
       if (!writeClass && !isUpgrade && (req.method === 'GET' || req.method === 'HEAD') && anonymousMayRead(path)) return
@@ -1482,7 +1484,10 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         }
       })(deps.dataDir)
     : null
+  // (D6) the birth's machine class: filled by the workspace routes, called by the agents'
+  const birthSeam: { machineOff?: (folder: string, engine: string) => void } = {}
   workspaceRoutes(app, {
+    births: birthSeam,
     instructions: () => memory.instructionsDeps(),
     ...(skillStore ? { skillStore } : {}),
     threadOf: (id) => threadIdOf(id),
@@ -1540,7 +1545,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     dataDir: deps.dataDir,
     vault,
     claudeManagedDir: deps.claudeManagedDir,
-    ...(deps.platformSettings ? { startingSettings: deps.platformSettings } : {}),
+    ...(deps.platformSettings ? { startingSettings: deps.platformSettings, machineOff: (f: string, e: string) => birthSeam.machineOff?.(f, e) } : {}),
     ...(deps.flipToTold ? { flipToTold: deps.flipToTold } : {}),
     ...(proposals ? { proposals } : {}),
   })
@@ -1695,6 +1700,9 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       now,
     })
     const engineRows = [...(engineRow ? [engineRow] : []), ...(unwiredRow ? [unwiredRow] : [])]
+    // the agents' folders that break the project folder rule (the boot
+    // audit's finding, read again at each compose): said, never fixed
+    const folderRows = registry.auditFolders().map((o) => folderRefusedRow({ ...o, agentName: nameOf(o.agentId), now }))
     const automationAgent = new Map((automations ? automations.list() : []).map((a) => [a.id, a.agentId]))
     const inbox = composeInbox({
       nameOf,
@@ -1733,6 +1741,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       automations: automations ? automations.list() : [],
       kernel: [
         ...engineRows,
+        ...folderRows,
         ...(deps.seals ? sealInboxRows(deps.seals.rows(), nameOf) : []),
         ...kernelInboxRows({
           agents: liveAgents,
@@ -1752,6 +1761,9 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           ...(automations ? { automations } : {}),
           ...(agentState ? { agentState } : {}),
           ...(messages ? { messages } : {}),
+          // a message its recipient is not served (project-scope.ts) is held:
+          // the unread row says so at once, with its why
+          servable: (recipient: string, from: string) => servable(recipient, from, agents),
           // an agent whose heartbeat looks reads its messages at its next
           // heartbeat — the row waits for that chance (and says what missed it)
           heartbeatLooks: (a: Agent) => controlOf(a, territoryStore ? territoryStore.isEnabled(a.id) : false) === 'own' && heartbeatOf(a).period !== null,
@@ -1967,6 +1979,11 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           ...(deps.controlOf ? { controlOf: deps.controlOf } : {}),
           ...(deps.initiative ? { initiative: deps.initiative.initiative } : {}),
           ...(deps.vitals ? { usage: deps.vitals } : {}),
+          // whose conversation a kept thread names (a bearer keeps only its own)
+          conversationOwner: (sessionId: string) => {
+            const m = metaById(sessionId)
+            return m ? classifyAgentId(m) : null
+          },
           // a template never holds these: every Vault value and the static token
           secrets: () => [...(vault?.secretValues() ?? []), { name: 'the Silos token', value: ownerToken() }],
         })
@@ -1982,6 +1999,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       ...(deps.platformSettings ? { unattendedProvider: () => deps.platformSettings!.unattendedProvider() } : {}),
       ...(territoryStore ? { territoryOn: (id: string) => territoryStore.isEnabled(id) } : {}),
       ...(deps.dataDir ? { dataDir: deps.dataDir } : {}),
+      threadIdOf,
       checkInbox: () => checkInbox(),
     })
   }
@@ -2000,7 +2018,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       ...(pluginSkillsDir ? { pluginSkillsDir } : {}),
       ...(deps.home ? { home: deps.home } : {}),
       ...(territoryStore ? { territoryStore } : {}),
-      ...(deps.platformSettings ? { startingSettings: deps.platformSettings } : {}),
+      ...(deps.platformSettings ? { startingSettings: deps.platformSettings, machineOff: (f: string, e: string) => birthSeam.machineOff?.(f, e) } : {}),
       secrets: () => [...(vault?.secretValues() ?? []), { name: 'the Silos token', value: ownerToken() }],
     })
   }
@@ -2124,6 +2142,13 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   // and the proxy's refusals — routes/territory-egress.ts
   if (territoryStore)
     territoryEgressRoutes(app, {
+      refused: (since) =>
+        refusedSince(
+          index.allSessions().map((m) => ({ folder: m.folder, id: m.id, agentId: classifyAgentId(m) })),
+          (f, i) => index.getContext(f, i),
+          registry.list(true),
+          since,
+        ),
       territoryStore,
       registry,
       rejections: deps.egressRejectLog ?? (deps.dataDir ? new EgressRejectLog(join(deps.dataDir, 'egress')) : null),

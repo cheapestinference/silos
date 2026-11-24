@@ -14,7 +14,7 @@ import { genericOpenNew, genericOpenSession } from '../console-open.js'
 import { fallbackHarness, harnessById, harnessForId, harnessOf, quotedIds } from '../harnesses/registry.js'
 import { consoleOwners, openFactsOf } from '../open-surface.js'
 import type { ConsoleOpenInput, HarnessId, HarnessServerHooks, ServerHookContext } from '../harnesses/contract.js'
-import { snapStateRead, TASK_MODE_SILO, type TaskModeEngine } from '../task-mode/engine.js'
+import { outsideWords, snapStateRead, TASK_MODE_SILO, type TaskModeEngine } from '../task-mode/engine.js'
 import type { TaskSnap } from '../task-mode/evaluate.js'
 import { makeTaskFeed } from '../task-mode/feed.js'
 import { taskThreads, threadMembership, type TaskThreads } from '../task-threads.js'
@@ -28,12 +28,11 @@ import { mainCheckoutOf } from '../execution-plan-join.js'
 import { wakesOfControl, withWakes } from '../conversation-live.js'
 import { TASK_VERBS, type ReleaseWait, type TaskGestureArgs, type TaskVerb } from '../silos/actions.js'
 import { SILOS_WAIT_PREFIX } from '../silos/task-flow.js'
-import { bearerMayReadLocation } from '../silos/bearer-scope.js'
-import { territoriesOf } from '../territory.js'
 import { ASK_ACTION_MAX, ASK_ASKED_MAX } from '../limits.js'
 import { providerIdError } from '../providers-validate.js'
 import { outputStyleError } from '../harnesses/validate.js'
-import { mungePath, type AgentRegistry } from '../agent-registry.js'
+import { MASTER_ID, mungePath, type AgentRegistry } from '../agent-registry.js'
+import { knows, mayName, ofProject, reaches, seesAll } from '../project-scope.js'
 import type { Agent, SessionMeta } from '../types.js'
 import { ConsoleHeldError, ConsoleUnknownError } from '../terminal-service.js'
 import { ConsoleDialogError } from '../console-dialog.js'
@@ -361,17 +360,14 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
     // the ONE normalization (R3)
     const storedId = (id: string): string => terminals.nativeIdOf(id) ?? id
     // (D16b, J8, J10.15) who may own a task in `folder`: an
-    // agent IN PLAY with a folder whose territory holds it — the fence's own
-    // reading (bearerMayReadLocation; the unfenced agent follows the same
-    // rule, its bearer is ruled by territory too). An agent that could not
-    // open the file is no destination; neither is a person by name.
+    // agent IN PLAY with a folder of the task's project — the one resolver
+    // (project-scope.ts ofProject; the task flow reads the same rule, R3:
+    // an owner outside it is `owner-outside-project`). An agent of another
+    // project is no destination; neither is a person by name.
     const mayOwnIn = (agentId: string, folder: string | null): boolean => {
       const a = registry.list().find((x) => x.id === agentId)
       if (!a || !a.folder || folder === null) return false
-      return bearerMayReadLocation(a.id, `folder:${folder}`, (id) => {
-        const x = registry.get(id)
-        return x ? territoriesOf(x) : []
-      })
+      return ofProject(a, folder)
     }
     const ownerOnly = (req: FastifyRequest): boolean => req.agentId === undefined && req.ownerCredential === true && authorOf(req, registry) === 'owner'
     // what the owner's Give does once the task holds what it should (R1):
@@ -451,7 +447,8 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
           .filter((a) => a.id !== v.owner && mayOwnIn(a.id, folder))
           .map((a) => ({ id: a.id, name: a.name, wakes: wakesOfControl(taskMode.isBound(a.id) ? 'own' : 'told') })),
       ]
-      return { ...v, wakes, door: isAgent ? doorOf(key, v.owner) : null, handTo }
+      // (R3) no door for an owner of another project: POST /api/tasks/work refuses it too
+      return { ...v, wakes, door: isAgent && v.ownerOutside !== true ? doorOf(key, v.owner) : null, handTo }
     })
     // GET /api/tasks/feed?key= — the task feed: the visible reply of every
     // turn the machinery sent for this task, read from the transcripts of its
@@ -493,9 +490,14 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
     // ANOTHER project; `<project>/<plan>#t3` (a plan named like its project)
     // is that plan of that project.
     type TaskBody = { key?: unknown; plan?: unknown; task?: unknown; folder?: unknown }
+    // `bound`: the bearer the lookup answers (req.agentId) — it sees only
+    // the tasks of its projects (project-scope.ts): a task elsewhere is
+    // «no such task», the same answer as for an id that names nothing, and
+    // the «N projects have …» 409 counts only its own. The owner and the
+    // owner's desk see every project.
     const findTask = (
       b: TaskBody,
-      hint: { session?: string | null; agentId?: string } = {},
+      hint: { session?: string | null; agentId?: string; bound?: string } = {},
     ): { t: TaskSnap } | { code: number; body: Record<string, unknown> } => {
       const pm = siloRegistry?.get(PLANS_SILO)?.manifest as Record<string, unknown> | null | undefined
       const standing = pm ? standingIdsOf(pm, 'plan') : new Set<string>()
@@ -514,8 +516,9 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       const dirs = agent ? [agent.folder, ...(agent.folders ?? [])].filter((f): f is string => typeof f === 'string' && f !== '') : []
       const inWhere = (x: TaskSnap): boolean => where !== null && x.folder !== null && under(mainCheckoutOf(where), x.folder)
       const inDirs = (x: TaskSnap): boolean => x.folder !== null && dirs.some((d) => under(x.folder!, d) || under(d, x.folder!))
+      const inBound = (folder: string | null): boolean => hint.bound === undefined || reaches(hint.bound, folder, registry.list(true))
       const lookup = (): TaskSnap[] => {
-        const all = taskMode.tasks()
+        const all = taskMode.tasks().filter((x) => inBound(x.folder))
         if (byKey !== null) {
           return all.filter((x) => x.key === byKey)
         }
@@ -581,7 +584,9 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
             ? undefined
             : taskMode
                 .unreadableTasks()
-                .filter((p) => ('planKey' in want ? p.key === want.planKey : p.id === want.plan && (folder === null || p.folder === folder)))
+                .filter(
+                  (p) => inBound(p.folder) && ('planKey' in want ? p.key === want.planKey : p.id === want.plan && (folder === null || p.folder === folder)),
+                )
                 .flatMap((p) => p.tasks)
                 .find((x) => x.id === want.id)
         if (bad && want) return { code: 404, body: { error: `${want.id} is in the file but can't be read: ${bad.reason}` } }
@@ -590,6 +595,25 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       return { t }
     }
     const nameOf = (id: string): string => registry.get(id)?.name ?? id
+    // the bound of a bearer's task verb (project-scope.ts): its projects —
+    // none for the owner's credential and the owner's desk
+    const boundOf = (req: FastifyRequest): { bound?: string } => (req.agentId !== undefined && !seesAll(req.agentId) ? { bound: req.agentId } : {})
+    // a task of its project owned by someone else, as the bearer may hear
+    // it: the owner's name only when it knows that agent (an id it wrote
+    // itself in its plan is never decorated), and «message its owner» only
+    // when it can
+    const notYours = (t: TaskSnap, reader: string): { error: string; owner: string } => {
+      const known =
+        t.owner !== '' && t.owner !== 'owner' && t.owner !== MASTER_ID && mayName(reader, t.owner, registry.list(true)) && registry.get(t.owner) !== null
+      return {
+        error: known
+          ? `${t.ref} is ${nameOf(t.owner)}'s task, not yours — message its owner instead (POST /api/agents/${t.owner}/messages)`
+          : t.owner === 'owner' || t.owner === ''
+            ? `${t.ref} is ${t.owner === 'owner' ? "the owner's" : "nobody's"} task, not yours — leave a note on it, or ask the owner`
+            : `${t.ref} is owned by ${t.owner} — not an agent here; it is not yours — leave a note on it, or ask the owner`,
+        owner: t.owner,
+      }
+    }
     // What Silos knows of a conversation (R3; ONE resolver — m5): KNOWN when
     // it is in the index, in the console records (its key, or the key its
     // native id is bound to), or in the native store under one of `folders`;
@@ -685,15 +709,11 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       if (asked !== null && !CLAIM_SESSION_ID.test(asked)) return reply.code(400).send({ error: 'session must be a conversation id ($SILOS_SESSION_ID)' })
       if (b.takeover !== undefined && typeof b.takeover !== 'boolean') return reply.code(400).send({ error: 'takeover must be true or false' })
       const takeover = b.takeover === true
-      const found = findTask(b, { session: asked !== null ? storedId(asked) : null, agentId: speakerOf(req) })
+      const found = findTask(b, { session: asked !== null ? storedId(asked) : null, agentId: speakerOf(req), ...boundOf(req) })
       if (!('t' in found)) return reply.code(found.code).send(found.body)
       const t = found.t
       const agentId = req.agentId
-      if (agentId !== undefined && t.owner !== agentId)
-        return reply.code(403).send({
-          error: `${t.ref} is ${nameOf(t.owner) || 'nobody'}'s task, not yours — message its owner instead (POST /api/agents/${t.owner}/messages)`,
-          owner: t.owner,
-        })
+      if (agentId !== undefined && t.owner !== agentId) return reply.code(403).send(notYours(t, agentId))
       if (t.state === 'done' || t.state === 'cancelled')
         return reply.code(409).send({ error: `${t.ref} is ${t.state} — more work on it is a new task (or the owner reopens it)`, state: t.state })
       const session = asked !== null ? storedId(asked) : null
@@ -708,6 +728,20 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       const linking = session !== null && known
       absorbRotations()
       const now = Date.now()
+      // a conversation listed on the task is told with its facts (agent,
+      // title, folder) only when it is the bearer's own or of an agent it
+      // knows — an id it wrote there itself comes back as that id, never
+      // decorated (project-scope.ts)
+      const all = registry.list(true)
+      const factsShown = (o: ClaimOther): boolean =>
+        agentId === undefined ||
+        seesAll(agentId) ||
+        o.agent === '' ||
+        o.agent === agentId ||
+        knows(
+          all.find((a) => a.id === agentId),
+          all.find((a) => a.id === o.agent),
+        )
       const others = othersOnTask({
         metas: index.allSessions(),
         lineage: lineage ?? null,
@@ -718,7 +752,9 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         isRunning: (id) => chat.isSessionActive(id),
         now,
         nativeIdOf: (id) => terminals.nativeIdOf(id),
-      })
+      }).map((o) =>
+        factsShown(o) ? o : { ...o, folder: null, agent: '', title: 'untitled', says: `conversation ${o.sessionId}${o.says.slice(o.says.lastIndexOf(' ('))}` },
+      )
       const live = others.filter((o) => o.live)
       const view = (o: ClaimOther) => ({
         sessionId: o.sessionId,
@@ -786,7 +822,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         after,
         shown,
         { linked: linking, tookOver, queued: wakes.lines, bound, state: typeof claimedState === 'string' ? claimedState : 'in_progress', kept },
-        nameOf,
+        (id) => (agentId === undefined || mayName(agentId, id, all) ? nameOf(id) : id),
       )
       if (wakes.ids.length > 0) taskMode.markWorked(wakes.ids, session!, now, 'claim')
       const keptWarn = keep
@@ -858,7 +894,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         const asked2 = typeof w.asked === 'string' ? clipText(w.asked.trim(), ASK_ASKED_MAX) : ''
         wait = { owner: w.owner.trim(), action: clipText(w.action.trim(), ASK_ACTION_MAX), ...(asked2 !== '' ? { asked: asked2 } : {}) }
       }
-      const found = findTask(b, { session: storedId(asked), agentId: speakerOf(req) })
+      const found = findTask(b, { session: storedId(asked), agentId: speakerOf(req), ...boundOf(req) })
       if (!('t' in found)) return reply.code(found.code).send(found.body)
       const t = found.t
       const release = plansVerb('release')
@@ -866,11 +902,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       // whether `state` is one dispose.allowed names is appendRelease's to say
       // (400 in its words) — one source for the rule (B2)
       const agentId = req.agentId
-      if (agentId !== undefined && t.owner !== agentId)
-        return reply.code(403).send({
-          error: `${t.ref} is ${nameOf(t.owner) || 'nobody'}'s task, not yours — message its owner instead (POST /api/agents/${t.owner}/messages)`,
-          owner: t.owner,
-        })
+      if (agentId !== undefined && t.owner !== agentId) return reply.code(403).send(notYours(t, agentId))
       const session = storedId(asked)
       if (agentId !== undefined) {
         const facts = sessionFacts(session, foldersOf(t, agentId))
@@ -993,7 +1025,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
             error: agent.archived
               ? `${agent.name} is archived — give it to an agent in play`
               : agent.folder
-                ? `${agent.name} can't open ${t.folder ? basename(t.folder) : 'its project'} — its fence does not hold it`
+                ? `${agent.name} does not work in ${t.folder ? basename(t.folder) : 'its project'} — give it that folder first (its Profile › Runs on)`
                 : `${agent.name} has no folder — it can't work a task in a project`,
           })
       }
@@ -1151,7 +1183,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
             error: agent.archived
               ? `${agent.name} is archived — give it to an agent in play`
               : agent.folder
-                ? `${agent.name} can't open ${basename(folder)} — its fence does not hold it`
+                ? `${agent.name} does not work in ${basename(folder)} — give it that folder first (its Profile › Runs on)`
                 : `${agent.name} has no folder — it can't work a task in a project`,
           })
       }
@@ -1216,7 +1248,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       app.post<{ Body: (TaskBody & { to?: unknown; action?: unknown; asked?: unknown; review?: unknown }) | null }>('/api/tasks/ask', async (req, reply) => {
         if (req.agentId === undefined) return reply.code(403).send({ error: OWNER_ASKS_WORDS })
         const b = req.body ?? {}
-        const found = findTask(b, { agentId: req.agentId })
+        const found = findTask(b, { agentId: req.agentId, ...boundOf(req) })
         if (!('t' in found)) return reply.code(found.code).send(found.body)
         const r = taskAsks.ask({
           agentId: req.agentId,
@@ -1233,7 +1265,7 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       app.post<{ Body: (TaskBody & { text?: unknown }) | null }>('/api/tasks/ask/answer', async (req, reply) => {
         if (req.agentId === undefined) return reply.code(403).send({ error: OWNER_ANSWERS_WORDS })
         const b = req.body ?? {}
-        const found = findTask(b, { agentId: req.agentId })
+        const found = findTask(b, { agentId: req.agentId, ...boundOf(req) })
         if (!('t' in found)) return reply.code(found.code).send(found.body)
         const r = taskAsks.answer({ agentId: req.agentId, turn: (req as unknown as { turn?: LiveTurn }).turn ?? null, key: found.t.key, text: b.text })
         if (!r.ok) return reply.code(r.code).send({ error: r.error })
@@ -1262,18 +1294,19 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
     // (the ref an agent is shown, `<plan>#<id>`, split at the #): ONE
     // resolver, findTask (review D3).
     app.post<{ Body: TaskBody | null }>('/api/tasks/assign', async (req, reply) => {
-      const found = findTask(req.body ?? {}, { ...(req.agentId !== undefined ? { agentId: req.agentId } : {}) })
+      const found = findTask(req.body ?? {}, { ...(req.agentId !== undefined ? { agentId: req.agentId } : {}), ...boundOf(req) })
       if ('code' in found) return reply.code(found.code).send(found.body)
       const t = found.t
       const key = t.key
       if (req.agentId !== undefined) {
         if (t.owner !== req.agentId) {
           const other = registry.get(t.owner)
-          const why = other
-            ? `${t.ref} is ${other.name}'s task, not yours — message its owner (POST /api/agents/${other.id}/messages)`
-            : t.owner === 'owner' || t.owner === ''
-              ? `${t.ref} is the owner's task, not yours — leave a note on it`
-              : `${t.ref} is ${t.owner}'s task, not yours — leave a note on it`
+          const why =
+            other && mayName(req.agentId, other.id, registry.list(true)) && other.id !== MASTER_ID
+              ? `${t.ref} is ${other.name}'s task, not yours — message its owner (POST /api/agents/${other.id}/messages)`
+              : t.owner === 'owner' || t.owner === ''
+                ? `${t.ref} is the owner's task, not yours — leave a note on it`
+                : `${t.ref} is ${t.owner}'s task, not yours — leave a note on it`
           return reply.code(403).send({ error: why })
         }
         if (!taskMode.isBound(req.agentId)) {
@@ -1341,6 +1374,8 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       if (!agent) return reply.code(409).send({ error: `${w.task.owner || 'nobody'} is not an agent — a person's task is theirs to do`, notAgent: true })
       if (agent.archived) return reply.code(409).send({ error: `no agent «${w.task.owner}» in play` })
       if (agent.folder === null) return reply.code(409).send({ error: `${agent.name} has no folder — cannot open its console` })
+      // (R3) an agent of another project is never opened on this one's task
+      if (w.task.ownerOutside === true) return reply.code(409).send({ error: outsideWords(agent.name) })
       // a turn running in ITS current thread (a wake, a chat turn, the chat
       // door): nothing is opened over it — said, with the conversation to
       // open; a RUN working it (an automation's, a nested one) is read-only.

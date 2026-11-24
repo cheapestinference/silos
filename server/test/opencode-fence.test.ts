@@ -229,26 +229,46 @@ describe("configFiles and the own plugin, in OpenCode's dialect", () => {
     const read = fenceToPermission(f, { worktree: '/home/u/proj', allowPaths: [stateDir] }).read as Record<string, string>
     for (const p of ['/proc/123/environ', '/proc/self/task/9/environ']) expect(evaluate(read, p)).toBe('deny')
   })
-  it("another agent's folder: its conduct files held like one's own, its work untouched", () => {
+  it("another project's folder: closed whole, its work too — with its engine stores and the tmux server; a nested agent's folder: conduct files held, work untouched", () => {
     const other = { id: 'silos', folder: '/home/u/silos', skills: [], name: 'Silos', emoji: '', role: '' }
+    const nested = { id: 'docs', folder: '/home/u/proj/docs', skills: [], name: 'Docs', emoji: '', role: '' }
     const g = fenceFor({
       agent: builder,
-      agents: [builder, other],
+      agents: [builder, other, nested],
       privatePaths: [],
       home: '/home/u',
       dataDir: '/home/u/.silos',
       agentStateDir: stateDir,
       engineConfigFiles: (folder) => [...(claudeCode.configFiles?.(folder, '/home/u') ?? []), ...(opencode.configFiles?.(folder, '/home/u') ?? [])],
+      projectStores: (folder, own) =>
+        [claudeCode, opencode].flatMap((h) => h.projectStores?.(folder, { home: '/home/u', dataDir: '/home/u/.silos', own }) ?? []),
     })!
     const p = fenceToPermission(g, { worktree: '/home/u/proj', allowPaths: [stateDir], home: '/home/u' })
     const read = p.read as Record<string, string>,
       ed = p.edit as Record<string, string>
     for (const at of ['/home/u/silos', '../silos']) {
+      for (const f of ['.claude/settings.local.json', 'src/app.ts', 'plans/x.plan.json']) {
+        expect([at, f, evaluate(read, `${at}/${f}`), evaluate(ed, `${at}/${f}`)]).toEqual([at, f, 'deny', 'deny'])
+      }
+    }
+    // its engine stores: the transcripts in the Claude config dir, the machine's OpenCode database
+    for (const s of [
+      '/home/u/.claude/projects/-home-u-silos/abc.jsonl',
+      '/home/u/.claude/projects/-home-u-silos/memory/MEMORY.md',
+      '/home/u/.local/share/opencode/opencode.db',
+    ]) {
+      expect([s, evaluate(read, s)]).toEqual([s, 'deny'])
+    }
+    // the same project (nested): its conduct files held like one's own, its work open
+    for (const at of ['/home/u/proj/docs', 'docs']) {
       expect(evaluate(read, `${at}/.claude/settings.local.json`)).toBe('deny')
       for (const f of ['.claude/settings.json', '.claude/skills/x/SKILL.md', '.mcp.json', 'opencode.json', '.opencode/plugin/x.js'])
         expect([at, f, evaluate(ed, `${at}/${f}`)]).toEqual([at, f, 'deny'])
       expect(evaluate(ed, `${at}/src/app.ts`)).not.toBe('deny')
+      expect(evaluate(read, `${at}/src/app.ts`)).not.toBe('deny')
     }
+    // Silos' tmux server: the same patterns in OpenCode's bash dialect
+    expect(p.bash).toEqual({ tmux: 'deny', 'tmux *': 'deny' })
   })
   it("the user memory, in ~/.claude and through every account's link to it: neither read nor edited", () => {
     const read = fenceToPermission(f, { worktree: '/home/u/proj', allowPaths: [stateDir] }).read as Record<string, string>

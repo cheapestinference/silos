@@ -141,6 +141,11 @@ function TaskFacts({
       <span>{t.stateLabel}</span>
       {below > 0 ? <span>{below} running below</span> : null}
       {stall ? <StallText>{stall}</StallText> : null}
+      {stall && t.flow?.stalledCause === 'owner-outside-project' && (!t.flow.stalledBy || t.flow.stalledBy === t.id) ? (
+        <span data-testid="task-give-hint" className="text-terracotta">
+          Give to… ›
+        </span>
+      ) : null}
       {waits.map((w) => (
         <span key={w.words} data-testid="task-wait" className={w.accent ? 'text-terracotta' : undefined}>
           {w.words}
@@ -902,8 +907,11 @@ export function TasksView() {
   // a row opens its task with this view as the way back and the list to walk
   const open = (t: TaskView): void => {
     const { project, agent, plan, from } = here
+    // (R3) its owner works in another project: the task opens on «Give to…»
+    const give = t.flow?.stalled === true && t.flow.stalledCause === 'owner-outside-project' && (!t.flow.stalledBy || t.flow.stalledBy === t.id)
     changePage({
       ...taskPage(t),
+      ...(give ? { give: true as const } : {}),
       from: {
         kind: 'tasks',
         query: { view: preset, layout, ...(agent ? { agent } : {}), ...(project ? { project } : {}), ...(plan ? { plan } : {}), ...(from ? { from } : {}) },

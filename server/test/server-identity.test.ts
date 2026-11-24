@@ -61,7 +61,8 @@ beforeEach(async () => {
   })
   seenAgentId = null
   // under the agent's own subtree: agent bearers only read the allow-list
-  app.get('/api/agents/:id/__probe', async (req) => {
+  // a bearer READS a list of routes (agentMayRead): the GET probe sits on one
+  app.get('/api/automations/probe-:id', async (req) => {
     seenAgentId = req.agentId
     return { ok: true, owner: req.ownerCredential === true, author: authorOf(req, registry) }
   })
@@ -79,7 +80,7 @@ describe('agent identity on the API', () => {
   it('GET with a valid bearer → 200 and req.agentId is the agent', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/agents', headers: bearer(tokens.tokenFor('builder')) })
     expect(r.statusCode).toBe(200)
-    const p = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: bearer(tokens.tokenFor('builder')) })
+    const p = await app.inject({ method: 'GET', url: '/api/automations/probe-builder', headers: bearer(tokens.tokenFor('builder')) })
     expect(p.statusCode).toBe(200)
     expect(seenAgentId).toBe('builder')
   })
@@ -87,7 +88,7 @@ describe('agent identity on the API', () => {
   it('a valid bearer also works remotely (no static token needed)', async () => {
     const r = await app.inject({
       method: 'GET',
-      url: '/api/agents/finance/__probe',
+      url: '/api/automations/probe-finance',
       headers: { host: 'silos.example.com', authorization: `Bearer ${tokens.tokenFor('finance')}` },
     })
     expect(r.statusCode).toBe(200)
@@ -185,17 +186,18 @@ describe('identity of every write (t0)', () => {
     expect(JSON.stringify(after.json())).not.toContain('Hacked')
   })
 
-  it('a local GET with no identity reads only the anonymous routes — never as anyone, whatever it declares', async () => {
+  it('a local GET with no identity reads nothing under /api — never as anyone, whatever it declares', async () => {
     // any process on the machine can make a local request: past the roster
     // and a conversation's tasks, a read needs an identity
-    const p = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: LOCAL })
+    const p = await app.inject({ method: 'GET', url: '/api/automations/probe-builder', headers: LOCAL })
     expect(p.statusCode).toBe(401)
     expect(seenAgentId).toBeNull() // the route never ran
     // X-Silos-Agent is declared authorship over a RESOLVED identity, never one
-    const named = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })
+    const named = await app.inject({ method: 'GET', url: '/api/automations/probe-builder', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })
     expect(named.statusCode).toBe(401)
-    expect((await app.inject({ method: 'HEAD', url: '/api/agents', headers: LOCAL })).statusCode).toBe(200)
-    expect((await app.inject({ method: 'GET', url: '/api/agents', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })).statusCode).toBe(200)
+    // nothing under /api answers it — the roster included (project boundary, R4)
+    expect((await app.inject({ method: 'HEAD', url: '/api/agents', headers: LOCAL })).statusCode).toBe(401)
+    expect((await app.inject({ method: 'GET', url: '/api/agents', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })).statusCode).toBe(401)
   })
 
   it('the owner credential writes, local or remote: x-token, ?token= — and only it makes the author «owner»', async () => {
@@ -226,11 +228,11 @@ describe('identity of every write (t0)', () => {
   })
 
   it('an agent bearer is the agent, never the owner — even when it also carries the owner token', async () => {
-    const r = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: bearer(tokens.tokenFor('builder')) })
+    const r = await app.inject({ method: 'GET', url: '/api/automations/probe-builder', headers: bearer(tokens.tokenFor('builder')) })
     expect(r.json()).toEqual({ ok: true, owner: false, author: 'builder' })
     const both = await app.inject({
       method: 'GET',
-      url: '/api/agents/builder/__probe',
+      url: '/api/automations/probe-builder',
       headers: { ...bearer(tokens.tokenFor('builder')), ...ownerHeaders(TOKEN) },
     })
     expect(both.json()).toEqual({ ok: true, owner: false, author: 'builder' })

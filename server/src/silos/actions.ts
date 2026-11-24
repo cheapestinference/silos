@@ -40,6 +40,7 @@
 // silos/events.jsonl (silo + record key) and shown in the record's story.
 import { createHash, randomUUID } from 'node:crypto'
 import { bearerMayReadKey } from './bearer-scope.js'
+import { seesAll } from '../project-scope.js'
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { atomicWriteJson } from '../json-store.js'
@@ -221,6 +222,10 @@ export interface SiloActionsOptions {
   agentMayReadLocation: (agentId: string, location: string) => boolean
   // the producer binding fixed at approval (operator.json); null = never bound
   producersOf?: (siloId: string) => string[] | null
+  // (R3) the agent is of a record's location (project-scope.ts ofLocation):
+  // a record is handed only to a producer of the location it lives in
+  // (surfaces.ts recordProducer). Absent: every producer is
+  ofLocation?: (agentId: string, location: string) => boolean
   // an agent in play (listed, not archived) — an archived producer is no
   // producer: nothing is messaged to it, it writes nothing (surfaces.ts' rule)
   inPlay?: (v: string) => boolean
@@ -437,6 +442,18 @@ export class SiloActions {
 
   // A record (or a child: '<record key>/<collection>/<child id>', or a
   // grandchild one pair deeper — depth ≤ 2) of the last reading.
+  // A bearer's key outside its projects → the one 403, whether the record
+  // exists or not (bearer-scope.ts): judged on the key first; a key that only
+  // passes through a folder around its own is looked up and judged on the
+  // location it resolves to — a record outside and no record answer alike.
+  private outsideBearer(id: string, agentId: string, key: string): ActionResult<never> | null {
+    const may = (loc: string): boolean => this.o.agentMayReadLocation(agentId, loc)
+    if (bearerMayReadKey(agentId, key, may)) return null
+    const l = this.locate(id, key)
+    if (!('ok' in l) && may(l.sr.location)) return null
+    return fail(403, outsideTerritory(agentId, key))
+  }
+
   private locate(id: string, key: string): Located | ActionResult<never> {
     const a = this.active(id)
     if ('ok' in a) return a
@@ -615,13 +632,14 @@ export class SiloActions {
     values: unknown,
     opts: { version?: string | null; by?: string; revive?: false; actor?: ActionActor } = {},
   ): ActionResult<SiloRecord & { reopened?: string }> {
-    // an agent never writes into, nor gets back, ANOTHER agent's state (the
-    // fence denies it that dir; silos/bearer-scope.ts) — judged on the key
-    // before the lookup, so the refusal says nothing of what exists there.
-    // Project folders stay as the fence leaves them (plan files are shared
-    // by convention, architecture.md «Silos writes in plan files too»)
+    // an agent never writes into, nor gets back, ANOTHER agent's state nor
+    // another project's plans (silos/bearer-scope.ts, project-scope.ts) —
+    // the same refusal whether the record exists or not. Inside its
+    // projects plan files are shared by convention (architecture.md «Silos
+    // writes in plan files too»). The owner's desk reaches every project.
     const actorId = opts.actor?.agentId ?? null
-    if (actorId !== null && key.startsWith('agent:') && !key.startsWith(`agent:${actorId}/`)) return fail(403, outsideTerritory(actorId, key))
+    const outside = actorId !== null && !seesAll(actorId) ? this.outsideBearer(id, actorId, key) : null
+    if (outside) return outside
     const l = this.locate(id, key)
     if ('ok' in l) return l
     if (l.via) return fail(400, 'append to a record or to one of its children — nothing nests deeper')
@@ -2305,10 +2323,17 @@ export class SiloActions {
   }
 
   // The producer of ONE record (surfaces.ts recordProducer — the board's
-  // rule): the agent that wrote it while bound and in play, else the first.
-  private producerOfRecord(id: string, anchors: { agent?: unknown }): string | undefined {
+  // rule): the agent that wrote it while bound and in play, else the first —
+  // of the record's location either way (R3).
+  private producerOfRecord(id: string, anchors: { agent?: unknown }, location: string): string | undefined {
     const inPlay = this.o.inPlay
-    return recordProducer(this.o.producersOf?.(id) ?? [], anchors, (a) => (inPlay ? inPlay(a) : true))
+    const of = this.o.ofLocation
+    return recordProducer(
+      this.o.producersOf?.(id) ?? [],
+      anchors,
+      (a) => (inPlay ? inPlay(a) : true),
+      (a) => !of || of(a, location),
+    )
   }
 
   // A producer: one of the bound agents; with the role `any-agent` and no
@@ -2406,14 +2431,18 @@ export class SiloActions {
         templates.length === 0 ? `${id} declares no message templates for ${l.info.name}` : `template ${template} does not exist (0–${templates.length - 1})`,
       )
     // the record's producer — its writer, else the first in play (a task has ONE owner)
-    const to = this.producerOfRecord(id, l.sr.anchors)
+    const to = this.producerOfRecord(id, l.sr.anchors, l.sr.location)
     if (to === undefined) {
       const bound = this.o.producersOf?.(id) ?? []
+      const inPlay = this.o.inPlay
+      const live = bound.filter((a) => (inPlay ? inPlay(a) : true))
       return fail(
         409,
-        bound.length > 0
-          ? `the producer role of ${id} is bound to ${bound.join(', ')}, archived — no agent in play to give it to`
-          : `the producer role of ${id} is not bound to an agent yet`,
+        live.length > 0
+          ? `the producer role of ${id} is bound to ${live.join(', ')}, none of whom works where this record lives — bind a producer of its project`
+          : bound.length > 0
+            ? `the producer role of ${id} is bound to ${bound.join(', ')}, archived — no agent in play to give it to`
+            : `the producer role of ${id} is not bound to an agent yet`,
       )
     }
     const folder = d.folderOf(to)
@@ -2737,7 +2766,8 @@ export class SiloActions {
     // judged on the key alone, before the lookup (silos/bearer-scope.ts): a
     // proposal carries the record's standing value, so another agent's
     // record is never located for this bearer — the same words either way
-    if (!bearerMayReadKey(agentId, key, (loc) => this.o.agentMayReadLocation(agentId, loc))) return fail(403, outsideTerritory(agentId, key))
+    const outside = this.outsideBearer(id, agentId, key)
+    if (outside) return outside
     const l = this.locate(id, key)
     if ('ok' in l) return l
     if (!this.isProducer(id, l.manifest, agentId)) return fail(403, `${agentId} is not a producer of ${id}`)

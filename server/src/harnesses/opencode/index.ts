@@ -39,7 +39,7 @@ import { existsSync } from 'node:fs'
 import { mungePath } from '../../agent-registry.js'
 import { defaultRun } from '../../harness-run.js'
 import { OpenCodeReader } from './reader.js'
-import { globalDbPath } from './paths.js'
+import { globalDbPath, opencodeDataDir } from './paths.js'
 import { authFilePath } from './auth-file.js'
 import { ConsoleRegistrar, pinModelInto, pinProviderInto } from './registrar.js'
 import { fetchOpenCodeModels } from './models.js'
@@ -188,11 +188,22 @@ export const opencode: Harness = {
   fencePermission: (fence, opts) => fenceToPermission(fence, { worktree: opts.worktree, home: opts.home }),
   // the operator's login keys (auth-file.ts): every agent's fence denies them
   secretFiles: (home) => [authFilePath(home)],
+  // its global config dir and its data dir (logins, the machine's database)
+  ownDirs: (home) => [`${process.env.XDG_CONFIG_HOME || `${home.replace(/\/+$/, '')}/.config`}/opencode`, opencodeDataDir(home)],
   // what OpenCode loads behaviour from, with no approval gate: the project config and dir, and the global config
   configFiles: (folder, home) => {
     const f = folder.replace(/\/+$/, ''),
       h = home.replace(/\/+$/, '')
     return [`${f}/opencode.json`, `${f}/opencode.jsonc`, `${f}/.opencode/**`, `${h}/.config/opencode/**`]
+  },
+  // the machine's one database (a hand-launched OpenCode's, every folder's
+  // conversations in it): not kept per folder, so it is every folder's store
+  // and closed to every agent that has another project. The agents Silos
+  // launches keep their own database under the data dir (paths.ts
+  // agentDbPath), already closed with it.
+  projectStores: (_folder, { home }) => {
+    const db = globalDbPath(home)
+    return [{ path: db, deny: [db, `${db}-*`] }]
   },
   // what it calls itself (network.ts): pinned in an egress allowlist
   engineHosts: OPENCODE_ENGINE_HOSTS,

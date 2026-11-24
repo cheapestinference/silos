@@ -99,7 +99,7 @@ const ZONES = [
   {
     name: 'automations',
     paths: [
-      /^server\/src\/(resident|automation|routes\/(automation|heartbeat)|proposals)/,
+      /^server\/src\/(resident|automation|routes\/(automation|heartbeat|proposals)|proposals|skill-accept)/,
       /^web\/src\/(components\/(Automation|automation\/)|lib\/automations)/,
     ],
     specs: ['automation-editor', 'templates', 'proactive', 'mission', 'inbox'],
@@ -127,8 +127,8 @@ const ZONES = [
   {
     name: 'first-run',
     paths: [
-      /^web\/src\/(components\/(Welcome|welcome\/|ClaudeSignIn|EngineSignIn|AgentModal|NewProjectModal|agent\/(FirstMeeting|GiveContext))|lib\/(first-run|new-agent|first-meeting|starting-set)\.)/,
-      /^server\/src\/(starting-set|platform-settings)\.ts$/,
+      /^web\/src\/(components\/(Welcome|welcome\/|ClaudeSignIn|EngineSignIn|AgentModal|NewProjectModal|agent\/(FirstMeeting|GiveContext))|lib\/(first-run|new-agent|birth|first-meeting|starting-set)\.)/,
+      /^server\/src\/(starting-set|platform-settings|birth-project|project-folder)\.ts$/,
     ],
     specs: ['first-run', 'providers'],
   },
@@ -154,8 +154,8 @@ const ZONES = [
       /^web\/src\/components\/(agent\/|AgentPage|ProjectPage|knows\/|ArtifactsBlock|RolePack)/,
       /^web\/src\/(lib\/agent-tabs|lib\/owners|lib\/origin-filter|lib\/owner-caption|hooks\/useNewMessages)\.ts$/,
       /^web\/src\/components\/(OwnerFilter|OwnerLabel)\.tsx$/,
-      /^web\/src\/lib\/(loaded-at-start|loads-view|loads-places|here-tools|loads-weight|loads-check-view|memory-rows)\.ts$/,
-      /^server\/src\/(memory-service|folder-instructions|routes\/files\.ts$|knows|skill-states|role-pack|role-plugin|agent-tools|artifacts|plugin-enablement|folder-loads|folder-personal|folder-instruction-places|picomatch\.d\.ts$|loads-check|loads-scopes|loads-bulk|conversation-places|tool-health|start-health|switch-proof|harnesses\/claude-code\/(loads\/|local-settings|personal-instructions|instruction-places|instructions)|harnesses\/opencode\/(loads|launch-entries|global-config)\.ts$|routes\/agents\.ts$|routes\/skills\.ts$|complete-service\.ts$|routes\/workspace\.ts$|routes\/role-packs\.ts$|context-(service|news)\.ts$)/,
+      /^web\/src\/lib\/(project-reach|loaded-at-start|loads-view|loads-places|here-tools|loads-weight|loads-check-view|memory-rows)\.ts$/,
+      /^server\/src\/(memory-service|folder-instructions|routes\/files\.ts$|knows|skill-states|role-pack|role-plugin|agent-tools|artifacts|plugin-enablement|folder-loads|folder-personal|folder-instruction-places|picomatch\.d\.ts$|loads-check|loads-scopes|loads-bulk|conversation-places|tool-health|start-health|switch-proof|harnesses\/claude-code\/(loads\/|local-settings|personal-instructions|instruction-places|instructions)|harnesses\/opencode\/(loads|launch-entries|global-config)\.ts$|routes\/agents\.ts$|control\.ts$|routes\/skills\.ts$|complete-service\.ts$|routes\/workspace\.ts$|routes\/role-packs\.ts$|context-(service|news)\.ts$)/,
     ],
     specs: ['dossier', 'mission', 'knows-drawer', 'artifacts', 'role-pack', 'proactive', 'vault'],
   },
@@ -200,12 +200,13 @@ const ZONES = [
 // what every spec stands on. server.ts, index.ts and web/src/lib/api.ts are
 // here ON PURPOSE, not forgotten: they wire every route and every call the
 // web makes — no zone is smaller than the whole suite for them.
+// agent-registry.ts too: every spec's agents are its own.
 // seals.ts too: it sits under every write to a sealed control file (agents,
 // automations, proposals, vault, territory…) and no spec owns its rows.
 const EVERYTHING = [
   /^web\/e2e\/(helpers|global|fixtures)/,
   /^web\/playwright\.config/,
-  /^server\/src\/(server|index|config|env|seals|seal-regimes)\.ts$/,
+  /^server\/src\/(server|index|config|env|seals|seal-regimes|agent-registry)\.ts$/,
   /^web\/src\/lib\/api\.ts$/,
   /^package(-lock)?\.json$/,
   /^web\/(package\.json|vite\.config|tailwind\.config)/,

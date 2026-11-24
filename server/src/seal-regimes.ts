@@ -130,7 +130,7 @@ export const DATA_DIR_REGIMES: Readonly<Record<string, RegimeDecl>> = {
   // boot, never written by Silos — the environment the server is started
   // with, written down, and no more watchable than that environment
   'server.env': outside(
-    "the server's deploy settings, hand-written by the owner (server-env.ts: the Silos ID keys only), read once at boot and never written by Silos — the same authority as the environment the server is started with; fenced from every agent (territory.ts DATA_DIR_FILES_DENIED `*.env`), and an unfenced agent already reads the owner token itself",
+    "the server's deploy settings, hand-written by the owner (server-env.ts: the Silos ID keys only), read once at boot and never written by Silos — the same authority as the environment the server is started with; closed to every agent with a folder, its territory on or off (territory.ts SILOS_CREDENTIALS), and the owner's desk already reads the owner token itself",
   ),
   'boot.log': outside("the container's boot hooks' log (deploy/docker-entrypoint.sh) — a record, no authority"),
   // ---- not named by the spec: declared by the writer rule, reported ----

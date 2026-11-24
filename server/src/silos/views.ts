@@ -392,6 +392,7 @@ function rowFor(
     ? turnOf(r.rec, r.siblings ?? [], info.dict, siblingRefOf(ctx.entry.manifest, info, r, ctx.reading?.records ?? []), {
         now: ctx.voice.now,
         key: r.key,
+        ...(r.location !== undefined ? { location: r.location } : {}),
         ...(ctx.voice.isAgent ? { isAgent: ctx.voice.isAgent } : {}),
         ...(ctx.voice.taskEnv ? { taskEnv: ctx.voice.taskEnv } : {}),
         ...(ctx.voice.nameOf ? { nameOf: ctx.voice.nameOf } : {}),
@@ -920,11 +921,16 @@ export function recordDetail(
 function findRecord(kinds: Map<string, KindInfo>, reading: SiloReading | null, key: string): { sr: SiloRecord; info: KindInfo; r: KindRecord } | null {
   const records = reading?.records ?? []
   const top = records.find((x) => `${x.location}/${x.record.id}` === key)
-  if (top) return { sr: top, info: kinds.get(top.kind)!, r: { rec: top.record, anchors: top.anchors as Json, key, file: top.file || null, source: top.source } }
+  if (top)
+    return {
+      sr: top,
+      info: kinds.get(top.kind)!,
+      r: { rec: top.record, anchors: top.anchors as Json, key, location: top.location, file: top.file || null, source: top.source },
+    }
   for (const sr of records) {
     const topKey = `${sr.location}/${sr.record.id}`
     if (!key.startsWith(`${topKey}/`)) continue
-    const base: KindRecord[] = [{ rec: sr.record, anchors: sr.anchors as Json, key: topKey, file: sr.file || null, source: sr.source }]
+    const base: KindRecord[] = [{ rec: sr.record, anchors: sr.anchors as Json, key: topKey, location: sr.location, file: sr.file || null, source: sr.source }]
     for (const info of kinds.values()) {
       let root: KindInfo = info
       while (root.parent) root = root.parent

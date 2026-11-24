@@ -2,10 +2,11 @@
 // the `claude` on PATH, the consoles' own — never the SDK's bundled
 // binaries — and the SDK package names the release it is paired with.
 import { describe, expect, it } from 'vitest'
-import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { CLAUDE_MISSING, claudeOnPath, sdkPairing, withClaudeExecutable } from '../src/harnesses/claude-code/binary.js'
+import { sdkQueryFn, sdkSettingsIn } from '../src/harnesses/claude-code/sdk.js'
 
 function bin(dir: string, name: string, exec = true): string {
   mkdirSync(dir, { recursive: true })
@@ -46,6 +47,46 @@ describe('withClaudeExecutable', () => {
       process.env.PATH = join(root, 'bin')
       expect(withClaudeExecutable({ cwd: '/x' })).toEqual({ cwd: '/x', pathToClaudeCodeExecutable: join(root, 'bin', 'claude') })
     } finally {
+      process.env.PATH = saved
+    }
+  })
+})
+
+// D8: a turn's settings carry its fence (the map of every other project);
+// on the engine's argv /proc/<pid>/cmdline shows it to every process. The
+// SDK boundary hands claude a 0600 file instead, removed when the query ends.
+describe('sdkQueryFn — the settings ride a file, never argv', () => {
+  it('claude gets `--settings <file>`; the file holds the fence while it runs and is gone after', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'claude-sdk-'))
+    const out = join(root, 'seen')
+    mkdirSync(join(root, 'bin'))
+    // a stand-in claude: records its argv and the settings file it was named, then fails
+    writeFileSync(
+      join(root, 'bin', 'claude'),
+      `#!/bin/sh\nprintf '%s\\n' "$@" > '${out}.argv'\nprev=''\nfor a in "$@"; do if [ "$prev" = '--settings' ]; then cat "$a" > '${out}.file'; stat -c %a "$a" > '${out}.mode'; fi; prev="$a"; done\nexit 1\n`,
+    )
+    chmodSync(join(root, 'bin', 'claude'), 0o755)
+    const saved = process.env.PATH
+    const dir = join(root, 'data', 'console-append')
+    try {
+      process.env.PATH = `${join(root, 'bin')}${delimiter}${saved ?? ''}`
+      sdkSettingsIn(dir)
+      const deny = ['Read(//home/user/beta/**)']
+      const h = sdkQueryFn({ prompt: 'hi', options: { settings: { permissions: { deny } } } })
+      await expect(
+        (async () => {
+          for await (const m of h) void m
+        })(),
+      ).rejects.toThrow()
+      const argv = readFileSync(`${out}.argv`, 'utf8').split('\n')
+      const at = argv.indexOf('--settings')
+      expect(argv[at + 1]!.startsWith(`${dir}/`)).toBe(true)
+      expect(argv.join(' ')).not.toContain('beta')
+      expect(JSON.parse(readFileSync(`${out}.file`, 'utf8'))).toEqual({ permissions: { deny } })
+      expect(readFileSync(`${out}.mode`, 'utf8').trim()).toBe('600')
+      expect(existsSync(dir) ? readdirSync(dir) : []).toEqual([])
+    } finally {
+      sdkSettingsIn(null)
       process.env.PATH = saved
     }
   })

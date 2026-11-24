@@ -1,10 +1,11 @@
 #!/bin/sh
 # SessionStart hook — the Silos briefing: every claude on this machine wakes
 # knowing it runs inside Silos and how to integrate (deliverables in the
-# project, shared plans, legibility), plus the fleet roster. Sources:
+# project, shared plans, legibility), plus the roster of its projects. Sources:
 # plugin/context/briefing.d/ composed by compose.py for the skills THIS
 # session has (never an order to use a missing skill),
-# roster.py (agents from the API, else from ~/.silos/agents.json) and
+# roster.py (the agents of its projects: from the API with the bearer, else
+# from ~/.silos/agents.json filtered by the same rule) and
 # inbox.py. Never breaks claude: any failure degrades to less context, or
 # to nothing, and the exit code is always 0.
 # It also writes the session's birth marker (birth.py, from the JSON Claude
@@ -65,12 +66,14 @@ try:
     d=json.loads(sys.stdin.read() or "{}")
 except Exception:
     d={}
-for k in ("source","session_id","transcript_path"):
+for k in ("source","session_id","transcript_path","cwd"):
     s=d.get(k) if isinstance(d,dict) else None
     print(s if isinstance(s,str) and "\n" not in s and "\r" not in s else "")' 2>/dev/null) || fields=""
 src=$(printf '%s\n' "$fields" | sed -n 1p)
 sid=$(printf '%s\n' "$fields" | sed -n 2p)
 tp=$(printf '%s\n' "$fields" | sed -n 3p)
+cwd=$(printf '%s\n' "$fields" | sed -n 4p)
+[ -n "$cwd" ] || cwd=$PWD
 
 # Does this session's context already carry the briefing / the roster?
 briefed=""
@@ -118,14 +121,24 @@ add() { [ -n "$1" ] && dyn="${dyn:+$dyn
 
 }$1"; }
 
+# The roster: the agents of this session's projects (roster.py — the same
+# rule as the server's project-scope.ts). With an identity it is read with
+# the bearer (the server answers the agent's own projects); without one —
+# a claude started by hand — nothing is asked of the API: the hook, Silos'
+# own process, renders the agents of the folder it runs in from
+# agents.json on disk, and the model never sees the unfiltered file. The
+# same file, filtered by the same rule, is the fallback when the server is
+# down.
 if [ -n "$want_roster" ]; then
   roster=""
-  agents=$(python3 "$dir/silos_http.py" /api/agents 2>/dev/null) || agents=""
-  if [ -n "$agents" ]; then
-    roster=$(printf '%s' "$agents" | python3 "$dir/roster.py" 2>/dev/null) || roster=""
+  if [ -n "$SILOS_AGENT_TOKEN" ]; then
+    agents=$(python3 "$dir/silos_http.py" /api/agents 2>/dev/null) || agents=""
+    if [ -n "$agents" ]; then
+      roster=$(printf '%s' "$agents" | python3 "$dir/roster.py" --cwd "$cwd" 2>/dev/null) || roster=""
+    fi
   fi
   if [ -z "$roster" ] && [ -r "$HOME/.silos/agents.json" ]; then
-    roster=$(python3 "$dir/roster.py" < "$HOME/.silos/agents.json" 2>/dev/null) || roster=""
+    roster=$(python3 "$dir/roster.py" --cwd "$cwd" < "$HOME/.silos/agents.json" 2>/dev/null) || roster=""
   fi
   add "$roster"
 fi

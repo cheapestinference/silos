@@ -128,13 +128,15 @@ describe('isLocalRequest (per-request guard)', () => {
     app = await server(silosIdClient())
   })
 
-  it('genuinely local (a loopback Host, no forwarding headers) with no token -> only the anonymous reads', async () => {
+  it('genuinely local (a loopback Host, no forwarding headers) with no token -> the web app, nothing under /api', async () => {
     // inject defaults to Host localhost:80 — pure loopback
-    expect((await app.inject({ url: '/api/agents' })).statusCode).toBe(200)
-    expect((await app.inject({ url: '/api/agents', headers: { host: '127.0.0.1:3210' } })).statusCode).toBe(200)
-    // any other read needs an identity — local or not (any process on the
+    expect((await app.inject({ url: '/' })).statusCode).not.toBe(401)
+    expect((await app.inject({ url: '/', headers: { host: '127.0.0.1:3210' } })).statusCode).not.toBe(401)
+    // every read needs an identity — local or not (any process on the
     // machine, an agent's shell included, can make a local request)
     for (const url of [
+      '/api/agents',
+      '/api/tasks/by-session?session=x',
       '/api/overview',
       '/api/file/raw?path=/home/user/.silos/token',
       '/api/file/meta?path=/etc/passwd',
@@ -169,7 +171,12 @@ describe('isLocalRequest (per-request guard)', () => {
       expect(withToken.statusCode, `peer ${remoteAddress} + a valid token`).toBe(200)
     }
     for (const remoteAddress of ['127.0.0.1', '::1', '::ffff:127.0.0.1']) {
-      expect((await app.inject({ url: '/api/agents', remoteAddress, headers: { host: '127.0.0.1:3210' } })).statusCode, `peer ${remoteAddress}`).toBe(200)
+      // a loopback peer with no identity is answered nothing under /api either
+      expect((await app.inject({ url: '/api/agents', remoteAddress, headers: { host: '127.0.0.1:3210' } })).statusCode, `peer ${remoteAddress}`).toBe(401)
+      expect(
+        (await app.inject({ url: '/api/agents', remoteAddress, headers: { host: '127.0.0.1:3210', 'x-token': TOKEN } })).statusCode,
+        `peer ${remoteAddress} + a valid token`,
+      ).toBe(200)
     }
   })
 
@@ -180,8 +187,9 @@ describe('isLocalRequest (per-request guard)', () => {
 
   it('with no sign-in configured the local/remote guard is the same (the rule does not depend on login)', async () => {
     const noLogin = await server(null)
-    expect((await noLogin.inject({ url: '/api/agents' })).statusCode).toBe(200) // local
+    expect((await noLogin.inject({ url: '/api/agents' })).statusCode).toBe(401) // local
     expect((await noLogin.inject({ url: '/api/agents', headers: REMOTE })).statusCode).toBe(401)
+    expect((await noLogin.inject({ url: '/api/agents', headers: { 'x-token': TOKEN } })).statusCode).toBe(200)
     expect((await noLogin.inject({ url: '/api/overview' })).statusCode).toBe(401)
   })
 })

@@ -25,7 +25,7 @@ import { AgentStateStore } from '../src/agent-state.js'
 import { ProvidersStore } from '../src/providers-store.js'
 import { TerritoryStore } from '../src/territory-store.js'
 import { PROPOSAL_TTL_MS, PROPOSALS_PENDING_MAX } from '../src/limits.js'
-import { ProposalsStore, decidedWords, REVIEW_RESULT } from '../src/proposals.js'
+import { CROSSING_REVIEW_ERROR, ProposalsStore, decidedWords, REVIEW_RESULT } from '../src/proposals.js'
 import { agentMayRead, agentMayWrite } from '../src/agent-authz.js'
 import { liveTurnOf } from './helpers/live-turn.js'
 
@@ -242,6 +242,37 @@ describe('accept an automation — the same path as the direct create, stamped',
     const r = await accept(p.id)
     expect([r.statusCode, r.json()]).toEqual([409, { error: 'it runs a command, not a prompt — review it in the automation editor' }])
     expect(automations.list()).toEqual([])
+  })
+
+  it("(R6) one that crosses the proposer's projects is stored marked, said first on the card, never accepted in one touch", async () => {
+    const beta = join(base, 'beta')
+    mkdirSync(beta, { recursive: true })
+    registry.create({ id: 'cy', name: 'Cy', folder: beta })
+    const watching = (source: string) => cron({ name: 'Review', trigger: { kind: 'conversation', when: 'finished', sourceAgentId: source } })
+    // Bo is of Ana's project: no crossing — one touch, as before
+    const near = (await propose('ana', { kind: 'automation', reason: 'r', input: watching('bo') })).json().proposal
+    expect(near.crosses).toBeUndefined()
+    // Cy works in another project; an id that is nobody gets the same mark
+    const far = (await propose('ana', { kind: 'automation', reason: 'r', input: watching('cy') })).json().proposal
+    const ghost = (await propose('ana', { kind: 'automation', reason: 'r', input: watching('nobody-here') })).json().proposal
+    const away = (
+      await propose('bo', { kind: 'automation', reason: 'r', input: cron({ agentId: 'bo', name: 'Elsewhere', thread: { mode: 'keep', folder: beta } }) })
+    ).json().proposal
+    expect([far.crosses, ghost.crosses, away.crosses]).toEqual([['trigger.sourceAgentId'], ['trigger.sourceAgentId'], ['thread.folder']])
+    const views = (await app.inject({ url: '/api/proposals', headers: owner })).json().proposals as Array<{
+      id: string
+      review: boolean
+      words: { crosses?: string }
+    }>
+    const view = views.find((v) => v.id === far.id)!
+    expect(view.review).toBe(true)
+    expect(view.words.crosses).toBe("watches Cy's conversations in beta")
+    const r = await accept(far.id)
+    expect([r.statusCode, r.json()]).toEqual([409, { error: CROSSING_REVIEW_ERROR }])
+    expect(automations.list()).toEqual([])
+    // a files trigger outside its projects is no bridge to grant: refused at once
+    const files = await propose('bo', { kind: 'automation', reason: 'r', input: cron({ agentId: 'bo', trigger: { kind: 'files', folder: beta, glob: '*' } }) })
+    expect(files.statusCode).toBe(409)
   })
 
   it('inputHash re-verified: an input changed under the proposal (or not the one the sheet painted) ⇒ 409', async () => {
@@ -490,5 +521,142 @@ describe('dismiss and expiry', () => {
     const again = new ProposalsStore(join(base, 'ttl'))
     again.load()
     expect(again.get(p.id)!.state).toBe('expired')
+  })
+})
+
+describe('skills: a change to a skill the project has — proposed with its folder, never written in place', () => {
+  const projectSkill = (name: string) => join(folder, '.claude', 'skills', name)
+  function seedProjectSkill(name: string, files: Record<string, string>): void {
+    for (const [rel, text] of Object.entries(files)) {
+      mkdirSync(join(projectSkill(name), rel, '..'), { recursive: true })
+      writeFileSync(join(projectSkill(name), rel), text)
+    }
+  }
+  const change = (id: string, name: string, f: string = folder) =>
+    propose(id, { kind: 'skill', reason: 'the reply template is out of date', input: { name, folder: f } })
+
+  it("propose: only its own folder, only a skill that folder has, never Silos' own, never a no-op", async () => {
+    seedProjectSkill('replies', { 'SKILL.md': '# replies\nold\n' })
+    writeSkill('ana', 'replies', { 'SKILL.md': '# replies\nnew\n' })
+    const other = join(base, 'other')
+    mkdirSync(join(other, '.claude', 'skills', 'replies'), { recursive: true })
+    writeFileSync(join(other, '.claude', 'skills', 'replies', 'SKILL.md'), '# theirs\n')
+    for (const f of [other, join(folder, 'sub'), 'proj', `${folder}/../other`]) {
+      const r = await change('ana', 'replies', f)
+      expect([f, r.statusCode, r.json()]).toEqual([f, 403, { error: 'folder must be one of your own project folders — the one whose skill you change' }])
+    }
+    writeSkill('ana', 'absent')
+    const none = await change('ana', 'absent')
+    expect([none.statusCode, none.json()]).toEqual([404, { error: 'that folder has no skill called absent — a new skill is proposed without "folder"' }])
+    seedProjectSkill('team-plan', { 'SKILL.md': '# copy\n' })
+    writeSkill('ana', 'team-plan')
+    const ours = await change('ana', 'team-plan')
+    expect([ours.statusCode, ours.json()]).toEqual([400, { error: "team-plan is Silos' own skill — its copies follow Silos and are not changed in a project" }])
+    seedProjectSkill('same', { 'SKILL.md': '# same\n' })
+    writeSkill('ana', 'same', { 'SKILL.md': '# same\n' })
+    const same = await change('ana', 'same')
+    expect([same.statusCode, same.json()]).toEqual([400, { error: "nothing changes: proposed/same is the same as the project's skill" }])
+    expect(readFileSync(join(other, '.claude', 'skills', 'replies', 'SKILL.md'), 'utf8')).toBe('# theirs\n')
+  })
+
+  it("the sheet marks each file against the project's copy and draws the diff; accept replaces it and keeps the old one in the trash", async () => {
+    seedProjectSkill('replies', { 'SKILL.md': '# replies\nold line\nkept\n', 'gone.md': 'bye\n', 'same.md': 'same\n' })
+    writeSkill('ana', 'replies', { 'SKILL.md': '# replies\nnew line\nkept\n', 'added.md': 'hi\n', 'same.md': 'same\n' })
+    const p = (await change('ana', 'replies')).json().proposal
+    expect(p).toMatchObject({ input: { name: 'replies', folder } })
+    expect(p.baseHash).toMatch(/^[0-9a-f]{64}$/)
+    const view = (await app.inject({ method: 'GET', url: '/api/proposals', headers: owner })).json().proposals[0]
+    expect(view.words).toMatchObject({ title: 'replies', skillOf: 'proj' })
+    expect(view.skill).toEqual({
+      name: 'replies',
+      folder,
+      removed: ['gone.md'],
+      files: [
+        { path: 'SKILL.md', size: 24, change: 'changed' },
+        { path: 'added.md', size: 3, change: 'new' },
+        { path: 'same.md', size: 5, change: 'same' },
+      ],
+    })
+    const file = (path: string) => app.inject({ method: 'GET', url: `/api/proposals/${p.id}/file?path=${path}`, headers: owner }).then((r) => r.json())
+    expect(await file('SKILL.md')).toEqual({
+      path: 'SKILL.md',
+      text: '# replies\nnew line\nkept\n',
+      diff: [
+        [' ', '# replies'],
+        ['-', 'old line'],
+        ['+', 'new line'],
+        [' ', 'kept'],
+        [' ', ''],
+      ],
+    })
+    expect(await file('added.md')).toEqual({ path: 'added.md', text: 'hi\n' })
+    expect(await file('gone.md')).toEqual({
+      path: 'gone.md',
+      text: null,
+      diff: [
+        ['-', 'bye'],
+        ['-', ''],
+      ],
+    })
+    // the project's skill is untouched until the owner's accept
+    expect(readFileSync(join(projectSkill('replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nold line\nkept\n')
+    const r = await accept(p.id)
+    expect([r.statusCode, r.json()]).toEqual([200, { skill: 'replies', folder, loadsAt: 'next conversation' }])
+    expect(readdirSync(projectSkill('replies')).sort()).toEqual(['SKILL.md', 'added.md', 'same.md'])
+    expect(readFileSync(join(projectSkill('replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nnew line\nkept\n')
+    const kept = readdirSync(join(dataDir, 'trash', 'skills'))
+    expect(kept).toHaveLength(1)
+    expect(readFileSync(join(dataDir, 'trash', 'skills', kept[0]!, 'gone.md'), 'utf8')).toBe('bye\n')
+    expect(existsSync(proposedDir('ana', 'replies'))).toBe(false)
+    expect(existsSync(pluginSkill('ana', 'replies'))).toBe(false)
+    expect(readdirSync(join(dataDir, 'skill-staging'))).toEqual([])
+  })
+
+  it("accept refuses what the owner did not read: the project's copy or the proposed tree changed since — nothing moves", async () => {
+    seedProjectSkill('replies', { 'SKILL.md': '# replies\nold\n' })
+    writeSkill('ana', 'replies', { 'SKILL.md': '# replies\nnew\n' })
+    const p = (await change('ana', 'replies')).json().proposal
+    writeFileSync(join(projectSkill('replies'), 'SKILL.md'), '# replies\nedited by hand\n')
+    const a = await accept(p.id)
+    expect([a.statusCode, a.json()]).toEqual([409, { error: "the project's skill changed since it was proposed — review it again" }])
+    expect(readFileSync(join(projectSkill('replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nedited by hand\n')
+    expect(readFileSync(join(proposedDir('ana', 'replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nnew\n')
+    writeFileSync(join(projectSkill('replies'), 'SKILL.md'), '# replies\nold\n')
+    writeFileSync(join(proposedDir('ana', 'replies'), 'SKILL.md'), '# replies\nswapped after the propose\n')
+    const b = await accept(p.id)
+    expect([b.statusCode, b.json()]).toEqual([409, { error: 'the skill changed since it was proposed — review it again' }])
+    expect(readFileSync(join(projectSkill('replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nold\n')
+    expect(proposals.get(p.id)).toMatchObject({ state: 'pending' })
+  })
+
+  it('accept: a folder the agent no longer has is refused', async () => {
+    seedProjectSkill('replies', { 'SKILL.md': '# replies\nold\n' })
+    writeSkill('ana', 'replies', { 'SKILL.md': '# replies\nnew\n' })
+    const p = (await change('ana', 'replies')).json().proposal
+    const moved = join(base, 'elsewhere')
+    mkdirSync(moved, { recursive: true })
+    registry.update('ana', { folder: moved })
+    const r = await accept(p.id)
+    expect(r.statusCode).toBe(409)
+    expect(readFileSync(join(projectSkill('replies'), 'SKILL.md'), 'utf8')).toBe('# replies\nold\n')
+  })
+})
+
+describe('a proposal belongs to the conversation it was proposed in', () => {
+  it("the session is the turn's, never the body's; GET ?conversation= answers only that conversation's", async () => {
+    const tokenIn = (session: string) => chat.liveTurns.mintTurn({ agentId: 'ana', turnId: `t-${session}`, turn: { class: 'chat' }, sessionId: session })
+    const a = (await propose('ana', { kind: 'automation', reason: 'here', input: cron({ name: 'In A' }), session: 'forged' }, tokenIn('conv-a'))).json()
+      .proposal
+    const b = (await propose('ana', { kind: 'automation', reason: 'there', input: cron({ name: 'In B' }) }, tokenIn('conv-b'))).json().proposal
+    expect([a.session, b.session]).toEqual(['conv-a', 'conv-b'])
+    const of = async (q: string) =>
+      (await app.inject({ method: 'GET', url: `/api/proposals${q}`, headers: owner })).json().proposals.map((p: { id: string }) => p.id)
+    expect(await of('?conversation=conv-a')).toEqual([a.id])
+    expect(await of('?conversation=conv-b')).toEqual([b.id])
+    expect(await of('?conversation=conv-none')).toEqual([])
+    expect((await of('')).sort()).toEqual([a.id, b.id].sort())
+    // an agent does not read them, filtered or not
+    const r = await app.inject({ method: 'GET', url: '/api/proposals?conversation=conv-a', headers: bearer('ana') })
+    expect(r.statusCode).toBe(403)
   })
 })

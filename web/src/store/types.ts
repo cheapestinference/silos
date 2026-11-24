@@ -150,7 +150,7 @@ export type Page =
   // (/task/<plan key>/<task id>). Reached from a Tasks row, Home's Needs you
   // («open task»), the column's PlanView and a conversation's header.
   // `from`: the list it was opened from (back link, Esc, previous/next)
-  | { kind: 'task'; plan: string; task: string; from?: TaskOrigin }
+  | { kind: 'task'; plan: string; task: string; from?: TaskOrigin; give?: true }
   // the dependency Map: a full page — reached from Home's lens line and
   // from ⌘K. `view` picks its sibling views: absent = Uses, the usage
   // matrix of what agents, projects and conversations ACTUALLY used,
@@ -169,7 +169,7 @@ export type Page =
   // the Vault — the fleet's keyring, its own full page (its own view, out
   // of Settings). Reached from the rail's key and ⌘K.
   // sign: a task key whose binding ask the Vault opens prefilled
-  | { kind: 'vault'; sign?: string; entry?: string }
+  | { kind: 'vault'; sign?: string; entry?: string; add?: string }
   // an installed silo's pages (the Silo Standard, Task 8): the `list`
   // archetype at /silo/<id>, and — with recordKey — one record's page
   // (/silo/<id>/r/<key>). Reached from ⌘K, Home's silo rows, and the rail

@@ -222,6 +222,16 @@ export interface HarnessConsole {
 /** What kind of dialog a console shows (HarnessConsole.dialogOnScreen). */
 export type ConsoleDialog = 'trust' | 'permission' | 'question' | 'plan'
 
+/** One engine store of a folder (Harness.projectStores): `path` is the
+ *  store as a person would name it, `deny` the absolute paths or globs closed
+ *  to the agents of other projects (Read and Edit each). `partly`: why only
+ *  part of it is closed — said on Settings › Territory, never silently. */
+export interface ProjectStore {
+  path: string
+  deny: string[]
+  partly?: string
+}
+
 export interface Harness {
   readonly id: HarnessId
   readonly label: string
@@ -256,6 +266,11 @@ export interface Harness {
    *  either (territory.ts consumes the union of all registered engines).
    *  Absent = nothing beyond what fenceFor already denies itself. */
   secretFiles?(home: string): string[]
+  /** The folders this engine keeps for itself under the operator's `home`
+   *  (its config, its data, its logins). No agent's project is one of them,
+   *  holds one or sits inside one (project-folder.ts refuses it at every
+   *  door). Absent = nothing beyond what territory.ts silosMustReach names. */
+  ownDirs?(home: string): string[]
   /** Absolute paths (or globs) of the files this engine LOADS executable
    *  behaviour from for a conversation in `folder` — MCP servers, its own
    *  config — that no fenced agent may write (the twin of
@@ -263,6 +278,16 @@ export interface Harness {
    *  all registered engines, once per territory. Absent = nothing beyond
    *  what fenceFor already denies itself. */
   configFiles?(folder: string, home: string): string[]
+  /** Where this engine keeps the conversations and memory of a conversation
+   *  started in `folder` — its transcripts, its scratch space, its memory.
+   *  Each store is closed (Read and Edit) to every agent whose projects do
+   *  not hold `folder`, whatever engine the agent runs on, territory switch
+   *  or not (territory.ts, the «other projects» group). `own` is the asking
+   *  agent's own folders: a store whose name the engine cannot tell apart
+   *  from one of theirs is closed only partly — its `deny` names the
+   *  transcripts, its memory stays open — and says so in `partly`. Absent =
+   *  the engine keeps nothing per folder that Silos knows of. */
+  projectStores?(folder: string, ctx: { home: string; dataDir: string; own: readonly string[] }): ProjectStore[]
   /** The hosts this engine itself calls, as ITS OWN docs publish them for
    *  corporate proxies — never guessed. An agent on
    *  egress `allowlist` always has the non-optional ones pinned in its
@@ -716,8 +741,12 @@ export interface StartingSetClass {
   readonly recommended: boolean
   /** what of the inventory it covers — the account's rows of that kind
    *  (`plugin`, `connector`) or the account's skills (`skill`): what the
-   *  first run names under it, and the project tab it is switched in */
-  readonly covers: 'plugin' | 'connector' | 'skill'
+   *  first run names under it, and the project tab it is switched in.
+   *  `machine`: what you set up on this machine (your plugins, MCP servers
+   *  and personal skills) — no engine key: off, the seam writes the
+   *  per-item «off» entries the project's bulk click writes, for what
+   *  exists at the birth (server/src/starting-set.ts, D6) */
+  readonly covers: 'plugin' | 'connector' | 'skill' | 'machine'
   /** the account origin whose head is this class's key (machineHeads) —
    *  a class the machine keeps off says so on its line */
   readonly origin?: LoadsOriginId

@@ -3,7 +3,7 @@
 // when told, Run now held by spend / account (never the ceiling), and the two
 // verbs only a heartbeat turn has.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
@@ -51,7 +51,7 @@ beforeEach(async () => {
   mkdirSync(join(dataDir, 'trash'), { recursive: true })
   const index = claudeSessionIndex(root, join(dataDir, 'cache.json'))
   await index.init()
-  registry = new AgentRegistry(join(dataDir, 'agents.json'))
+  registry = new AgentRegistry(join(dataDir, 'agents.json'), { folderCheck: { home: base, dataDir } })
   registry.load()
   automations = new AutomationsStore(dataDir)
   automations.load()
@@ -111,6 +111,7 @@ beforeEach(async () => {
       return { running: [{ turnId: 'turn-1', what: 'Close the month' }], stillRuns: [], queued: 2 }
     },
     liveTurnsOf: () => [],
+    home: base,
   })
   asOwner(app, TOKEN)
 })
@@ -154,6 +155,117 @@ describe('POST /api/agents: own with a mission and a fence, told without', () =>
     const r = await post('/api/agents', { id: 'sly', name: 'Sly', folder: mkFolder('sly'), control: 'own', cut: null, ownTurnsPerDay: 200 })
     expect(r.json().agent.control).toBe('told')
     expect(r.json().agent.ownTurnsPerDay).toBeUndefined()
+  })
+})
+
+// the New agent form asks a project, never a path: a new one by name
+// (~/Silos/<slug>, made), or one Silos knows; the agent works in the
+// project's folder itself
+describe('POST /api/agents: its project', () => {
+  it("a new project by name is made at ~/Silos/<slug> and is the agent's folder", async () => {
+    const r = await post('/api/agents', { name: 'Ledger', project: { name: 'Acme Books' } })
+    expect(r.statusCode).toBe(201)
+    expect(r.json().agent.folder).toBe(join(base, 'Silos', 'acme-books'))
+    expect(existsSync(join(base, 'Silos', 'acme-books'))).toBe(true)
+  })
+  it('an existing project must be one Silos knows: the agent joins that folder; any other path is refused, nothing made', async () => {
+    const known = mkFolder('shop')
+    expect((await post('/api/agents', { name: 'Clerk', folder: known })).statusCode).toBe(201)
+    const r = await post('/api/agents', { name: 'Cashier', project: { folder: `${known}/` } })
+    expect(r.statusCode).toBe(201)
+    expect(r.json().agent.folder).toBe(known)
+    const outside = mkFolder('elsewhere')
+    const x = await post('/api/agents', { name: 'Stray', project: { folder: outside } })
+    expect(x.statusCode).toBe(409)
+    expect(x.json().error).toMatch(/not a project Silos knows/)
+    expect(registry.get('stray')).toBeNull()
+  })
+  it('a new project whose folder is already a project, or an unknown folder with files, is refused; an empty one is taken', async () => {
+    expect((await post('/api/agents', { name: 'Books', project: { name: 'Books' } })).statusCode).toBe(201)
+    const clash = await post('/api/agents', { name: 'Auditor', project: { name: 'books' } })
+    expect(clash.statusCode).toBe(409)
+    expect(clash.json().error).toMatch(/a project called books exists/)
+    mkdirSync(join(base, 'Silos', 'notes'), { recursive: true })
+    writeFileSync(join(base, 'Silos', 'notes', 'todo.md'), 'x')
+    const taken = await post('/api/agents', { name: 'Scribe', project: { name: 'Notes' } })
+    expect(taken.statusCode).toBe(409)
+    expect(taken.json().error).toMatch(/already exists with files/)
+    expect(registry.get('scribe')).toBeNull()
+    mkdirSync(join(base, 'Silos', 'empty'), { recursive: true })
+    expect((await post('/api/agents', { name: 'Scribe', project: { name: 'Empty' } })).json().agent.folder).toBe(join(base, 'Silos', 'empty'))
+  })
+  // the project folder check (project-folder.ts) at the API's doors: a
+  // refusal is a 4xx with the reason, and leaves no agent
+  it('POST and PATCH refuse a folder no project may have, with the reason; nothing is created or changed', async () => {
+    for (const folder of [base, join(base, 'data'), join(base, 'Silos')]) {
+      const r = await post('/api/agents', { name: 'Stray', folder })
+      expect(r.statusCode, folder).toBe(400)
+      expect(r.json().error).toMatch(/a project needs a folder of its own/)
+    }
+    expect(registry.get('stray')).toBeNull()
+    const shop = mkFolder('shop')
+    expect((await post('/api/agents', { name: 'Clerk', folder: shop })).statusCode).toBe(201)
+    expect((await post('/api/agents', { name: 'Stray', folder: mkFolder('shop/src') })).statusCode).toBe(409)
+    expect((await post('/api/agents', { name: 'Books', folder: mkFolder('books') })).statusCode).toBe(201)
+    const p = await patch('/api/agents/books', { folders: [join(shop, 'src')] })
+    expect(p.statusCode).toBe(409)
+    expect(p.json().error).toMatch(/inside the project at/)
+    expect(registry.get('books')?.folders).toBeUndefined()
+    expect((await patch('/api/agents/books', { folders: [shop] })).statusCode).toBe(200)
+  })
+  it('a new project under a symlinked Projects folder is made and stored at its real place', async () => {
+    const disk = mkdtempSync(join(tmpdir(), 'silos-ctl-disk-'))
+    try {
+      symlinkSync(disk, join(base, 'Silos'))
+      const r = await post('/api/agents', { name: 'Ledger', project: { name: 'Acme Books' } })
+      expect(r.statusCode).toBe(201)
+      expect(r.json().agent.folder).toBe(join(disk, 'acme-books'))
+      expect(existsSync(join(disk, 'acme-books'))).toBe(true)
+      // the same name again is the same project, by either spelling
+      expect((await post('/api/agents', { name: 'Auditor', project: { name: 'acme books' } })).statusCode).toBe(409)
+    } finally {
+      rmSync(disk, { recursive: true, force: true })
+    }
+  })
+  it('a project and a folder together, a nameless project or another shape are 400s', async () => {
+    expect((await post('/api/agents', { name: 'A', project: { name: 'P' }, folder: mkFolder('p') })).statusCode).toBe(400)
+    expect((await post('/api/agents', { name: 'A', project: { name: '  ' } })).statusCode).toBe(400)
+    expect((await post('/api/agents', { name: 'A', project: 'p' })).statusCode).toBe(400)
+    expect((await post('/api/agents', { name: 'A', project: { name: 'P', folder: '/x' } })).statusCode).toBe(400)
+    expect(registry.get('a')).toBeNull()
+  })
+})
+
+// the ladder's third rung asked at birth: On its own plus Silos' default
+// limits — never without a mission, never from the body's own fields
+describe('POST /api/agents: Proactive at birth', () => {
+  it('control «proactive» with a mission is born On its own, proactive, rounds every 3 hours by day', async () => {
+    const r = await post('/api/agents', { name: 'Scout', project: { name: 'Scout' }, mission: { text: 'Find leads.' }, control: 'proactive' })
+    expect(r.statusCode).toBe(201)
+    expect(r.json().agent).toMatchObject({
+      control: 'own',
+      proactive: { perDay: 5, tools: true },
+      heartbeat: { period: { every: 3, unit: 'hours', between: { from: '08:00', to: '20:00' } } },
+    })
+    expect(registry.get('scout')!.proactive).toEqual({ perDay: 5, tools: true })
+    expect(automations.get(heartbeatAutomationId('scout'))).toMatchObject({ origin: 'heartbeat', agentId: 'scout' })
+  })
+  it('without a mission it is refused, and nothing is made', async () => {
+    const r = await post('/api/agents', { name: 'Seeker', project: { name: 'Seeker' }, control: 'proactive' })
+    expect(r.statusCode).toBe(409)
+    expect(registry.get('seeker')).toBeNull()
+    expect(existsSync(join(base, 'Silos', 'seeker'))).toBe(false)
+  })
+  it("a body's own proactive or heartbeat is still never taken at birth", async () => {
+    const r = await post('/api/agents', {
+      name: 'Sly',
+      folder: mkFolder('sly'),
+      mission: { text: 'x' },
+      proactive: { perDay: 50, tools: true },
+      heartbeat: { period: { every: 5, unit: 'minutes' } },
+    })
+    expect(r.json().agent.proactive).toBeUndefined()
+    expect(r.json().agent.heartbeat.period.unit).toBe('weeks')
   })
 })
 

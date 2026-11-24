@@ -428,8 +428,8 @@ describe('routes', () => {
     same(
       (r.body as { agents: Array<Record<string, unknown>> }).agents.map(({ scope: _s, ...row }) => row),
       [
-        { id: 'builder', harness: 'claude-code', label: 'Claude Code', fenced: ['read', 'edit'] },
-        { id: 'oc', harness: 'opencode', label: 'OpenCode', fenced: ['read', 'edit'] },
+        { id: 'builder', harness: 'claude-code', label: 'Claude Code', fenced: ['read', 'edit', 'bash'] },
+        { id: 'oc', harness: 'opencode', label: 'OpenCode', fenced: ['read', 'edit', 'bash'] },
       ],
     )
   })

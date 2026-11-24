@@ -2,7 +2,18 @@
 // engines can be chosen, which silos the tour offers and what toggling them
 // does, and what Create sends — defaults as absence.
 import { describe, expect, it } from 'vitest'
-import { agentPayloadExtras, engineRows, siloOps, siloRows, tourSteps, withEngine, worksPayload, worksProblem, type TourChoice } from '../src/lib/first-run'
+import {
+  agentPayloadExtras,
+  engineOf,
+  engineRows,
+  siloOps,
+  siloRows,
+  tourSteps,
+  withEngine,
+  worksPayload,
+  worksProblem,
+  type TourChoice,
+} from '../src/lib/first-run'
 import { startingSetPatch, type ChosenClass } from '../src/lib/starting-set'
 import { unknownDescriptor } from '../src/lib/harnesses'
 import type { EngineCompat, HarnessDescriptor, SiloAvailable, SiloDescriptor } from '../src/lib/types'
@@ -87,12 +98,15 @@ describe('how it works', () => {
   it('on its own needs a mission; when given work it does not', () => {
     expect(worksProblem('own', '', 'Ana')).toEqual(expect.any(String))
     expect(worksProblem('own', 'Keep the books.', 'Ana')).toBeNull()
+    expect(worksProblem('proactive', '', 'Ana')).toEqual(expect.any(String))
     expect(worksProblem('told', '', 'Ana')).toBeNull()
   })
   it('a mission on an agent that works when given work is sent as Only when told; otherwise nothing is asked', () => {
     expect(worksPayload('told', 'Keep the books.')).toEqual({ control: 'told' })
     expect(worksPayload('told', '')).toEqual({})
     expect(worksPayload('own', 'Keep the books.')).toEqual({})
+    // the ladder's third rung is the other ask a birth takes
+    expect(worksPayload('proactive', 'Keep the books.')).toEqual({ control: 'proactive' })
   })
 })
 
@@ -108,9 +122,31 @@ describe('At start', () => {
     ...(chosen !== undefined ? { chosen } : {}),
   })
   const set = [cls('plugins', false), cls('connectors', false), cls('skills', true)]
-  it('an engine with no class has the four steps; one with classes gets At start after Runs on', () => {
-    expect(tourSteps([]).map((s) => s.id)).toEqual(['who', 'engine', 'runs-on', 'silos'])
-    expect(tourSteps(set).map((s) => s.id)).toEqual(['who', 'engine', 'runs-on', 'at-start', 'silos'])
+  // Project first; Engine only when more than one runs here (the birth
+  // model's rule); At start only for an engine that declares classes
+  const two = [{ usable: true }, { usable: true }]
+  const one = [{ usable: true }, { usable: false }]
+  it('the steps given the engines this machine runs and the classes the engine declares', () => {
+    expect(tourSteps([], two).map((s) => s.id)).toEqual(['project', 'who', 'engine', 'runs-on', 'silos'])
+    expect(tourSteps(set, two).map((s) => s.id)).toEqual(['project', 'who', 'engine', 'runs-on', 'at-start', 'silos'])
+    expect(tourSteps([], one).map((s) => s.id)).toEqual(['project', 'who', 'runs-on', 'silos'])
+    expect(tourSteps(set, [{ usable: true }]).map((s) => s.id)).toEqual(['project', 'who', 'runs-on', 'at-start', 'silos'])
+  })
+  it('without the Engine step the tour runs the one engine that runs here; with a choice the pick stands', () => {
+    expect(
+      engineOf('alpha', [
+        { id: 'alpha', usable: false },
+        { id: 'beta', usable: true },
+      ]),
+    ).toBe('beta')
+    expect(engineOf('alpha', [{ id: 'alpha', usable: true }])).toBe('alpha')
+    expect(
+      engineOf('beta', [
+        { id: 'alpha', usable: true },
+        { id: 'beta', usable: true },
+      ]),
+    ).toBe('beta')
+    expect(engineOf('alpha', [{ id: 'alpha', usable: false }])).toBe('alpha') // none runs: Create says so
   })
   it('sends nothing while every class is on Recommended — ticked back included', () => {
     expect(startingSetPatch('alpha', set, {})).toBeNull()

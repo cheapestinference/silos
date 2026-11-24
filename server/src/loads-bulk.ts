@@ -819,3 +819,35 @@ export function onlyAgentLoad(deps: FolderLoadsDeps, folder: string, key: string
   }
   throw new LoadsSwitchError(`unknown row "${key}" — not among what this folder loads`, 404)
 }
+
+/** (D6) A project born with «what you set up on this machine» off: the
+ *  project's own «Turn all off in this project» on the machine's groups —
+ *  its tools (rows whose owner is you, a plugin's servers going with their
+ *  plugin) and its personal skills — for what exists now; what is set up
+ *  later loads. The project's place only: never the machine's file.
+ *  Throws the engine's refusal (the seam says it as a warn). */
+export function machineOffAtBirth(deps: FolderLoadsDeps, folder: string, engine: string): void {
+  const { engines, inputOf } = folderInputs(deps, folder, undefined, engine)
+  const h = engines.find((e) => e.id === engine)
+  if (!h?.loads) return
+  const keys = h.loads
+    .inventory(inputOf(h))
+    .rows.filter((r) => r.parent === undefined && r.origin.owner === 'you')
+    .map((r) => r.key)
+  if (keys.length > 0) bulkFolderLoads(deps, folder, { keys, origins: [] }, 'off', { scope: 'project' }, { group: 'machine', apply: true })
+  let personal: string[] = []
+  try {
+    personal = h.loads.skills?.(skillsInput(deps, folder, h.id)).personal ?? []
+  } catch {
+    personal = []
+  }
+  if (personal.length > 0)
+    bulkFolderLoads(
+      deps,
+      folder,
+      { keys: [], origins: [], skills: [...new Set(personal)].map((name) => ({ name, from: 'personal' as const })) },
+      'off',
+      { scope: 'project' },
+      { group: 'machine-skills', apply: true },
+    )
+}

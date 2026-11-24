@@ -214,6 +214,10 @@ export type InboxRow = RowBase &
         spent?: SpentBy
       }
     | { kind: 'territoryOff'; agentId: string }
+    // an in-play agent's folder that breaks the project folder rule
+    // (project-folder.ts auditProjectFolders): said, never fixed — one due row
+    // per agent folder, its door the agent's Runs on
+    | { kind: 'folderRefused'; agentId: string; folder: string; reason: string }
     // turns of its day the $ cap could not count: no price
     | { kind: 'spend'; agentId: string; day: string; unpriced: number; models: string[] }
     | { kind: 'cut'; agentId: string; why: string }
@@ -526,7 +530,9 @@ export const MESSAGE_UNREAD_ROW = 24 * 3600_000
 // (a heartbeat is never held by the ceiling, so
 // «its ceiling was spent» no longer happens; busy, engine and spend have
 // their own words — q1 arbitration)
-export type UnreadWhy = 'sleeping' | 'busy' | 'engine' | 'spend' | 'account' | 'failed'
+// noProject: held — its sender is an agent the recipient does not know
+// (project-scope.ts servable): it is never served while they share no project
+export type UnreadWhy = 'sleeping' | 'busy' | 'engine' | 'spend' | 'account' | 'failed' | 'noProject'
 const UNREAD_WHY_WORDS: Record<UnreadWhy, string> = {
   sleeping: 'it was sleeping',
   busy: 'it was busy',
@@ -534,6 +540,7 @@ const UNREAD_WHY_WORDS: Record<UnreadWhy, string> = {
   spend: 'its spend cap was reached',
   account: 'its account was at its limit',
   failed: 'its turn failed',
+  noProject: 'they share no project',
 }
 
 /** Why the first heartbeat run after a message passed without marking it —
@@ -583,7 +590,10 @@ export function unreadMessagesRow(f: {
     messageIds: sorted.map((m) => m.id),
     ...(f.why ? { why: f.why } : {}),
     ...(outside ? { readOutside: outside } : {}),
-    voice: `${f.recipientName} hasn't read ${n} message${n === 1 ? '' : 's'} from ${sender}${outside ? ` — ${outside}` : ''} · ${waitedWords(f.now - oldest.at)}${f.why ? ` — it hasn't looked yet: ${UNREAD_WHY_WORDS[f.why]}` : ''}`,
+    voice:
+      f.why === 'noProject'
+        ? `${sender} wrote to ${f.recipientName} — ${UNREAD_WHY_WORDS.noProject}: ${n === 1 ? 'the message is' : `${n} messages are`} held, never served · ${waitedWords(f.now - oldest.at)}`
+        : `${f.recipientName} hasn't read ${n} message${n === 1 ? '' : 's'} from ${sender}${outside ? ` — ${outside}` : ''} · ${waitedWords(f.now - oldest.at)}${f.why ? ` — it hasn't looked yet: ${UNREAD_WHY_WORDS[f.why]}` : ''}`,
     clears: 'the messages are read or answered',
     ack: { kind: 'message', key: `${f.recipientId}/${f.from}`, version: newest.id },
   }
@@ -697,6 +707,16 @@ export function tasksStalledRow(
   if (stalled.length === 0) return null
   const keys = stalled.map((x) => x.key).sort()
   const n = stalled.length
+  // (R3) a task whose owner works in another project: nobody here moves it,
+  // and the way out is to give it to an agent of its own project — said
+  const outside = stalled.filter((x) => x.flow.stalledCause === 'owner-outside-project').length
+  const nobody = `nobody is moving ${n === 1 ? 'it' : 'them'}`
+  const why =
+    outside === 0
+      ? nobody
+      : outside === n
+        ? `${n === 1 ? 'its owner works' : 'their owners work'} in another project; give ${n === 1 ? 'it' : 'them'} to an agent of ${n === 1 ? 'its' : 'their'} own`
+        : `${nobody}; ${outside} with an owner from another project`
   return {
     kind: 'tasksStalled',
     key: 'tasks-stalled',
@@ -707,7 +727,7 @@ export function tasksStalledRow(
     door: '/tasks?view=untouched',
     // only agents (a person's or nobody's seat names none)
     agentIds: [...new Set(stalled.map((x) => x.owner).filter((o) => o !== '' && f.isAgent(o)))],
-    voice: `${n} task${n === 1 ? ' sits' : 's sit'} untouched — nobody is moving ${n === 1 ? 'it' : 'them'}`,
+    voice: `${n} task${n === 1 ? ' sits' : 's sit'} untouched — ${why}`,
     clears: 'each task gets an explicit disposition, or its agent moves it',
     ack: { kind: 'tasksStalled', key: 'tasks', version: keys.join(',') },
   }
@@ -966,6 +986,22 @@ export function territoryOffRow(f: { agentId: string; agentName: string; now: nu
   }
 }
 
+// a folder that breaks the project folder rule (project-folder.ts): the
+// reason in the check's own words; it leaves when the folder changes
+export function folderRefusedRow(f: { agentId: string; agentName: string; folder: string; reason: string; now: number }): InboxRow {
+  return {
+    kind: 'folderRefused',
+    key: `folder-refused:${f.agentId}:${f.folder}`,
+    urgency: 'due',
+    at: f.now,
+    agentId: f.agentId,
+    folder: f.folder,
+    reason: f.reason,
+    voice: `${f.agentName} works in a folder no project may have: ${f.reason}`,
+    clears: 'the agent gets another folder (its Runs on), or it is archived',
+  }
+}
+
 // Silos cut the agent's capability of creating work on its own:
 // «Allow again» (cut: null) or «Keep stopped» (Seen)
 export function cutRow(f: { agentId: string; agentName: string; cut: { at: string; why: string; run?: string }; now: number }): InboxRow {
@@ -1080,8 +1116,9 @@ export function proposalRow(p: ProposalFacts, nameOf: (agentId: string) => strin
   const mark = w.readOutside ? ` · ${w.readOutside}` : ''
   const voice =
     p.kind === 'skill'
-      ? `${nameOf(p.by)} wrote a skill: ${w.title} — ${p.reason}${mark}`
-      : `${nameOf(p.by)} suggests: ${w.title}${w.brake ? ` · ${w.brake}` : ''} — ${p.reason}${mark}`
+      ? `${nameOf(p.by)} ${w.skillOf ? `changed a skill of ${w.skillOf}` : 'wrote a skill'}: ${w.title} — ${p.reason}${mark}`
+      : // (R6) a crossing is said with the title, before the rhythm and the why
+        `${nameOf(p.by)} suggests ${w.title}${w.crosses ? ` — outside its projects: ${w.crosses}` : ''}${w.brake ? ` · ${w.brake}` : ''} — ${p.reason}${mark}`
   return {
     kind: 'proposal',
     key: `proposal:${p.id}`,
@@ -1236,6 +1273,7 @@ const AGENT_FOLDABLE: ReadonlySet<InboxRowKind> = new Set([
   'auditUnreadable',
   'spend',
   'integrity',
+  'folderRefused',
 ])
 
 const URGENCY_RANK: Record<Urgency, number> = { blocking: 0, due: 1, routine: 2 }

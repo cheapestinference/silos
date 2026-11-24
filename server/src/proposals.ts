@@ -35,10 +35,15 @@ export interface Proposal {
   /** the run of the unattended turn that proposed it — stamped by
    *  the SERVER from the turn token, never believed from the body */
   run?: string
+  /** the conversation it was proposed in: the session id of the turn,
+   *  stamped by the SERVER from the turn token like `run` — the column of
+   *  that conversation shows it (GET /api/proposals?conversation=) */
+  session?: string
   kind: ProposalKind
   /** one line, ≤ PROPOSAL_REASON_MAX */
   reason: string
-  /** automation: the create body · skill: { name } · mission: { text?, never? } */
+  /** automation: the create body · skill: { name } — or { name, folder } for a
+   *  change to the skill that project folder already has · mission: { text?, never? } */
   input: Record<string, unknown>
   state: ProposalState
   decidedAt?: string
@@ -53,8 +58,17 @@ export interface Proposal {
   inputHash: string
   /** skill: sha-256 of the names and bytes of every file of proposed/<name> */
   contentHash?: string
+  /** a change to a project's skill: the same hash of the copy it replaces,
+   *  as it was at propose — what the owner's diff is drawn against */
+  baseHash?: string
   /** the end-of-turn audit's tools that read outside */
   readOutside?: string[]
+  /** (R6) automation: the fields where it crosses the proposer's projects —
+   *  a conversation trigger on an agent it does not know, a kept thread
+   *  outside its folders, an http watch at an address that is not public —
+   *  stamped at registration. A crossing proposal is a bridge the owner may
+   *  grant: decided on its card (review), never by the one-tap accept */
+  crosses?: string[]
 }
 
 export const PROPOSAL_KINDS: readonly ProposalKind[] = ['automation', 'skill', 'mission']
@@ -77,10 +91,16 @@ export const SKILL_SLUG_ERROR = 'skill name must be a slug: a-z, 0-9 and dashes'
 export const PENDING_MAX_ERROR = (n: number): string => `${n} suggestions already wait for the owner — wait for a decision`
 export const CHANGED_ERROR = 'it changed since it was proposed — review it again'
 export const COMMAND_REVIEW_ERROR = 'it runs a command, not a prompt — review it in the automation editor'
+export const CROSSING_REVIEW_ERROR = "it reaches outside the agent's projects — review it in the automation editor"
 export const MISSION_REVIEW_ERROR = "a mission is the owner's text — review it in the mission editor"
 export const SKILL_LINK_ERROR = 'the skill contains a link — only regular files load'
 export const SKILL_CHANGED_ERROR = 'the skill changed since it was proposed — review it again'
 export const SKILL_EXISTS_ERROR = (name: string): string => `a skill called ${name} exists already`
+export const SKILL_FOLDER_ERROR = 'folder must be one of your own project folders — the one whose skill you change'
+export const NO_PROJECT_SKILL_ERROR = (name: string): string => `that folder has no skill called ${name} — a new skill is proposed without "folder"`
+export const SILOS_SKILL_ERROR = (name: string): string => `${name} is Silos' own skill — its copies follow Silos and are not changed in a project`
+export const SKILL_SAME_ERROR = (name: string): string => `nothing changes: proposed/${name} is the same as the project's skill`
+export const SKILL_BASE_CHANGED_ERROR = "the project's skill changed since it was proposed — review it again"
 export const NO_SKILL_MD_ERROR = (name: string): string => `no SKILL.md at $SILOS_AGENT_STATE/proposed/${name}/SKILL.md`
 export const ALREADY_ERROR = (state: ProposalState): string => `already ${state}`
 export const REVIEW_RESULT = 'edited and saved by the owner'
@@ -159,10 +179,11 @@ export function runsACommand(input: Record<string, unknown>): boolean {
   )
 }
 
-/** The proposals whose accept is only «Review ›»: every mission, and
- *  an automation that runs a command. */
-export function reviewOnly(p: Pick<Proposal, 'kind' | 'input'>): boolean {
-  return p.kind === 'mission' || (p.kind === 'automation' && runsACommand(p.input))
+/** The proposals whose accept is only «Review ›»: every mission, an
+ *  automation that runs a command, and one that crosses the proposer's
+ *  projects (R6 — the owner decides a bridge on its card). */
+export function reviewOnly(p: Pick<Proposal, 'kind' | 'input' | 'crosses'>): boolean {
+  return p.kind === 'mission' || (p.kind === 'automation' && (runsACommand(p.input) || (p.crosses?.length ?? 0) > 0))
 }
 
 // ---- the store ---------------------------------------------------------------
@@ -183,7 +204,8 @@ function isProposal(v: unknown): v is Proposal {
     typeof p.expiresAt === 'string' &&
     typeof p.inputHash === 'string' &&
     (p.run === undefined || typeof p.run === 'string') &&
-    (p.readOutside === undefined || (Array.isArray(p.readOutside) && p.readOutside.every((x) => typeof x === 'string')))
+    (p.readOutside === undefined || (Array.isArray(p.readOutside) && p.readOutside.every((x) => typeof x === 'string'))) &&
+    (p.crosses === undefined || (Array.isArray(p.crosses) && p.crosses.every((x) => typeof x === 'string')))
   )
 }
 
@@ -193,7 +215,10 @@ export interface NewProposal {
   reason: string
   input: Record<string, unknown>
   run?: string
+  session?: string
   contentHash?: string
+  baseHash?: string
+  crosses?: string[]
 }
 
 export class ProposalsStore {
@@ -256,6 +281,7 @@ export class ProposalsStore {
       by: n.by,
       at: new Date(at).toISOString(),
       ...(n.run !== undefined ? { run: n.run } : {}),
+      ...(n.session !== undefined ? { session: n.session } : {}),
       kind: n.kind,
       reason: n.reason,
       input: n.input,
@@ -263,6 +289,8 @@ export class ProposalsStore {
       expiresAt: new Date(at + PROPOSAL_TTL_MS).toISOString(),
       inputHash: inputHashOf(n.input),
       ...(n.contentHash !== undefined ? { contentHash: n.contentHash } : {}),
+      ...(n.baseHash !== undefined ? { baseHash: n.baseHash } : {}),
+      ...(n.crosses !== undefined && n.crosses.length > 0 ? { crosses: [...n.crosses] } : {}),
     }
     this.items.push(p)
     this.save()

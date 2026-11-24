@@ -199,6 +199,10 @@ export interface KindRecord {
   rec: Json
   anchors: Json
   key: string
+  // the silo location the record was read from (`folder:<f>`, `agent:<id>`,
+  // …) — a sub-kind's is its parent's. A task's flow judges its owner
+  // against it (task-flow.ts owner-outside-project)
+  location?: string
   file: string | null
   parent?: Json
   parentKey?: string // the parent record's key (a sub-kind's)
@@ -229,6 +233,7 @@ export function baseRecordOf(
     rec: r.record,
     anchors: r.anchors as Json,
     key: `${r.location}/${String(r.record.id)}`,
+    location: r.location,
     file: r.file || null,
     ...(o.source && r.source !== undefined ? { source: r.source } : {}),
     ...(typeof r.kind === 'string' && r.kind !== '' ? { kind: r.kind } : {}),
@@ -262,6 +267,7 @@ export function recordsOfKind(kinds: Map<string, KindInfo>, base: readonly KindR
       rec: k,
       anchors: b.anchors,
       key: `${b.key}/${info.coll}/${String(k.id)}`,
+      ...(b.location !== undefined ? { location: b.location } : {}),
       file: b.file,
       parent: b.rec,
       parentKey: b.key,
@@ -295,6 +301,7 @@ export function envFor(info: KindInfo, p: KindRecord, v: Voice): EvalEnv {
     // the record's key: `idle` as a predicate sees the
     // wakes queued for THIS task exactly as flowOf does
     key: p.key,
+    ...(p.location !== undefined ? { location: p.location } : {}),
     ...(p.unreadableSiblings ? { unreadableSiblings: p.unreadableSiblings } : {}),
   }
 }
@@ -333,6 +340,7 @@ export function flowOf(info: KindInfo, p: KindRecord, v: Voice): TaskFlow | null
   return taskFlow(p.rec, p.siblings ?? [], info.dict, {
     now: v.now,
     key: p.key,
+    ...(p.location !== undefined ? { location: p.location } : {}),
     ...(v.isAgent ? { isAgent: v.isAgent } : {}),
     ...(v.taskEnv ? { taskEnv: v.taskEnv } : {}),
     ...(p.unreadableSiblings ? { unreadableSiblings: p.unreadableSiblings } : {}),

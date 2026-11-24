@@ -304,20 +304,22 @@ describe('ChatService.send — a new session', () => {
   // Hooks off = no SessionStart at all: the same briefing + roster ride the
   // append (harnesses/briefing.ts), before the charter. A hooked turn carries
   // the briefing alone, after the charter — its roster comes from its hook.
-  it('a run with its hooks off gets the Silos briefing and the fleet in its append; a hooked turn gets the briefing, not the fleet', async () => {
+  it('a run with its hooks off gets the Silos briefing and the roster of its projects in its append; a hooked turn gets the briefing, not the roster', async () => {
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi', isolation: { settingSources: ['user'], disableAllHooks: true } }))
     const isolated = (calls[0]!.options.systemPrompt as any).append as string
-    expect(isolated.startsWith(silosBriefing(registry.list(), 'finance', { withBearer: false, has: sdkTurnSkills('/tmp/ci', ['user'], null) }))).toBe(true)
+    expect(
+      isolated.startsWith(silosBriefing(registry.list(), 'finance', { withBearer: false, has: sdkTurnSkills('/tmp/ci', ['user'], null), cwd: '/tmp/ci' })),
+    ).toBe(true)
     expect(isolated).toContain('# You are running inside Silos')
-    expect(isolated).toContain('Your fleet (Silos):')
+    expect(isolated).toContain('Your projects (Silos):')
     expect(isolated.endsWith(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)).toBe(true)
     calls.length = 0
     await collect(chat.send({ turnId: 't2', agentId: 'finance', text: 'hi', isolation: { settingSources: ['user'] } }))
     const withHooks = (calls[0]!.options.systemPrompt as any).append as string
     expect(withHooks).toBe(hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`, '/tmp/ci', ['user']))
     expect(withHooks).toContain('# You are running inside Silos')
-    expect(withHooks).not.toContain('Your fleet (Silos):')
+    expect(withHooks).not.toContain('Your projects (Silos):')
   })
 
   // «the reader first»: every Claude turn WITHOUT

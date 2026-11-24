@@ -541,7 +541,11 @@ export interface FenceScope {
   readOnly: string[]
   /** what its engine loads, readable but never changed by it */
   noChange?: string[]
-  blocked: { kind: 'silos' | 'claude' | 'agents' | 'private'; paths: string[] }[]
+  /** `projects`: other projects' folders, their conversations and memory —
+   *  closed whether its territory is on or off */
+  blocked: { kind: 'projects' | 'silos' | 'claude' | 'agents' | 'private'; paths: string[] }[]
+  /** what the fence could not close, or closed only partly, with why */
+  open?: { path: string; reason: string }[]
 }
 export interface AgentTerritory {
   fenced: boolean
@@ -591,6 +595,14 @@ export interface EgressRejection {
   host: string
   port: number
   reason: string
+}
+// GET /api/territory/refused — the file fence's refusals today (server
+// fence-refusals.ts): per agent, per project of the refused path (null =
+// elsewhere), with the conversations where they happened
+export interface FenceRefusedAgent {
+  agentId: string
+  total: number
+  buckets: Array<{ project: string | null; count: number; conversations: Array<{ folder: string; id: string; count: number; lastAt: string }> }>
 }
 // mirror of server DiskSubagent — one transcript under the session's
 // subagents dir; the ONLY complete census of background work (a
@@ -658,8 +670,9 @@ export interface StartingSetClass {
   what: string
   from: string
   recommended: boolean
-  /** what of a project's lists it is: the account's plugins or connectors (Tools), or its skills (Skills) */
-  covers?: 'plugin' | 'connector' | 'skill'
+  /** what of a project's lists it is: the account's plugins or connectors (Tools), or its skills (Skills);
+   *  `machine` — what you set up on this machine (both lists; D6) */
+  covers?: 'plugin' | 'connector' | 'skill' | 'machine'
   /** the account origin whose head is this class's key (GET /api/loads/machine) */
   origin?: 'plugins' | 'skills' | 'connectors'
 }
@@ -1073,7 +1086,8 @@ export type { RunFailureClass } from '../../../server/src/run-failure'
 import type { RunFailureClass } from '../../../server/src/run-failure'
 // what kept an agent's heartbeat from reading its messages at its next
 // chance (server inbox.ts UnreadWhy)
-export type UnreadWhy = 'sleeping' | 'busy' | 'engine' | 'spend' | 'account' | 'failed'
+// noProject: held — its sender is an agent the recipient does not know
+export type UnreadWhy = 'sleeping' | 'busy' | 'engine' | 'spend' | 'account' | 'failed' | 'noProject'
 interface InboxRowBase {
   key: string
   urgency: InboxUrgency
@@ -1140,6 +1154,9 @@ export type InboxRow = InboxRowBase &
     // an own agent whose territory turned off; Silos cut
     // its capability of creating work on its own
     | { kind: 'territoryOff'; agentId: string }
+    // an agent's folder that breaks the project folder rule (server
+    // project-folder.ts): `reason` the check's words; door its Profile
+    | { kind: 'folderRefused'; agentId: string; folder: string; reason: string }
     | { kind: 'cut'; agentId: string; why: string }
     // turns of its day without a price — counted, never held
     | { kind: 'spend'; agentId: string; day: string; unpriced: number; models: string[] }
@@ -1307,7 +1324,7 @@ export interface SiloRelationDecl {
 export interface SiloRelationEdge {
   from: string
   to: string
-  note?: 'archived' | 'gone'
+  note?: 'archived' | 'gone' | 'apart'
 }
 export interface SiloRelationReading {
   silo: string
@@ -1465,7 +1482,7 @@ export interface SiloTaskTurn {
   kind: SiloTurnKind
   sentence: string
 }
-// the nine causes — the server's STALLED_CAUSES
+// the ten causes — the server's STALLED_CAUSES
 export type SiloStalledCause =
   | 'unowned'
   | 'blocked-on-nothing'
@@ -1476,6 +1493,7 @@ export type SiloStalledCause =
   | 'owner-cannot-run'
   | 'review-without-reviewer'
   | 'in-progress-nothing-live'
+  | 'owner-outside-project'
 export interface SiloTaskFlow {
   waiting: boolean
   gate: boolean
@@ -2994,6 +3012,7 @@ export interface TaskModeView {
   heldNow?: string | null
   door?: TaskDoorFacts | null
   live?: TaskLiveFact | null
+  ownerOutside?: true
   handTo?: Array<{ id: string; name: string; wakes: AgentWakes | null }>
 }
 // a task a conversation works, as the server reads it (GET /api/sessions/
@@ -3121,12 +3140,17 @@ export interface ProposalWords {
   territoryOff?: string
   pace?: string
   readOutside?: string
+  crosses?: string
+  skillOf?: string
 }
+export type ProposalDiffLine = [' ' | '+' | '-', string]
 export interface ProposalView {
   id: string
   by: string
   at: string
   run?: string
+  // the conversation it was proposed in (a session id of it)
+  session?: string
   kind: ProposalKind
   reason: string
   input: Record<string, unknown>
@@ -3150,7 +3174,8 @@ export interface ProposalView {
     cwd?: string
     runsOn?: { provider?: string; model?: string }
   }
-  skill?: { name: string; files: Array<{ path: string; size: number }> | null }
+  // `folder`: a change to that project's skill — files say how they differ
+  skill?: { name: string; files: Array<{ path: string; size: number; change?: 'new' | 'changed' | 'same' }> | null; folder?: string; removed?: string[] }
   mission?: { before: { text: string; never: string[] } | null; after: { text: string; never: string[] } }
 }
 

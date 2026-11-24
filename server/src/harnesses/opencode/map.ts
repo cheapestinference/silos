@@ -6,6 +6,7 @@
 
 import type { PlanTask, SessionContext, SessionMeta, ToolUseDetail, TranscriptTurn } from '../../types.js'
 import { mungePath } from '../../agent-registry.js'
+import { refusedPathOf, REFUSED_CAP } from '../../territory.js'
 import type { MessageData, MessageRow, PartData, PartRow, SessionRow, TodoRow } from './db.js'
 
 const TEXT_CAP = 8000 // claude-code/parser.ts: turn text
@@ -13,6 +14,16 @@ const THINKING_CAP = 4000
 const TOOL_IO_CAP = 2000
 const FILES_CAP = 200 // claude-code/context.ts
 const EVENTS_CAP = 50
+
+/** An errored tool part that a deny rule refused. OpenCode 1.14.22's
+ *  deny-rule error: «…a rule which prevents you from using this specific
+ *  tool call. Here are some of the relevant rules [{"permission":…,
+ *  "action":"deny"}]» — the territory fence is the only deny rule Silos
+ *  writes. A person pressing Deny («The user rejected permission to use
+ *  this specific tool call.») is not the fence. */
+export const OPENCODE_REFUSAL_RE = /a rule which prevents you from using this specific tool call/i
+export const OPENCODE_USER_REJECTION_RE = /The user rejected permission to use this specific tool call/i
+const isRefusal = (error: string): boolean => OPENCODE_REFUSAL_RE.test(error) && !OPENCODE_USER_REJECTION_RE.test(error)
 
 type Assistant = Extract<MessageData, { role: 'assistant' }>
 type ToolPart = Extract<PartData, { type: 'tool' }>
@@ -204,6 +215,8 @@ export function contextOf(
   let finished = 0
   let allZero = true
   let prevModel: string | null = null
+  // refused calls (SessionContext.refused): when + the path the call named — never the error text
+  const refused: { at: string; path: string | null }[] = []
 
   for (const m of msgs) {
     const ts = iso(createdOf(m))
@@ -235,6 +248,11 @@ export function contextOf(
       const t = tools.get(p.tool) ?? { name: p.tool, server: null, count: 0 }
       t.count++
       tools.set(p.tool, t)
+      if (p.state.status === 'error' && typeof p.state.error === 'string' && isRefusal(p.state.error)) {
+        const raw = p.state.input && typeof p.state.input === 'object' ? (p.state.input as Record<string, unknown>) : {}
+        refused.push({ at: typeof p.state.time?.start === 'number' ? new Date(p.state.time.start).toISOString() : ts, path: refusedPathOf(p.tool, raw) })
+        if (refused.length > REFUSED_CAP) refused.shift()
+      }
       const input = p.state.input as { filePath?: unknown; path?: unknown } | undefined
       const path = typeof input?.filePath === 'string' ? input.filePath : typeof input?.path === 'string' ? input.path : null
       if (!path) continue
@@ -275,5 +293,6 @@ export function contextOf(
     cost,
     documents: [],
     fileHistory: [],
+    ...(refused.length > 0 ? { refused } : {}),
   }
 }

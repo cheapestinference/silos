@@ -8,6 +8,7 @@
 // rule the server's escalation walks (silos/relations.ts agentChainRelation).
 import { MASTER_ID } from './constants'
 import { territoriesOf } from './territory'
+import { sameProject } from '../../../server/src/project-scope'
 import type { AgentView, SiloDescriptor, SiloRelationEdge } from './types'
 
 export interface OrgSource {
@@ -224,12 +225,26 @@ export interface OrgProject {
   folder: string
   ids: string[]
 }
+/** An agent is of the org at `folder`: one of its folders is the same
+ *  project (project-scope.ts sameProject — folders that nest are one). */
+export const inOrg = (a: Pick<AgentView, 'folder' | 'folders'>, folder: string): boolean => territoriesOf(a).some((t) => sameProject(t, folder))
 export function orgProjects(agents: readonly AgentView[]): OrgProject[] {
-  const by = new Map<string, string[]>()
-  // a declared folder is membership (territoriesOf): an agent of two
-  // projects sits in both orgs; its one line draws where both ends are
-  for (const a of orgAgents(agents)) for (const f of territoriesOf(a)) by.set(f, [...(by.get(f) ?? []), a.id])
-  return [...by.entries()].map(([folder, ids]) => ({ folder, ids })).sort((a, b) => b.ids.length - a.ids.length || a.folder.localeCompare(b.folder))
+  // one org per PROJECT, headed by its outermost folder: folders that nest
+  // are one project (the one resolver). A declared folder is membership: an
+  // agent of two projects sits in both orgs; its one line draws where both
+  // ends are
+  const placed = orgAgents(agents)
+  const all = [...new Set(placed.flatMap((a) => territoriesOf(a)))]
+  const heads = all.filter((f) => !all.some((g) => g !== f && f.startsWith(`${g}/`)))
+  return heads
+    .map((folder) => ({ folder, ids: placed.filter((a) => inOrg(a, folder)).map((a) => a.id) }))
+    .sort((a, b) => b.ids.length - a.ids.length || a.folder.localeCompare(b.folder))
+}
+
+/** The lines out of every chain because their two agents share no project
+ *  (stage 2's `apart`), shown in the org of the agent that reports. */
+export function apartEdges(edges: readonly SiloRelationEdge[], agents: readonly AgentView[], folder: string): SiloRelationEdge[] {
+  return edges.filter((e) => e.note === 'apart' && agents.some((a) => a.id === e.from && !a.archived && inOrg(a, folder)))
 }
 
 export interface OrgTileFacts {
@@ -239,7 +254,7 @@ export interface OrgTileFacts {
 }
 export function orgTileFacts(agents: readonly AgentView[], edges: readonly SiloRelationEdge[], folder: string): OrgTileFacts {
   const ids = orgAgents(agents)
-    .filter((a) => territoriesOf(a).includes(folder))
+    .filter((a) => inOrg(a, folder))
     .map((a) => a.id)
   const forest = orgForest(ids, liveEdges(edges, new Set(ids)))
   return {

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../../store'
 import { api } from '../../lib/api'
 import { orgProjects, orgSource, orgTileFacts } from '../../lib/org'
+import { sameProject } from '../../../../server/src/project-scope'
 import { basename } from '../../lib/routes'
 import type { SiloRelationEdge } from '../../lib/types'
 import { Tile } from '../Tile'
@@ -43,7 +44,8 @@ export function OrgTile({ folder }: { folder?: string } = {}) {
       edges === null
         ? null
         : orgProjects(agents)
-            .filter((p) => p.ids.length > 1 && (folder === undefined || p.folder === folder))
+            // a nested folder's page shows the org of the project it is part of
+            .filter((p) => p.ids.length > 1 && (folder === undefined || sameProject(p.folder, folder)))
             .map((p) => orgTileFacts(agents, edges, p.folder)),
     [agents, edges, folder],
   )

@@ -222,6 +222,26 @@ describe('the birth seam — every path that gives a folder its first agent of a
     await post({ name: 'Builder', folder: f })
     expect(local(f)).toEqual({ disableClaudeAiConnectors: true, syncClaudeAiSkills: false })
   })
+  it('(D6) what you set up on this machine: on by default, writes nothing; off, the new folder alone gets each item off — ~/.claude untouched', async () => {
+    const machineFile = join(home, '.claude.json')
+    writeFileSync(machineFile, JSON.stringify({ mcpServers: { tracker: { command: '/usr/bin/true' } } }))
+    mkdirSync(join(home, '.claude', 'skills', 'release-notes'), { recursive: true })
+    writeFileSync(join(home, '.claude', 'skills', 'release-notes', 'SKILL.md'), '---\nname: release-notes\ndescription: notes\n---\n')
+    const before = readFileSync(machineFile, 'utf8')
+    const on = existing('first')
+    await post({ name: 'Builder', folder: on })
+    expect(local(on)).toEqual(RECOMMENDED)
+    expect(
+      (await app.inject({ method: 'PATCH', url: '/api/settings', headers, payload: { startingSet: { 'claude-code': { machine: false } } } })).statusCode,
+    ).toBe(200)
+    const off = existing('second')
+    expect((await post({ name: 'Maker', folder: off })).statusCode).toBeLessThan(300)
+    const written = JSON.stringify(local(off))
+    expect(written).toContain('tracker')
+    expect(written).toContain('release-notes')
+    expect(local(on)).toEqual(RECOMMENDED)
+    expect(readFileSync(machineFile, 'utf8')).toBe(before)
+  })
 })
 
 describe('the starting set, the setting', () => {
@@ -267,6 +287,7 @@ describe('the starting set, the setting', () => {
     const fresh = (await app.inject({ url: `/api/starting-set?framework=claude-code&folder=${encodeURIComponent(f)}`, headers })).json()
     expect(fresh).toMatchObject({ exists: true, joins: null })
     expect(fresh.classes.map((c: { id: string; on: boolean }) => [c.id, c.on])).toEqual([
+      ['machine', true],
       ['account-plugins', false],
       ['account-connectors', false],
       ['account-skills', true],

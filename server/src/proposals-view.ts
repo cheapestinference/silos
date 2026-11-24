@@ -24,8 +24,9 @@ import { parsePeriod, slotsPerDay } from './period.js'
 import type { ProvidersStore } from './providers-store.js'
 import { unattendedPrices } from './platform-settings.js'
 import { readOutsideWords, reviewOnly, type Proposal } from './proposals.js'
-import { proposedSkillsDir, readSkillTree, type SkillFile } from './skill-accept.js'
-import { join } from 'node:path'
+import { proposedSkillsDir, readSkillTree, skillChangeFiles, type SkillFile } from './skill-accept.js'
+import { basename, join } from 'node:path'
+import { foldersOf, knows, ofProject, seesAll } from './project-scope.js'
 
 export interface ProposalViewDeps {
   registry: Pick<AgentRegistry, 'get'>
@@ -47,6 +48,12 @@ export interface ProposalWords {
   pace?: string
   /** the audit's mark */
   readOutside?: string
+  /** (R6) where it crosses the proposer's projects, said first: «watches
+   *  Builder's conversations in beta» — decided on its card, never by the
+   *  one-tap accept */
+  crosses?: string
+  /** skill: the project whose skill it changes (absent: a new skill of the agent's) */
+  skillOf?: string
 }
 
 export interface ProposalView extends Proposal {
@@ -63,7 +70,9 @@ export interface ProposalView extends Proposal {
     cwd?: string
     runsOn?: { provider?: string; model?: string }
   }
-  skill?: { name: string; files: SkillFile[] | null }
+  /** `folder`: a change to that project's skill — each file then says how it
+   *  differs from the project's copy, and `removed` the files that go */
+  skill?: { name: string; files: (SkillFile & { change?: 'new' | 'changed' | 'same' })[] | null; folder?: string; removed?: string[] }
   mission?: { before: { text: string; never: string[] } | null; after: { text: string; never: string[] } }
 }
 
@@ -83,11 +92,63 @@ export function providerPrices(d: Pick<ProposalViewDeps, 'registry' | 'providers
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined)
 
+/** (R6) Where a proposed automation crosses its proposer's projects, by
+ *  field — judged on the input alone with the one resolver
+ *  (project-scope.ts): a `conversation` trigger on an agent it does not know
+ *  (or an id that is nobody — the same mark, existence is not confirmed), a
+ *  kept thread whose folder is not one of its projects. The `files` folder
+ *  and the `path` watch never get here: the owner's create refuses them
+ *  outside the agent's projects (routes/automations.ts). The http watch's
+ *  address is the route's to judge (it resolves a name). */
+export function automationCrossing(by: string, input: Record<string, unknown>, registry: Pick<AgentRegistry, 'get'>): string[] {
+  if (seesAll(by)) return []
+  const me = registry.get(by)
+  const out: string[] = []
+  const t = input.trigger as { kind?: unknown; sourceAgentId?: unknown } | null | undefined
+  if (
+    t &&
+    typeof t === 'object' &&
+    t.kind === 'conversation' &&
+    typeof t.sourceAgentId === 'string' &&
+    t.sourceAgentId !== by &&
+    !knows(me, registry.get(t.sourceAgentId))
+  )
+    out.push('trigger.sourceAgentId')
+  const th = input.thread as { mode?: unknown; folder?: unknown } | null | undefined
+  if (th && typeof th === 'object' && th.mode === 'keep' && typeof th.folder === 'string' && !ofProject(me, th.folder)) out.push('thread.folder')
+  return out
+}
+
+// the owner's words for each crossing field, first one first
+function crossingWords(p: Proposal, d: ProposalViewDeps, name: string): string | undefined {
+  const words = (p.crosses ?? [])
+    .map((f) => {
+      if (f === 'trigger.sourceAgentId') {
+        const id = String((p.input.trigger as { sourceAgentId?: unknown } | undefined)?.sourceAgentId ?? '')
+        const other = d.registry.get(id)
+        return other
+          ? `watches ${other.name}'s conversations in ${
+              foldersOf(other)
+                .map((x) => basename(x))
+                .join(', ') || 'no project'
+            }`
+          : `watches the conversations of ${id}, no agent of ${name}'s projects`
+      }
+      if (f === 'thread.folder') return `runs in ${String((p.input.thread as { folder?: unknown } | undefined)?.folder ?? '')}, outside ${name}'s projects`
+      if (f === 'trigger.check.url')
+        return `fetches ${String((p.input.trigger as { check?: { url?: unknown } } | undefined)?.check?.url ?? '')}, an address that is not public`
+      return null
+    })
+    .filter((x): x is string => x !== null)
+  return words.length > 0 ? words.join('; ') : undefined
+}
+
 export function proposalWords(p: Proposal, d: ProposalViewDeps): ProposalWords {
   const name = d.registry.get(p.by)?.name ?? p.by
   const outside = readOutsideWords(p.readOutside)
   const base = outside ? { readOutside: outside } : {}
-  if (p.kind === 'skill') return { title: str(p.input.name) ?? 'a skill', ...base }
+  if (p.kind === 'skill')
+    return { title: str(p.input.name) ?? 'a skill', ...(str(p.input.folder) ? { skillOf: basename(p.input.folder as string) } : {}), ...base }
   if (p.kind === 'mission') return { title: 'a new mission', ...base }
   const input = p.input
   let when = ''
@@ -108,7 +169,9 @@ export function proposalWords(p: Proposal, d: ProposalViewDeps): ProposalWords {
       : `${rhythm} — your plan's limit is the brake (the usage line shows it)`
   const fenced = d.territoryOn ? d.territoryOn(p.by) : true
   const pace = periodPace(input.trigger, name)
+  const crosses = crossingWords(p, d, name)
   return {
+    ...(crosses ? { crosses } : {}),
     title: str(input.name) ?? 'an automation',
     brake,
     ...(pace ? { pace } : {}),
@@ -162,8 +225,18 @@ export function proposalView(p: Proposal, d: ProposalViewDeps): ProposalView {
     }
   } else if (p.kind === 'skill') {
     const name = str(p.input.name) ?? ''
-    let files: SkillFile[] | null = null
-    if (d.agentState && name && p.state === 'pending') {
+    let files: (SkillFile & { change?: 'new' | 'changed' | 'same' })[] | null = null
+    const folder = str(p.input.folder)
+    let removed: string[] | undefined
+    if (d.agentState && name && folder && p.state === 'pending') {
+      try {
+        const c = skillChangeFiles(d.agentState.pathFor(p.by), name, folder)
+        files = c ? c.files : null
+        removed = c?.removed
+      } catch {
+        files = null
+      }
+    } else if (d.agentState && name && p.state === 'pending') {
       try {
         const r = readSkillTree(join(proposedSkillsDir(d.agentState.pathFor(p.by)), name), name)
         files = r.ok ? r.files : null
@@ -171,7 +244,7 @@ export function proposalView(p: Proposal, d: ProposalViewDeps): ProposalView {
         files = null
       }
     }
-    view.skill = { name, files }
+    view.skill = { name, files, ...(folder ? { folder } : {}), ...(removed && removed.length > 0 ? { removed } : {}) }
   } else {
     const m = agent?.mission
     const before = m ? { text: m.text, never: [...m.never] } : null

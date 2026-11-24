@@ -29,13 +29,65 @@ memory under `$CLAUDE_CONFIG_DIR/projects/<munged cwd>/`, its
 updatedAt }` — text 1–2000 chars, up to 10 «Never» lines of ≤ 200. Only
 the owner writes it (`POST`/`PATCH
 /api/agents`; a bearer never reaches those routes and `agents.json` is
-fenced) — an agent proposes a change, it never edits its own. The fleet
-roster (`roster.py` / `roster-text.ts`, twins) says its first sentence.
+fenced) — an agent proposes a change, it never edits its own. The roster
+of its projects (`roster.py` / `roster-text.ts`, twins) says its first
+sentence.
 Its birth asks no decisions: `POST /api/agents`
-takes a name and, optionally, a mission and a folder — the id is the name's
-slug (`server/src/slug.ts`, the one slugifier; the client sends none), the
-folder is `~/Silos/<id>` (made) when none was chosen; with a mission it is
-born On its own, fenced at birth, and its page opens on its first minute
+takes a name and, optionally, its project, a mission and one ask of how it
+works — the id is the name's slug (`server/src/slug.ts`, the one slugifier;
+the client sends none). Its folder is its project's folder itself
+(`server/src/birth-project.ts`, judged before anything is written):
+`project: { name }` is a new project at `~/Silos/<slug>` (made; refused,
+409, when that folder is already a managed project or exists with files in
+it — an empty one is taken), `project: { folder }` must be a project Silos
+knows (`managed-folder.ts`: an in-play agent's folder or territory), a
+free `folder` is still taken for the callers that made or chose one (New
+project's door, the API) — never with a project —, and none is
+`~/Silos/<id>`.
+**The project folder check** (`server/src/project-folder.ts`) is the one
+check every folder an agent is given goes through: `AgentRegistry.create`
+and `update` call it (the server builds its registry with
+`folderCheck: { home, dataDir }`; a registry built without it, in another
+module's tests, checks nothing), so every door is covered — Welcome and New
+agent (`birth-project.ts` judges a new project's folder before making it),
+the Profile's Runs on (`PATCH folder`/`folders[]`), a role pack's install
+(its preview lists the refusal as a problem) and an archived agent brought
+back. It judges the REAL path (`realFolder`: symlinks resolved; a folder not
+made yet through its nearest existing ancestor, so a new project under a
+symlinked Projects folder is judged — and stored — where it really is) and
+refuses, 400: `/`, the home folder and the Projects folder (being one or
+holding one); the places every fence keeps open (`territory.ts
+silosMustReach` + `machineMustReach`: Silos' data dir, the engine's config
+dir, the temp dir — being or holding one) and, for the ones that are
+Silos' or an engine's own (`MustReach.own`, `Harness.ownDirs`:
+`~/.claude`, OpenCode's config and data dirs), anything inside them too.
+Silos' code is kept open by the fence but is not refused: a git checkout is
+a code folder like any other project (contributors develop Silos with
+Silos); only an installed package (`isPackageInstall`: under
+`node_modules`, no `.git`) is refused like the data dir;
+409: a folder holding another in-play agent's folder or sitting inside one
+(the agent's own other folders included). The very folder of a registered
+project is fine — that is joining it. Each new folder is stored by its real
+path; a folder the agent already has is not judged again (an unrelated save
+of an old agent passes). The owner's loose desk conversation (master's
+`cwd`, `routes/chat.ts`) writes no agent and stays free. **The audit**
+(`AgentRegistry.auditFolders`, `auditProjectFolders`): at boot the server
+logs every in-play agent's folder the check would refuse today, and each
+composes into Needs you as a due `folderRefused` row (`inbox.ts
+folderRefusedRow`, the check's reason, door the agent's Profile) until the
+folder changes or the agent is archived — said, never fixed.
+With a mission it is born On its own unless it asks
+`control: 'told'`; `control: 'proactive'` (a mission required, 409
+without) is born On its own with `proactive` at Silos' defaults (5 tasks a
+day, its tools) and rounds every 3 hours between 08:00 and 20:00
+(`control.ts proactiveAtBirth`, the «Make X proactive» sheet's own
+fallback); every other control field of the body is dropped. Welcome and
+the New agent form draw the same birth model (`web/src/lib/birth.ts`
+through `components/welcome/BirthFields.tsx`'s pieces — `ProjectField`,
+`AgentFields`, `EngineField`): Project · Name · How it works · Mission, and
+the engine only when `engineRows` finds more than one usable — the form in
+one dialog, Welcome as its Project step then its Who step, with its Engine
+step only then (`first-run.ts tourSteps`; with one, `engineOf` runs it). It is fenced at birth, and its page opens on its first minute
 (`web/src/components/agent/FirstMeeting.tsx`: one attended chat turn reads
 the mission, its answer painted as it came, never parsed).
 Before that first birth: the packaged command
@@ -69,15 +121,14 @@ When Silos launches its `claude` it adds, by documented means only:
   every agent has one, the built-in default agent `master` (no folder) included, fence on or off; the server checks
   bearers in memory (`agent-tokens.ts`). Identity on the API: the owner
   carries the static token or a login session, an agent its bearer; a
-  request with neither reads only what a session with no identity needs —
-  the roster (`GET /api/agents`) and a conversation's tasks
-  (`/api/tasks/by-session`), an allow-list (`anonymousMayRead`,
-  `agent-authz.ts`; a new route is closed to it) — and only when it is
-  genuinely local (loopback `Host`, no forwarding or tunnel headers —
-  `isLocalRequest`). Any process on the machine can make a local request,
-  an agent's shell with its bearer left out included, so files,
-  transcripts, memory and settings never answer one: its other reads,
-  writes and websockets answer 401, and anything arriving through a
+  request with neither is refused, reads included: nothing under `/api`
+  answers it (`anonymousMayRead`, `agent-authz.ts`), local or not. Any
+  process on the machine can make a local request, an agent's shell with
+  its bearer left out included, so neither files, transcripts, memory and
+  settings nor the install's roster answer one: its reads, writes and
+  websockets answer 401 (a session with no identity is told the agents of
+  its folder by the SessionStart hook itself, from `agents.json` on disk),
+  and anything arriving through a
   proxy or tunnel without a credential is refused outright (`server.ts`;
   deployment notes in `docs/deploy/`, reporting a hole in `SECURITY.md`);
   an engine's OWN sign-in by link runs from Silos where the engine offers
@@ -177,9 +228,56 @@ When Silos launches its `claude` it adds, by documented means only:
   (`server/src/territory.ts`), on from birth (`TerritoryStore.enableAtBirth`,
   called right after the create by every path that makes an agent —
   `POST /api/agents` and a role-pack install; Settings › Territory keeps
-  only the explicit off). A console whose argv (the fence rides `--settings`)
-  passes 8 KB carries it in the same 0600 launch file as its env, not on the
-  tmux line (16 KB message cap — `terminal-service.ts`). Beyond Silos' data,
+  only the explicit off). **Two groups hold whatever the territory switch
+  says** (an agent with a folder; `master` and an agent without one carry
+  no rule): (1) _other projects_ — Read+Edit on every folder Silos knows as
+  some agent's (archived included) that is not the same project as one of
+  this agent's (`project-scope.ts sameProject`), on the linked worktrees
+  git lists for it (`gitWorktreesOf`, read from its `.git/worktrees`), and
+  on every engine's stores of it and of every conversation Silos knows that
+  started below it (`Harness.projectStores` — Claude Code:
+  `<config dir>/projects/<name>` for `~/.claude` and every account, and the
+  observed temp store `<tmp>/claude-<uid>/<name>`; OpenCode: the machine's
+  shared `opencode.db`, its agents' own databases being under the data
+  dir). Three guards, since a deny outranks every allow: a folder that holds
+  what every agent must reach (the data dir, `~/.claude`, the Silos
+  checkout — the briefing sends agents to its `plugin/context` —, the temp
+  dir) is never closed and is listed in `skipped` with why (an agent given
+  the home folder cannot be closed to the others); a folder the disk says is
+  one of its own under another spelling (`canonicalFolder`) stays open — the
+  disk only ever removes a deny, membership stays the declared text; and a
+  store the engine names like one of the agent's own (Claude Code munges
+  `/` and `.` to `-`, so `acme/web` and `acme-web` share a name, and a
+  subfolder's conversations live under an extension of the folder's name)
+  is closed only partly — `*.jsonl` and the session dirs, `memory/` left
+  open — and listed in `skipped` as partly open. Plan mode's proposals
+  (`<config dir>/plans/`) are not kept per folder and stay open. (2) _the
+  credentials Silos keeps_ (`SILOS_CREDENTIALS`: the owner's token,
+  `sessions.json`, `live-turns.json`, every bearer under `agents/`,
+  `vault.json`, `providers.json`, `silos-id.json`, `server.env`, and the
+  places that hold copies — `console-env/`, `seals/`, `held/`, `push/`),
+  every `/proc/*/environ` and `/proc/*/cmdline`. Territory OFF keeps exactly
+  these two: Silos' other data (registry, messages, runs), the Claude login
+  and settings and the private paths are open to that agent's file tools,
+  and Silos' data names every agent and plan, so for it R0 holds in what
+  Silos tells, offers and does, in the other projects' folders and in the
+  credentials — not in what it digs out of Silos' own files. Territory ON
+  adds the rest below, and a Bash deny on `tmux` (`Bash(tmux)`,
+  `Bash(tmux *)`: Silos' one tmux server runs every console). The fence
+  rides the launch: a console keeps the fence it started with until it is
+  reopened. The settings that carry it never ride the engine's argv
+  (`/proc/<pid>/cmdline`): a console's are written to
+  `<data>/console-append/<key>.settings.json` (0600) and named by
+  `--settings <file>`; an SDK turn's go through `harnesses/claude-code/sdk.ts`,
+  which writes them to the same dir and removes the file when the query
+  ends. The tmux and argv measures are reductions, not walls — `/usr/bin/tmux`,
+  an interpreter reading `/proc` still pass; `scripts/territory-smoke-files.mts`
+  checks the real binary against a scripted Messages API (no login): a
+  folder of another project closed by path and through a symlink from the
+  agent's own folder, Bash `cat` and `tmux` refused, compound commands
+  included, the settings file honoured, the temp store's layout. A console
+  whose argv passes 8 KB carries it in the same 0600 launch file as its env,
+  not on the tmux line (16 KB message cap — `terminal-service.ts`). Beyond Silos' data,
   other agents' state and private paths, it denies Edit on everything an
   engine LOADS behaviour from — the agent's own plugin dir whole, every
   config dir's `skills|commands|agents|plugins|output-styles`, the
@@ -190,12 +288,70 @@ When Silos launches its `claude` it adds, by documented means only:
   `.opencode/`, `~/.config/opencode/`) — and Read+Edit on `CLAUDE.md` of
   the config dir, every such folder's `.claude/settings*.json` and
   `/proc/*/environ`. Skills stay READABLE (a skill reads its own files).
-  File tools and direct Bash only — an interpreter is not covered
+  Other roles' `context/<id>/` is Edit-denied in each folder of an agent it
+  knows that is the same project as one of its own. File tools and direct
+  Bash only — an interpreter is not covered
   (`scripts/territory-smoke-loads.sh` checks the real binary);
 - its role plugin (`~/.silos/agent-state/<id>/plugin`) — Silos' and the
   owner's to write, sealed as a tree (below);
 - its state dir `$SILOS_AGENT_STATE` (its own files: births, asks,
   `proposed/` — no run-mode files: how it runs is the owner's control).
+
+**Project boundary** (`server/src/project-scope.ts`, the one resolver) — an
+agent knows and reaches only its own projects. A project is a folder;
+folders that nest are one project (`/home/user/acme` and
+`/home/user/acme/docs`; never `/home/user/acme-web`). An agent is _of_ a
+project when one of its declared folders (`folder` + `folders[]`, compared
+as text on a segment boundary — no `.git`, no symlink, nothing an agent can
+write) is the same project; two agents _know_ each other when they are of a
+common project — symmetric, not transitive (an agent of two projects is a
+bridge the owner opened; each side still knows nothing of the other).
+`master` (the owner's desk), an agent without a folder and an archived one
+know nobody; where the owner's desk acts as the owner (`seesAll`) it
+reaches and reads every project. What follows the rule (stage 1): the
+roster an agent is told (its projects' agents, by the folders they share;
+a session with no identity or the owner's desk: the agents of the folder it
+runs in), the names Silos writes into its context and answers (`nameFor`:
+an id it does not know stays the id as written — a reflection of what it
+wrote itself is never decorated), the messages served to it (`servable`),
+what it may message and ask, the tasks its verbs find, the plan keys it may
+append to, and the routes its bearer reads. A folder **around** several
+projects is common ground: an agent given `/home/user` is of every project
+below it. `roster.py` carries the twin of `sameProject`/`knows` — it filters
+a raw `agents.json`.
+
+What Silos does on its own follows it too (stage 2, R3 — `ofLocation`,
+`ownerOutside`): it goes only to an agent of the project (or the record
+location: `folder:<f>` that project's agents, `agent:<id>` that agent) the
+thing lives in. A plan task whose agent owner does not work in its project
+reads the stall cause `owner-outside-project` (task-flow.ts; before a live
+conversation, never idle, its way out the owner's row with «Give to…»);
+Task mode never moves it for that agent (`TaskSnap.ownerOutside`,
+`movesFor` — no wake of any reason, a queued one superseded, the owner's
+Give and the door refused with the way out) and the heartbeat packet never
+lists it to that agent. An escalation hop skips an agent — up the chain,
+the creator, the root — that is not of the subject's location, and ends on
+the owner; the hop's write and armed fact refuse such a `to` underneath. A
+reporting line is walked only while its ends share a project (an edge whose
+ends drifted apart is kept, marked `apart`, out of every chain). A routed
+row goes only to a producer of its record's location, writer or fallback —
+none there, the owner keeps it. An automation points only inside its
+agent's projects: a bearer's PATCH of a `files` folder, a `path` watch or a
+kept thread's folder outside them, a `thread.sessionId` that is not its own
+conversation, or an `http` watch at a non-public address (`net-guard.ts
+publicUrlRefusal`) is a 403 naming the field — and the url a bearer wrote
+is stamped `check.publicOnly`, so the resident fetches it through
+`guardedFetch` on every check (the guarded lookup is the connection's own,
+each redirect followed by hand through the same gate: a name that resolves
+private by then dies there); the owner's edit keeps the stamp while the url
+stays the agent's, a url of the owner's carries none; the owner's `files`/`path`
+trigger for an agent outside its projects is a 409 with the door («give it
+that folder first»); a bearer's DELETE of another agent's automation
+answers as one that does not exist. A proposal that crosses the proposer's
+projects (a conversation trigger on an agent it does not know, a kept
+thread elsewhere, a non-public `http` watch) is stored with `crosses`, said
+first on the owner's card, and only «Review ›» — the one-tap accept refuses
+it.
 
 **Vault** (`server/src/vault-store.ts`, `vault.json` 0600) — credentials by scope (agents > folder > global; ONE resolver: deepest
 folder then newest, shortest agents list then newest). An entry is
@@ -258,6 +414,21 @@ Each 403/502-private leaves `{at, agentId, host, port, reason}` in
 `egress/rejected.jsonl` (rotated at 2 MB), read by the owner at
 `GET /api/territory/egress/rejections`; `GET /api/territory/egress` lists the
 policies + engine hosts, `PATCH /api/territory/egress/:agentId` sets one.
+
+The file fence's refusals: each reader records a refused tool call in the
+conversation's context — `SessionContext.refused`, `{at, path}`, the newest
+50 — where Claude Code's is an is_error result whose whole text is a pinned
+refusal shape (`territory.ts FENCE_REFUSAL_WHOLE_RE`) and OpenCode's an
+errored tool part naming its deny rule («a rule which prevents you from
+using this specific tool call», a person's Deny excluded). The path comes
+from the call's own input (`refusedPathOf`: a file tool's path, a search's
+folder, the first absolute path a command names); the refusal text, the
+command and any output are never kept (f9284902 dropped the raw text from
+the header for that reason). No cache bump: refusals are counted from the
+lines read since. `fence-refusals.ts refusedSince` sums today's per agent and
+buckets each path by `project-scope.ts projectOfPath` (no project →
+elsewhere); `GET /api/territory/refused` (owner credential) serves it to
+Settings › Territory.
 
 **The seal** (`server/src/seals.ts`, regimes in `seal-regimes.ts`) — the net under the fence (with the fence off it is THE
 net). Every entry of `~/.silos` has ONE declared regime, fixed by its
@@ -334,9 +505,10 @@ legitimate writer (a test boots a server and walks its data dir):
 - _out of seal_ (each named with why in `seal-regimes.ts`): among them
   `server.env`, the owner's hand-written deploy settings — never written by
   Silos, read once at boot: the same authority as the environment the
-  server is started with, which no seal can watch either. Fenced agents
-  cannot reach it (`*.env` is denied), and an unfenced one already reads
-  the owner token itself, so a seal would protect nothing it lacks. There
+  server is started with, which no seal can watch either. No agent with a
+  folder can reach it (`SILOS_CREDENTIALS`, territory on or off), and the
+  owner's desk already reads the owner token itself, so a seal would
+  protect nothing it lacks. There
   is no regime for hand-written files the server serves live: the one that
   existed (_blessed_, for an instance's own Firebase config) left with that
   sign-in path.
@@ -671,8 +843,8 @@ user` writes), an account plugin `<name>@synced: false` (on removes it),
   override kind ON over the machine's or the repository's «off» (local
   `true`); an off-only kind the machine keeps off is refused, saying it
   can't come back for one project. The seal does not watch the user file:
-  nothing to reseal. Welcome › «At start» and the New agent form's line
-  read `startingFacts`, whose `machine[]` counts what a new project loads
+  nothing to reseal. Welcome › «At start»
+  reads `startingFacts`, whose `machine[]` counts what a new project loads
   (`n`) apart from what the machine keeps off (`off`, named).
 - **The heads at every place, rule 4 per place, the account's door** (spec
   scopes §3, §7; T8). Each account origin — `plugins`
@@ -1001,8 +1173,13 @@ at)`: rule 12 everywhere — what the place follows is no entry, «on» is
   writer; neutral `server/src/starting-set.ts`). The engine declares its
   classes — id, what, from, Silos' recommendation by origin (Claude Code:
   `account-plugins` off → `syncClaudeAiPlugins: false`, `account-connectors`
-  off → `disableClaudeAiConnectors: true`, `account-skills` on; what you set
-  up on this machine has no class, always on). The install's own set lives
+  off → `disableClaudeAiConnectors: true`, `account-skills` on; `machine`
+  — what you set up on this machine — Recommended on, `covers: 'machine'`
+  with no engine key: off, the seam calls `StartingSetDeps.machineOff`,
+  which the workspace routes fill with `loads-bulk.ts machineOffAtBirth` —
+  the project's own «Turn all off in this project» on the rows you own and
+  on your personal skills, for what exists at the birth; the machine's file
+  is never written (D6)). The install's own set lives
   in `~/.silos/settings.json` (`PlatformSettingsStore`, `startingSet: {
 <engine>: { <class>: boolean } }`, an absent class follows Recommended;
   `GET/PATCH /api/settings`, a class the engine does not declare is a 400,
@@ -1018,8 +1195,8 @@ at)`: rule 12 everywhere — what the place follows is no entry, «on» is
   migrated. It never blocks the birth: a home folder, a corrupt or
   unwritable file come back as `startWarn` (the agent's first minute says
   it with «Tools ›»; a role pack's report and a Settings save say it too).
-  `GET /api/starting-set?framework=&folder=` feeds the New agent form's
-  line: the set, whether the folder exists, and the agents it would join;
+  `GET /api/starting-set?framework=&folder=` answers the set, whether the
+  folder exists, and the agents it would join;
   with `facts=1` (Welcome's «At start») also `facts` — what you set up on
   this machine, counted, and per class the names its origin sends — read
   by `folder-loads.ts wouldLoad` (that engine's inventory and skills for a
@@ -1741,7 +1918,12 @@ OpenCode conversation is not told of given files (the web says so).
     the claim/release recipes for a folder without `team-plan`) and the
     rule names the file — a fragment writes `{{context}}`, which both
     composers fill with the real path of `plugin/context`;
-  - the **roster** (same «already carried» test on resume/fork; at most 12
+  - the **roster** of its projects (`roster.py`: with a bearer from
+    `GET /api/agents`, which answers the agent's own projects; else — the
+    server down, or a session with no identity — from `~/.silos/agents.json`,
+    filtered by the same rule; a session with no identity, and the owner's
+    desk, get the agents of the folder they run in, from Claude Code's `cwd`;
+    same «already carried» test on resume/fork; at most 12
     agents, lines cut at 160 characters, then «N more»), the **unread
     messages** always (`inbox.py` GETs the server's store with the bearer
     and `$SILOS_TURN`; a failed fetch says so in one line and marks
@@ -2020,7 +2202,8 @@ its heartbeat's day by class («Heartbeat: looked twice today» —
 `heartbeat-store.ts` `turnsOfDay`, turns that had their turn). Silos' cut of its capability of creating work (`Agent.cut`)
 is lifted by the owner («Allow again»). **Every birth is told except the
 owner's explicit gesture** — `POST /api/agents` with a mission (owner-only:
-no bearer reaches it) is born `own`; a role-pack install, or any other
+no bearer reaches it) is born `own` (proactive when it asks `control:
+'proactive'`); a role-pack install, or any other
 path that creates an agent, is born `told` (`AgentRegistry.create`
 defaults to told) and the owner turns it On its own. The flip to told supersedes its
 queued wakes in the same request and answers what still runs (the sheet:
@@ -2099,9 +2282,13 @@ like a stall («Silos could not start X's turn»). An engine Silos refuses
 beats (they stay due and run once) —
 spending nothing; the one engine row in Needs you says it. Silos signs its
 own notes and messages `Silos` (`system-author.ts`), never the agent id
-`silos`. An escalation hop goes to an agent only when it is On its own and
-its next heartbeat falls in the window; otherwise up the chain, and
-at the end the owner. A hop to an agent arms the same ask fact an agent's
+`silos`. An escalation hop goes to an agent only when it is On its own,
+its next heartbeat falls in the window, and it is of the subject's project
+(the task's, the routed row's record location — `project-scope.ts
+ofLocation`; a reporting line never widens the wall); otherwise up the
+chain, and at the end the owner. The chain walks only live edges: both
+ends in play and sharing a project (`relations.ts` — an edge whose ends
+drifted apart is kept, marked `apart`, out of every chain). A hop to an agent arms the same ask fact an agent's
 ask arms (below: `asked: ''`, Silos' own
 `unstick <ref>` action, its wait and `blocked` in one write the stamper
 expects): the hop sees it in its start briefing and its heartbeat packet
@@ -2380,8 +2567,11 @@ outside the weekly initiative; the resident expires a pending one at 14 d
 (`decidedBy:'silos'`), and the agent hears every outcome in its packet's
 `decided`. Accept (owner): an automation goes through the SAME create path,
 stamped `createdBy`/`origin:'self'`/`acceptedFrom` (the owner's later edit
-of its trigger/prompt/run makes it the owner's); a `run.command` one and
-every mission are «Review ›» only (409 on accept) — the editor the row opens
+of its trigger/prompt/run makes it the owner's); a `run.command` one, one
+that crosses the proposer's projects (`crosses`, stamped at registration by
+`proposals-view.ts automationCrossing` and the route's `http` check — said
+first on its card) and every mission are «Review ›» only (409 on accept) —
+the editor the row opens
 carries the proposal id and its save resolves it (`edited and saved by the
 owner`). A skill lives in `$SILOS_AGENT_STATE/proposed/<name>/` (outside
 the plugin): its accept renames the tree into `~/.silos/skill-staging/`
@@ -2389,6 +2579,28 @@ FIRST (fenced from agents), validates what was moved (slug, real dir, no
 link/hardlink/device inside, containment, collision, `contentHash`), gives
 it back to `proposed/` on any failure, else renames it into
 `plugin/skills/<name>` (+ manifest) — it loads at the next conversation.
+A CHANGE to a skill a project has is the same proposal with
+`input.folder` (`skill-accept.ts`): exactly one of the proposer's own
+declared folders (403 else), a skill that folder has (404), never one of
+Silos' plugin skills (their copies follow Silos) nor a no-op (400). The
+project's copy is hashed at propose (`baseHash`); the sheet marks each file
+new/changed/same plus `removed` (`skillChangeFiles`) and
+`GET /api/proposals/:id/file` answers a changed file with its line diff
+(`lineDiff`). The accept stages and validates the proposed tree the same
+way, re-checks the folder is still the agent's and the project's copy still
+hashes to `baseHash` (409 «the project's skill changed since it was
+proposed»), moves that copy to `~/.silos/trash/skills/` and the staged tree
+into `<folder>/.claude/skills/<name>`. This is the door behind the fence's
+`Edit(<folder>/.claude/skills/**)` deny (`territory.ts TERRITORY_DENIED`);
+every conversation is told it in the briefing (`briefing.d/base.md`).
+Every proposal is stamped with `session` — the session id of the turn it
+came from, read from the turn token like `run`, never from the body.
+`GET /api/proposals?conversation=<session id>` (owner) answers the ones of
+that conversation, matched by thread (`task-threads.ts makeThreadIdOf`, so
+a continuation still finds them); the conversation column's «Proposed here»
+(`ContextColumn.tsx ProposalsBlock`) reads it, refetched as the transcript
+moves, and decides through the same accept/dismiss routes and the same
+sheet (`ProposalDetail`) as Needs you.
 Home's rows carry the server's words (`proposals-view.ts`: the brake of the
 effective provider, «it starts when X's territory is on», «written after
 reading the web») and fold per agent past `AGENT_INBOX_BUDGET`. The
@@ -2559,8 +2771,18 @@ ONCE per run and cached in `~/.silos/vitals/run-usage.json`; a run on a plan
 (`priced: false`) counts tokens, no dollars.
 
 **Messages** (Silos API `/api/agents/<id>/messages`, `routes/messages.ts`;
-store `server/src/messages.ts`) — between agents
-(and from the owner). No message wakes anyone: there is no urgency (an
+store `server/src/messages.ts`) — between agents that know each other
+(and from the owner). A bearer writes only to an agent of its projects (the
+owner's desk, like the owner, to anyone); any other id — another project's
+agent, a typo — gets the one 404 «no agent <id> in your projects — outside
+them, ask the owner». A message is **served** to its recipient
+(`project-scope.ts servable`: the GET, the hooks-off and OpenCode inbox
+through `MessageReads`, the heartbeat's facts) only when its sender is the
+owner, the owner's desk, Silos or an agent the recipient knows now; any
+other stays as it is — unread, unmarked, unserved, never markable by the
+recipient — and shows to the owner at once in the unread-messages row with
+its why, «they share no project» (`inbox.ts` `noProject`). If the two later
+share a project, it is served. No message wakes anyone: there is no urgency (an
 `urgent` field is a 400 that says why) — a message is read at the
 recipient's NEXT conversation, any conversation starts with its inbox; work
 that cannot wait is a task and its start (`assign` of one's own, or the
@@ -2629,7 +2851,9 @@ A silo nobody is bound to has no producer yet: its page says
 «No producer yet · Bind ›», Home never routes its rows, «Make it a task»
 has nobody to give it to. With several bound, the
 producer of a RECORD is the agent that wrote it while bound and in play,
-else the first in play (`surfaces.ts` `recordProducer`, read by Home's
+else the first in play — either way an agent of the record's location
+(`folder:<f>` an agent of that project, `agent:<id>` that agent; none there
+→ no producer, the owner keeps the row) (`surfaces.ts` `recordProducer`, read by Home's
 board, `GET /api/board`, and by the record's message and make-task): one silo serves several
 projects with one bound agent each. The binding is changed on the silo's
 page («Change who writes it») and named on each bound agent's Who card
@@ -2662,16 +2886,21 @@ An agent's own submission proposes its author as the producer (the
 dialog's default; the owner still binds).
 
 What a silo route reads or renders on behalf of an agent bearer is bounded
-by that agent's territory — ONE bound, `server/src/silos/bearer-scope.ts`:
-its own state (`agent:<self>`) and the project folders inside its
-territories, never another agent's state, drafts or folders, before or
-after approval; the owner's credential keeps the full view. Validate and
+by that agent's projects — ONE bound, `server/src/silos/bearer-scope.ts`
+over `project-scope.ts`: its own state (`agent:<self>`) and the project
+folders of its projects (one relation, both directions of nesting: a folder
+around one of its own counts), never another agent's state, drafts or
+another project's folders, before or after approval; the owner's
+credential keeps the full view. Validate and
 submit read only the bearer's own draft and dry-run over that bound (the
 preview of a glob aimed elsewhere falls back to the examples); the merged
 view, proposals and append-item judge the record KEY before any lookup
-(the same 403 whether the record exists or not). Append-item bounds
-agent-state keys only: plan files in project folders stay shared by
-convention (below). The id rule (a dimension Silos serves natively or the
+(the same 403 whether the record exists or not): a key at or inside one of
+its folders is decided from its text; a key that only passes through a
+folder around its own (whose location may be a sibling project) is looked
+up and judged at the location it resolves to — a record outside and no
+record answer the same 403. Append-item is bounded by the bearer's
+projects: inside them plan files stay shared by convention (below). The id rule (a dimension Silos serves natively or the
 engine owns) lives in the validator, check 2, so validate, submit (409
 `native`) and `silo-check` answer it alike.
 
@@ -2806,7 +3035,7 @@ wait included; a next check reviews nothing, a wait on itself is
 `review-without-reviewer` and no relay row — `reviewerNamed`) · nobody owns it → `unowned` · a bound owner's past
 check · a person's review · open dependencies → walked, a PERSON's too, except without the
 request's live facts · a person's → guarded · blocked naming nothing →
-`blocked-on-nothing` · the agent's own). Nine causes, one meaning each
+`blocked-on-nothing` · the agent's own). Ten causes, one meaning each
 (among them `unowned`, `blocked-on-nothing`, `blocker-missing`,
 `blocker-cycle`). The walk has no depth cap and looks at
 each task once per call. Every stall has a SEAT (`stalledAt`, by position:
@@ -2815,7 +3044,10 @@ cycle — its `stalledBy` the next member — or the first member a task reaches
 and through it ONE way out (`stallExit`): a bound seat whose owner can clear
 it is Task mode's `stalled` wake (a cycle's names the other member); every
 other seat is one of the distinct seats Needs you's «N tasks sit untouched»
-counts (nobody's, a person's, an unbound agent's, owner-cannot-run); a task
+counts (nobody's, a person's, an unbound agent's, owner-cannot-run,
+owner-outside-project — an agent owner that does not work in the task's
+project, judged before anything live: the owner gives it to an agent of
+the project); a task
 seated elsewhere has its seat's way out — no wake, not counted, and in «Coming
 to you», the turn sentence («Waiting — waits on …») and `view=untouched` it is
 not «stalled» (they read `stalledAt === id`). A dependency on an id the plan's
@@ -2938,8 +3170,9 @@ conversation), Task mode's cleared `nextCheckAt`, an escalated stall
 (`blocked` + `waitingOn`), an ask through Silos and its answer (the asker's
 wait and state; the answerer's note, the wait out, the state), the project's
 list's rotation. An agent re-reads
-before it writes. Plan files are protected by convention only: the fence
-does not stop an agent editing another project's `plans/`.
+before it writes. Inside a project plan files are shared by convention;
+another project's are behind the fence and behind the API (append-item and
+every task verb find only the bearer's projects).
 
 ## The API and the environment
 
@@ -2947,9 +3180,20 @@ does not stop an agent editing another project's `plans/`.
 and carry no compatibility promise, with two exceptions that are contracts:
 
 - **The agent-facing subset** (`server/src/agent-authz.ts`) — what a request
-  with an agent's bearer token may do. Reads: the roster and the agent's own
-  record (`/api/agents`, `/api/agents/<self>/…`), automations (without run
-  logs), its own silo merges and proposals, its tasks by session. Writes:
+  with an agent's bearer token may do. Reads are a list of routes, each with
+  its bound (`agentMayRead`): `GET /api/agents` (its own record and the
+  agents of its projects as roster rows — id, name, emoji, the folders they
+  share, the mission's first sentence; the owner's desk reads all),
+  `/api/agents/<self>/messages` (servable only) and `/messages/sent`,
+  `/asks` (of its projects), `/vault` (a shared entry says «shared», never
+  the other agents' ids), its automations (without run logs) and the
+  built-in templates, its tasks by session (another agent's conversation
+  answers as none), its own silo merges and proposals. The agent page's
+  other reads (territory, skills catalog, output styles, loaded, context,
+  tools) are the owner's screen. Task verbs (`claim`, `release`, `assign`,
+  `ask`, `ask/answer`) find only the tasks of the bearer's projects — a task
+  elsewhere is «no such task»; an ask's `to` is an agent of the task's
+  project. Writes:
   messages (`POST /api/agents/<id>/messages`, `PATCH` its own), its own vault
   bindings, its own automations (`POST`/`PATCH`/`DELETE /api/automations…`,
   templates' `use`/`preview`), proposals, tasks (`claim`, `release`,
@@ -3008,7 +3252,8 @@ an operator never sets them.
 | Needs you                                                                                                                             | `server/src/inbox.ts`, `harnesses/inbox-text.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Usage                                                                                                                                 | `server/src/usage.ts`, `usage-ledger.ts`, `usage-attribution.ts`, `routes/usage.ts`, `harnesses/claude-code/usage-records.ts`; web `components/UsagePage.tsx`, `lib/usage.ts`, `lib/usage-door.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Home's Since, Welcome and an agent's first minute                                                                                     | `server/src/home-since.ts`, `routes/board.ts`, `slug.ts`, `routes/agents.ts`; web `lib/since.ts`, `components/home/SinceBand.tsx`, `components/Welcome.tsx`, `components/agent/FirstMeeting.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| fence                                                                                                                                 | `server/src/territory.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| fence                                                                                                                                 | `server/src/territory.ts` (the other-projects group: `project-scope.ts`, `Harness.projectStores`; smoke: `scripts/territory-smoke-files.mts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| project boundary                                                                                                                      | `server/src/project-scope.ts`, `plugin/hooks/roster.py` + `harnesses/roster-text.ts`, `silos/bearer-scope.ts`, `agent-authz.ts`, `test/project-boundary.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | what a conversation loads (Tools, Skills' account rows, Memory's personal switch, the alert, the starting set)                        | neutral `server/src/folder-loads.ts`, `tool-health.ts`, `start-health.ts`, `switch-proof.ts`, `loads-check.ts`, `folder-personal.ts`, `starting-set.ts`; Claude Code `harnesses/claude-code/loads/`, `local-settings.ts` (the one writer), `local-holds.ts`, `turn-status.ts`, `personal-instructions.ts`; OpenCode `harnesses/opencode/loads.ts`; web `lib/loads-view.ts`, `lib/loads-weight.ts`, `lib/starting-set.ts`, `components/knows/OriginHead.tsx`                                                                                                                                                                                                                                                                                           |
 | instruction files (Memory's rows, the write boundary)                                                                                 | neutral `server/src/folder-instructions.ts`, `memory-service.ts`, `routes/files.ts`; Claude Code `harnesses/claude-code/instructions.ts`, `instructions-record.ts` (the one transcript reader, also Started with's); OpenCode `harnesses/opencode/instructions.ts`; tests `memory-service.test.ts`, `memory-api.test.ts`, `loaded-at-start.test.ts`, `started-with.test.ts`, `harness-conformance.test.ts`                                                                                                                                                                                                                                                                                                                                            |
 | the packaged command (`silos doctor · service · update · uninstall`)                                                                  | `scripts/pack-npm.mjs` (the bin: no subcommand = start the server, after checking that `node-pty` loads — it ships as an optional dependency so a failed native build never aborts the install, and the bin names the toolchain fix), `server/src/cli/` — a second program entry beside `index.ts`; decisions are pure functions (`doctor.ts`, `service.ts`, `update.ts`), `main.ts` reads the machine. The service is a systemd USER unit / LaunchAgent that stops the server process only (consoles are tmux sessions and survive) and carries PATH + `SILOS_PORT/HOST/DATA_DIR/ROOT`, never the shell's engine variables                                                                                                                           |

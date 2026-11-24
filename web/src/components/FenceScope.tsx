@@ -8,18 +8,24 @@ import type { FenceScope } from '../lib/types'
 // agent's Settings, its territory (`kept` on: the whole picture for one agent).
 
 const KEPT_LABEL: Record<FenceScope['blocked'][number]['kind'], string> = {
+  projects: 'other projects',
   silos: "Silos' own data",
   claude: 'Claude login, settings & memory',
   agents: "other agents' state",
   private: '',
 }
 
+/** The groups only a territory that is ON keeps it out of. */
+const ONLY_WHEN_ON: ReadonlySet<FenceScope['blocked'][number]['kind']> = new Set(['silos', 'claude', 'agents', 'private'])
+
 /** The kept-out groups as phrases; private paths stay literal. */
 type Phrase = { text: string; mono: boolean; title?: string }
-export function keptOutPhrases(scope: FenceScope): Phrase[] {
-  return scope.blocked.flatMap((b): Phrase[] =>
-    b.kind === 'private' ? b.paths.map((p) => ({ text: p, mono: true })) : [{ text: KEPT_LABEL[b.kind], mono: false, title: b.paths.join('\n') }],
-  )
+export function keptOutPhrases(scope: FenceScope, kinds?: ReadonlySet<FenceScope['blocked'][number]['kind']>): Phrase[] {
+  return scope.blocked
+    .filter((b) => kinds === undefined || kinds.has(b.kind))
+    .flatMap((b): Phrase[] =>
+      b.kind === 'private' ? b.paths.map((p) => ({ text: p, mono: true })) : [{ text: KEPT_LABEL[b.kind], mono: false, title: b.paths.join('\n') }],
+    )
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -61,13 +67,19 @@ export function FenceScopeLines({
   privateExceptions?: string[]
 }) {
   if (!on) {
+    // what only the territory adds: other projects and Silos' credentials
+    // are closed to it either way
+    const more = keptOutPhrases(scope, ONLY_WHEN_ON)
     return (
       <div className="text-[12px] leading-relaxed text-ink-2" data-testid="fence-scope-off">
-        <p>Its territory is off — it reads and writes everything you can (it still meets the API as itself).</p>
-        {preview && scope.blocked.length > 0 ? (
+        <p>
+          Its territory is off — it still can't open other projects' folders, conversations and memory, or the credentials Silos keeps; everything else you can
+          reach, it can (it still meets the API as itself).
+        </p>
+        {preview && more.length > 0 ? (
           <p className="mt-1 text-ink-3">
-            Fenced, it would be kept out of{' '}
-            {keptOutPhrases(scope).map((k, i, all) => (
+            Fenced, it would also be kept out of{' '}
+            {more.map((k, i, all) => (
               <span key={k.text}>
                 <span className={k.mono ? 'font-mono' : undefined} title={k.title}>
                   {k.text}
@@ -115,8 +127,23 @@ export function FenceScopeLines({
           </span>
         </Row>
       ) : null}
+      {(scope.open ?? []).length > 0 ? (
+        <Row label="left open">
+          <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {(scope.open ?? []).map((o) => (
+              <span key={o.path} className="break-all font-mono" title={o.reason}>
+                {o.path}
+              </span>
+            ))}
+          </span>
+        </Row>
+      ) : null}
       <Row label="API">as itself — the roster, its inbox, its automations</Row>
-      {kept ? <Row label="commands">a plain cat is held too — a script or interpreter runs as you</Row> : null}
+      {kept ? (
+        <Row label="commands">
+          a plain cat is held too, and its shell can't drive Silos' consoles (tmux) — reductions, not walls: a script or interpreter runs as you
+        </Row>
+      ) : null}
     </dl>
   )
 }

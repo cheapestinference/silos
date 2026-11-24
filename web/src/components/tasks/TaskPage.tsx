@@ -466,7 +466,7 @@ function TaskLink({
   )
 }
 
-export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: string; from?: TaskOrigin }) {
+export function TaskPage({ planKey, taskId, from, give: openOnGive = false }: { planKey: string; taskId: string; from?: TaskOrigin; give?: boolean }) {
   const key = taskKeyOf(planKey, taskId)
   const [detail, reload] = useTaskDetail(key)
   const reading = useTasks()
@@ -497,6 +497,8 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
   const [parking, setParking] = useState<string | null>(null)
   // «Give to… ›» open, and what it did once given
   const [giving, setGiving] = useState(false)
+  // the prompt's pick (an agent of the task's project), handed to GiveTo
+  const [giveTo, setGiveTo] = useState('')
   const [handed, setHanded] = useState<{ said: string } | null>(null)
   const origin0 = useOriginOutside(key)
   const [busy, setBusy] = useState(false)
@@ -535,6 +537,12 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
   }
   const deliverables = useDeliverables(convs, t?.file ?? null, server.refs)
   const mode = useTaskMode(key)
+  // opened on «Give to…» (the Untouched row of a task whose owner works in
+  // another project): the form, once its choices are read — nothing picked
+  const canHand = mode.view?.handTo !== undefined
+  useEffect(() => {
+    if (openOnGive && canHand) setGiving(true)
+  }, [openOnGive, canHand])
   // going in (the door, «Send and open ›»): one opener for the page
   const opener = useTaskOpen({
     taskKey: key,
@@ -704,7 +712,11 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
   // the owner's own task there is none (Done / Done and next below). While
   // DEPENDENCIES hold the task it stays, but quiet — no push on a task that
   // admits no work yet; a stalled one keeps it primary
-  const work = !finished && ownerAgent && mode.view ? <TaskDoor owner={ownerAgent} door={mode.view.door} opener={opener} quiet={t.state === 'blocked'} /> : null
+  // (R3) an owner of another project is never opened on this task: no door — «Give to…» is the move
+  const work =
+    !finished && ownerAgent && mode.view && mode.view.ownerOutside !== true ? (
+      <TaskDoor owner={ownerAgent} door={mode.view.door} opener={opener} quiet={t.state === 'blocked'} />
+    ) : null
   // how its agent moves (the server's derived control) and where Open goes
   const control = controlOf(ownerAgent)
   const surface = surfaceOf({ hasConsole: mode.view?.door?.hasConsole === true, consoleBriefs: mode.view?.door?.consoleBriefs !== false })
@@ -876,18 +888,19 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
   }
   // the banner's gesture on a task nobody is on: Start = without you (own),
   // Open = you go in (told) — the surface named on the button
-  const startOrOpen = ownerAgent
-    ? control === 'own'
-      ? { testId: 'task-start-it', label: waking.busy ? `Starting ${ownerAgent.name}…` : `Start ${ownerAgent.name} ›`, run: () => void startIt() }
-      : {
-          testId: 'task-open-it',
-          label: doorPlan({ name: ownerAgent.name, door: mode.view?.door }).label,
-          run: () => {
-            const p = doorPlan({ name: ownerAgent.name, door: mode.view?.door })
-            void (p.kind === 'open' ? opener.open(p.to) : opener.go(p.mode))
-          },
-        }
-    : null
+  const startOrOpen =
+    ownerAgent && mode.view?.ownerOutside !== true
+      ? control === 'own'
+        ? { testId: 'task-start-it', label: waking.busy ? `Starting ${ownerAgent.name}…` : `Start ${ownerAgent.name} ›`, run: () => void startIt() }
+        : {
+            testId: 'task-open-it',
+            label: doorPlan({ name: ownerAgent.name, door: mode.view?.door }).label,
+            run: () => {
+              const p = doorPlan({ name: ownerAgent.name, door: mode.view?.door })
+              void (p.kind === 'open' ? opener.open(p.to) : opener.go(p.mode))
+            },
+          }
+      : null
   const startButton = startOrOpen ? (
     <button
       type="button"
@@ -998,6 +1011,42 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
           <span className="font-medium">{cause === 'blocker-cancelled' ? 'Blocked' : waitsStart ? 'Waits' : 'Sits untouched'}</span> —{' '}
           {waitsStart ? 'on a task that is not started: its agent opens with you' : causeWords(t)}
         </StallText>
+        {cause === 'owner-outside-project' && !stuckOn && canWrite && !giving && mode.view?.handTo ? (
+          // (R3) nobody here moves it: the way out is one of its project's agents
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-ink-2" data-testid="task-give-prompt">
+            <span>{ownerAgent ? `${ownerAgent.name} works in another project, and Silos never wakes it here. ` : ''}Give it to</span>
+            {mode.view.handTo
+              .filter((x) => x.id !== 'owner')
+              .map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setHanded(null)
+                    setGiveTo(x.id)
+                    setGiving(true)
+                  }}
+                  className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[12px] text-ink hover:border-terracotta hover:text-terracotta disabled:opacity-50"
+                >
+                  {x.name}
+                </button>
+              ))}
+            <span>or</span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setHanded(null)
+                setGiveTo('owner')
+                setGiving(true)
+              }}
+              className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[12px] text-ink hover:border-terracotta hover:text-terracotta disabled:opacity-50"
+            >
+              you
+            </button>
+          </div>
+        ) : null}
         {stuckOn ? (
           <div className="mt-1 text-ink-2">
             {waitsStart ? 'The task to start is' : 'The first untouched task down the chain is'}{' '}
@@ -1095,11 +1144,16 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
         />
       ) : giving && mode.view?.handTo ? (
         <GiveTo
+          key={giveTo}
+          initial={giveTo}
           handTo={mode.view.handTo}
           outside={origin0.outside}
           busy={busy}
           onGive={(to) => void give(to)}
-          onCancel={() => setGiving(false)}
+          onCancel={() => {
+            setGiving(false)
+            setGiveTo('')
+          }}
           error={errorAt('hand')}
         />
       ) : parking !== null ? (
@@ -1909,7 +1963,8 @@ export function TaskPage({ planKey, taskId, from }: { planKey: string; taskId: s
                             })()
                           : null}
                         <span className="flex justify-end gap-2">
-                          {boxVoice.secondary ? (
+                          {/* (R3) never «and open» an owner of another project: the note is for the record */}
+                          {boxVoice.secondary && mode.view?.ownerOutside !== true ? (
                             <button
                               type="button"
                               data-testid="task-send-open"

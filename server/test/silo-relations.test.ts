@@ -22,6 +22,7 @@ import {
   type RelationDecl,
 } from '../src/silos/relations.js'
 import { agentMayRead, agentMayWrite } from '../src/agent-authz.js'
+import { knows } from '../src/project-scope.js'
 import { claudeSessionIndex } from '../src/harnesses/claude-code/reader.js'
 import { AgentRegistry } from '../src/agent-registry.js'
 import { SessionStore } from '../src/session-store.js'
@@ -312,17 +313,42 @@ describe('GET/PUT /api/silos/:id/relations/:name', () => {
 })
 
 describe('one org per project', () => {
+  // the one resolver (project-scope.ts knows): nested folders are one
+  // project, siblings are not, knowing is not transitive
+  const folder: Record<string, string[]> = { builder: ['/p/alpha'], writer: ['/p/alpha/docs'], finance: ['/p/beta'], web: ['/p/site', '/p/alpha'] }
+  const agentOf = (id: string) => ({ id, folder: folder[id]?.[0] ?? null, folders: folder[id]?.slice(1) ?? [] })
+  const lookup = { stateOf: () => 'ok' as const, knows: (a: string, b: string) => knows(agentOf(a), agentOf(b)) }
   it('an edge never crosses projects; inside one it is written', () => {
     const root = mkdtempSync(join(tmpdir(), 'rel-proj-'))
     mkdirSync(join(root, 'lines'), { recursive: true })
-    const folder: Record<string, string[]> = { builder: ['/p/alpha'], writer: ['/p/alpha'], finance: ['/p/beta'], web: ['/p/site', '/p/alpha'] }
-    const lookup = { stateOf: () => 'ok' as const, projectsOf: (id: string) => folder[id] ?? [] }
     const s = new RelationStore(root)
+    // a nested folder is the same project
     expect(s.set('lines', DECL, 'writer', 'builder', lookup).ok).toBe(true)
     const r = s.set('lines', DECL, 'finance', 'builder', lookup)
     expect(r).toMatchObject({ ok: false, code: 400 })
-    expect(r.ok ? '' : r.reason).toMatch(/finance works in beta and builder in alpha — each project has its own org/)
-    // a declared folder is membership (territoriesOf): Web, of site AND alpha, may report to Builder
+    // a declared folder is membership: Web, of site AND alpha, may report to Builder
     expect(s.set('lines', DECL, 'web', 'builder', lookup).ok).toBe(true)
+    // folders that nest are one project (project-scope.ts): docs, inside alpha, reports to Builder
+    folder.docs = ['/p/alpha/docs']
+    expect(s.set('lines', DECL, 'docs', 'builder', lookup).ok).toBe(true)
+    // the sibling prefix is another project
+    folder.alphaweb = ['/p/alpha-web']
+    expect(s.set('lines', DECL, 'alphaweb', 'builder', lookup)).toMatchObject({ ok: false, code: 400 })
+  })
+  it('an edge whose ends stop sharing a project leaves every chain when it is walked — kept, marked apart', () => {
+    const root = mkdtempSync(join(tmpdir(), 'rel-walk-'))
+    mkdirSync(join(root, 'lines'), { recursive: true })
+    const s = new RelationStore(root)
+    expect(s.set('lines', DECL, 'web', 'builder', lookup).ok).toBe(true)
+    expect(s.live('lines', 'answers_to', lookup)).toEqual({ web: 'builder' })
+    // the owner takes alpha away from Web: the line no longer joins one project
+    folder.web = ['/p/site']
+    try {
+      expect(s.live('lines', 'answers_to', lookup)).toEqual({})
+      expect(s.list('lines', 'answers_to', lookup)).toEqual([{ from: 'web', to: 'builder', note: 'apart' }])
+      expect(s.edges('lines', 'answers_to')).toEqual({ web: 'builder' })
+    } finally {
+      folder.web = ['/p/site', '/p/alpha']
+    }
   })
 })

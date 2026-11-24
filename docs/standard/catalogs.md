@@ -226,10 +226,12 @@ the conversations.
 - The stall rule: every open task has a KEPT next step — a live conversation, a
   wake on its way, a human owner with nothing open below (a person's task on
   open dependencies is walked like any other), a healthy chain of blockers, a
-  wait with an owner, or a next check. The nine causes: `unowned`,
+  wait with an owner, or a next check. The ten causes: `unowned`,
   `blocked-on-nothing`, `blocker-missing`, `blocker-cycle`, `blocker-parked`,
   `blocker-cancelled`, `owner-cannot-run`, `review-without-reviewer`,
-  `in-progress-nothing-live`; `stalledBy` names the FIRST stalled task of the
+  `in-progress-nothing-live`, `owner-outside-project` (its owner is an agent
+  that does not work in the task's project — nobody moves it until the owner
+  gives it to an agent of that project); `stalledBy` names the FIRST stalled task of the
   chain, not the one at the top. A dependency on a task the plan's file holds
   but cannot be read is no stall (the reader says it).
 - The values of `stalledCause` are computed by the kernel, never declared by a

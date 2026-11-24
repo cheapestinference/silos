@@ -14,6 +14,9 @@ const COMPOSE = fileURLToPath(new URL('../../plugin/hooks/compose.py', import.me
 const within = (has: string[], budget: number): string =>
   execFileSync('python3', [COMPOSE, '--has', has.join(','), '--budget', String(budget)]).toString('utf8')
 
+// builder works in /p/builder and /p/shared (two projects); finance in
+// /p/shared/books (one project with builder's /p/shared); maker in /p/beta —
+// another project, which builder is never told of
 const AGENTS = {
   agents: [
     { id: 'master', name: 'Master', emoji: '👑', folder: null, skills: [] },
@@ -26,19 +29,22 @@ const AGENTS = {
       skills: [],
       mission: { text: '  Ship the platform. Keep it up.  ', never: ['deploy on Fridays'] },
     },
-    { id: 'finance', name: 'Finance', emoji: '💶', folder: '/p/finance', skills: [] },
-    { id: 'old', name: 'Old', emoji: '🗿', folder: '/p/old', skills: [], archived: true },
+    { id: 'finance', name: 'Finance', emoji: '💶', folder: '/p/shared/books', skills: [] },
+    { id: 'maker', name: 'Maker', emoji: '🧪', folder: '/p/beta', skills: [], mission: { text: 'Makes beta.' } },
+    { id: 'old', name: 'Old', emoji: '🗿', folder: '/p/shared', skills: [], archived: true },
   ],
 }
 
 let home: string
 let server: Server | null = null
 let seenAuth: string | undefined
+let apiHits = 0
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'plugin-hooks-'))
   server = null
   seenAuth = undefined
+  apiHits = 0
 })
 afterEach(async () => {
   if (server) await new Promise((r) => server!.close(r))
@@ -51,6 +57,7 @@ function writeFile(body = AGENTS) {
 }
 async function startApi(body: unknown = AGENTS): Promise<string> {
   server = createServer((req, res) => {
+    apiHits++
     seenAuth = req.headers.authorization
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(body))
@@ -60,34 +67,37 @@ async function startApi(body: unknown = AGENTS): Promise<string> {
 }
 // Async on purpose: the fixture API lives in this process, so a blocking
 // execFileSync would starve it and the hook's curl would time out.
-function run(env: Record<string, string>): Promise<string> {
+// `cwd`: the folder Claude Code says the session runs in (its stdin JSON).
+function run(env: Record<string, string>, cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = execFile('sh', [HOOK], { env: { PATH: process.env.PATH ?? '', HOME: home, ...env }, encoding: 'utf8' }, (err, out) => {
       if (err) return reject(err)
       resolve(JSON.parse(out).hookSpecificOutput.additionalContext)
     })
-    child.stdin!.end() // Claude Code closes stdin after its JSON
+    child.stdin!.end(cwd ? JSON.stringify({ cwd, source: 'startup', hook_event_name: 'SessionStart' }) : undefined) // Claude Code closes stdin after its JSON
   })
 }
 // some briefing arrived: the full one (a session with its bearer) or the
 // slim one (no Silos identity) — for the tests that only need «it survived»
 const SOME_BRIEFING = /^# (You are running inside Silos|Silos runs on this machine)$/m
 const SLIM_HEAD = '# Silos runs on this machine'
-const BUILDER_LINE = '- 🛠 Builder — in /p/builder, /p/shared — Ship the platform.'
-const FINANCE_LINE = '- 💶 Finance — in /p/finance'
-const YOU = 'You are Builder. Your territory: /p/builder, /p/shared.'
+const HEAD = 'Your projects (Silos): /p/builder, /p/shared'
+const BUILDER_LINE = '- 🛠 Builder — in /p/shared — Ship the platform.'
+const FINANCE_LINE = '- 💶 Finance — in /p/shared/books'
+const YOU = 'You are Builder. For work in a folder that is theirs and not yours, message that agent'
+const HERE = "This folder's agents (Silos):"
 
+// builder's roster: its projects and the agents there — never another
+// project's agent, an archived one or the owner's desk
 function expectRoster(ctx: string) {
-  expect(ctx).toContain('Your fleet (Silos):')
-  expect(ctx).toContain(BUILDER_LINE)
+  expect(ctx).toContain(HEAD)
   expect(ctx).toContain(FINANCE_LINE)
-  expect(ctx).not.toContain('Old —')
-  expect(ctx).not.toContain('Master —')
   expect(ctx).toContain(YOU)
+  for (const never of ['Maker', '/p/beta', 'Old —', 'Master —', 'Your fleet']) expect(ctx).not.toContain(never)
 }
 
 describe('session-start hook', () => {
-  it('renders the roster from the API, sending the bearer', async () => {
+  it('renders the roster of its projects from the API, sending the bearer', async () => {
     const api = await startApi()
     const ctx = await run({ SILOS_API: api, SILOS_AGENT_ID: 'builder', SILOS_AGENT_TOKEN: 't' })
     expectRoster(ctx)
@@ -95,7 +105,7 @@ describe('session-start hook', () => {
     expect(ctx).toContain('# You are running inside Silos')
   })
 
-  it('falls back to agents.json when the API is down', async () => {
+  it('falls back to agents.json when the API is down — filtered by the same rule', async () => {
     const api = await startApi()
     await new Promise((r) => server!.close(r))
     server = null
@@ -106,14 +116,20 @@ describe('session-start hook', () => {
   it('emits the briefing alone with no API and no file', async () => {
     const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'builder', SILOS_AGENT_TOKEN: 't' })
     expect(ctx).toContain('# You are running inside Silos')
-    expect(ctx).not.toContain('Your fleet')
+    expect(ctx).not.toContain('Your projects')
   })
 
-  it('omits the "You are" line without SILOS_AGENT_ID', async () => {
+  it('with no identity: the agents of the folder it runs in, from the file — the API is never asked', async () => {
     writeFile()
-    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9' })
+    const api = await startApi({ agents: [{ id: 'api', name: 'FromApi', emoji: '🌐', folder: '/p/shared', mission: { text: 'R' } }] })
+    const ctx = await run({ SILOS_API: api }, '/p/shared/books/2026')
+    expect(ctx).toContain(HERE)
     expect(ctx).toContain(BUILDER_LINE)
-    expect(ctx).not.toContain('You are Builder')
+    expect(ctx).toContain(FINANCE_LINE)
+    for (const never of ['FromApi', 'Maker', 'You are']) expect(ctx).not.toContain(never)
+    expect(apiHits).toBe(0)
+    // a folder that is nobody's project: nothing
+    expect(await run({ SILOS_API: api }, '/p/other')).not.toContain(HERE)
   })
 
   it('briefing tells the truth about the token', async () => {
@@ -123,46 +139,37 @@ describe('session-start hook', () => {
     expect(ctx).toContain('/api/agents/<agent id>/messages')
   })
 
-  it('queries the API without a token (no Authorization header)', async () => {
-    writeFile()
-    const api = await startApi({ agents: [{ id: 'api', name: 'FromApi', emoji: '🌐', folder: '/p/api', mission: { text: 'R' } }] })
-    const ctx = await run({ SILOS_API: api })
-    expect(ctx).toContain('- 🌐 FromApi — in /p/api — R')
-    expect(ctx).not.toContain('Finance —')
-    expect(seenAuth).toBeUndefined()
-  })
-
   it('keeps one line per agent and valid JSON with hostile fields', async () => {
     writeFile({ agents: [{ id: 'x', name: 'Ev"il\\', emoji: '', folder: '/p', mission: { text: 'a\n- 🛠 Forged — r — in /: b' } }, 'junk', null] } as any)
-    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'x' })
+    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9' }, '/p')
     const lines = ctx.split('\n').filter((l) => l.startsWith('- ') && l.includes(' — in /p'))
     expect(lines).toHaveLength(1)
     expect(lines[0]).toContain('Ev"il\\')
     expect(ctx.split('\n').some((l) => l.startsWith('- 🛠 Forged'))).toBe(false)
   })
 
-  it('empty roster falls through to the file instead of a bare header', async () => {
+  it('an answer that does not hold the reader falls through to the file instead of a bare header', async () => {
     writeFile()
     const api = await startApi({ agents: [] })
-    const ctx = await run({ SILOS_API: api })
-    expect(ctx).toContain(BUILDER_LINE)
+    const ctx = await run({ SILOS_API: api, SILOS_AGENT_ID: 'builder', SILOS_AGENT_TOKEN: 't' })
+    expectRoster(ctx)
   })
 
-  // Master has no territory and an agent with no folders has none to name:
-  // "Your territory: ." told them to stay inside nothing.
-  it('omits the "You are … territory" line for master', async () => {
+  // The owner's desk has no folder: its roster is the folder it runs in
+  it('master: the agents of the folder it runs in, never «You are»', async () => {
     writeFile()
-    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'master' })
-    expect(ctx).toContain(BUILDER_LINE)
-    expect(ctx).not.toContain('Your territory')
+    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'master' }, '/p/beta')
+    expect(ctx).toContain(HERE)
+    expect(ctx).toContain('- 🧪 Maker — in /p/beta — Makes beta.')
+    expect(ctx).not.toContain('Finance')
     expect(ctx).not.toContain('You are Master')
   })
 
-  it('omits the "You are … territory" line for an agent with no folders', async () => {
+  it('an agent with no folders knows nobody: no roster', async () => {
     writeFile({ agents: [...AGENTS.agents, { id: 'loose', name: 'Loose', emoji: '🎈', folder: null, skills: [] }] } as any)
-    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'loose' })
-    expect(ctx).toContain(BUILDER_LINE)
-    expect(ctx).not.toContain('Your territory')
+    const ctx = await run({ SILOS_API: 'http://127.0.0.1:9', SILOS_AGENT_ID: 'loose' }, '/p/shared')
+    expect(ctx).not.toContain('Your projects')
+    expect(ctx).not.toContain(HERE)
   })
 })
 
@@ -404,7 +411,7 @@ describe("session-start hook: the agent's unread messages (inbox.py, the server'
       https_proxy: proxy,
       ALL_PROXY: proxy,
     })
-    expect(ctx).toContain(BUILDER_LINE)
+    expect(ctx).toContain(HEAD)
     expect(ctx).toContain('(p1): through')
   })
 
@@ -564,7 +571,7 @@ describe('session-start hook: /clear proof of life', () => {
     expect(ctx).not.toContain('Finished')
     expect(ctx).not.toContain('Not this console')
     expect(ctx).toContain('# You are running inside Silos')
-    expect(ctx).toContain(BUILDER_LINE)
+    expect(ctx).toContain(HEAD)
   })
   // plan and task ids are filled into a command the model is told to run
   it('an id from the API that is not a plain id never reaches the recipe', async () => {

@@ -15,6 +15,8 @@ import { bareGatewayModel, providerOptions, providerLabel } from '../../lib/prov
 import { humanizeProviderIds } from '../../lib/runs-on'
 import { useHarness } from '../../lib/harnesses'
 import { useOutputStyles } from '../../hooks/useOutputStyles'
+import { folderChange, type FolderChange } from '../../lib/project-reach'
+import { basename } from '../../lib/routes'
 
 const CONFIRM_ARCHIVE_MS = 3000
 
@@ -125,6 +127,23 @@ export function SettingsTab({ agent, onDone, inline = false, fields }: { agent: 
     timer.current = setTimeout(() => setConfirmArchive(false), CONFIRM_ARCHIVE_MS)
   }
 
+  // what the new folders open or close, said before Save (the one resolver)
+  const agents = useStore((s) => s.agents)
+  const change =
+    runs && !isMaster
+      ? folderChange(
+          agent,
+          {
+            folder: form.folder.trim() || null,
+            folders: form.folders
+              .split('\n')
+              .map((l) => l.trim())
+              .filter(Boolean),
+          },
+          agents,
+        )
+      : null
+
   const errorFieldValue = error ? fieldForError(error) : null
   const shown = who ? errorFieldValue === 'name' : errorFieldValue === 'folder' || errorFieldValue === 'folders'
   const errorTop = error && !shown ? error : null
@@ -204,6 +223,7 @@ export function SettingsTab({ agent, onDone, inline = false, fields }: { agent: 
               )}
             </div>
           )}
+          {change ? <FolderChangeNote name={agent.name} change={change} open={agent.liveCount ?? 0} /> : null}
 
           <div>
             <span className="mb-1 block text-xs text-ink-2">Engine</span>
@@ -321,6 +341,63 @@ export function SettingsTab({ agent, onDone, inline = false, fields }: { agent: 
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// The Save sentence: what a change of folders opens and closes, said before
+// it is saved — who it will know and reach, which folder opens, that it may
+// carry what it learns across, where its conversations still start, and
+// that only new conversations take it (the open ones keep their start).
+// ---------------------------------------------------------------------------
+const listNames = (xs: ReadonlyArray<{ name: string }>): string =>
+  xs.length <= 1
+    ? (xs[0]?.name ?? '')
+    : `${xs
+        .slice(0, -1)
+        .map((x) => x.name)
+        .join(', ')} and ${xs[xs.length - 1]!.name}`
+
+function FolderChangeNote({ name, change, open }: { name: string; change: FolderChange<{ name: string }>; open: number }) {
+  const start = change.startsIn ? basename(change.startsIn) : null
+  return (
+    <div className="rounded-md border border-line/70 px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-2" data-testid="folder-change-note" role="note">
+      {change.added.map((a) => {
+        const p = basename(a.folder)
+        const from = change.startsIn && change.startsIn !== a.folder ? start : null
+        return (
+          <p key={a.folder}>
+            <span className="text-ink">
+              {name} will also work in {p}
+            </span>
+            {a.agents.length > 0 ? (
+              <>: it will know and reach {listNames(a.agents)} there, open that folder</>
+            ) : (
+              <>: it will open that folder, where no agent works yet</>
+            )}
+            {from ? (
+              <>
+                , and may carry what it learns between {from} and {p}. Its conversations still start in {from}.
+              </>
+            ) : (
+              '.'
+            )}
+          </p>
+        )
+      })}
+      {change.removed.map((r) => (
+        <p key={r.folder}>
+          <span className="text-ink">
+            {name} will stop working in {basename(r.folder)}
+          </span>
+          {r.agents.length > 0 ? <>: {listNames(r.agents)} will no longer know it, and that folder closes to it.</> : <>: that folder closes to it.</>}
+        </p>
+      ))}
+      <p className="mt-1 text-[12px] text-ink-3">
+        Takes effect in new conversations
+        {open > 0 ? ` — ${open === 1 ? 'the one open now keeps what it started with' : `the ${open} open now keep what they started with`}` : ''}.
+      </p>
     </div>
   )
 }

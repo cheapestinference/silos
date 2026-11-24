@@ -604,6 +604,31 @@ describe('kernelInboxRows — the facts read from the real stores', () => {
     expect(unread.voice).toBe(`Finance hasn't read 2 messages from Builder · ${waitedWords(now - at)}`)
   })
 
+  it('a message its recipient is not served (they share no project) is held: a row at once, with its why', () => {
+    const m = messages.send({ from: 'builder', to: 'finance', text: 'look' })
+    const at = Date.parse(m.at)
+    const rows = kernelInboxRows({
+      agents: [builder, finance],
+      messages,
+      agentState,
+      nameOf: agentNameOf([builder, finance]),
+      now: at + 60_000,
+      servable: () => false,
+    }).filter((r) => r.kind === 'unreadMessages')
+    expect(rows).toMatchObject([{ agentId: 'finance', from: 'builder', count: 1, why: 'noProject' }])
+    // served: the usual threshold
+    expect(
+      kernelInboxRows({
+        agents: [builder, finance],
+        messages,
+        agentState,
+        nameOf: agentNameOf([builder, finance]),
+        now: at + 60_000,
+        servable: () => true,
+      }).filter((r) => r.kind === 'unreadMessages'),
+    ).toEqual([])
+  })
+
   it('told / own·never: no row before 24 h, a row at 24 h that counts, gone once read', () => {
     const m = messages.send({ from: 'builder', to: 'finance', text: 'look' })
     const at = Date.parse(m.at)

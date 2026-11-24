@@ -51,7 +51,7 @@ beforeEach(async () => {
   for (const d of [root, join(dataDir, 'trash'), folder]) mkdirSync(d, { recursive: true })
   const index = claudeSessionIndex(root, join(dataDir, 'cache.json'))
   await index.init()
-  registry = new AgentRegistry(join(dataDir, 'agents.json'))
+  registry = new AgentRegistry(join(dataDir, 'agents.json'), { folderCheck: { home: base, dataDir } })
   registry.load()
   registry.create({
     id: 'finance',
@@ -241,6 +241,17 @@ describe('Save as role pack', () => {
 
 describe('installing a pack', () => {
   const packOf = async () => (await owner('GET', '/api/agents/finance/role-pack')).json().pack
+  // the project folder check (project-folder.ts) is the install's too: the
+  // preview names the refusal, the install makes nothing
+  it('a folder no project may have is a problem in the preview and a 400 at install, with no agent made', async () => {
+    const pack = await packOf()
+    for (const bad of [dataDir, join(folder, 'sub'), base]) {
+      const preview = (await owner('POST', '/api/role-packs/preview', { pack, target: { id: 'finance-two', folder: bad } })).json().consequences
+      expect(preview.problems.join(' '), bad).toMatch(/a project needs a folder of its own|inside the project at|holds/)
+      expect((await owner('POST', '/api/role-packs/install', { pack, target: { id: 'finance-two', folder: bad } })).statusCode).toBe(400)
+    }
+    expect(registry.get('finance-two')).toBeNull()
+  })
   // spec scopes §6: what one agent loads names this machine's things — a
   // pack never carries it, out or in
   it('carries none of what the agent loads at launch: not in the saved pack, not given to the agent a pack installs', async () => {

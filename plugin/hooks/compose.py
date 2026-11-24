@@ -231,7 +231,7 @@ def hook(has, args):
 # (a `compact_boundary` record) drops what came before it from the model's
 # context. The heading each part starts with is how it is recognized.
 # (the briefing's heading, or the slim briefing's).
-CARRIED = [('briefing', ('# You are running inside Silos', '# Silos runs on this machine')), ('roster', ('Your fleet (Silos):',))]
+CARRIED = [('briefing', ('# You are running inside Silos', '# Silos runs on this machine')), ('roster', ('Your projects (Silos):', "This folder's agents (Silos):"))]
 SCAN_MAX = 64 * 1024 * 1024  # a transcript longer than this is read from its last SCAN_MAX bytes
 
 

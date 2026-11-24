@@ -15,6 +15,7 @@ import { CLAUDE_CONSOLE_ENV, defaultConsoleCommand } from './console.js'
 import { claudeDialogOnScreen } from './dialogs.js'
 import { CLAUDE_CMD, claudeInstallDirs } from './binary.js'
 import { claudeFencePermission } from './fence.js'
+import { claudeProjectStores } from './stores.js'
 import { claudeExportSnippet } from './export.js'
 import { CLAUDE_UPDATE_LABEL, claudeVersions } from './version.js'
 import { ClaudeHeadless, claudeEngine, type ClaudeHeadlessDeps } from './headless.js'
@@ -112,6 +113,11 @@ export const claudeCode: Harness = {
   // (S2); the home layer (~/.claude/{skills,commands,…}) is
   // fenced per config dir in territory.ts CLAUDE_CONFIG_DENIED, accounts included
   configFiles: (folder) => [`${folder.replace(/\/+$/, '')}/.mcp.json`],
+  // its config dir (an extra account's sits under Silos' data dir)
+  ownDirs: (home) => [join(home, '.claude')],
+  // a folder's transcripts, scratch space and memory (stores.ts): closed to
+  // the agents of every other project
+  projectStores: (folder, ctx) => claudeProjectStores(folder, ctx),
   // what it calls itself (network.ts): pinned in an egress allowlist
   engineHosts: CLAUDE_ENGINE_HOSTS,
   traits: {

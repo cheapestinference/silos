@@ -11,7 +11,6 @@ import { ProviderPanel } from '../src/components/ProviderPanel'
 import { SettingsPage } from '../src/components/SettingsPage'
 import { ProvidersTab } from '../src/components/ProvidersTab'
 import { SettingsTab } from '../src/components/agent/SettingsTab'
-import { AgentModal } from '../src/components/AgentModal'
 import { useStore } from '../src/store'
 import { api } from '../src/lib/api'
 import type { AgentView, HarnessStatus, ProviderView, SessionDetail } from '../src/lib/types'
@@ -158,16 +157,6 @@ describe('the agent form follows the harness', () => {
     expect(optionTexts('Provider').join(' ')).not.toMatch(/MiniMax|Z\.ai|Kimi/)
     expect(optionTexts('Model')).toContain('claude-sonnet-5')
     expect(mockedApi.models).not.toHaveBeenCalled()
-  })
-
-  it("create modal: picking OpenCode swaps the model list to OpenCode's", async () => {
-    mockedApi.complete.mockResolvedValue([])
-    useStore.setState({ agents: [], modal: 'create', error: null })
-    render(<AgentModal />)
-    expect(optionTexts('Model')).toContain('claude-sonnet-5')
-    fireEvent.click(screen.getByLabelText('OpenCode'))
-    await waitFor(() => expect(optionTexts('Model')).toEqual(['Default — OpenCode’s own', 'minimax-coding-plan/MiniMax-M3']))
-    expect(mockedApi.models).toHaveBeenCalledWith('opencode', { provider: 'default' })
   })
 })
 

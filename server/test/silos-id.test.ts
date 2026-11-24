@@ -277,7 +277,7 @@ describe('Silos ID on the instance', () => {
         told++
       },
     })
-    expect((await counted.inject({ url: '/api/agents' })).statusCode).toBe(200) // local, anonymous read
+    expect((await counted.inject({ url: '/api/agents' })).statusCode).toBe(401) // local, no identity: nothing under /api
     expect((await counted.inject({ url: '/api/agents', headers: { ...REMOTE, 'x-token': 'wrong' } })).statusCode).toBe(401)
     expect((await counted.inject({ url: '/api/agents', headers: { authorization: 'Bearer nope' } })).statusCode).toBe(401)
     expect((await counted.inject({ url: '/api/auth/config', headers: REMOTE })).statusCode).toBe(200)

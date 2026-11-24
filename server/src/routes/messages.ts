@@ -16,10 +16,14 @@ import { runOfTurn, TURN_HEADER } from '../live-turns.js'
 import type { MessageReads } from '../message-reads.js'
 import { authorOf } from '../author.js'
 import { initiativeNow } from '../initiative.js'
+import { knows, seesAll, servable } from '../project-scope.js'
 
 export const URGENT_GONE =
   "messages have no urgency any more: to move work now, assign your own task (POST /api/tasks/assign) or leave it to the owner's gesture"
 export const REPLY_TO_NOT_YOURS = 'replyTo names no message of yours'
+// to a bearer, an id outside its projects and an id that names nothing get
+// the same answer (project-scope.ts: existence is not confirmed)
+export const notInYourProjects = (id: string): string => `no agent ${id} in your projects — outside them, ask the owner`
 
 export interface MessageRoutesCtx {
   messages: MessageStore
@@ -28,10 +32,28 @@ export interface MessageRoutesCtx {
   checkInbox: () => void
 }
 
+const ANYWHERE_HAS_NO_READER =
+  'Anywhere has no inbox reader — a message there reaches nobody. To reply to a message, close it with PATCH /api/agents/<your id>/messages/<id> {"state":"answered","answer":"…"} (a long report goes in a file in a subfolder of context/<your id>/, named in the answer). To reach the owner, mark the message "needs_owner" or ask with your question tool (it lands in Needs you).'
+
 export function messageRoutes(app: FastifyInstance, ctx: MessageRoutesCtx): void {
   const { messages, reads, registry } = ctx
   const knownAgent = (id: string): boolean => registry.list(true).some((a) => a.id === id)
   const ownerOrSelf = (req: FastifyRequest, id: string): boolean => req.agentId === undefined || req.agentId === id
+  // the project boundary: an agent's bearer writes only to the agents it
+  // knows (the owner's desk, like the owner, to anyone); it is served only
+  // what is servable to it — the owner reads every inbox whole
+  const reaches = (req: FastifyRequest, to: string): boolean => {
+    if (seesAll(req.agentId)) return knownAgent(to)
+    const all = registry.list(true)
+    return knows(
+      all.find((a) => a.id === req.agentId),
+      all.find((a) => a.id === to),
+    )
+  }
+  const servedTo =
+    (req: FastifyRequest, id: string) =>
+    (m: { from: string }): boolean =>
+      req.agentId !== id || servable(id, m.from, registry.list(true))
 
   app.post<{ Params: { id: string }; Body: { text?: unknown; urgent?: unknown; replyTo?: unknown } }>(
     '/api/agents/:id/messages',
@@ -40,15 +62,13 @@ export function messageRoutes(app: FastifyInstance, ctx: MessageRoutesCtx): void
       const b = req.body ?? {}
       // a 400, never a silence: an old skill that still sends it learns why
       if (b.urgent !== undefined) return reply.code(400).send({ error: URGENT_GONE })
-      if (!knownAgent(to)) return reply.code(404).send({ error: 'agent not found' })
+      if (req.agentId !== undefined && !seesAll(req.agentId) && to === MASTER_ID) return reply.code(409).send({ error: ANYWHERE_HAS_NO_READER })
+      if (!reaches(req, to)) return reply.code(404).send({ error: seesAll(req.agentId) ? 'agent not found' : notInYourProjects(to) })
       // Anywhere (master) is the owner's own desk: no conversation lists its
       // inbox, so a message there is read by nobody. The refusal
       // says the two ways that DO reach someone.
       if (to === MASTER_ID) {
-        return reply.code(409).send({
-          error:
-            'Anywhere has no inbox reader — a message there reaches nobody. To reply to a message, close it with PATCH /api/agents/<your id>/messages/<id> {"state":"answered","answer":"…"} (a long report goes in a file in a subfolder of context/<your id>/, named in the answer). To reach the owner, mark the message "needs_owner" or ask with your question tool (it lands in Needs you).',
-        })
+        return reply.code(409).send({ error: ANYWHERE_HAS_NO_READER })
       }
       if (typeof b.text !== 'string' || b.text.trim() === '') return reply.code(400).send({ error: 'text required' })
       if (b.replyTo !== undefined && typeof b.replyTo !== 'string') return reply.code(400).send({ error: 'replyTo must be a string' })
@@ -91,7 +111,7 @@ export function messageRoutes(app: FastifyInstance, ctx: MessageRoutesCtx): void
     if (!ownerOrSelf(req, id)) return reply.code(403).send({ error: `agent ${req.agentId} may not read ${id}'s inbox` })
     const state = req.query.state
     if (state !== undefined && !isMessageState(state)) return reply.code(400).send({ error: 'state must be one of new/read/answered/needs_owner' })
-    const list = messages.list(id, state)
+    const list = messages.list(id, state).filter(servedTo(req, id))
     if (req.agentId === id) {
       const header = req.headers[TURN_HEADER]
       const token = typeof req.query.turn === 'string' ? req.query.turn : typeof header === 'string' ? header.trim() : null
@@ -125,6 +145,9 @@ export function messageRoutes(app: FastifyInstance, ctx: MessageRoutesCtx): void
     const rawAnswer = req.body?.answer
     const answer = rawAnswer === undefined ? undefined : normalizeAnswer(rawAnswer)
     if (answer === null) return reply.code(400).send({ error: `answer must be a non-empty string of at most ${ANSWER_MAX} characters` })
+    // a message not served to it is not its to mark (nor to read back)
+    const held = messages.list(id).find((m) => m.id === req.params.mid)
+    if (held && !servedTo(req, id)(held)) return reply.code(404).send({ error: 'message not found' })
     const message = messages.setState(id, req.params.mid, state, answer)
     if (!message) return reply.code(404).send({ error: 'message not found' })
     setImmediate(() => ctx.checkInbox())

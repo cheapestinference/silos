@@ -863,3 +863,75 @@ describe('a period trigger', () => {
     expect(moved.nextRunAt).toBeUndefined()
   })
 })
+
+// (R2/R3, spec §7.3) an automation points only inside its agent's projects:
+// a bearer's PATCH is refused field by field, the owner's trigger is refused
+// with its door, and another agent's automation answers as none
+describe('the project bound of an automation', () => {
+  const asBuilder = (method: 'PATCH' | 'DELETE', id: string, body?: unknown) =>
+    app.inject({
+      method,
+      url: `/api/automations/${id}`,
+      headers: { host: '127.0.0.1:3210', authorization: `Bearer ${agentTokens.tokenFor('builder')}` },
+      ...(body !== undefined ? { payload: body } : {}),
+    })
+  const watch = (check: Record<string, unknown>) => ({ trigger: { kind: 'watch', every: '*/5 * * * *', check, runWhen: 'changed' } })
+  it("a bearer's PATCH: a trigger or a thread outside its projects, another's conversation, a private http watch — 403 naming the field; inside, written", async () => {
+    const own = (await post('/api/automations', cronBody({ agentId: 'builder' }))).json().automation
+    const cases: Array<[unknown, string]> = [
+      [{ trigger: { kind: 'files', folder: '/home/user/beta', glob: '*' } }, 'trigger.folder'],
+      [watch({ type: 'path', path: '/home/user/beta/x' }), 'trigger.check.path'],
+      [{ thread: { mode: 'keep', folder: '/home/user/beta' } }, 'thread.folder'],
+      [{ thread: { mode: 'keep', sessionId: 'some-other-conversation' } }, 'thread.sessionId'],
+      [watch({ type: 'http', url: 'http://127.0.0.1:3210/api/agents' }), 'trigger.check.url'],
+      [watch({ type: 'http', url: 'http://[::1]/' }), 'trigger.check.url'],
+      [watch({ type: 'http', url: 'http://localhost/' }), 'trigger.check.url'],
+      [watch({ type: 'http', url: 'http://10.0.0.5/' }), 'trigger.check.url'],
+    ]
+    for (const [body, field] of cases) {
+      const r = await asBuilder('PATCH', own.id, body)
+      expect(r.statusCode, field).toBe(403)
+      expect(r.json().field).toBe(field)
+    }
+    expect(automations.get(own.id)?.trigger).toEqual({ kind: 'cron', expr: '0 9 * * *' })
+    // inside its folder, and a public address: written
+    expect((await asBuilder('PATCH', own.id, { trigger: { kind: 'files', folder: join(agentFolder, 'inbox'), glob: '*' } })).statusCode).toBe(200)
+    expect((await asBuilder('PATCH', own.id, watch({ type: 'http', url: 'http://93.184.216.34/' }))).statusCode).toBe(200)
+    // (t7) the url an agent wrote is fetched through the guard on every
+    // check: the server stamps it — the owner's edit keeps the stamp while
+    // the url is the agent's, a new url of the owner's drops it
+    const check = () => {
+      const t = automations.get(own.id)?.trigger
+      return t?.kind === 'watch' ? t.check : null
+    }
+    expect(check()).toMatchObject({ url: 'http://93.184.216.34/', publicOnly: true })
+    expect((await patch(`/api/automations/${own.id}`, watch({ type: 'http', url: 'http://93.184.216.34/' }))).statusCode).toBe(200)
+    expect(check()).toMatchObject({ publicOnly: true })
+    expect((await patch(`/api/automations/${own.id}`, watch({ type: 'http', url: 'http://127.0.0.1:9/', publicOnly: true }))).statusCode).toBe(200)
+    expect(check()).not.toHaveProperty('publicOnly')
+  })
+  it("the owner's trigger for an agent lies in its projects (409 with the door); the owner's desk works anywhere", async () => {
+    const r = await post('/api/automations', cronBody({ agentId: 'builder', trigger: { kind: 'files', folder: '/home/user/beta', glob: '*' } }))
+    expect(r.statusCode).toBe(409)
+    expect(r.json().error).toMatch(/BUILDER does not work in \/home\/user\/beta — give it that folder first/)
+    const own = (await post('/api/automations', cronBody({ agentId: 'builder' }))).json().automation
+    expect((await patch(`/api/automations/${own.id}`, watch({ type: 'path', path: '/home/user/beta/x' }))).statusCode).toBe(409)
+    // the owner's own http watch is the owner's to point
+    expect((await patch(`/api/automations/${own.id}`, watch({ type: 'http', url: 'http://127.0.0.1:9/' }))).statusCode).toBe(200)
+    expect(
+      (
+        await post(
+          '/api/automations',
+          cronBody({ agentId: 'master', thread: { mode: 'keep', folder: agentFolder }, trigger: { kind: 'files', folder: '/home/user/beta', glob: '*' } }),
+        )
+      ).statusCode,
+    ).toBe(201)
+  })
+  it("DELETE of another agent's automation answers as one that does not exist", async () => {
+    const theirs = (await post('/api/automations', cronBody({ agentId: 'finance' }))).json().automation
+    const other = await asBuilder('DELETE', theirs.id)
+    const none = await asBuilder('DELETE', 'no-such-automation')
+    expect([other.statusCode, other.json()]).toEqual([none.statusCode, none.json()])
+    expect(automations.get(theirs.id)).not.toBeNull()
+  })
+})

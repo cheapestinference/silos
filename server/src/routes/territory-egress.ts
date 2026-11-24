@@ -7,12 +7,14 @@
 //   GET   /api/territory/egress             every agent's policy + its engine's own hosts + the proxy port
 //   PATCH /api/territory/egress/:agentId    { mode?, hosts? } — validated before anything is saved
 //   GET   /api/territory/egress/rejections  ?agent=&limit= — newest first
+//   GET   /api/territory/refused            the file fence's refusals today, per agent and project (fence-refusals.ts)
 import type { FastifyInstance } from 'fastify'
 import { MASTER_ID, type AgentRegistry } from '../agent-registry.js'
 import { normalizeEgressHosts, type EgressPolicy, type TerritoryStore } from '../territory-store.js'
 import { engineHostsOf } from '../egress-proxy.js'
 import type { EgressRejectLog } from '../egress-log.js'
 import type { Agent } from '../types.js'
+import type { RefusedAgent } from '../fence-refusals.js'
 
 export interface TerritoryEgressCtx {
   territoryStore: TerritoryStore
@@ -20,6 +22,8 @@ export interface TerritoryEgressCtx {
   rejections: EgressRejectLog | null
   /** the egress proxy's stable port (egress-proxy.ts egressProxyPort), when known */
   proxyPort?: number
+  /** the file fence's refusals since `since` (ms), per agent and project */
+  refused?: (since: number) => RefusedAgent[]
 }
 
 export function territoryEgressRoutes(app: FastifyInstance, ctx: TerritoryEgressCtx): void {
@@ -82,5 +86,14 @@ export function territoryEgressRoutes(app: FastifyInstance, ctx: TerritoryEgress
           ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
         }) ?? [],
     }
+  })
+
+  // the owner's own read (paths and conversations): its credential, like the
+  // proxy's rows. «Today» is the server's local day, as the network count.
+  app.get('/api/territory/refused', async (req, reply) => {
+    if (req.ownerCredential !== true) return reply.code(401).send({ error: "the fence's refusals are the owner's to read" })
+    const midnight = new Date()
+    midnight.setHours(0, 0, 0, 0)
+    return { since: midnight.toISOString(), agents: ctx.refused?.(midnight.getTime()) ?? [] }
   })
 }

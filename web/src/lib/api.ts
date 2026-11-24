@@ -53,6 +53,7 @@ import type {
   PendingResume,
   Prefs,
   ProviderView,
+  ProposalDiffLine,
   ProposalView,
   ProjectsPrefs,
   Project,
@@ -82,6 +83,7 @@ import type {
   TerritoryEgress,
   AgentEgress,
   EgressRejection,
+  FenceRefusedAgent,
   VaultEntry,
   VaultScope,
   VaultBinding,
@@ -1439,8 +1441,15 @@ export const api = {
     // name and, with no folder chosen, the folder (~/Silos/<id>); `warn` is
     // a territory that could not be turned on (the agent stays Only when told)
     // `startWarn`: a folder whose starting set could not be written (starting-set.ts)
+    // `project`: a new one by name or one Silos knows (birth-project.ts); `control`: the two asks a birth takes
     async create(
-      input: Partial<Omit<AgentView, 'mission' | 'id' | 'folder'>> & { name: string; folder?: string; mission?: MissionInput },
+      input: Partial<Omit<AgentView, 'mission' | 'id' | 'folder' | 'control'>> & {
+        name: string
+        folder?: string
+        project?: { name: string } | { folder: string }
+        mission?: MissionInput
+        control?: 'told' | 'proactive'
+      },
     ): Promise<{ agent: AgentView; warn?: string; startWarn?: string }> {
       return req<{ agent: AgentView; warn?: string; startWarn?: string }>('/api/agents', { method: 'POST', body: JSON.stringify(input) })
     },
@@ -1572,6 +1581,11 @@ export const api = {
       if (filter.limit) q.set('limit', String(filter.limit))
       const { rows } = await req<{ rows: EgressRejection[] }>(`/api/territory/egress/rejections?${q.toString()}`)
       return rows
+    },
+    // the file fence's refusals today, per agent and project (owner only)
+    async refused(): Promise<FenceRefusedAgent[]> {
+      const { agents } = await req<{ agents: FenceRefusedAgent[] }>('/api/territory/refused')
+      return agents
     },
   },
   // the install's settings: the unattended provider —
@@ -1874,6 +1888,11 @@ export const api = {
       const { proposals } = await req<{ proposals: ProposalView[] }>('/api/proposals')
       return proposals
     },
+    // what was proposed in ONE conversation (any session of it) — its column
+    async ofConversation(sessionId: string): Promise<ProposalView[]> {
+      const { proposals } = await req<{ proposals: ProposalView[] }>(`/api/proposals?conversation=${encodeURIComponent(sessionId)}`)
+      return proposals
+    },
     async accept(id: string, inputHash?: string): Promise<{ automation?: Automation; skill?: string }> {
       return req<{ automation?: Automation; skill?: string }>(`/api/proposals/${encodeURIComponent(id)}/accept`, {
         method: 'POST',
@@ -1883,9 +1902,9 @@ export const api = {
     async dismiss(id: string, reason?: string): Promise<void> {
       await req(`/api/proposals/${encodeURIComponent(id)}/dismiss`, { method: 'POST', body: JSON.stringify(reason ? { reason } : {}) })
     },
-    async file(id: string, path: string): Promise<string> {
-      const { text } = await req<{ text: string }>(`/api/proposals/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`)
-      return text
+    // `diff`: a change to a project's skill — the file against the project's copy
+    file(id: string, path: string): Promise<{ text: string | null; diff?: ProposalDiffLine[] }> {
+      return req<{ text: string | null; diff?: ProposalDiffLine[] }>(`/api/proposals/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`)
     },
   },
   // what agents create on their own (server routes/initiative.ts): the

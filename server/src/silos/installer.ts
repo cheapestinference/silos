@@ -125,6 +125,10 @@ export interface PendingSubmission {
 
 export interface InstallerOptions {
   root: string // <dataDir>/silos
+  // may agent `reader` see agent `id` named (project-scope.ts mayName)? A
+  // submitter is told the ids of a silo's producers and of a pending
+  // submitter only when it may; otherwise «another agent». Absent: always
+  mayName?: (reader: string, id: string) => boolean
   registry: SiloRegistry
   operator: SiloOperatorStore
   kernel: Pick<SiloKernel, 'refresh' | 'reading'>
@@ -186,6 +190,11 @@ export class SiloInstaller {
   private scanCache: { at: number; byId: Map<string, { files: number; grown: number }> } | null = null
 
   constructor(private o: InstallerOptions) {}
+
+  // an agent id as `reader` may hear it: itself or one it may see named, else «another agent»
+  private named(reader: string, id: string): string {
+    return reader === 'owner' || this.o.mayName === undefined || this.o.mayName(reader, id) ? id : 'another agent'
+  }
 
   private now(): number {
     return this.o.now?.() ?? Date.now()
@@ -363,13 +372,13 @@ export class SiloInstaller {
           body: {
             error: neverApproved
               ? `${id} already sits pending in the registry — only the owner submits it for approval (Settings › Silos)`
-              : `${id} belongs to a silo that is installed or was approved before — only its bound producers${bound.length ? ` (${bound.join(', ')})` : ''} may submit an update`,
+              : `${id} belongs to a silo that is installed or was approved before — only its bound producers${bound.length ? ` (${bound.map((p) => this.named(by, p)).join(', ')})` : ''} may submit an update`,
           },
         }
       }
       const pending = this.getSubmission(id)
       if (pending && pending.submittedBy !== by && pending.submittedBy !== 'owner')
-        return { code: 409, body: { error: `a submission of ${id} by ${pending.submittedBy} is already pending` } }
+        return { code: 409, body: { error: `a submission of ${id} by ${this.named(by, pending.submittedBy)} is already pending` } }
     }
     const result = this.validate(raw, by)
     // a dimension Silos still serves natively: the same dimension twice is

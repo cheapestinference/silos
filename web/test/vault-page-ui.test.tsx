@@ -125,7 +125,10 @@ describe('VaultPage — the ledger', () => {
     mockedApi.vault.create.mockResolvedValue(entry('NEW_KEY', { type: 'agents', agentIds: ['finance'] }))
     render(<VaultPage />)
     fireEvent.click(await screen.findByRole('button', { name: /Add a secret/ }))
+    // from the Vault itself nothing is picked for you
+    expect(screen.getAllByRole('radio').every((r) => r.getAttribute('aria-checked') === 'false')).toBe(true)
     // visibility first: pick the agent before any name is typed
+    fireEvent.click(screen.getByRole('radio', { name: 'Specific agents' }))
     fireEvent.click(screen.getByRole('button', { name: 'Finance' }))
     fireEvent.change(screen.getByLabelText('secret name'), { target: { value: 'new_key' } })
     fireEvent.change(screen.getByLabelText('secret value'), { target: { value: 's3cret' } })
@@ -136,6 +139,19 @@ describe('VaultPage — the ledger', () => {
         value: 's3cret',
         scope: { type: 'agents', agentIds: ['finance'] },
       }),
+    )
+  })
+
+  it('opened from a project, «Add a secret» starts on that project and creates there', async () => {
+    mockedApi.vault.list.mockResolvedValue([entry('EXISTING', { type: 'global' })])
+    mockedApi.vault.create.mockResolvedValue(entry('NEW_KEY', { type: 'folder', folder: '/home/u/money' }))
+    render(<VaultPage add="project:/home/u/money" />)
+    expect(await screen.findByRole('radio', { name: 'One project' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.change(screen.getByLabelText('secret name'), { target: { value: 'new_key' } })
+    fireEvent.change(screen.getByLabelText('secret value'), { target: { value: 's3cret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add to vault' }))
+    await waitFor(() =>
+      expect(mockedApi.vault.create).toHaveBeenCalledWith({ name: 'NEW_KEY', value: 's3cret', scope: { type: 'folder', folder: '/home/u/money' } }),
     )
   })
 

@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FENCE_REFUSAL_RE, appliedPrivatePaths, fenceFor, fenceScope, makeTerritory, territoriesOf } from '../src/territory.js'
+import { FENCE_REFUSAL_RE, SILOS_CHECKOUT, appliedPrivatePaths, fenceFor, fenceScope, makeTerritory, territoriesOf } from '../src/territory.js'
+import { claudeCode } from '../src/harnesses/claude-code/index.js'
+import { opencode } from '../src/harnesses/opencode/index.js'
 import type { Agent } from '../src/types.js'
 import { DEFAULT_PRIVATE, TerritoryStore } from '../src/territory-store.js'
 
@@ -10,6 +12,11 @@ describe('territory fence constants', () => {
   it('FENCE_REFUSAL_RE matches the refusal text observed in the smoke', () => {
     expect(FENCE_REFUSAL_RE.test('<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>')).toBe(true)
     expect(FENCE_REFUSAL_RE.test('Permission to use Bash with command cat /tmp/tmp.HbuPtN7XxM/secret.txt has been denied.')).toBe(true)
+    // through a symlink from inside its own folder (territory-smoke-files.mts, 2.1.331)
+    expect(FENCE_REFUSAL_RE.test('Permission to read /home/user/acme/link/secret.txt has been denied.')).toBe(true)
+    expect(
+      FENCE_REFUSAL_RE.test('<tool_use_error>File is covered by a Read deny rule in your permission settings and cannot be written.</tool_use_error>'),
+    ).toBe(true)
     expect(FENCE_REFUSAL_RE.test('File content: hello')).toBe(false)
   })
 })
@@ -334,8 +341,14 @@ describe('the data dir fence over a real directory', () => {
     expect(deny).toContain(`Edit(/${authFilePath(home)})`)
   })
 
-  it('the adapter gives no fence to an agent not enabled, to master, or to an unknown id', () => {
-    expect(territory.fenceFor('finance')).toBeNull()
+  it('an agent whose territory is off carries only the always-on groups; master and an unknown id no fence', () => {
+    const off = territory.fenceFor('finance')!.permissions.deny
+    expect(covered(off, 'Read', join(dataDir, 'token'))).toBe(true)
+    expect(covered(off, 'Read', join(dataDir, 'agents', 'builder', 'token'))).toBe(true)
+    expect(covered(off, 'Read', join(home, 'silos', 'src', 'x.ts'))).toBe(true) // another project's folder
+    expect(covered(off, 'Read', join(dataDir, 'agents.json'))).toBe(false) // Silos' other data: open when off
+    expect(covered(off, 'Read', join(dataDir, 'agent-state', 'silos', 'status.json'))).toBe(false)
+    expect(off.some((r) => r.startsWith('Bash('))).toBe(false)
     expect(territory.fenceFor('master')).toBeNull()
     enabled.add('master')
     expect(territory.fenceFor('master')).toBeNull()
@@ -473,7 +486,8 @@ describe('fenceScope', () => {
     expect(s.works).toEqual(['~/ci'])
     expect(s.state).toBe('~/.silos/agent-state/builder')
     expect(s.readOnly).toEqual(['~/ci/context/finance'])
-    expect(s.blocked.map((b) => b.kind)).toEqual(['silos', 'claude', 'agents', 'private'])
+    expect(s.blocked.map((b) => b.kind)).toEqual(['projects', 'silos', 'claude', 'agents', 'private'])
+    expect(s.blocked.find((b) => b.kind === 'projects')!.paths).toEqual(['~/silos'])
     expect(s.blocked.find((b) => b.kind === 'agents')!.paths).toEqual(['finance', 'master', 'silos'])
     expect(s.blocked.find((b) => b.kind === 'private')!.paths).toEqual(['~/.ssh', '~/secrets'])
     expect(s.blocked.find((b) => b.kind === 'claude')!.paths).toContain('~/.claude/.credentials.json')
@@ -616,23 +630,45 @@ describe('fenceFor — what an engine loads', () => {
     ],
     work: [false, false],
   }
-  it("another agent's folder, both directions: its conduct files fenced like one's own; the rest untouched", () => {
+  const otherProject = {
+    settings: [true, true],
+    skills: [true, true],
+    config: [
+      [true, true],
+      [true, true],
+      [true, true],
+      [true, true],
+    ],
+    work: [true, true],
+  }
+  it("another project's folder, both directions: closed whole — its work, its conduct files", () => {
     // builder (ci + builder) → silos's folder, the unfenced agent's
-    expect(conduct(d, '/home/u/silos')).toEqual(sameAsOwn)
-    // and its other folders' secret one: finance's second folder
-    expect(conduct(d, '/home/u/secrets/finance').settings).toEqual([true, true])
+    expect(conduct(d, '/home/u/silos')).toEqual(otherProject)
+    // not transitive: finance shares ci with builder, its second folder is another project to builder
+    expect(conduct(d, '/home/u/secrets/finance')).toEqual(otherProject)
     // silos fenced → every folder of builder (folders[] too)
     const s = fenceFor({ ...base, agent: silos, agentStateDir: '/home/u/.silos/agent-state/silos', engineConfigFiles: configFiles })!.permissions.deny
-    for (const t of ['/home/u/ci', '/home/u/builder']) expect([t, conduct(s, t)]).toEqual([t, sameAsOwn])
+    for (const t of ['/home/u/ci', '/home/u/builder']) expect([t, conduct(s, t)]).toEqual([t, otherProject])
+  })
+  it("a folder of its own project, nested either way: conduct files fenced like one's own, the work untouched", () => {
+    const docs = { id: 'docs', folder: '/home/u/ci/docs', skills: [], name: 'Docs', emoji: '', role: '' }
+    const lead = { id: 'lead', folder: '/home/u', skills: [], name: 'Lead', emoji: '', role: '' }
+    const a = fenceFor({ ...base, agents: [...base.agents, docs, lead], agent: builder, agentStateDir: stateDir, engineConfigFiles: configFiles })!.permissions
+      .deny
+    expect(conduct(a, '/home/u/ci/docs')).toEqual(sameAsOwn)
+    // a folder AROUND its own is the same project (one relation, both directions)
+    expect(conduct(a, '/home/u').work).toEqual([false, false])
+    // and the nested agent's notes there: read, never edited
+    expect(a).toContain('Edit(//home/u/ci/docs/context/docs/**)')
   })
   it("an archived agent's folder counts too; an agent with no folder adds nothing", () => {
     const old = { id: 'old', folder: '/home/u/old', skills: [], name: 'Old', emoji: '', role: '', archived: true }
     const none = { id: 'nf', folder: null, skills: [], name: 'Nf', emoji: '', role: '' } as unknown as Agent
     const a = fenceFor({ ...base, agents: [...base.agents, old, none], agent: builder, agentStateDir: stateDir, engineConfigFiles: configFiles })!.permissions
       .deny
-    expect(conduct(a, '/home/u/old')).toEqual(sameAsOwn)
-    // besides its state dir (denied like any other agent's), only that folder's conduct rules are new
-    expect(a.filter((r) => !d.includes(r) && !/\/agent-state\/(old|nf)\//.test(r)).every((r) => r.includes('/home/u/old/'))).toBe(true)
+    expect(conduct(a, '/home/u/old')).toEqual(otherProject)
+    // besides its state dir (denied like any other agent's), only that folder's rules are new
+    expect(a.filter((r) => !d.includes(r) && !/\/agent-state\/(old|nf)\//.test(r)).every((r) => /\/home\/u\/old(\/|\))/.test(r))).toBe(true)
   })
   it('a folder shared by several agents is written once — the rule count stays per folder, not per agent', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ id: `a${i}`, folder: '/home/u/ci', skills: [], name: `A${i}`, emoji: '', role: '' }))
@@ -642,8 +678,9 @@ describe('fenceFor — what an engine loads', () => {
     // only each new agent's state dir and shared notes add rules — no conduct rule per agent
     expect(a.filter((r) => !d.includes(r)).every((r) => /\/(agent-state|home\/u\/ci\/context)\/a\d+\/\*\*\)$/.test(r))).toBe(true)
   })
-  it('declared residue: the fence is Read/Edit rules only — an interpreter is not covered', () => {
-    expect(d.every((r) => r.startsWith('Read(') || r.startsWith('Edit('))).toBe(true)
+  it("declared residue: the only command rules are the tmux server's — an interpreter is not covered", () => {
+    expect(d.filter((r) => !r.startsWith('Read(') && !r.startsWith('Edit('))).toEqual(['Bash(tmux)', 'Bash(tmux *)'])
+    expect(FENCE_REFUSAL_RE.test('Permission to use Bash with command tmux -V has been denied.')).toBe(true)
   })
   it('a private FILE is denied too, not only what sits under it', () => {
     const f = fenceFor({ ...base, privatePaths: ['~/.npmrc'], agent: builder, agentStateDir: stateDir })!.permissions.deny
@@ -668,5 +705,218 @@ describe('fenceFor — what an engine loads', () => {
     expect(deny).toContain('Edit(//home/u/ci/opencode.json)')
     expect(deny).toContain('Edit(//home/u/.config/opencode/**)')
     expect(deny).toContain(`Edit(/${join(dir, 'agent-state', 'builder', 'plugin')}/**)`)
+  })
+})
+
+// R5 — Files: an agent's file tools open its own projects; another
+// project's folder and the engine's stores of that project are closed,
+// territory switch or not, and so are the credentials Silos keeps. The
+// engine's side (a symlink from inside its own folder, the temp store) is
+// scripts/territory-smoke-files.mts on the real binary.
+describe('the other-projects group and the credentials — R5', () => {
+  const H = '/home/user',
+    D = '/home/user/.silos',
+    TMP = '/tmp'
+  const ag = (id: string, folder: string | null, extra: Partial<Agent> = {}): Agent =>
+    ({ id, name: id, emoji: '', role: '', skills: [], folder, ...extra }) as Agent
+  const builder = ag('builder', '/home/user/acme')
+  const docs = ag('docs', '/home/user/acme/docs')
+  const maker = ag('maker', '/home/user/beta')
+  const site = ag('site', '/home/user/acme-web')
+  const deep = ag('deep', '/home/user/acme/web') // munges like acme-web
+  const scribe = ag('scribe', '/home/user/acme/notes', { folders: ['/home/user/beta'] })
+  const gone = ag('gone', '/home/user/old', { archived: true })
+  const all = [builder, docs, maker, site, deep, scribe, gone, ag('master', null)]
+  const stores = (folder: string, own: readonly string[]) =>
+    [claudeCode, opencode].flatMap((h) => h.projectStores?.(folder, { home: H, dataDir: D, own }) ?? [])
+  const fence = (agent: Agent, extra: Partial<Parameters<typeof fenceFor>[0]> = {}) =>
+    fenceFor({
+      agent,
+      agents: all,
+      privatePaths: [],
+      home: H,
+      dataDir: D,
+      agentStateDir: `${D}/agent-state/${agent.id}`,
+      projectStores: stores,
+      ...extra,
+    })!
+  const projectsOf = (agent: Agent, extra: Partial<Parameters<typeof fenceFor>[0]> = {}) => fence(agent, extra).permissions.deny
+  const uid = process.getuid?.() ?? 0
+
+  it('a disjoint folder of another agent and its engine stores: Read and Edit denied; a nested one, and a folder around its own, are not', () => {
+    const d = projectsOf(builder)
+    for (const p of [
+      '/home/user/beta/src/x.ts',
+      '/home/user/beta',
+      '/home/user/beta/plans/tasks.plan.json',
+      '/home/user/old/notes.md',
+      `${H}/.claude/projects/-home-user-beta/s1.jsonl`,
+      `${H}/.claude/projects/-home-user-beta/memory/MEMORY.md`,
+      `${D}/claude-accounts/kai/projects/-home-user-beta/s1.jsonl`,
+      `${tmpdir()}/claude-${uid}/-home-user-beta/s1/scratchpad/x`,
+    ]) {
+      expect([p, covered(d, 'Read', p), covered(d, 'Edit', p)]).toEqual([p, true, true])
+    }
+    for (const p of ['/home/user/acme/docs/README.md', '/home/user/acme/notes/n.md', `${H}/.claude/projects/-home-user-acme-docs/s1.jsonl`]) {
+      expect([p, covered(d, 'Read', p), covered(d, 'Edit', p)]).toEqual([p, false, false])
+    }
+    // the nested agent sees its parent's folder open too
+    expect(covered(projectsOf(docs), 'Read', '/home/user/acme/plans/tasks.plan.json')).toBe(false)
+  })
+
+  it('not transitive: scribe bridges acme and beta, builder and maker stay closed to each other; scribe has both open', () => {
+    expect(covered(projectsOf(maker), 'Read', '/home/user/acme/x')).toBe(true)
+    const s = projectsOf(scribe)
+    expect(covered(s, 'Read', '/home/user/acme/x')).toBe(false)
+    expect(covered(s, 'Read', '/home/user/beta/x')).toBe(false)
+    expect(covered(s, 'Read', '/home/user/acme-web/x')).toBe(true)
+  })
+
+  it('the sibling prefix is another project: /home/user/acme-web closed to builder, and the reverse', () => {
+    expect(covered(projectsOf(builder), 'Read', '/home/user/acme-web/x')).toBe(true)
+    expect(covered(projectsOf(site), 'Edit', '/home/user/acme/x')).toBe(true)
+  })
+
+  it('a store the engine names like one of its own (acme/web · acme-web): transcripts closed, memory/ open, said with why', () => {
+    const f = fence(deep)
+    const d = f.permissions.deny
+    const store = `${H}/.claude/projects/-home-user-acme-web`
+    expect(covered(d, 'Read', `${store}/0f9c2e1a-1111-2222-3333-444455556666.jsonl`)).toBe(true)
+    expect(covered(d, 'Read', `${store}/0f9c2e1a-1111-2222-3333-444455556666/subagents/agent-a.jsonl`)).toBe(true)
+    expect(covered(d, 'Read', `${store}/memory/MEMORY.md`)).toBe(false)
+    expect(covered(d, 'Edit', `${store}/memory/notes.md`)).toBe(false)
+    expect(f.skipped?.some((u) => u.path === store && /memory\/ stays open/.test(u.reason))).toBe(true)
+    // the folder itself is closed whole: only the store's name collides
+    expect(covered(d, 'Read', '/home/user/acme-web/src/x.ts')).toBe(true)
+    // a store that EXTENDS its own name (its subfolder's conversations live there): partly too
+    expect(fence(builder).skipped?.some((u) => u.path === store)).toBe(true)
+  })
+
+  it("PROPERTY: no deny rule matches a path inside its own folders, its state dir, a config dir's skills, the checkout's plugin/context — with an agent holding the home folder", () => {
+    const lead = ag('lead', H)
+    const many = [...all, lead, ag('srv', SILOS_CHECKOUT), ag('tmpy', `${TMP}/work`)]
+    for (const a of many.filter((x) => x.folder !== null && !x.archived && x.id !== 'master')) {
+      const d = fenceFor({
+        agent: a,
+        agents: many,
+        privatePaths: [...DEFAULT_PRIVATE],
+        home: H,
+        dataDir: D,
+        agentStateDir: `${D}/agent-state/${a.id}`,
+        projectStores: stores,
+        mustReach: [
+          { path: SILOS_CHECKOUT, what: 'Silos' },
+          { path: TMP, what: 'the temp dir' },
+        ],
+      })!.permissions.deny
+      const reach = [
+        ...territoriesOf(a).flatMap((t) => [`${t}/src/x.ts`, `${t}/plans/tasks.plan.json`, `${t}/context/${a.id}/n.md`]),
+        `${D}/agent-state/${a.id}/status.json`,
+        `${D}/agent-state/${a.id}/proposed/s/SKILL.md`,
+        `${H}/.claude/skills/x/SKILL.md`,
+        `${D}/claude-accounts/kai/skills/x/reference.md`,
+        `${SILOS_CHECKOUT}/plugin/context/reference/tasks.md`,
+        `${H}/.claude/projects/${territoriesOf(a)[0]!.replace(/[/.]/g, '-')}/memory/MEMORY.md`,
+      ]
+      for (const p of reach) expect([a.id, p, covered(d, 'Read', p)]).toEqual([a.id, p, false])
+    }
+  })
+
+  it('a folder that holds what every agent must reach is never closed, and says why', () => {
+    // a data dir outside home, inside another agent's folder
+    const data = '/srv/ops/.silos'
+    const f = fenceFor({
+      agent: maker,
+      agents: [maker, ag('ops', '/srv/ops'), ag('srv', SILOS_CHECKOUT)],
+      privatePaths: [],
+      home: H,
+      dataDir: data,
+      agentStateDir: `${data}/agent-state/maker`,
+      mustReach: [{ path: SILOS_CHECKOUT, what: 'Silos itself' }],
+    })!
+    expect(f.permissions.deny.some((r) => r === 'Read(//srv/ops)' || r === 'Read(//srv/ops/**)')).toBe(false)
+    expect(covered(f.permissions.deny, 'Read', `${data}/agent-state/maker/status.json`)).toBe(false)
+    expect(f.skipped?.find((u) => u.path === '/srv/ops')?.reason).toMatch(/data dir/)
+    expect(f.skipped?.find((u) => u.path === SILOS_CHECKOUT)?.reason).toMatch(/Silos itself/)
+  })
+
+  it("the disk's reading only removes a deny: its own folder under another spelling stays open", () => {
+    const alias = ag('alias', '/srv/acme') // the same directory as /home/user/acme on disk
+    const canonical = (p: string): string => p.replace(/^\/srv\/acme(?=\/|$)/, '/home/user/acme')
+    const d = fenceFor({
+      agent: builder,
+      agents: [builder, alias],
+      privatePaths: [],
+      home: H,
+      dataDir: D,
+      agentStateDir: `${D}/agent-state/builder`,
+      canonical,
+    })!.permissions.deny
+    expect(covered(d, 'Read', '/srv/acme/x')).toBe(false)
+  })
+
+  it("another project's worktrees and the conversations started below its folder are closed with it", () => {
+    const d = projectsOf(builder, {
+      worktreesOf: (f) => (f === '/home/user/beta' ? ['/home/user/beta-wt'] : []),
+      sessionCwds: ['/home/user/beta/api', '/home/user/acme/x'],
+    })
+    expect(covered(d, 'Read', '/home/user/beta-wt/src/x.ts')).toBe(true)
+    expect(covered(d, 'Read', `${H}/.claude/projects/-home-user-beta-wt/s.jsonl`)).toBe(true)
+    expect(covered(d, 'Read', `${H}/.claude/projects/-home-user-beta-api/s.jsonl`)).toBe(true)
+    expect(covered(d, 'Read', `${H}/.claude/projects/-home-user-acme-x/s.jsonl`)).toBe(false)
+  })
+
+  it('territory off keeps exactly the two always-on groups; on adds the rest', () => {
+    const offF = fence(builder, { on: false })
+    const onF = fence(builder)
+    const off = offF.permissions.deny
+    const projectRules = new Set(offF.projects!.rules)
+    const credential = (r: string): boolean =>
+      /^(Read|Edit)\(\/\/home\/user\/\.silos\/(token|sessions\.json|live-turns\.json|vault\.json|providers\.json|silos-id\.json|server\.env|(agents|console-env|seals|held|push)\/\*\*)\)$/.test(
+        r,
+      ) || /^Read\(\/\/proc\/(\*|\*\*)\/(environ|cmdline)\)$/.test(r)
+    expect(off.filter((r) => !projectRules.has(r) && !credential(r))).toEqual([])
+    expect(off.filter(credential)).toHaveLength(2 * 12 + 4)
+    expect(onF.permissions.deny.length).toBeGreaterThan(off.length)
+    for (const r of off) expect(onF.permissions.deny).toContain(r)
+  })
+
+  it('master and an agent without a folder keep no rule', () => {
+    expect(fenceFor({ agent: ag('master', null), agents: all, privatePaths: [], home: H, dataDir: D, agentStateDir: '' })).toBeNull()
+    expect(fenceFor({ agent: ag('loose', null), agents: all, privatePaths: [], home: H, dataDir: D, agentStateDir: '', on: false })).toBeNull()
+  })
+
+  it('fenceScope reads the group back as «other projects» and lists what stayed open', () => {
+    const s = fenceScope(fence(deep), territoriesOf(deep), { home: H, dataDir: D })
+    expect(s.blocked[0]).toEqual({
+      kind: 'projects',
+      paths: ['/home/user/acme-web', '/home/user/acme/docs', '/home/user/acme/notes', '/home/user/beta', '/home/user/old'].map((p) => p.replace(H, '~')),
+    })
+    expect(s.open.some((o) => o.path === '~/.claude/projects/-home-user-acme-web')).toBe(true)
+    // a store's rules never leak into another group
+    expect(s.blocked.find((b) => b.kind === 'claude')?.paths.some((p) => p.includes('/projects/'))).toBeFalsy()
+  })
+
+  it("the adapter reads a folder's git worktrees and the index's conversations", () => {
+    const root = mkdtempSync(join(tmpdir(), 'terr-wt-'))
+    const beta = join(root, 'beta'),
+      wt = join(root, 'beta-wt'),
+      acme = join(root, 'acme')
+    mkdirSync(join(beta, '.git', 'worktrees', 'w1'), { recursive: true })
+    writeFileSync(join(beta, '.git', 'worktrees', 'w1', 'gitdir'), `${wt}/.git\n`)
+    mkdirSync(acme)
+    const reg = [ag('builder', acme), ag('maker', beta)]
+    const t = makeTerritory({
+      registry: { get: (id) => reg.find((a) => a.id === id) ?? null, list: () => reg },
+      agentState: { pathFor: (id) => join(root, '.silos', 'agent-state', id) },
+      store: { privatePaths: () => [], isEnabled: () => false },
+      home: root,
+      dataDir: join(root, '.silos'),
+      sessionCwds: () => [join(beta, 'api'), null],
+    })
+    const d = t.fenceFor('builder')!.permissions.deny
+    expect(covered(d, 'Read', join(wt, 'x'))).toBe(true)
+    expect(covered(d, 'Read', join(root, '.claude', 'projects', join(beta, 'api').replace(/[/.]/g, '-'), 's.jsonl'))).toBe(true)
+    expect(covered(d, 'Read', join(acme, 'x'))).toBe(false)
   })
 })

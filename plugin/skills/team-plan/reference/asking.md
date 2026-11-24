@@ -13,8 +13,10 @@ What you may ask the owner, and the shape of `waitingOn`, are in
   move your OWN task now, assign it (POST /api/tasks/assign with
   `{"plan":"<slug>","task":"<id>","turn":"$SILOS_TURN"}`; `queued:false` in the
   answer comes with a `why` — nothing started).
-- **Work in another agent's territory** → only the message; the receiver
-  turns it into a task (rule 6).
+- **Work in a folder of another agent of your projects that is not yours**
+  → only the message to it; the receiver turns it into a task (rule 6).
+  Outside your projects → the owner (your question tool, or
+  `waitingOn {"owner":"owner",…}` on your task).
 - **A question or a review for another agent** (not work it must do: that
   is a task of its own, above) → ask it through Silos, from your own task:
 ```

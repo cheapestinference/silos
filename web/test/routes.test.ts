@@ -104,6 +104,12 @@ describe('routeToState — parsing', () => {
     const page = { kind: 'agent', id: 'a1' }
     expect(routeToState('/agent/a1/settings')).toEqual({ page, facet: 'identity' })
     expect(routeToState('/agent/a1/secrets')).toEqual({ page, facet: 'vault' })
+    // a task whose owner works in another project opens on «Give to…» — the address round-trips
+    expect(routeToState('/task/plan%3Ap/t1?give=1')).toEqual({ page: { kind: 'task', plan: 'plan:p', task: 't1', give: true } })
+    expect(stateToRoute(snap({ page: { kind: 'task', plan: 'plan:p', task: 't1', give: true } }))).toBe('/task/plan%3Ap/t1?give=1')
+    // «Add a secret» opened from a project starts on it — the address round-trips
+    expect(routeToState('/vault?add=project%3A%2Fhome%2Fuser%2Facme')).toEqual({ page: { kind: 'vault', add: 'project:/home/user/acme' } })
+    expect(stateToRoute(snap({ page: { kind: 'vault', add: 'agent:builder' } }))).toBe('/vault?add=agent%3Abuilder')
     expect(routeToState('/agent/a1/control')).toEqual({ page, facet: 'control' })
     expect(routeToState('/agent/a1/secrets?from=%2Fhome%2Fx/s9')).toEqual({ page, facet: 'vault', from: { folder: '/home/x', id: 's9' } })
   })

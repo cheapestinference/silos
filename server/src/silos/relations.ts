@@ -12,7 +12,9 @@
 // words a write that would dangle (an id that is no agent), point at itself
 // or, on an acyclic relation, close a loop. An edge whose agent was archived
 // or deleted afterwards stays in the file (the owner's drawing is kept) but
-// leaves every chain — said as «an archived agent» where it is shown.
+// leaves every chain — said as «an archived agent» where it is shown. So does
+// an edge whose two ends no longer share a project (R3/D5: a reporting line
+// never widens the wall) — judged when it is drawn AND when it is walked.
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { readContainedTextOrNull, writeContained } from '../safe-file.js'
@@ -56,18 +58,20 @@ export type EndpointState = 'ok' | 'archived' | 'gone'
 export interface AgentLookup {
   // 'ok' an agent in play · 'archived' known, out of play · 'gone' no agent by that id
   stateOf(id: string): EndpointState
-  // the agent's projects (its folder + declared folders — territoriesOf) —
-  // one org per project (a finance agent for one project and another for
-  // another): an edge joins two agents who share
-  // a project. Absent → no project rule.
-  projectsOf?(id: string): string[]
+  // the two agents share a project (project-scope.ts knows — the one
+  // resolver): one org per project, so an edge joins two agents who know
+  // each other, and an edge whose ends stopped sharing one is out of every
+  // chain. Absent → no project rule.
+  knows?(a: string, b: string): boolean
 }
 
+// note: the edge is out of every chain — an end archived or gone, or
+// (`apart`) its ends share no project any more
 export interface RelationEdge {
   from: string
   to: string
-  note?: 'archived' | 'gone'
-} // note: the far end is out of every chain
+  note?: 'archived' | 'gone' | 'apart'
+}
 export type RelationWrite = { ok: true; edges: Record<string, string> } | { ok: false; code: number; reason: string }
 
 export class RelationStore {
@@ -112,21 +116,22 @@ export class RelationStore {
   }
 
   // the edges with the state of their ends: an edge to (or from) an agent
-  // archived or deleted since is listed, marked, and out of every chain
+  // archived or deleted since, or whose ends share no project any more, is
+  // listed, marked, and out of every chain
   list(siloId: string, name: string, agents: AgentLookup): RelationEdge[] {
     return Object.entries(this.edges(siloId, name))
       .map(([from, to]) => {
-        const worst = [agents.stateOf(from), agents.stateOf(to)].find((s) => s !== 'ok')
-        return worst ? { from, to, note: worst } : { from, to }
+        const note = edgeNote(from, to, agents)
+        return note ? { from, to, note } : { from, to }
       })
       .sort((a, b) => a.from.localeCompare(b.from))
   }
 
-  // the edges a chain may walk: both ends agents in play
+  // the edges a chain may walk: both ends agents in play that share a project
   live(siloId: string, name: string, agents: AgentLookup): Record<string, string> {
     const out: Record<string, string> = {}
     for (const [from, to] of Object.entries(this.edges(siloId, name))) {
-      if (agents.stateOf(from) === 'ok' && agents.stateOf(to) === 'ok') out[from] = to
+      if (edgeNote(from, to, agents) === null) out[from] = to
     }
     return out
   }
@@ -151,14 +156,11 @@ export class RelationStore {
       if (fromState === 'archived') return { ok: false, code: 400, reason: `${nameOf(from)} is archived — an archived agent takes no new ${decl.name} edge` }
       if (toState === 'archived') return { ok: false, code: 400, reason: `${nameOf(to)} is archived — an archived agent takes no new ${decl.name} edge` }
       if (to === from) return { ok: false, code: 400, reason: `${nameOf(from)} cannot ${decl.name} itself` }
-      const fromProjects = agents.projectsOf?.(from) ?? []
-      const toProjects = agents.projectsOf?.(to) ?? []
-      if (fromProjects.length > 0 && toProjects.length > 0 && !fromProjects.some((f) => toProjects.includes(f))) {
-        const word = (f: string): string => f.split('/').filter(Boolean).pop() ?? f
+      if (agents.knows && !agents.knows(from, to)) {
         return {
           ok: false,
           code: 400,
-          reason: `${nameOf(from)} works in ${fromProjects.map(word).join(', ')} and ${nameOf(to)} in ${toProjects.map(word).join(', ')} — each project has its own org, so a ${decl.name} line joins two agents of one project`,
+          reason: `${nameOf(from)} and ${nameOf(to)} share no project — each project has its own org, so a ${decl.name} line joins two agents of one project`,
         }
       }
       if (decl.acyclic) {
@@ -192,6 +194,16 @@ export class RelationStore {
     writeContained(dir, 'relations.json', JSON.stringify({ version: 1, relations: all }, null, 2) + '\n', { mode: 0o600 })
     return { ok: true, edges }
   }
+}
+
+// Why an edge is out of every chain, or null when a chain may walk it: an
+// end archived or gone (the worse of the two), else ends that share no
+// project (`apart`).
+function edgeNote(from: string, to: string, agents: AgentLookup): RelationEdge['note'] | null {
+  const worst = [agents.stateOf(from), agents.stateOf(to)].find((s) => s !== 'ok')
+  if (worst) return worst
+  if (agents.knows && !agents.knows(from, to)) return 'apart'
+  return null
 }
 
 // ── reading a relation as a tree, and walking a chain (pure) ────────────────

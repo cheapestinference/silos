@@ -5,7 +5,7 @@
 // Literals are compared with toEqual AND serialized (key order is part of the
 // contract: --settings JSON, env order).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -162,6 +162,12 @@ describe('provider env', () => {
 
 const APPEND =
   'Your mission: charter\n\nScheduled or recurring work goes through Silos automations, never CronCreate: a Silos automation has owner-visible state (armed/paused, next run, history); a native cron is invisible. Scheduled work of your own is not yours to create: PROPOSE it and the owner creates it in one click — POST ${SILOS_API:-http://127.0.0.1:3210}/api/proposals with -H "Authorization: Bearer $SILOS_AGENT_TOKEN" (your bearer, always) and {"turn": "$SILOS_TURN","kind":"automation","reason":"<one line: why>","input":{"name":"<short name>","agentId":"$SILOS_AGENT_ID","prompt":"<what each run must do>","trigger":{"kind":"cron","expr":"0 9 * * *"}}} — "turn" is the turn it comes from. CronCreate only for a one-shot self-ping inside this session: recurring:false, never durable.\n\nWhen you need a decision or missing input from the owner to continue, ask with the AskUserQuestion tool and offer clear options — do not bury the question in prose. Reserve it for real decisions.'
+// the console's settings ride an owner-only file named on argv, never the
+// JSON itself (D8: /proc/<pid>/cmdline): its bytes pinned here
+const PLAIN_SETTINGS =
+  '{"hooks":{"SessionStart":[{"matcher":"clear","hooks":[{"type":"command","command":"node -e \\"let d=\'\';process.stdin.on(\'data\',c=>d+=c).on(\'end\',()=>{try{const s=JSON.parse(d).session_id;if(typeof s===\'string\'&&/^[\\\\\\\\w-]+\\\\$/.test(s))require(\'fs\').writeFileSync(require(\'path\').join(\\\\\\"<base>/rot\\\\\\",s+\'.json\'),JSON.stringify({from:\\\\\\"golden-k\\\\\\"}))}catch{}})\\""}]}]}}'
+const LAUNCHER_SETTINGS =
+  '{"theme":"light","hooks":{"SessionStart":[{"matcher":"clear","hooks":[{"type":"command","command":"node -e \\"let d=\'\';process.stdin.on(\'data\',c=>d+=c).on(\'end\',()=>{try{const s=JSON.parse(d).session_id;if(typeof s===\'string\'&&/^[\\\\\\\\w-]+\\\\$/.test(s))require(\'fs\').writeFileSync(require(\'path\').join(\\\\\\"<base>/rot\\\\\\",s+\'.json\'),JSON.stringify({from:\\\\\\"golden-k\\\\\\"}))}catch{}})\\""}]}],"UserPromptSubmit":[{"hooks":[{"type":"command","command":"node -e \\"try{const f=require(\'fs\'),p=require(\'path\');const m=p.join(\\\\\\"<base>/rot\\\\\\",\\\\\\"golden-k\\\\\\"+\'.ctx\');let s=0;try{s=f.statSync(m).mtimeMs}catch{}const o=[];for(const d of [\'shared\',\\\\\\"writer\\\\\\"]){const r=p.join(\\\\\\"<base>/p\\\\\\",\'context\',d);let n=[];try{n=f.readdirSync(r)}catch{}for(const x of n){if(x[0]===\'.\')continue;try{const t=f.statSync(p.join(r,x));if(t.isFile()&&s>0&&t.mtimeMs>s)o.push(\'- context/\'+d+\'/\'+x)}catch{}}}f.mkdirSync(\\\\\\"<base>/rot\\\\\\",{recursive:true});f.writeFileSync(m,\'\');if(o.length)console.log(\\\\\\"New context files since your last turn — the owner just added them, read them if relevant:\\\\\\"+\'\\\\\\\\n\'+o.join(\'\\\\\\\\n\'))}catch{}\\""}]}]}}'
 const PLAIN_ARGV = [
   '-f',
   '<tmpdir>/silos-console-tmux.conf',
@@ -179,7 +185,7 @@ const PLAIN_ARGV = [
   'SILOS_CONSOLE_THEME=dark',
   'claude',
   '--settings',
-  '{"hooks":{"SessionStart":[{"matcher":"clear","hooks":[{"type":"command","command":"node -e \\"let d=\'\';process.stdin.on(\'data\',c=>d+=c).on(\'end\',()=>{try{const s=JSON.parse(d).session_id;if(typeof s===\'string\'&&/^[\\\\\\\\w-]+\\\\$/.test(s))require(\'fs\').writeFileSync(require(\'path\').join(\\\\\\"<base>/rot\\\\\\",s+\'.json\'),JSON.stringify({from:\\\\\\"golden-k\\\\\\"}))}catch{}})\\""}]}]}}',
+  '<base>/append/golden-k.settings.json',
   '--session-id',
   'golden-k',
 ]
@@ -211,7 +217,7 @@ const LAUNCHER_ARGV = [
   '--model',
   'opus',
   '--settings',
-  '{"theme":"light","hooks":{"SessionStart":[{"matcher":"clear","hooks":[{"type":"command","command":"node -e \\"let d=\'\';process.stdin.on(\'data\',c=>d+=c).on(\'end\',()=>{try{const s=JSON.parse(d).session_id;if(typeof s===\'string\'&&/^[\\\\\\\\w-]+\\\\$/.test(s))require(\'fs\').writeFileSync(require(\'path\').join(\\\\\\"<base>/rot\\\\\\",s+\'.json\'),JSON.stringify({from:\\\\\\"golden-k\\\\\\"}))}catch{}})\\""}]}],"UserPromptSubmit":[{"hooks":[{"type":"command","command":"node -e \\"try{const f=require(\'fs\'),p=require(\'path\');const m=p.join(\\\\\\"<base>/rot\\\\\\",\\\\\\"golden-k\\\\\\"+\'.ctx\');let s=0;try{s=f.statSync(m).mtimeMs}catch{}const o=[];for(const d of [\'shared\',\\\\\\"writer\\\\\\"]){const r=p.join(\\\\\\"<base>/p\\\\\\",\'context\',d);let n=[];try{n=f.readdirSync(r)}catch{}for(const x of n){if(x[0]===\'.\')continue;try{const t=f.statSync(p.join(r,x));if(t.isFile()&&s>0&&t.mtimeMs>s)o.push(\'- context/\'+d+\'/\'+x)}catch{}}}f.mkdirSync(\\\\\\"<base>/rot\\\\\\",{recursive:true});f.writeFileSync(m,\'\');if(o.length)console.log(\\\\\\"New context files since your last turn — the owner just added them, read them if relevant:\\\\\\"+\'\\\\\\\\n\'+o.join(\'\\\\\\\\n\'))}catch{}\\""}]}]}}',
+  '<base>/append/golden-k.settings.json',
   '--resume',
   'golden-k',
 ]
@@ -439,7 +445,14 @@ describe('ensureConsole default Claude launch', () => {
       const { args, env } = calls.find((c) => c.args.includes('new-session'))!
       const mask = (a: string) => a.split(base).join('<base>').split(tmpdir()).join('<tmpdir>')
       const envFile = join(base, 'env', 'golden-k.env')
-      return { args: args.map(mask), env, envFile: existsSync(envFile) ? readFileSync(envFile, 'utf8') : null }
+      const settingsFile = join(base, 'append', 'golden-k.settings.json')
+      return {
+        args: args.map(mask),
+        env,
+        envFile: existsSync(envFile) ? readFileSync(envFile, 'utf8') : null,
+        settings: existsSync(settingsFile) ? mask(readFileSync(settingsFile, 'utf8')) : null,
+        settingsMode: existsSync(settingsFile) ? statSync(settingsFile).mode & 0o777 : null,
+      }
     } finally {
       svc.killAll()
       svc.stopReaper()
@@ -469,6 +482,8 @@ describe('ensureConsole default Claude launch', () => {
     same(r.env, ENV())
     same(r.args, PLAIN_ARGV)
     expect(r.envFile).toBeNull()
+    expect(r.settings).toBe(PLAIN_SETTINGS)
+    expect(r.settingsMode).toBe(0o600)
   })
 
   it('a resumed console with append, agent, theme, mode, model and a provider delta: the env-file launcher before claude', async () => {
@@ -484,5 +499,7 @@ describe('ensureConsole default Claude launch', () => {
     same(r.env, ENV())
     same(r.args, LAUNCHER_ARGV)
     expect(r.envFile).toBe(LAUNCHER_ENV_FILE)
+    expect(r.settings).toBe(LAUNCHER_SETTINGS)
+    expect(r.settingsMode).toBe(0o600)
   })
 })

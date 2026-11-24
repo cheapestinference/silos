@@ -46,6 +46,33 @@ function ClassTick({ c, on, sends, onToggle }: { c: ChosenClass; on: boolean; se
   )
 }
 
+// what you set up on this machine, as a class (D6): its count when read,
+// and — unticked — what a new project does about it
+function MachineTick({ c, on, words, onToggle }: { c: ChosenClass; on: boolean; words: string; onToggle: (on: boolean) => void }) {
+  return (
+    <li data-testid="start-machine">
+      <label className="flex cursor-pointer items-start gap-3 px-3.5 py-3">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => onToggle(e.target.checked)}
+          aria-describedby={`start-${c.id}-about`}
+          className="mt-[3px] h-3.5 w-3.5 shrink-0 accent-terracotta"
+        />
+        <span className="min-w-0 flex-1" id={`start-${c.id}-about`}>
+          <span className="block text-[14px] text-ink">{AT_START_MACHINE}</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-ink-2">{words}</span>
+          {on ? null : (
+            <span data-testid={`start-${c.id}-line`} className="mt-0.5 block text-xs leading-relaxed text-terracotta">
+              {classOffWords(c)}
+            </span>
+          )}
+        </span>
+      </label>
+    </li>
+  )
+}
+
 export function AtStartStep({
   name,
   classes,
@@ -63,6 +90,9 @@ export function AtStartStep({
     <ClassTick key={c.id} c={c} on={classOn(c, ticks)} sends={sendsWords(facts?.sends[c.id])} onToggle={(on) => onToggle(c.id, on)} />
   )
   const optional = classes.filter((c) => !c.recommended)
+  // what you set up on this machine: a class with a box when the engine
+  // declares one (D6), else the fact it always was
+  const machine = classes.find((c) => c.covers === 'machine')
   return (
     <section data-testid="tour-at-start">
       <h2 className="font-display text-[22px] leading-tight tracking-tight text-ink">{atStartAsk(name)}</h2>
@@ -70,15 +100,19 @@ export function AtStartStep({
       <div className="mt-4">
         <p className="mb-1.5 text-[12.5px] text-ink-3">{SILOS_INCLUDED}</p>
         <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
-          {/* a fact, not a choice: no box to untick */}
-          <li data-testid="start-machine" className="flex items-start gap-3 px-3.5 py-3">
-            <Check size={14} aria-hidden="true" className="mt-[3px] shrink-0 text-ink-3" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[14px] text-ink">{AT_START_MACHINE}</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-ink-2">{machineWords(facts?.machine)}</span>
-            </span>
-          </li>
-          {classes.filter((c) => c.recommended).map(row)}
+          {machine ? (
+            <MachineTick c={machine} on={classOn(machine, ticks)} words={machineWords(facts?.machine)} onToggle={(on) => onToggle(machine.id, on)} />
+          ) : (
+            /* a fact, not a choice: no box to untick */
+            <li data-testid="start-machine" className="flex items-start gap-3 px-3.5 py-3">
+              <Check size={14} aria-hidden="true" className="mt-[3px] shrink-0 text-ink-3" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] text-ink">{AT_START_MACHINE}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-ink-2">{machineWords(facts?.machine)}</span>
+              </span>
+            </li>
+          )}
+          {classes.filter((c) => c.recommended && c.covers !== 'machine').map(row)}
         </ul>
       </div>
       {optional.length > 0 ? (

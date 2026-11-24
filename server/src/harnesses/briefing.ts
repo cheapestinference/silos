@@ -113,6 +113,11 @@ export function contextText(briefing: string, roster: string): string {
  *  (see the R7 table: the folder's active skills, the account's personal
  *  ones, an engine's skill roots). No fragments → the roster alone; '' when
  *  neither. */
-export function silosBriefing(agents: Agent[], me: string, opts: { withBearer: boolean; has: readonly string[] }, dir = defaultBriefingDir()): string {
+export function silosBriefing(
+  agents: Agent[],
+  me: string,
+  opts: { withBearer: boolean; has: readonly string[]; cwd?: string | null },
+  dir = defaultBriefingDir(),
+): string {
   return contextText(briefingText(opts.has, dir), rosterText(agents, me, opts))
 }

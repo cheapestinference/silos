@@ -7,7 +7,7 @@ import { initiativeNow } from '../initiative.js'
 import type { LiveTurn } from '../live-turns.js'
 import { URGENT_GONE } from './messages.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { territoriesOf } from '../territory.js'
+import { knows } from '../project-scope.js'
 import type { AgentRegistry } from '../agent-registry.js'
 import type { AgentStateStore } from '../agent-state.js'
 import type { SessionIndex } from '../session-index.js'
@@ -248,10 +248,9 @@ export function siloRoutes(app: FastifyInstance, ctx: SiloRoutesCtx): void {
         const a = registry.list(true).find((x) => x.id === id)
         return !a ? 'gone' : a.archived ? 'archived' : 'ok'
       },
-      projectsOf: (id: string): string[] => {
-        const a = registry.list(true).find((x) => x.id === id)
-        return a ? territoriesOf(a) : []
-      },
+      // one org per project: drawn and walked only between agents that
+      // share one (project-scope.ts knows)
+      knows: (a: string, b: string): boolean => knows(registry.get(a), registry.get(b)),
     }
     const nameOfAgent = (id: string): string => registry.list(true).find((a) => a.id === id)?.name ?? id
     const relationOf = (siloId: string, name: string): { decl: RelationDecl } | { code: number; error: string } => {
@@ -546,8 +545,9 @@ export function siloRoutes(app: FastifyInstance, ctx: SiloRoutesCtx): void {
     }
     app.get<{ Params: { folder: string; id: string } }>('/api/sessions/:folder/:id/tasks', async (req, reply) => {
       const meta = index.allSessions().find((m) => m.folder === req.params.folder && m.id === req.params.id)
-      if (!meta) return reply.code(404).send({ error: 'no such conversation' })
-      if (req.agentId !== undefined && classifyAgentId(meta) !== req.agentId) return reply.code(403).send({ error: 'that conversation is not one of yours' })
+      // to a bearer, another agent's conversation and none answer alike
+      // (existence is not confirmed — project-scope.ts)
+      if (!meta || (req.agentId !== undefined && classifyAgentId(meta) !== req.agentId)) return reply.code(404).send({ error: 'no such conversation' })
       return { tasks: sessionTasks(sessionTasksInput(true), meta) }
     })
     // GET /api/tasks/by-session — { [sessionId]: [{key, ref, title, state,

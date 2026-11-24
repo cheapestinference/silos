@@ -35,6 +35,7 @@ import { recordKey } from '../silos/journal.js'
 import {
   evaluateTaskWakes,
   fingerprintOf,
+  movesFor,
   noteId,
   OBSERVATION_KEEP_MS,
   ownerNotesOf,
@@ -141,6 +142,10 @@ export interface TaskModeDeps {
   stalled?(now: number): ReadonlyMap<string, TaskFlowSnap>
   // the agents bound to Task mode, in play (empty: the silo is not active)
   bound(): ReadonlySet<string>
+  // (R3) the task's owner is an agent in play that does not work in the
+  // task's project (project-scope.ts ownerOutside): the snapshots carry it,
+  // and Task mode never moves such a task for that agent. Absent: none is
+  ownerOutside?(owner: string, folder: string | null): boolean
   // the session index is warm: before it, conversationOf() can't see the
   // task's conversations — a wake sent then would open a NEW conversation,
   // split the task's history and walk past a console holding the old one.
@@ -237,6 +242,9 @@ export const RETRY_GRACE_MS = 60_000
 export const LOST_NOTE_GRACE_MS = 2 * 60_000
 // the words Silos says a lost owner note with — `at` exact, so the note on
 // the task is its own record that it was said (nothing else remembers it)
+// (R3) the one answer when the owner's door or Give meets a task whose agent
+// owner does not work in its project: the way out is the owner's «Give to…»
+export const outsideWords = (name: string): string => `${name} does not work in this task's project — give it to an agent of the project`
 export const lostNoteMark = (at: string): string => `The owner's note of ${at} `
 export const lostNoteWords = (n: { at: string; text: string }): string =>
   `${lostNoteMark(n.at)}is no longer in this task's notes — a write replaced the plan file without it. It said: «${n.text}». Owner: write it again if it still stands.`
@@ -393,6 +401,9 @@ export interface TaskModeView {
   // the live line's facts: what is
   // happening to a start on this task RIGHT NOW (liveOf) — null when nothing is
   live: TaskLive | null
+  // (R3) its owner works in another project: Silos never opens it on this
+  // task — the page offers no door, «Give to…» is the only move
+  ownerOutside?: true
 }
 
 // What the task's live line paints (the web's give.ts liveLine says the
@@ -476,6 +487,7 @@ export class TaskModeEngine {
     // a note signed "owner" that Silos never recorded the owner writing is
     // an agent's: it wakes nobody, reopens nothing, skips nothing. The same
     // matching says which of the owner's recorded notes the file lost
+    if (this.d.ownerOutside) for (const t of snaps) if (t.owner !== '' && this.d.ownerOutside(t.owner, t.folder)) t.ownerOutside = true
     const check = this.ownerNoteCheck()
     for (const t of snaps) {
       const signed = t.notes.filter((n) => n.by === 'owner')
@@ -547,7 +559,7 @@ export class TaskModeEngine {
     const obs = this.d.store.observations()
     const out: Array<{ task: TaskSnap; cause: string; since: string; wokeAt: string }> = []
     for (const t of tasks) {
-      if (!bound.has(t.owner) || CLOSED.has(t.state)) continue
+      if (!movesFor(t, bound) || CLOSED.has(t.state)) continue
       const st = obs[t.key]?.stall
       if (!st || t.stalledCause !== st.cause || !wakesForStall(t, bound)) continue
       const key = `stalled:${st.cause}@${st.since}`
@@ -797,9 +809,11 @@ export class TaskModeEngine {
           ? `the task is ${t.owner || 'nobody'}'s now`
           : !bound.has(w0.agent)
             ? `${w0.agent} is no longer in task mode`
-            : CLOSED.has(t.state) && !onlyNotes
-              ? `the task is ${t.state} already`
-              : null
+            : t.ownerOutside === true
+              ? `${this.d.nameOf?.(w0.agent) ?? w0.agent} does not work in this task's project`
+              : CLOSED.has(t.state) && !onlyNotes
+                ? `the task is ${t.state} already`
+                : null
       if (gone) {
         for (const w of group) decisions.set(w.id, { state: 'superseded', held: gone, holdClass: undefined, until: undefined, missingSince: undefined })
         continue
@@ -1287,7 +1301,7 @@ export class TaskModeEngine {
     for (const w of this.d.store.queued()) {
       if (!w.gaveUp) continue
       const t = byKey.get(w.task)
-      if (!t || t.owner !== w.agent || !bound.has(t.owner) || CLOSED.has(t.state)) continue
+      if (!t || t.owner !== w.agent || !movesFor(t, bound) || CLOSED.has(t.state)) continue
       const prev = out.get(t.key)
       if (!prev || Date.parse(w.gaveUp.at) < Date.parse(prev.since))
         out.set(t.key, { task: t, error: w.gaveUp.error, attempts: w.attempts ?? START_ATTEMPTS_MAX, since: w.gaveUp.at })
@@ -1333,6 +1347,7 @@ export class TaskModeEngine {
     const name = this.d.nameOf?.(t.owner) ?? t.owner
     const gesture = opts.ownerGesture === true
     if (!this.d.bound().has(t.owner)) return { queued: false, why: `${name || 'nobody'} is Only when told — open it on the task` }
+    if (t.ownerOutside === true) return { queued: false, why: outsideWords(name) }
     // «the task is done already» / «…cancelled already»
     if (CLOSED.has(t.state)) return { queued: false, why: `the task is ${t.state} already` }
     const siblings = tasks.filter((x) => x.planKey === t.planKey)
@@ -1483,8 +1498,9 @@ export class TaskModeEngine {
   work(key: string): { task: TaskSnap; briefing: string; folded: string[] } | null {
     const t = this.snapshots().find((x) => x.key === key)
     if (!t) return null
-    const waiting = this.d.bound().has(t.owner) ? this.d.store.queued().filter((w) => w.task === key && w.agent === t.owner) : []
-    const briefing = workBriefing(t, waiting, (id) => this.d.nameOf?.(id) ?? id, { bound: this.d.bound().has(t.owner) })
+    const moves = movesFor(t, this.d.bound())
+    const waiting = moves ? this.d.store.queued().filter((w) => w.task === key && w.agent === t.owner) : []
+    const briefing = workBriefing(t, waiting, (id) => this.d.nameOf?.(id) ?? id, { bound: moves })
     return { task: t, briefing, folded: waiting.map((w) => w.id) }
   }
 
@@ -1494,7 +1510,7 @@ export class TaskModeEngine {
   // 'claim'). Nothing for an agent that is not the task's bound owner.
   claimWakes(key: string, agent: string): { lines: Array<{ says: string; notes: TaskNote[] }>; ids: string[] } {
     const t = this.snapshots().find((x) => x.key === key)
-    if (!t || t.owner !== agent || !this.d.bound().has(agent)) return { lines: [], ids: [] }
+    if (!t || t.owner !== agent || !movesFor(t, this.d.bound())) return { lines: [], ids: [] }
     const waiting = this.d.store.queued().filter((w) => w.task === key && w.agent === agent)
     return { lines: waiting.map((w) => ({ says: w.says, notes: w.notes })), ids: waiting.map((w) => w.id) }
   }
@@ -1540,7 +1556,14 @@ export class TaskModeEngine {
         ...(until ? { until } : {}),
         ...(via ? { via } : {}),
       }))
-    return { bound: this.d.bound().has(t.owner), owner: t.owner, history, heldNow: this.heldNow(t), live: this.liveOf(t) }
+    return {
+      bound: movesFor(t, this.d.bound()),
+      owner: t.owner,
+      history,
+      heldNow: this.heldNow(t),
+      live: this.liveOf(t),
+      ...(t.ownerOutside === true ? { ownerOutside: true as const } : {}),
+    }
   }
 
   /** The live line's facts for one task (TaskLive above) — read, never
@@ -1590,6 +1613,7 @@ export class TaskModeEngine {
   > {
     const t = this.snapshots().find((x) => x.key === key)
     if (!t) return { ok: false, code: 404, reason: 'no such task in the plans Silos reads' }
+    if (t.ownerOutside === true) return { ok: false, code: 409, reason: outsideWords(this.d.nameOf?.(t.owner) ?? t.owner) }
     const bound = this.d.bound().has(t.owner)
     const waiting = bound ? this.d.store.queued().filter((w) => w.task === key && w.agent === t.owner) : []
     const briefing = workBriefing(t, waiting, (id) => this.d.nameOf?.(id) ?? id, { bound })

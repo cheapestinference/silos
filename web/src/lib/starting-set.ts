@@ -13,10 +13,13 @@ export type StartingLine = { kind: 'joins'; agents: string[] } | { kind: 'born';
 export function startingLine(p: StartingSetPreview | null): StartingLine | null {
   if (!p || p.classes.length === 0) return null
   if (p.joins) return { kind: 'joins', agents: p.joins.agents.map((a) => a.name) }
-  const origins = [...new Set(p.classes.map((c) => c.from))]
+  // what you set up on this machine (D6): its own class, said first
+  const machineOn = p.classes.find((c) => c.covers === 'machine')?.on ?? true
+  const accountClasses = p.classes.filter((c) => c.covers !== 'machine')
+  const origins = [...new Set(accountClasses.map((c) => c.from))]
   const parts = origins.map((from) => {
-    const on = p.classes.filter((c) => c.from === from && c.on).map((c) => c.what)
-    const off = p.classes.filter((c) => c.from === from && !c.on).map((c) => c.what)
+    const on = accountClasses.filter((c) => c.from === from && c.on).map((c) => c.what)
+    const off = accountClasses.filter((c) => c.from === from && !c.on).map((c) => c.what)
     if (off.length === 0) return ` and the ${list(on)} ${from} sends`
     if (on.length === 0) return `; the ${list(off)} ${from} sends stay off`
     return ` and the ${list(on)} ${from} sends; the ${list(off)} it sends stay off`
@@ -24,6 +27,14 @@ export function startingLine(p: StartingSetPreview | null): StartingLine | null 
   // what you set up here, counted when read — what the machine keeps off said apart
   const loads = machineLoads(p.facts?.machine)
   const mine = loads ? `your ${loads}` : 'what you set up on this machine'
+  if (!machineOn) {
+    // nothing of the machine's: the account's classes carry the sentence
+    const rest = parts
+      .join('')
+      .replace(/^ and the /, 'the ')
+      .replace(/^; the /, 'nothing from your account; the ')
+    return { kind: 'born', starts: `Starts without what you set up on this machine${rest ? ` — with ${rest}` : ''}`, reaches: p.exists }
+  }
   return { kind: 'born', starts: `Starts with ${mine}${parts.join('')}`, reaches: p.exists }
 }
 
@@ -38,13 +49,20 @@ export type ChosenClass = StartingSetClass & { chosen?: boolean }
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 /** «Plugins» — under a head that already says where they come from */
 export const classWhat = (c: StartingSetClass): string => cap(c.what)
-/** «Plugins from your Claude account» */
-export const classTitle = (c: StartingSetClass): string => `${cap(c.what)} from ${c.from}`
+/** «Plugins from your Claude account» · «What you set up on this machine» */
+export const classTitle = (c: StartingSetClass): string => (c.covers === 'machine' ? cap(c.what) : `${cap(c.what)} from ${c.from}`)
 /** the project tab it is switched in */
-export const classTab = (c: StartingSetClass): 'Skills' | 'Tools' => (c.covers === 'skill' ? 'Skills' : 'Tools')
+export const classTab = (c: StartingSetClass): 'Skills' | 'Tools' | 'Tools and Skills' =>
+  c.covers === 'skill' ? 'Skills' : c.covers === 'machine' ? 'Tools and Skills' : 'Tools'
 /** what goes when it is off, and what comes when on — one line each, the same on every screen */
-export const classOffWords = (c: StartingSetClass): string => `Off: they wait in each project’s ${classTab(c)}, one click away.`
-export const classOnWords = (c: StartingSetClass): string => `On: every new project loads them — what ${c.from} sends later too.`
+export const classOffWords = (c: StartingSetClass): string =>
+  c.covers === 'machine'
+    ? 'Off: a new project turns each one off in its own Tools and Skills — what you set up later will load. This machine is not changed.'
+    : `Off: they wait in each project’s ${classTab(c)}, one click away.`
+export const classOnWords = (c: StartingSetClass): string =>
+  c.covers === 'machine'
+    ? 'On: every new project loads them — what you set up later too.'
+    : `On: every new project loads them — what ${c.from} sends later too.`
 /** what the origin sends, when it was read: «Today: Linear, Figma and 2 more» */
 export function sendsWords(names: readonly string[] | undefined, shown = 3): string | null {
   if (!names || names.length === 0) return null

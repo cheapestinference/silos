@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { BRIEFING_FRAGMENTS, briefingText, defaultBriefingDir } from '../src/harnesses/briefing.js'
+import { silosSkillNames } from '../src/skill-states.js'
 
 // The convention every agent is told at SessionStart (both engines compose
 // it from plugin/context/briefing.d): where its deliverables go, so Silos
@@ -67,10 +68,12 @@ describe('plugin recipes that send a message', () => {
 describe('briefing composition (briefing.d)', () => {
   const dir = defaultBriefingDir()
   const part = (f: string) => readFileSync(join(dir, f), 'utf8').replace(/\n+$/, '')
+  // base.md says how a skill is PROPOSED (the rule every session has); it
+  // never names one to use
   it('base.md names no skill', () => {
     const base = part('base.md')
-    expect(base).not.toMatch(/skill/i)
-    for (const n of BRIEFING_FRAGMENTS) expect(base).not.toContain(`\`${n}\``)
+    for (const n of [...BRIEFING_FRAGMENTS, ...silosSkillNames()]) expect(base).not.toContain(`\`${n}\``)
+    expect(base).not.toMatch(/\b(use|invoke|load) the [`a-z-]+ skill/i)
   })
   it('every fragment has its .with and .without, and nothing else lives there', () => {
     expect(readdirSync(dir).sort()).toEqual(['base.md', ...BRIEFING_FRAGMENTS.flatMap((n) => [`${n}.with.md`, `${n}.without.md`])].sort())
@@ -83,7 +86,14 @@ describe('briefing composition (briefing.d)', () => {
   })
   it('with no skills, the briefing points at none', () => {
     const none = briefingText([])
-    expect(none).not.toMatch(/skill/i)
+    // the one mention left is how a skill is PROPOSED (base.md); the path of
+    // plugin/context is the checkout's, whatever it is called
+    expect(
+      none
+        .split(realpathSync(join(dir, '..')))
+        .join('')
+        .replace(/^- \*\*Skills are proposed.*$/m, ''),
+    ).not.toMatch(/skill/i)
     expect(none).toContain('# You are running inside Silos')
   })
   it('composes base → team-plan → vault-secrets → heartbeat, one newline between, none at the end', () => {

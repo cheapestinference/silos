@@ -40,6 +40,8 @@ import {
   vaultAge,
   lossPhrase,
   joinNames,
+  installProjects,
+  andList,
   type VaultSort,
   type AnnotatedVaultEntry,
   type VaultPageAgent,
@@ -51,12 +53,14 @@ import {
 type ScopeType = 'global' | 'agents' | 'folder'
 
 interface ScopeDraft {
-  type: ScopeType
+  // null: nothing picked yet — the Vault itself never picks for you
+  type: ScopeType | null
   agentIds: string[]
   folder: string
 }
 
 function draftToScope(d: ScopeDraft): VaultScope | null {
+  if (d.type === null) return null
   if (d.type === 'global') return { type: 'global' }
   if (d.type === 'agents') return d.agentIds.length > 0 ? { type: 'agents', agentIds: d.agentIds } : null
   return d.folder ? { type: 'folder', folder: d.folder } : null
@@ -83,12 +87,14 @@ function VisibilityPicker({
   agents,
   folders,
   idPrefix,
+  projects = [],
 }: {
   draft: ScopeDraft
   onChange: (d: ScopeDraft) => void
   agents: VaultPageAgent[]
   folders: string[]
   idPrefix: string
+  projects?: readonly string[]
 }) {
   return (
     <div>
@@ -145,6 +151,13 @@ function VisibilityPicker({
           ))}
         </select>
       ) : null}
+      {draft.type === 'global' && projects.length > 1 ? (
+        // «everyone» spelled as the projects it reaches, before it is saved
+        <p className="mt-2 max-w-[62ch] text-[11.5px] leading-snug text-ink-2" data-testid="vault-everyone-projects">
+          Every agent of <span className="text-ink">{andList(projects)}</span> finds it in its environment — every project on this install, and each one you add
+          later.
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -191,6 +204,7 @@ function EntryRow({
   onToggle,
   agents,
   folders,
+  projects = [],
   onChanged,
   onError,
   asks,
@@ -203,6 +217,7 @@ function EntryRow({
   onToggle: () => void
   agents: VaultPageAgent[]
   folders: string[]
+  projects?: readonly string[]
   onChanged: () => Promise<void>
   onError: (msg: string | null) => void
   // the live binding asks on this entry — what signing it would let go
@@ -333,7 +348,7 @@ function EntryRow({
         </>,
       )
     } else if (v.reaches.length > 0) {
-      parts.push(<>Reaches {v.entry.scope.type === 'global' ? (v.shadowedFor.length > 0 ? names(v.reaches, 99) : 'every agent') : names(v.reaches)}.</>)
+      parts.push(<>Reaches {v.entry.scope.type === 'global' ? (v.shadowedFor.length > 0 ? names(v.reaches, 99) : v.audienceWords) : names(v.reaches)}.</>)
     } else {
       parts.push('Reaches no one right now.')
     }
@@ -389,7 +404,7 @@ function EntryRow({
           </p>
           <div>
             <div className="mb-1.5 text-[11px] font-medium text-ink-2">Visibility</div>
-            <VisibilityPicker draft={draft} onChange={setDraft} agents={agents} folders={folders} idPrefix={`${v.entry.id} visibility`} />
+            <VisibilityPicker draft={draft} onChange={setDraft} agents={agents} folders={folders} projects={projects} idPrefix={`${v.entry.id} visibility`} />
             {scopeDirty ? (
               <button
                 type="button"
@@ -583,17 +598,22 @@ function EntryRow({
 function AddComposer({
   agents,
   folders,
+  projects,
+  start,
   onAdded,
   onError,
   onClose,
 }: {
   agents: VaultPageAgent[]
   folders: string[]
+  projects: readonly string[]
+  /** where it was opened from — the scope it starts on (null: nothing picked) */
+  start: ScopeDraft | null
   onAdded: () => Promise<void>
   onError: (msg: string | null) => void
   onClose: (() => void) | null
 }) {
-  const [draft, setDraft] = useState<ScopeDraft>({ type: 'agents', agentIds: [], folder: '' })
+  const [draft, setDraft] = useState<ScopeDraft>(start ?? { type: null, agentIds: [], folder: '' })
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -628,7 +648,7 @@ function AddComposer({
       </div>
       <div className="mt-2.5">
         <div className="mb-1.5 text-[11px] font-medium text-ink-2">Who sees it</div>
-        <VisibilityPicker draft={draft} onChange={setDraft} agents={agents} folders={folders} idPrefix="new secret" />
+        <VisibilityPicker draft={draft} onChange={setDraft} agents={agents} folders={folders} projects={projects} idPrefix="new secret" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -662,7 +682,17 @@ function AddComposer({
   )
 }
 
-export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {}) {
+// «Add a secret» opened from a place (`add` = project:<folder> · agent:<id>)
+// starts on it; from the Vault itself nothing is picked
+function startOf(add: string | undefined, agents: readonly { id: string }[]): ScopeDraft | null {
+  if (!add) return null
+  if (add.startsWith('project:') && add.length > 'project:'.length) return { type: 'folder', agentIds: [], folder: add.slice('project:'.length) }
+  if (add.startsWith('agent:') && agents.some((a) => a.id === add.slice('agent:'.length)))
+    return { type: 'agents', agentIds: [add.slice('agent:'.length)], folder: '' }
+  return null
+}
+
+export function VaultPage({ sign, entry, add }: { sign?: string; entry?: string; add?: string } = {}) {
   const agents = useStore((s) => s.agents)
   const [entries, setEntries] = useState<VaultEntry[] | null>(null)
   // the live binding asks, by the entry each would be resolved on
@@ -670,7 +700,10 @@ export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<VaultSort>('name')
-  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerOpen, setComposerOpen] = useState(add !== undefined)
+  useEffect(() => {
+    if (add) setComposerOpen(true)
+  }, [add])
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const realAgents: VaultPageAgent[] = useMemo(
@@ -718,7 +751,8 @@ export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {
     if (entry && entryKnown) setExpandedId(entry)
   }, [entry, entryKnown])
 
-  const groups = useMemo(() => vaultGroups(entries ?? [], realAgents), [entries, realAgents])
+  const projects = useMemo(() => installProjects(agents), [agents])
+  const groups = useMemo(() => vaultGroups(entries ?? [], realAgents, projects), [entries, realAgents, projects])
   const visible = useMemo(() => sortGroups(filterGroups(groups, query), sort), [groups, query, sort])
   const signedCount = (entries ?? []).filter((e) => e.binding !== undefined).length
   const counts = countsPhrase(entries ?? [])
@@ -801,8 +835,11 @@ export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {
           {composerOpen || empty ? (
             <div className="mt-3">
               <AddComposer
+                key={add ?? ''}
                 agents={realAgents}
-                folders={folders}
+                folders={add?.startsWith('project:') && !folders.includes(add.slice('project:'.length)) ? [...folders, add.slice('project:'.length)] : folders}
+                projects={projects}
+                start={startOf(add, realAgents)}
                 onAdded={async () => {
                   setComposerOpen(false)
                   await load()
@@ -842,6 +879,7 @@ export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {
                             onToggle={() => setExpandedId((id) => (id === v.entry.id ? null : v.entry.id))}
                             agents={realAgents}
                             folders={folders}
+                            projects={projects}
                             onChanged={load}
                             onError={setError}
                             asks={asksByEntry.get(v.entry.id) ?? []}
@@ -862,6 +900,7 @@ export function VaultPage({ sign, entry }: { sign?: string; entry?: string } = {
                           onToggle={() => setExpandedId((id) => (id === v.entry.id ? null : v.entry.id))}
                           agents={realAgents}
                           folders={folders}
+                          projects={projects}
                           onChanged={load}
                           onError={setError}
                           asks={asksByEntry.get(v.entry.id) ?? []}

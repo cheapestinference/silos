@@ -46,6 +46,7 @@ export interface RolePackRoutesCtx {
   territoryStore?: Pick<TerritoryStore, 'enableAtBirth'>
   // what the folder starts with when it is born with this agent (starting-set.ts)
   startingSettings?: StartingSetDeps['settings']
+  machineOff?: StartingSetDeps['machineOff']
 }
 
 const ownerOnly = (req: FastifyRequest, reply: FastifyReply): boolean => {
@@ -67,6 +68,11 @@ export function rolePackRoutes(app: FastifyInstance, ctx: RolePackRoutesCtx): vo
     agentExists: (id: string) => registry.get(id) !== null,
     siloState,
     secretVisible: (name: string, agentId: string, folder: string) => (vault?.viewFor(agentId, [folder]) ?? []).some((e) => e.name === name),
+    // the project folder check (project-folder.ts): the preview names a refusal before Install
+    folderRefusal: (folder: string) => {
+      const v = registry.checkFolder(folder)
+      return v.ok ? null : v.reason
+    },
   }
   const readBody = (b: unknown): { pack: RolePack; target: InstallTarget } => {
     const o = (b ?? {}) as { pack?: unknown; target?: unknown }
@@ -197,7 +203,12 @@ export function rolePackRoutes(app: FastifyInstance, ctx: RolePackRoutesCtx): vo
       // below can leave the agent created-but-unfenced
       fenceWarn = ctx.territoryStore?.enableAtBirth(agent)
       // the folder's first agent of this engine: what the project starts with
-      if (ctx.startingSettings) startWarn = applyStartingSet({ registry, home: ctx.home ?? homedir(), settings: ctx.startingSettings }, agent, null)
+      if (ctx.startingSettings)
+        startWarn = applyStartingSet(
+          { registry, home: ctx.home ?? homedir(), settings: ctx.startingSettings, ...(ctx.machineOff ? { machineOff: ctx.machineOff } : {}) },
+          agent,
+          null,
+        )
       registry.update(agent.id, { pack: { id: pack.id, packVersion: pack.packVersion } })
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) })

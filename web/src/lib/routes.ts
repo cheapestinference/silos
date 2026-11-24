@@ -331,7 +331,11 @@ function placeRoute(s: RouteSnapshot): string {
     case 'tasks':
       return withQuery('/tasks', tasksQueryString(p))
     case 'task':
-      return withQuery(`/task/${enc(p.plan)}/${enc(p.task)}`, p.from ? `from=${enc(taskOriginToken(p.from))}` : '')
+      // `give=1`: it opens on «Give to…» (a task whose owner works in another project)
+      return withQuery(
+        `/task/${enc(p.plan)}/${enc(p.task)}`,
+        [p.from ? `from=${enc(taskOriginToken(p.from))}` : '', p.give ? 'give=1' : ''].filter(Boolean).join('&'),
+      )
     case 'background':
       return '/background'
     case 'usage':
@@ -354,7 +358,8 @@ function placeRoute(s: RouteSnapshot): string {
     case 'vault':
       // an ask's door: the task whose proposed binding opens prefilled;
       // an agent's Secrets row «in the Vault ›»: that entry, open
-      return p.sign ? `/vault?sign=${enc(p.sign)}` : p.entry ? `/vault?entry=${enc(p.entry)}` : '/vault'
+      // «Add a secret» opened from a place starts on it: add=project:<folder> · add=agent:<id>
+      return p.sign ? `/vault?sign=${enc(p.sign)}` : p.entry ? `/vault?entry=${enc(p.entry)}` : p.add ? `/vault?add=${enc(p.add)}` : '/vault'
     case 'silo':
       // the record key ('agent:finance/a1') holds '/' and ':' — encoded, it is a
       // single segment under /r/, same criterion as a project folder.
@@ -467,7 +472,9 @@ function placeIntent(path: string): RouteIntent {
       // ':' ('folder:/home/u/proj/ship'), encoded as one segment
       if (segments.length !== 3 || !segments[1] || !segments[2]) return HOME
       const from = parseTaskOrigin(query?.get('from'))
-      return { page: { kind: 'task', plan: segments[1], task: segments[2], ...(from ? { from } : {}) } }
+      return {
+        page: { kind: 'task', plan: segments[1], task: segments[2], ...(from ? { from } : {}), ...(query?.get('give') === '1' ? { give: true as const } : {}) },
+      }
     }
     case 'background':
       // the global background-work view
@@ -505,7 +512,8 @@ function placeIntent(path: string): RouteIntent {
       if (segments.length !== 1) return HOME
       const sign = query?.get('sign') || undefined
       const entry = query?.get('entry') || undefined
-      return { page: sign ? { kind: 'vault', sign } : entry ? { kind: 'vault', entry } : { kind: 'vault' } }
+      const add = query?.get('add') || undefined
+      return { page: sign ? { kind: 'vault', sign } : entry ? { kind: 'vault', entry } : add ? { kind: 'vault', add } : { kind: 'vault' } }
     }
     case 'silo': {
       const id = segments[1]

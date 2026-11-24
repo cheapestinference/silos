@@ -34,11 +34,16 @@ export interface PeriodTrigger {
   period: Period
 }
 
+// publicOnly: an AGENT wrote this url — the resident fetches it through
+// net-guard.ts guardedFetch (every connection and every redirect re-checked
+// for a public address, DNS rebinding included). Stamped by the server on a
+// bearer's write, never read from a body; the owner's own urls carry none.
 export interface WatchCheckHttp {
   type: 'http'
   url: string
   method?: string
   headers?: Record<string, string>
+  publicOnly?: true
 }
 export interface WatchCheckCommand {
   type: 'command'

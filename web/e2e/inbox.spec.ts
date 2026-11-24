@@ -5,10 +5,10 @@
 // run and survives a reload (needs-you-acks.json). Serial: Seen changes the
 // server. Evidence screenshots in web/test-results/shots/needs-you/ when
 // SILOS_SHOTS=1.
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { test, expect, type Page } from '@playwright/test'
-import { startServer, cleanupTempDirs, E2E_PROPOSAL_ID, openNeedsYou, type E2EServer, shotsDir } from './helpers'
+import { startServer, cleanupTempDirs, E2E_PROPOSAL_ID, E2E_SKILL_CHANGE_ID, openNeedsYou, type E2EServer, shotsDir } from './helpers'
 
 const SHOTS = process.env.SILOS_SHOTS ? shotsDir('needs-you') : null
 if (SHOTS) mkdirSync(SHOTS, { recursive: true })
@@ -106,4 +106,43 @@ test('a proposed command: Review opens the editor, Create makes it and resolves 
   await expect(page.locator('main').getByTestId('pulse')).toBeVisible()
   await expect(page.locator('main').getByTestId('home-needs-you')).not.toContainText('Refresh screenshots')
   await expect((await openNeedsYou(page)).getByText('Refresh screenshots')).toHaveCount(0)
+})
+
+// A change an agent proposed to a skill its project has: the owner reads
+// what differs before the touch, and only Accept writes the project's skill.
+test("a proposed change to a project skill: the sheet draws the diff; its conversation's column accepts it — the skill is replaced, the old copy kept in the trash", async ({
+  page,
+}) => {
+  const agents = JSON.parse(readFileSync(join(srv.dataDir, 'agents.json'), 'utf8')) as { agents: Array<{ id: string; folder: string }> }
+  const skill = join(agents.agents.find((a) => a.id === 'ux')!.folder, '.claude', 'skills', 'handoff')
+  await page.goto(`${srv.url}/?token=${srv.token}`)
+  const inbox = await openNeedsYou(page)
+  const detail = inbox.getByTestId(`proposal-detail-${E2E_SKILL_CHANGE_ID}`)
+  await expect(detail).toBeVisible()
+  await expect(detail.getByTestId('proposal-file-change-SKILL.md')).toHaveText('changed')
+  await expect(detail.getByTestId('proposal-file-change-states.md')).toHaveText('new')
+  await expect(detail.getByTestId('proposal-file-change-old-template.md')).toHaveText('removed')
+  await detail.getByRole('button', { name: /SKILL\.md/ }).click()
+  await expect(detail.getByTestId('proposal-file-diff')).toBeVisible()
+  await shot(page, 'home-skill-change-proposal.png')
+  expect(readFileSync(join(skill, 'SKILL.md'), 'utf8')).toContain('Send the mockup.\n')
+  // the conversation it was proposed in decides it too, in its column —
+  // and no other conversation's column carries it
+  await page.goto(`${srv.url}/?token=${srv.token}`)
+  await page.locator('aside').first().getByText('Flaky test triage').first().click()
+  await expect(page.getByTestId('column-proposals')).toHaveCount(0)
+  await page.locator('aside').first().getByText('Greeting helper').first().click()
+  const row = page.getByTestId(`column-proposal-${E2E_SKILL_CHANGE_ID}`)
+  await expect(row).toBeVisible()
+  await row.getByRole('button', { name: 'Read it all' }).click()
+  await expect(row.getByTestId('proposal-file-change-SKILL.md')).toHaveText('changed')
+  await row.getByRole('button', { name: /SKILL\.md/ }).click()
+  await shot(page, 'column-skill-change-proposal.png')
+  await row.getByRole('button', { name: 'Accept' }).click()
+  await expect(row).toHaveCount(0)
+  await expect.poll(() => readFileSync(join(skill, 'SKILL.md'), 'utf8')).toContain('its states (empty, loading, error)')
+  expect(readdirSync(skill).sort()).toEqual(['SKILL.md', 'checklist.md', 'states.md'])
+  const kept = readdirSync(join(srv.dataDir, 'trash', 'skills'))
+  expect(kept).toHaveLength(1)
+  expect(existsSync(join(srv.dataDir, 'trash', 'skills', kept[0]!, 'old-template.md'))).toBe(true)
 })

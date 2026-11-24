@@ -71,6 +71,24 @@ describe('«N tasks sit untouched» counts distinct seats nobody is woken for', 
     expect(row).toMatchObject({ kind: 'tasksStalled', count: 2, agentIds: [], voice: '2 tasks sit untouched — nobody is moving them' })
     expect(row.keys).toEqual([`${PLAN}/tasks/nobody`, `${PLAN}/tasks/sams`])
   })
+  it('(R3) an owner from another project is said, with the way out — alone, or beside the others', () => {
+    const fact = (id: string, cause: string): TaskFlowFact => ({
+      key: `${PLAN}/tasks/${id}`,
+      planKey: PLAN,
+      ref: `p#${id}`,
+      title: id,
+      owner: 'teller',
+      state: 'pending',
+      ready: true,
+      flow: { stalled: true, stalledCause: cause, stalledBy: id, stalledAt: id, waitsStart: false, idle: false },
+    })
+    expect(tasksStalledRow([fact('a', 'owner-outside-project')], opts)!.voice).toBe(
+      '1 task sits untouched — its owner works in another project; give it to an agent of its own',
+    )
+    expect(tasksStalledRow([fact('a', 'owner-outside-project'), fact('b', 'unowned')], opts)!.voice).toBe(
+      '2 tasks sit untouched — nobody is moving them; 1 with an owner from another project',
+    )
+  })
   it('a bound seat is its wake, never the row; the tasks above it are not counted either', () => {
     expect(tasksStalledRow(factsOf([T('a', 'teller', 'blocked', ['b']), T('b', 'writer', 'blocked')]), opts)).toBeNull()
   })

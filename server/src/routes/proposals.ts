@@ -13,12 +13,14 @@ import {
   ALREADY_ERROR,
   CHANGED_ERROR,
   COMMAND_REVIEW_ERROR,
+  CROSSING_REVIEW_ERROR,
   KIND_ERROR,
   MISSION_REVIEW_ERROR,
   PENDING_MAX_ERROR,
   PROPOSAL_DISMISS_REASON_MAX,
   PROPOSAL_ID,
   PROPOSAL_INPUT_MAX_BYTES,
+  SKILL_FOLDER_ERROR,
   inputHashOf,
   isProposalKind,
   missionProposalInput,
@@ -26,8 +28,17 @@ import {
   runsACommand,
   type ProposalsStore,
 } from '../proposals.js'
-import { proposalView } from '../proposals-view.js'
-import { acceptProposedSkill, readProposedFile, readProposedSkill } from '../skill-accept.js'
+import { automationCrossing, proposalView } from '../proposals-view.js'
+import { publicUrlRefusal } from '../net-guard.js'
+import {
+  acceptProposedSkill,
+  acceptSkillChange,
+  ownSkillFolder,
+  readChangeFile,
+  readProposedFile,
+  readProposedSkill,
+  readSkillChange,
+} from '../skill-accept.js'
 import type { AutomationCreateApi } from './automations.js'
 
 export interface ProposalRoutesCtx {
@@ -41,7 +52,12 @@ export interface ProposalRoutesCtx {
   // the install's unattended provider — the brake's words follow it
   unattendedProvider?: () => string | null
   territoryOn?: (agentId: string) => boolean
+  // how an `http` watch's host resolves (net-guard.ts) — a test's seam
+  resolveHost?: (host: string) => Promise<string[]>
   dataDir?: string
+  // «which conversation is this session?» (task-threads.ts makeThreadIdOf) —
+  // absent: a proposal belongs to the session id it was stamped with
+  threadIdOf?: (sessionId: string) => string
   checkInbox: () => void
 }
 
@@ -72,13 +88,16 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
     const r = proposalReason(rawReason)
     if ('error' in r) return reply.code(400).send({ error: r.error })
     if (typeof input !== 'object' || input === null || Array.isArray(input))
-      return reply
-        .code(400)
-        .send({ error: 'input required: the body you would POST to /api/automations, { name } of a skill, or { text, never } of your mission' })
+      return reply.code(400).send({
+        error:
+          'input required: the body you would POST to /api/automations, { name } of a skill ({ name, folder } to change one a project has), or { text, never } of your mission',
+      })
     if (JSON.stringify(input).length > PROPOSAL_INPUT_MAX_BYTES)
       return reply.code(400).send({ error: `input too large (over ${PROPOSAL_INPUT_MAX_BYTES} bytes)` })
     let stored: Record<string, unknown>
     let contentHash: string | undefined
+    let baseHash: string | undefined
+    let crosses: string[] = []
     if (kind === 'automation') {
       // an agent proposes only for itself
       const bodyAgent = (input as { agentId?: unknown }).agentId
@@ -89,13 +108,32 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
       const prepared = ctx.automationCreate.prepare(undefined, input)
       if ('error' in prepared) return reply.code(prepared.code).send({ error: prepared.error })
       stored = input as Record<string, unknown>
+      // (R6) judged against the proposer's projects: accepted as a request
+      // (the owner may grant a bridge) but marked where it crosses — and
+      // a crossing proposal is decided on its card, never by one tap
+      crosses = automationCrossing(by, stored, registry)
+      const trig = prepared.input.trigger
+      if (trig.kind === 'watch' && trig.check.type === 'http' && (await publicUrlRefusal(trig.check.url, ctx.resolveHost)) !== null)
+        crosses.push('trigger.check.url')
     } else if (kind === 'skill') {
       const name = (input as { name?: unknown }).name
       if (!ctx.agentState) return reply.code(400).send({ error: 'skills cannot be proposed on this server' })
-      const tree = readProposedSkill(ctx.agentState.pathFor(by), name)
-      if (!tree.ok) return reply.code(tree.code).send({ error: tree.error })
-      stored = { name: name as string }
-      contentHash = tree.contentHash
+      const rawFolder = (input as { folder?: unknown }).folder
+      if (rawFolder !== undefined) {
+        // a change to a skill one of ITS OWN project folders already has
+        const folder = ownSkillFolder(registry.get(by), rawFolder)
+        if (folder === null) return reply.code(403).send({ error: SKILL_FOLDER_ERROR })
+        const change = readSkillChange(ctx.agentState.pathFor(by), name, folder)
+        if (!change.ok) return reply.code(change.code).send({ error: change.error })
+        stored = { name: name as string, folder }
+        contentHash = change.contentHash
+        baseHash = change.baseHash
+      } else {
+        const tree = readProposedSkill(ctx.agentState.pathFor(by), name)
+        if (!tree.ok) return reply.code(tree.code).send({ error: tree.error })
+        stored = { name: name as string }
+        contentHash = tree.contentHash
+      }
     } else {
       const m = missionProposalInput(input)
       if ('error' in m) return reply.code(400).send({ error: m.error })
@@ -108,23 +146,34 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
     // classified — an attended turn (chat, console) has no run to audit
     const turn = req.turn
     const run = turn && turn.unattended ? runOfTurn(turn) : undefined
+    // the conversation it is proposed in, from the same token
+    const session = turn?.sessionId
     const proposal = proposals.add({
       by,
       kind,
       reason: r.reason,
       input: stored,
       ...(run !== undefined ? { run } : {}),
+      ...(session !== undefined ? { session } : {}),
       ...(contentHash !== undefined ? { contentHash } : {}),
+      ...(baseHash !== undefined ? { baseHash } : {}),
+      ...(crosses.length > 0 ? { crosses } : {}),
     })
     nudge()
     return reply.code(201).send({ proposal })
   })
 
   // ---- read (owner) ------------------------------------------------------------
-  app.get('/api/proposals', async (req, reply) => {
+  // `conversation` (a session id): only what was proposed in that
+  // conversation — any session of its thread — for its column
+  app.get<{ Querystring: { conversation?: string } }>('/api/proposals', async (req, reply) => {
     const no = ownerOnly(req, 'read the proposals')
     if (no) return reply.code(403).send({ error: no })
-    return { proposals: proposals.list().map((p) => proposalView(p, viewDeps)) }
+    const conv = req.query.conversation
+    const thread = (id: string): string => (ctx.threadIdOf ? ctx.threadIdOf(id) : id)
+    const list =
+      typeof conv === 'string' && conv !== '' ? proposals.list().filter((p) => p.session !== undefined && thread(p.session) === thread(conv)) : proposals.list()
+    return { proposals: list.map((p) => proposalView(p, viewDeps)) }
   })
 
   // one file of a proposed skill (each file of the sheet is openable)
@@ -135,6 +184,12 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
     if (!p || p.kind !== 'skill' || !ctx.agentState) return reply.code(404).send({ error: 'proposal not found' })
     const rel = req.query.path
     if (typeof rel !== 'string' || rel === '') return reply.code(400).send({ error: 'path required' })
+    if (typeof p.input.folder === 'string') {
+      // a change: the new text and its diff against the project's copy
+      const f = readChangeFile(ctx.agentState.pathFor(p.by), String(p.input.name), p.input.folder, rel)
+      if (f === null) return reply.code(404).send({ error: 'no such file in the proposed skill' })
+      return { path: rel, ...f }
+    }
     const text = readProposedFile(ctx.agentState.pathFor(p.by), String(p.input.name), rel)
     if (text === null) return reply.code(404).send({ error: 'no such file in the proposed skill' })
     return { path: rel, text }
@@ -152,6 +207,7 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
     // are reviewed in their editor, never accepted in one touch (S5, S6)
     if (p.kind === 'mission') return reply.code(409).send({ error: MISSION_REVIEW_ERROR })
     if (p.kind === 'automation' && runsACommand(p.input)) return reply.code(409).send({ error: COMMAND_REVIEW_ERROR })
+    if (p.kind === 'automation' && (p.crosses?.length ?? 0) > 0) return reply.code(409).send({ error: CROSSING_REVIEW_ERROR })
     // S1-r4: what is created is what was stamped — and, when the sheet sends
     // the hash it painted, what the owner read
     const seen = (req.body as { inputHash?: unknown } | null)?.inputHash
@@ -172,6 +228,23 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
       return reply.code(201).send({ automation: made.automation, ...(made.generatedSecret ? { generatedSecret: made.generatedSecret } : {}), proposal })
     }
     if (!ctx.agentState || !ctx.dataDir) return reply.code(409).send({ error: 'skills cannot be accepted on this server' })
+    if (p.input.folder !== undefined) {
+      // the folder is still the proposer's own, today
+      const folder = ownSkillFolder(agent, p.input.folder)
+      if (folder === null) return reply.code(409).send({ error: `${String(p.input.folder)} is no longer a folder of ${agent.name}` })
+      const changed = acceptSkillChange({
+        agentStateDir: ctx.agentState.pathFor(p.by),
+        dataDir: ctx.dataDir,
+        name: p.input.name,
+        folder,
+        contentHash: p.contentHash,
+        baseHash: p.baseHash,
+      })
+      if (!changed.ok) return reply.code(changed.code).send({ error: changed.error })
+      proposals.decide(p.id, 'accepted', 'owner', changed.skill)
+      nudge()
+      return reply.code(200).send({ skill: changed.skill, folder, loadsAt: 'next conversation' })
+    }
     const res = acceptProposedSkill({
       agentStateDir: ctx.agentState.pathFor(p.by),
       dataDir: ctx.dataDir,

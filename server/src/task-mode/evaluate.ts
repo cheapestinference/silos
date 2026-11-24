@@ -11,7 +11,9 @@
 // writes a file; task-mode/engine.ts does, through the kernel's own verbs.
 //
 // The events, only for a task whose owner is BOUND (an unbound owner's task
-// is not even looked at — zero behaviour change):
+// is not even looked at — zero behaviour change) and of the task's project
+// (R3: an owner outside it — `ownerOutside` — is never moved; its task is
+// forgotten like an unbound owner's, and reads owner-outside-project):
 //   unblocked      every dependsOn is `done` (cancelled never resolves one),
 //                  seen as a TRANSITION: the last look had one not done, with
 //                  the same blockers. Key = the sorted blockers + the moment
@@ -119,6 +121,10 @@ export interface TaskSnap {
   current: string[]
   file: string | null
   folder: string | null
+  // (R3) its owner is an agent in play that does not work in this task's
+  // project (project-scope.ts ownerOutside): Silos never moves it for that
+  // agent — no wake, no packet line, no bearer verb. Absent: it does
+  ownerOutside?: boolean
   // the `done` count of every SDD execution hung from this task —
   // absent: nobody asked the executions kind
   executionsDone?: number[]
@@ -211,11 +217,19 @@ export function unseenNotes<N extends Pick<TaskNote, 'at' | 'text'>>(notes: read
 export { isSilosWait, SILOS_WAIT_PREFIX }
 const sortedKey = (ids: readonly string[]): string => [...new Set(ids)].sort().join(',')
 
+// Task mode moves this task for its owner: the owner is bound AND of the
+// task's project (R3 — an owner outside it is never woken on it, whatever
+// the event). The ONE reading every wake path asks.
+export function movesFor(t: Pick<TaskSnap, 'owner' | 'ownerOutside'>, bound: ReadonlySet<string>): boolean {
+  return bound.has(t.owner) && t.ownerOutside !== true
+}
+
 // A stall Task mode wakes its (bound) owner for: the task is its own seat
 // and the cause is one its owner can clear — task-flow.ts stallExit, the one
 // reading (it replaced ownerCanClear, which woke for a
 // cancelled blocker at any depth). `bound`: Task mode's bound agents.
-export function wakesForStall(t: Pick<TaskSnap, 'id' | 'owner' | 'stalledCause' | 'stalledAt'>, bound: ReadonlySet<string>): boolean {
+export function wakesForStall(t: Pick<TaskSnap, 'id' | 'owner' | 'stalledCause' | 'stalledAt' | 'ownerOutside'>, bound: ReadonlySet<string>): boolean {
+  if (t.ownerOutside === true) return false
   return (
     stallExit(
       { stalled: t.stalledCause !== null, stalledCause: t.stalledCause, stalledAt: t.stalledAt },
@@ -258,13 +272,13 @@ export const STALL_WORDS: Record<string, string> = {
 // the owner (its row in Needs you says it).
 export function stallWords(
   t: Pick<TaskSnap, 'stalledCause' | 'stalledBy'>,
-  other: { ref: string; owner: string } | undefined,
+  other: Pick<TaskSnap, 'ref' | 'owner' | 'ownerOutside'> | undefined,
   bound: ReadonlySet<string>,
   nameOf: (id: string) => string,
 ): string {
   const cause = t.stalledCause ?? ''
   if (cause === 'blocker-cycle' && other) {
-    const told = other.owner !== '' && bound.has(other.owner) ? nameOf(other.owner) : 'the owner'
+    const told = other.owner !== '' && movesFor(other, bound) ? nameOf(other.owner) : 'the owner'
     return `it and ${other.ref} wait on each other — ${told} was told too; remove YOUR dependency only if it is the wrong one`
   }
   return STALL_WORDS[cause] ?? cause
@@ -292,7 +306,7 @@ export function evaluateTaskWakes(input: {
   const seen = new Set<string>()
 
   for (const t of tasks) {
-    if (!bound.has(t.owner)) continue
+    if (!movesFor(t, bound)) continue
     seen.add(t.key)
     const plan = byPlan.get(t.planKey)!
     const deps = [...new Set(t.dependsOn)]
@@ -407,7 +421,8 @@ export function evaluateTaskWakes(input: {
     out.observations[t.key] = obs
   }
   // what Silos no longer sees is kept a while (a plan mid-write comes back),
-  // except a task whose owner is no longer bound: leaving task mode forgets
+  // except a task whose owner is no longer bound (or no longer of its
+  // project): leaving task mode forgets
   for (const [key, o] of Object.entries(prev)) {
     if (seen.has(key)) continue
     const stillThere = tasks.find((t) => t.key === key)

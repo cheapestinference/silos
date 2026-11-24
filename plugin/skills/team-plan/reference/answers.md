@@ -35,8 +35,9 @@ releases — its run's outcome is its record; a turn of yours (`onFailure:
   abandoned, or you were told to take it over, claim again with
   `"takeover":true` — Silos writes the hand-over note in the task.
 - **409 «done»**: it is finished; more work is a new task.
-- **403**: it is another agent's task (message its owner — Messages in your
-  briefing), or the session is another agent's (send the line above as it
+- **403**: it is another agent's task (message its owner when it is an
+  agent of your projects — Messages in your briefing; otherwise ask the
+  owner), or the session is another agent's (send the line above as it
   is).
 - **404 / 409 «send folder»**: the plan or task id is wrong, or several
   projects have that plan — add `"folder":"<the project's root>"`.

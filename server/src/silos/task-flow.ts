@@ -14,7 +14,7 @@
 //                 central rule: every open task has a live conversation, a
 //                 wake on the way, a human owner, a healthy blocker chain, a
 //                 wait with an owner, or a next check
-//   stalledCause  why, in one of nine words (STALLED_CAUSES)
+//   stalledCause  why, in one of ten words (STALLED_CAUSES)
 //   stalledBy     the FIRST stuck task down the blocker chain — the one to
 //                 fix («blocked by parked work: finance#t4»), not the one on top
 //                 (a dead link: the id it names; a cycle's member: the next
@@ -61,7 +61,7 @@ import { conversationIdsOf } from '../task-threads.js'
 import { passGeneration } from '../pass.js'
 import { ASK_REACH_MS } from '../limits.js'
 
-// one cause, one meaning — nine. Computed by the
+// one cause, one meaning — ten. Computed by the
 // kernel, never declared by a manifest: they may change within v0.
 export const STALLED_CAUSES = [
   'unowned', // nobody owns it (stalledBy === its id) — or a task down its chain nobody owns
@@ -73,6 +73,7 @@ export const STALLED_CAUSES = [
   'owner-cannot-run', // its owner (or its blocker's) is an agent that never wakes and can't be started (out of play, no folder)
   'review-without-reviewer', // in review, an agent's, with no waitingOn naming someone else (a next check is no reviewer — B1a)
   'in-progress-nothing-live', // in progress, no conversation live, its owner in task mode (a 'never' agent's is waitsStart)
+  'owner-outside-project', // its owner (or its blocker's) is an agent that does not work in the task's project — Silos never moves it for that agent (project-scope.ts ownerOutside)
 ] as const
 export type StalledCause = (typeof STALLED_CAUSES)[number]
 
@@ -172,6 +173,11 @@ export interface TaskEnv {
   // (AskFact). Absent, or a reader without the key: no ask — a wait on an
   // agent is the owner's relay, as before (H5)
   askOf?(key: string): AskFact | null
+  // (R3) the owner is an agent in play that is NOT of the task's location
+  // (project-scope.ts ownerOutside): the task is never its to move — no
+  // wake, no packet line — and reads `owner-outside-project`. Asked only
+  // with the record's location; absent: nobody is outside
+  ownerOutside?(owner: string, location: string): boolean
 }
 
 // a task's conversations live — the thread when the env knows it (taskLive
@@ -314,7 +320,9 @@ const OPEN_END = new Set(['done', 'cancelled'])
 // guarded by A1.8's row (the plan can't be read), never a blocker-missing
 // stall nor a wake. Absent: none (a dependency naming no readable task is
 // blocker-missing, as before).
-type FlowEnv = { now: number; isAgent?: (v: string) => boolean; taskEnv?: TaskEnv; key?: string; unreadableSiblings?: readonly string[] }
+// `location`: the record's silo location (voice.ts KindRecord.location) —
+// what an owner outside the task's project is judged against; siblings share it.
+type FlowEnv = { now: number; isAgent?: (v: string) => boolean; taskEnv?: TaskEnv; key?: string; location?: string; unreadableSiblings?: readonly string[] }
 
 // One evaluation of a task's flow per synchronous pass (pass.ts), shared by
 // every reader that asks with the same inputs — the inbox's flow, turn and
@@ -334,6 +342,7 @@ type FlowMemo = {
   isAgent: FlowEnv['isAgent']
   taskEnv: TaskEnv | undefined
   key: string | undefined
+  location: string | undefined
   unreadable: string
   flow: TaskFlow
 }
@@ -368,12 +377,14 @@ export function taskFlow(task: EvalRecord, siblings: readonly EvalRecord[], dict
       m.isAgent === env.isAgent &&
       m.taskEnv === env.taskEnv &&
       m.key === env.key &&
+      m.location === env.location &&
       m.unreadable === unreadable,
   )
   if (hit) return hit.flow
   const flow = freezeFlow(evaluateTaskFlow(task, siblings, dict, env))
   // a writer inside the evaluation (none should) ended the pass: not kept
-  if (passGeneration() === gen) kept.push({ gen, siblings, role: rk, now: env.now, isAgent: env.isAgent, taskEnv: env.taskEnv, key: env.key, unreadable, flow })
+  if (passGeneration() === gen)
+    kept.push({ gen, siblings, role: rk, now: env.now, isAgent: env.isAgent, taskEnv: env.taskEnv, key: env.key, location: env.location, unreadable, flow })
   flowMemo.set(task, kept)
   return flow
 }
@@ -461,11 +472,16 @@ function evaluateTaskFlow(task: EvalRecord, siblings: readonly EvalRecord[], dic
   const startable = (o: string): boolean => (env.taskEnv ? (env.taskEnv.startable?.(o) ?? true) : false)
   // bound: an agent Silos wakes on its tasks (Task mode) — the ONE reading
   const bound = (o: string): boolean => o !== '' && isAgent(o) && wakes(o) === 'task'
+  // (R3) an agent owner that does not work in the task's project: never its
+  // to move (project-scope.ts ownerOutside) — siblings share the location
+  const outside = (o: string): boolean => o !== '' && isAgent(o) && env.location !== undefined && env.taskEnv?.ownerOutside?.(o, env.location) === true
 
   // x's own reason, its dependencies aside: 'ok', 'deps' (look at them),
   // 'start' (its 'never' agent waits for the owner to open it — no stall), or
   // a cause. Written ONCE, in order:
-  //   1 closed → ok
+  //   1 closed → ok; an agent owner outside the task's project →
+  //     owner-outside-project (before anything live: a conversation of an
+  //     agent of another project is no guard Silos moves — R3)
   //   2 live → ok; in review and an agent's: a reviewer named (B1a —
   //     reviewerNamed) → ok, else review-without-reviewer; a wait naming
   //     someone, or a next check still AHEAD → ok
@@ -486,8 +502,9 @@ function evaluateTaskFlow(task: EvalRecord, siblings: readonly EvalRecord[], dic
   type Own = 'ok' | 'deps' | 'start' | StalledCause
   const ownOf = (x: EvalRecord): Own => {
     if (OPEN_END.has(String(x.state))) return 'ok'
-    if (live(x)) return 'ok'
     const o = owner(x)
+    if (outside(o)) return 'owner-outside-project'
+    if (live(x)) return 'ok'
     if (x.state === 'in_review' && o !== '' && isAgent(o))
       return reviewerNamed(o, role.waitingOn ? x[role.waitingOn] : undefined) ? 'ok' : 'review-without-reviewer'
     if (waitsOnSomeone(x) || checkAhead(x)) return 'ok'
@@ -607,6 +624,7 @@ function evaluateTaskFlow(task: EvalRecord, siblings: readonly EvalRecord[], dic
     deps(task).every((d) => byId.get(d)?.state === 'done') &&
     !live(task) &&
     wakes(o) === 'task' &&
+    !outside(o) &&
     env.taskEnv.wakeOnTheWay?.({ key: env.key ?? null, owner: o, id }) !== true
   // (B2.5) the wait on an agent that Silos carries: an agent's open task, its
   // wait linked to the armed fact, the asked agent's beat in reach
@@ -648,22 +666,26 @@ function evaluateTaskFlow(task: EvalRecord, siblings: readonly EvalRecord[], dic
 //   'wake'  the task is its own seat, its owner is bound (`bound`: Task mode
 //           wakes it on its tasks — taskEnv.wakes(owner) === 'task') and the
 //           cause is one its owner can clear (not owner-cannot-run, not
-//           unowned): Task mode wakes it; nothing changing, the escalation
+//           unowned, not owner-outside-project): Task mode wakes it;
+//           nothing changing, the escalation
 //   'row'   the task is its own seat and nobody is woken for it (nobody owns
-//           it, a person's, an agent not bound, owner-cannot-run): one of the
+//           it, a person's, an agent not bound, owner-cannot-run,
+//           owner-outside-project): one of the
 //           distinct seats tasksStalled counts
 //   'seat'  its seat is another task: that seat's exit is its way out (a
 //           wake, the row, or — a blocker waiting for its start — the «opens
 //           with you» line); this task gets no wake and is not counted
 // null: not stalled.
 export type StallExit = 'wake' | 'row' | 'seat'
+// the causes its owner cannot clear by being woken
+const NEVER_WAKES: ReadonlySet<string> = new Set<StalledCause>(['owner-cannot-run', 'unowned', 'owner-outside-project'])
 export function stallExit(
   flow: { stalled: boolean; stalledCause: string | null; stalledAt: string | null },
   t: { id: string; owner: string; bound: (owner: string) => boolean },
 ): StallExit | null {
   if (!flow.stalled || !flow.stalledCause) return null
   if (flow.stalledAt !== t.id) return 'seat'
-  if (t.owner !== '' && t.bound(t.owner) && flow.stalledCause !== 'owner-cannot-run' && flow.stalledCause !== 'unowned') return 'wake'
+  if (t.owner !== '' && t.bound(t.owner) && !NEVER_WAKES.has(flow.stalledCause)) return 'wake'
   return 'row'
 }
 

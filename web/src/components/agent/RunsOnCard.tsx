@@ -13,6 +13,8 @@ import { modelLabel, providerRunsOn } from '../../lib/runs-on'
 import { territoriesOf } from '../../lib/territory'
 import { useHarness } from '../../lib/harnesses'
 import { FenceScopeLines } from '../FenceScope'
+import { basename } from '../../lib/routes'
+import { worksWith } from '../../lib/project-reach'
 import { Section, SectionAction } from './Section'
 import { SettingsTab } from './SettingsTab'
 import type { AgentTerritory, AgentView } from '../../lib/types'
@@ -52,6 +54,10 @@ export function RunsOnCard({ agent, editing, onEditingChange }: { agent: AgentVi
     }
   }
   const also = territoriesOf(agent).filter((t) => t !== agent.folder)
+  const agents = useStore((s) => s.agents)
+  // who it knows, per folder — the one resolver (project-scope.ts), so the
+  // line says exactly what its roster says
+  const withWhom = worksWith(agent, agents)
   const toRoster = (): void => changePage({ kind: 'settings', tab: 'territory' })
   // the switch: this agent in or out of the fenced list — read fresh, so a
   // change made on the roster meanwhile is never undone by this one
@@ -120,6 +126,34 @@ export function RunsOnCard({ agent, editing, onEditingChange }: { agent: AgentVi
                       {t}
                     </span>
                   ))}
+                </dd>
+              </>
+            ) : null}
+            {withWhom.length > 0 ? (
+              <>
+                <dt className={term}>Works with</dt>
+                <dd className={`${value} flex flex-col gap-0.5`} data-testid="runs-on-works-with">
+                  {withWhom.every((w) => w.agents.length === 0) ? (
+                    <span className="text-ink-2">The only agent in its projects</span>
+                  ) : (
+                    withWhom.map((w) => (
+                      <span key={w.folder} className="min-w-0">
+                        {w.agents.length === 0 ? (
+                          <span className="text-ink-2">nobody else</span>
+                        ) : (
+                          w.agents.map((b, i) => (
+                            <span key={b.id}>
+                              {i > 0 ? <span className="text-ink-3">{i === w.agents.length - 1 ? ' and ' : ', '}</span> : null}
+                              <button type="button" onClick={() => changePage({ kind: 'agent', id: b.id })} className="hover:text-terracotta">
+                                {b.name}
+                              </button>
+                            </span>
+                          ))
+                        )}
+                        {withWhom.length > 1 ? <span className="text-ink-3"> in {basename(w.folder)}</span> : null}
+                      </span>
+                    ))
+                  )}
                 </dd>
               </>
             ) : null}

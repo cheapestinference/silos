@@ -1146,7 +1146,10 @@ function StartingSetSections() {
     <>
       {engines.map(([engine, classes]) => (
         <section key={engine} className="py-8" data-testid="starting-set">
-          <h2 className="font-display text-[19px] leading-tight text-ink">{`New projects — what ${classes[0]!.from} sends`}</h2>
+          {/* one origin: whose it is; several (this machine + the account, D6): what they start with */}
+          <h2 className="font-display text-[19px] leading-tight text-ink">
+            {new Set(classes.map((c) => c.from)).size > 1 ? 'New projects — what they start with' : `New projects — what ${classes[0]!.from} sends`}
+          </h2>
           <p className="mb-4 mt-1 max-w-prose text-[13px] leading-relaxed text-ink-2">
             What a project loads when its first agent arrives. Projects that exist keep what they have — each one switches it in its Tools and Skills.
           </p>
@@ -1160,7 +1163,7 @@ function StartingSetSections() {
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-baseline gap-x-2 text-[14px] leading-6 text-ink">
                       {/* the head says whose: the line names what */}
-                      {classWhat(c)}
+                      {new Set(classes.map((x) => x.from)).size > 1 ? classTitle(c) : classWhat(c)}
                       {differs ? (
                         <button
                           type="button"

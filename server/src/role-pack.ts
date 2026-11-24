@@ -397,6 +397,8 @@ export interface InstallDeps {
   agentExists: (id: string) => boolean
   siloState: (id: string) => { installed: boolean; version: string | null; producers: string[] } | null
   secretVisible: (name: string, agentId: string, folder: string) => boolean
+  /** why the folder can never be this agent's (project-folder.ts), or null */
+  folderRefusal?: (folder: string) => string | null
 }
 
 export type SiloPlan = { silo: string; action: 'bind' | 'submit' | 'missing'; version: string | null; wanted?: string }
@@ -420,6 +422,10 @@ export function consequences(pack: RolePack, target: InstallTarget, deps: Instal
   if (!ID.test(target.id)) problems.push('the agent id: lowercase letters, digits and dashes')
   else if (deps.agentExists(target.id)) problems.push(`an agent ${target.id} already exists — pick another id (one pack makes many agents)`)
   if (typeof target.folder !== 'string' || !target.folder.startsWith('/')) problems.push('the folder must be an absolute path')
+  else {
+    const refused = deps.folderRefusal?.(target.folder)
+    if (refused) problems.push(refused)
+  }
   const silos: SiloPlan[] = pack.produces.map((p) => {
     const s = deps.siloState(p.silo)
     if (s?.installed) return { silo: p.silo, action: 'bind', version: s.version, ...(p.version ? { wanted: p.version } : {}) }

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { isPackageInstall } from '../src/project-folder.js'
+import { SILOS_CHECKOUT } from '../src/territory.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AgentRegistry, mungePath, MASTER_ID } from '../src/agent-registry.js'
@@ -301,5 +303,130 @@ describe('folders (extra territories)', () => {
     // a primary folder always wins over someone's secondary territory
     reg.create({ id: 'own', name: 'Own', folder: '/home/u/builder/deep' })
     expect(reg.classify({ cwd: '/home/u/builder/deep/a', folder: '-x', skills: [] }).id).toBe('own')
+  })
+})
+
+// the project folder check (project-folder.ts): every folder a door writes
+// goes through it, on its REAL path. A machine of its own: a home with the
+// Projects folder, Silos' data dir and the engine's config dir in it.
+describe('the project folder check at create and update', () => {
+  let home: string, data: string, checked: AgentRegistry
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'pf-home-'))
+    data = join(home, '.silos')
+    for (const d of [data, join(home, '.claude'), join(home, 'Silos'), join(home, 'work', 'shop', 'src')]) mkdirSync(d, { recursive: true })
+    checked = new AgentRegistry(join(data, 'agents.json'), { folderCheck: { home, dataDir: data } })
+    checked.load()
+  })
+  const refusal = (fn: () => unknown): { status: number; message: string } => {
+    try {
+      fn()
+    } catch (err) {
+      return { status: (err as { status?: number }).status ?? 0, message: (err as Error).message }
+    }
+    throw new Error('not refused')
+  }
+  const birth = (id: string, folder: string, folders?: string[]) => checked.create({ id, name: id, folder, ...(folders ? { folders } : {}) })
+
+  it("refuses the home folder, /, Silos' data dir, the engine's config dir and the Projects folder — and what sits in or holds them", () => {
+    for (const f of [
+      home,
+      '/',
+      data,
+      join(data, 'agent-state', 'x'),
+      join(home, '.claude'),
+      join(home, '.claude', 'skills'),
+      join(home, 'Silos'),
+      join(home, '..'),
+    ]) {
+      expect(refusal(() => birth('builder', f)).status, f).toBe(400)
+    }
+    expect(checked.get('builder')).toBeNull()
+  })
+
+  it('refuses a folder holding another project or inside one; the very folder of one is joining it', () => {
+    const shop = join(home, 'work', 'shop')
+    birth('builder', shop)
+    expect(refusal(() => birth('finance', join(shop, 'src'))).status).toBe(409)
+    expect(refusal(() => birth('finance', join(home, 'work'))).message).toMatch(/holds the project at/)
+    expect(birth('finance', `${shop}/`).folder).toBe(shop)
+    // an archived agent's folder is out of play
+    checked.archive('builder')
+    checked.archive('finance')
+    expect(birth('ops', join(shop, 'src')).folder).toBe(join(shop, 'src'))
+  })
+
+  it('judges the real path: a symlink to a forbidden place is refused, one to a free folder is stored resolved', () => {
+    symlinkSync(join(home, '.claude'), join(home, 'work', 'looks-fine'))
+    expect(refusal(() => birth('builder', join(home, 'work', 'looks-fine'))).message).toMatch(/really/)
+    symlinkSync(join(home, 'work', 'shop'), join(home, 'alias'))
+    expect(birth('builder', join(home, 'alias')).folder).toBe(join(home, 'work', 'shop'))
+  })
+
+  it('a new folder under a symlinked Projects folder passes and is stored at its real place', () => {
+    const disk = mkdtempSync(join(tmpdir(), 'pf-disk-'))
+    rmSync(join(home, 'Silos'), { recursive: true })
+    symlinkSync(disk, join(home, 'Silos'))
+    expect(birth('builder', join(home, 'Silos', 'books')).folder).toBe(join(disk, 'books'))
+    // the Projects folder itself, by either name, stays refused
+    expect(refusal(() => birth('finance', disk)).status).toBe(400)
+  })
+
+  it('folders[] goes through the same check, at birth and on update; the folders it already has are not re-judged', () => {
+    const shop = join(home, 'work', 'shop')
+    birth('builder', shop)
+    expect(refusal(() => birth('finance', join(home, 'work', 'books'), [join(shop, 'src')])).status).toBe(409)
+    birth('finance', join(home, 'work', 'books'))
+    expect(refusal(() => checked.update('finance', { folders: [join(home, '.claude')] })).status).toBe(400)
+    expect(refusal(() => checked.update('finance', { folders: [join(shop, 'src')] })).status).toBe(409)
+    // its own folders never nest either
+    expect(refusal(() => checked.update('finance', { folders: [join(home, 'work', 'books', 'old')] })).status).toBe(409)
+    expect(checked.get('finance')?.folders).toBeUndefined()
+    expect(checked.update('finance', { folders: [shop] }).folders).toEqual([shop])
+    expect(refusal(() => checked.update('finance', { folder: home })).status).toBe(400)
+    expect(checked.get('finance')?.folder).toBe(join(home, 'work', 'books'))
+    // an unrelated patch of an agent with a folder written before the rule passes
+    writeFileSync(join(data, 'agents.json'), JSON.stringify({ agents: [...checked.list(true), { id: 'legacy', name: 'Legacy', folder: home, skills: [] }] }))
+    checked.load()
+    expect(checked.update('legacy', { name: 'Old', folder: home }).name).toBe('Old')
+  })
+
+  it("Silos' git checkout is a code folder like any other; only an installed package is Silos' own", () => {
+    expect(birth('builder', SILOS_CHECKOUT).folder).toBe(realpathSync(SILOS_CHECKOUT))
+    expect(isPackageInstall(SILOS_CHECKOUT)).toBe(false)
+    const pkg = join(home, 'lib', 'node_modules', 'silosplatform')
+    mkdirSync(pkg, { recursive: true })
+    expect(isPackageInstall(pkg)).toBe(true)
+    mkdirSync(join(pkg, '.git'))
+    expect(isPackageInstall(pkg)).toBe(false)
+  })
+
+  it('bringing an archived agent back judges its folders again', () => {
+    const shop = join(home, 'work', 'shop')
+    birth('builder', join(shop, 'src'))
+    checked.archive('builder')
+    birth('finance', shop)
+    expect(refusal(() => checked.unarchive('builder')).status).toBe(409)
+    expect(checked.get('builder')?.archived).toBe(true)
+  })
+
+  it('the audit names every in-play agent whose folder breaks the rule, archived ones apart, and changes nothing', () => {
+    const shop = join(home, 'work', 'shop')
+    const agents = [
+      { id: 'builder', name: 'Builder', folder: shop, skills: [] },
+      { id: 'finance', name: 'Finance', folder: join(shop, 'src'), skills: [] },
+      { id: 'desk', name: 'Desk', folder: home, skills: [] },
+      { id: 'gone', name: 'Gone', folder: data, skills: [], archived: true },
+      { id: 'fine', name: 'Fine', folder: join(home, 'work', 'books'), skills: [] },
+    ]
+    writeFileSync(join(data, 'agents.json'), JSON.stringify({ agents }))
+    checked.load()
+    const before = readFileSync(join(data, 'agents.json'), 'utf8')
+    const found = checked.auditFolders()
+    // fine's own folder is fine — but it sits inside desk's project (the home)
+    expect(found.map((o) => o.agentId).sort()).toEqual(['builder', 'desk', 'finance', 'fine'])
+    expect(found.find((o) => o.agentId === 'fine')?.reason).toMatch(/inside the project at/)
+    expect(found.find((o) => o.agentId === 'desk')?.reason).toMatch(/home folder/)
+    expect(readFileSync(join(data, 'agents.json'), 'utf8')).toBe(before)
   })
 })

@@ -144,6 +144,7 @@ export interface SiloRoutedRow {
   producer: string
   recordKind: string
   folder?: string
+  location?: string
   file: string | null
 }
 
@@ -174,6 +175,10 @@ export interface SiloSurfacesOptions {
   inPlay?: (v: string) => boolean
   proposals?: (siloId: string) => SiloNeedsYou[] // pending proposals (Task 10)
   producersOf?: (siloId: string) => string[] | null // the binding fixed at approval
+  // (R3) the agent is of a record's location (project-scope.ts ofLocation):
+  // a record's row is routed only to a producer of the location it lives in.
+  // Absent: every producer is
+  ofLocation?: (agentId: string, location: string) => boolean
   // entry indexes whose granted `audience: producer-agent` the operator turned
   // OFF (operator.json audienceOff — the grant is approving a manifest that
   // declares it; this is the per-entry veto, slotsOff's shape)
@@ -261,9 +266,17 @@ function startOfDay(now: number): number {
 
 // One rule, two readers (the board here, the record's actions in actions.ts):
 // the producer of a record is its writer when that agent is bound and in
-// play, else the first bound agent in play.
-export function recordProducer(bound: readonly string[], anchors: { agent?: unknown }, inPlay: (agentId: string) => boolean): string | undefined {
-  const live = bound.filter((a) => inPlay(a))
+// play, else the first bound agent in play — and either way an agent of the
+// record's location (R3, `ofLocation`: for `folder:<f>` an agent of that
+// project, for `agent:<id>` that agent). None → no producer: the row stays
+// with the owner.
+export function recordProducer(
+  bound: readonly string[],
+  anchors: { agent?: unknown },
+  inPlay: (agentId: string) => boolean,
+  ofLocation: (agentId: string) => boolean = () => true,
+): string | undefined {
+  const live = bound.filter((a) => inPlay(a) && ofLocation(a))
   const writer = anchors.agent
   return typeof writer === 'string' && live.includes(writer) ? writer : live[0]
 }
@@ -308,8 +321,14 @@ export class SiloSurfaces {
   // project, say) routes each record's work to its own writer. A record with
   // no writer among the bound (a project record, a writer since unbound)
   // falls to the first in play.
-  private producerOf(id: string, r: { anchors: Json }): string | undefined {
-    return recordProducer(this.opts.producersOf?.(id) ?? [], r.anchors, (a) => this.inPlay(a))
+  private producerOf(id: string, r: { anchors: Json; location?: string }): string | undefined {
+    const of = this.opts.ofLocation
+    return recordProducer(
+      this.opts.producersOf?.(id) ?? [],
+      r.anchors,
+      (a) => this.inPlay(a),
+      (a) => r.location === undefined || !of || of(a, r.location),
+    )
   }
 
   private base(id: string): KindRecord[] {
@@ -356,7 +375,7 @@ export class SiloSurfaces {
       const producer = this.producerAgent(s.id)
       const owner = (r: { anchors: Json }): { agentId?: string; folder?: string } => {
         // a row anchored to an archived agent is not said to be with it
-        const agentId = isStr(r.anchors.agent) && !this.archived(r.anchors.agent) ? r.anchors.agent : producer
+        const agentId = isStr(r.anchors.agent) && !this.archived(r.anchors.agent) ? r.anchors.agent : this.producerOf(s.id, r)
         return { ...(agentId ? { agentId } : {}), ...(isStr(r.anchors.folder) ? { folder: r.anchors.folder } : {}) }
       }
       const surfaces = isObj((s.manifest.spec as Json).surfaces) ? ((s.manifest.spec as Json).surfaces as Json) : {}
@@ -396,7 +415,7 @@ export class SiloSurfaces {
           // audience producer-agent (operator-granted, never blocking): the
           // rows go to the bound producer, counted here, never listed to the
           // owner. No producer bound → nobody can work them → owner keeps them.
-          const routed = n.audience === 'producer-agent' && n.urgency !== 'blocking' && producer !== undefined && !audienceOff.includes(i)
+          const routes = n.audience === 'producer-agent' && n.urgency !== 'blocking' && producer !== undefined && !audienceOff.includes(i)
           // what is with each producer, by agent: {count, oldest, escalated}
           const withAgent = new Map<string, { count: number; oldest: string; escalated: number }>()
           const tally = (agentId: string): { count: number; oldest: string; escalated: number } => {
@@ -414,6 +433,10 @@ export class SiloSurfaces {
               continue
             }
             if (!holds(n.when, info, r, v) || (isStr(n.clears) && holds(n.clears, info, r, v))) continue
+            // routed only to a producer of the record's location (R3): with
+            // none there, the row stays the owner's like an unbound one
+            const its = routes ? this.producerOf(s.id, r) : undefined
+            const routed = its !== undefined
             if (routed)
               routedOut.push({
                 silo: s.id,
@@ -421,15 +444,15 @@ export class SiloSurfaces {
                 entry: i,
                 key: r.key,
                 text: sayRow(info, r, v),
-                producer: this.producerOf(s.id, r)!,
+                producer: its,
                 recordKind: info.name,
                 ...(isStr(r.anchors.folder) ? { folder: r.anchors.folder } : {}),
+                ...(r.location !== undefined ? { location: r.location } : {}),
                 file: r.file,
               })
             // a routed row its producer and its chain did not clear in their
             // windows comes back to the owner — listed, with who was asked
             const rose = routed ? (this.opts.escalatedRow?.(s.id, i, r.key) ?? null) : null
-            const its = routed ? this.producerOf(s.id, r)! : undefined
             if (rose) tally(its!).escalated += 1
             if (routed && !rose) {
               // the owner's acks are gestures on THEIR inbox — a routed row is

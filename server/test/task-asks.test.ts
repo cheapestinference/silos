@@ -95,6 +95,7 @@ interface WorldOpts {
   store?: TaskModeStore
   seenBy?: TaskAsksDeps['seenBy']
   plansOff?: boolean
+  ofProject?: TaskAsksDeps['ofProject']
 }
 function world(o: WorldOpts = {}) {
   let now = T0
@@ -146,6 +147,7 @@ function world(o: WorldOpts = {}) {
     inPlay: (id) => IN_PLAY.has(id),
     nameOf: (id) => NAMES[id] ?? id,
     bound: (id) => BOUND.has(id),
+    ...(o.ofProject ? { ofProject: o.ofProject } : {}),
     seenBy: o.seenBy ?? ((to, at) => (to === 'builder' || to === 'writer' ? at + HOUR : to === 'slowpoke' ? at + 3 * DAY : null)),
     ownWrite: (key, shape) => {
       const e = { key, shape: JSON.parse(JSON.stringify(shape)) as Json, undone: false }
@@ -661,5 +663,13 @@ describe("B2.10 / H10 — the escalation's agent hop arms the same fact", () => 
     const before = w2.own.length
     expect(w2.asks.writeHop(KEY('t1'), 'builder', 'unstick launch#t1')).toBe(true)
     expect(w2.own.length).toBe(before)
+  })
+  it("(R3) a hop to an agent outside the task's project writes and arms nothing — the ask's bound on `to`", () => {
+    const w = world({ tasks: [T('t1', 'writer', 'in_progress')], ofProject: (id) => id !== 'builder' })
+    expect(w.asks.writeHop(KEY('t1'), 'builder', 'unstick launch#t1')).toBe(false)
+    w.asks.armHop(KEY('t1'), 'builder', 'unstick launch#t1')
+    expect(w.task('t1')).toMatchObject({ status: 'in_progress' })
+    expect(w.task('t1').waitingOn).toBeUndefined()
+    expect(w.store.armedOf(KEY('t1'))).toBeNull()
   })
 })

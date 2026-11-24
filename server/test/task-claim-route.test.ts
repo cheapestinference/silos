@@ -646,14 +646,17 @@ describe('the session → tasks routes (session-tasks.ts) and the agent allow-li
     // an id the index does not hold: {} (the hook stays quiet); the header route 404s
     expect((await w.get(`/api/tasks/by-session?session=${randomUUID()}`)).json()).toEqual({})
   })
-  it("a bearer of A sees only its own conversations; another's → 403 (header) or nothing (by-session)", async () => {
+  it("a bearer of A sees only its own conversations; another's answers as none: 404 (header) or nothing (by-session)", async () => {
     const w = await world([t('t1'), t('t2', { owner: 'ops' })])
     const a = await w.session('writer', 1_000)
     const b = await w.session('ops', 1_000)
     await w.claim({ key: w.key('t1'), session: a }, 'writer')
     await w.claim({ key: w.key('t2'), session: b }, 'ops')
     expect((await w.get(`/api/sessions/${encodeURIComponent(w.mf)}/${a}/tasks`, 'writer')).statusCode).toBe(200)
-    expect((await w.get(`/api/sessions/${encodeURIComponent(w.mf)}/${b}/tasks`, 'writer')).statusCode).toBe(403)
+    const other = await w.get(`/api/sessions/${encodeURIComponent(w.mf)}/${b}/tasks`, 'writer')
+    const none = await w.get(`/api/sessions/${encodeURIComponent(w.mf)}/no-such-id/tasks`, 'writer')
+    expect(other.statusCode).toBe(404)
+    expect(other.json()).toEqual(none.json())
     expect(Object.keys((await w.get('/api/tasks/by-session', 'writer')).json())).toEqual([a])
     expect((await w.get(`/api/tasks/by-session?session=${b}`, 'writer')).json()).toEqual({})
     expect(Object.keys((await w.get('/api/tasks/by-session')).json()).sort()).toEqual([a, b].sort())

@@ -30,6 +30,13 @@ export type ConsoleCommandOpts = {
   carried?: unknown[]
   loginDirs?: string[]
   cwd?: string
+  /** Writes the console's settings to an owner-only file and returns its
+   *  path (TerminalService: <appendDir>/<key>.settings.json, 0600): the
+   *  `--settings` flag then names the file — the fence never rides argv,
+   *  where every process could read it in /proc/<pid>/cmdline (D8).
+   *  undefined back (the write failed) keeps the JSON on argv: the fence
+   *  held beats the fence hidden. Absent: the JSON on argv (tests, previews). */
+  settingsFile?: (json: string) => string | undefined
 }
 
 // The SessionStart(clear) hook the console's claude runs: reads the hook
@@ -94,6 +101,7 @@ export function defaultConsoleCommand({
   carried,
   loginDirs,
   cwd,
+  settingsFile,
 }: ConsoleCommandOpts): string[] {
   // ONE --settings carries every per-process override (theme, hooks, the
   // territory fence's permissions — flag-tier deny rules hold even under
@@ -158,7 +166,7 @@ export function defaultConsoleCommand({
     // `--settings` is a per-process override — the owner's
     // ~/.claude/settings.json is never touched. Only sent when it differs
     // from the CLI's usual dark, so the dark command stays byte-identical.
-    ...(Object.keys(settings).length > 0 ? ['--settings', JSON.stringify(settings)] : []),
+    ...(Object.keys(settings).length > 0 ? ['--settings', settingsArg(settings, settingsFile)] : []),
     ...(resumeId ? ['--resume', resumeId] : []),
     // a NEW conversation is born with its id: the console's key IS the
     // session id from the first byte, so the JSONL that shows up later
@@ -172,4 +180,10 @@ export function defaultConsoleCommand({
     // is never read as a flag's value.
     ...(prompt && prompt.trim() !== '' ? [prompt] : []),
   ]
+}
+
+/** `--settings`'s value: the file `settingsFile` wrote, else the JSON itself. */
+function settingsArg(settings: Record<string, unknown>, settingsFile?: (json: string) => string | undefined): string {
+  const json = JSON.stringify(settings)
+  return settingsFile?.(json) ?? json
 }

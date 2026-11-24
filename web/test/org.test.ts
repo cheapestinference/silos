@@ -4,6 +4,7 @@
 // «No team» never hidden). Data only — no layout.
 import { describe, expect, it } from 'vitest'
 import {
+  apartEdges,
   flatten,
   floorPanel,
   lensGroups,
@@ -148,6 +149,24 @@ describe('one org per project', () => {
       { folder: '/p/other', ids: ['finance2'] },
       { folder: '/p/silos', ids: ['silos'] },
     ])
+  })
+  it('folders that nest are one org, headed by the outer folder; a sibling prefix is another (the one resolver)', () => {
+    const nested = [ag('builder', 'Builder', '/p/acme'), ag('web', 'Web', '/p/acme/web'), ag('sib', 'Sib', '/p/acme-web')]
+    expect(orgProjects(nested)).toEqual([
+      { folder: '/p/acme', ids: ['builder', 'web'] },
+      { folder: '/p/acme-web', ids: ['sib'] },
+    ])
+    expect(orgTileFacts(nested, [{ from: 'web', to: 'builder' }] as SiloRelationEdge[], '/p/acme').teams).toEqual([{ root: 'builder', members: ['web'] }])
+  })
+  it('a line kept apart is listed in the org of the agent that reports, and walks no chain', () => {
+    const two = [...agents, ag('maker', 'Maker', '/p/beta')]
+    const edges = [
+      { from: 'maker', to: 'builder', note: 'apart' },
+      { from: 'writer', to: 'builder' },
+    ] as SiloRelationEdge[]
+    expect(apartEdges(edges, two, '/p/beta').map((e) => e.from)).toEqual(['maker'])
+    expect(apartEdges(edges, two, '/p/ci')).toEqual([])
+    expect(orgTileFacts(two, edges, '/p/beta')).toEqual({ folder: '/p/beta', teams: [], loners: ['maker'] })
   })
   it("a project's facts count only its own agents — two Finances, two orgs", () => {
     const edges = [{ from: 'writer', to: 'builder' }] as SiloRelationEdge[]

@@ -3,7 +3,18 @@
 // phrase a delete shows, the pulse line, ages, search and the rotation sort.
 import { describe, expect, it } from 'vitest'
 import type { VaultEntry } from '../src/lib/types'
-import { vaultGroups, audienceOf, lossPhrase, countsPhrase, vaultAge, filterGroups, sortGroups, joinNames, type VaultPageAgent } from '../src/lib/vault-page'
+import {
+  vaultGroups,
+  audienceOf,
+  lossPhrase,
+  countsPhrase,
+  vaultAge,
+  filterGroups,
+  sortGroups,
+  joinNames,
+  installProjects,
+  type VaultPageAgent,
+} from '../src/lib/vault-page'
 
 const AGENTS: VaultPageAgent[] = [
   { id: 'finance', name: 'Finance', folder: '/home/u/acme' },
@@ -153,5 +164,27 @@ describe('search and sort', () => {
   it('oldest-first floats what most needs rotating', () => {
     expect(sortGroups(groups, 'oldest').map((g) => g.name)).toEqual(['RAILWAY_TOKEN', 'STRIPE_KEY', 'DB_URL'])
     expect(sortGroups(groups, 'name')).toBe(groups)
+  })
+})
+
+describe('installProjects — «everyone» spelled as the projects it reaches (D7)', () => {
+  it('names each project once: nested folders are one, a sibling prefix is another, the archived and the desk are none', () => {
+    expect(
+      installProjects([
+        { id: 'builder', folder: '/home/user/acme' },
+        { id: 'web', folder: '/home/user/acme/web' },
+        { id: 'scribe', folder: '/home/user/acme', folders: ['/home/user/beta'] },
+        { id: 'sib', folder: '/home/user/acme-web' },
+        { id: 'old', folder: '/home/user/gone', archived: true },
+        { id: 'master', folder: '/home/user/desk' },
+      ]),
+    ).toEqual(['acme', 'acme-web', 'beta'])
+  })
+  it('a global entry and its delete name them when there are several; one project says every agent', () => {
+    const [g] = vaultGroups([e('SENTRY_DSN', { type: 'global' })], AGENTS, ['acme', 'beta'])
+    expect(g!.entries[0]!.audience).toBe('Every agent · acme + beta')
+    expect(lossPhrase(g!.entries[0]!)).toBe('every agent of acme and beta loses it')
+    const [one] = vaultGroups([e('SENTRY_DSN', { type: 'global' })], AGENTS, ['acme'])
+    expect(one!.entries[0]!.audience).toBe('Every agent')
   })
 })

@@ -25,11 +25,12 @@ beforeEach(() => {
   useStore.setState({ agents: [], modal: null, error: null })
 })
 
+// the Engine field is drawn only when this machine can run more than one
 describe('harness on create', () => {
-  it('offers Claude Code (checked) and OpenCode', () => {
+  it('two usable engines: offers Claude Code (checked) and OpenCode', () => {
     useStore.setState({ modal: 'create' })
     render(<AgentModal />)
-    expect(screen.getByLabelText('Claude Code')).toBeChecked()
+    expect(screen.getByRole('radio', { name: /Claude Code/ })).toBeChecked()
     expect(screen.getByLabelText('OpenCode')).not.toBeChecked()
   })
 
@@ -37,7 +38,6 @@ describe('harness on create', () => {
     useStore.setState({ modal: 'create' })
     render(<AgentModal />)
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Pepe' } })
-    fireEvent.change(screen.getByLabelText('Folder'), { target: { value: '/tmp/x' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await waitFor(() => expect(mockedApi.agents.create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Pepe', framework: 'claude-code' })))
   })
@@ -46,10 +46,22 @@ describe('harness on create', () => {
     useStore.setState({ modal: 'create' })
     render(<AgentModal />)
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Pepe' } })
-    fireEvent.change(screen.getByLabelText('Folder'), { target: { value: '/tmp/x' } })
     fireEvent.click(screen.getByLabelText('OpenCode'))
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await waitFor(() => expect(mockedApi.agents.create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Pepe', framework: 'opencode' })))
+  })
+
+  it('one usable engine: no Engine field — the agent is born on the one this machine can run', async () => {
+    mockedApi.harness.mockResolvedValue({
+      compat: [{ harness: 'claude-code', state: 'missing', installed: null, message: 'Claude Code is not installed' }],
+    } as never)
+    useStore.setState({ modal: 'create' })
+    render(<AgentModal />)
+    await waitFor(() => expect(screen.queryByLabelText('OpenCode')).toBeNull())
+    expect(screen.queryByRole('radio', { name: /Claude Code/ })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Pepe' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() => expect(mockedApi.agents.create).toHaveBeenCalledWith(expect.objectContaining({ framework: 'opencode' })))
   })
 })
 

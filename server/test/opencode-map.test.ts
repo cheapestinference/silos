@@ -275,4 +275,39 @@ describe('opencode row → Silos mapping', () => {
     ;({ s, msgs, parts } = read())
     expect(contextOf(s, msgs, parts, null).cost!.planPriced).toBe(true)
   })
+
+  it("a call a deny rule refused is recorded as its time and path — a person's Deny and other errors are not; no error text kept", () => {
+    fake.insertMessage({ id: 'msg_2', session_id: SESSION.id, time_created: 1776984179457, data: assistant({ finish: 'tool-calls' }) })
+    const rule =
+      'The user has specified a rule which prevents you from using this specific tool call. Here are some of the relevant rules [{"permission":"read","pattern":"/home/user/beta/*","action":"deny"}]'
+    part('msg_2', {
+      type: 'tool',
+      tool: 'read',
+      callID: 'c1',
+      state: { status: 'error', input: { filePath: '/home/user/beta/a.ts' }, error: rule, time: { start: 1776984180000 } },
+    })
+    part('msg_2', {
+      type: 'tool',
+      tool: 'bash',
+      callID: 'c2',
+      state: { status: 'error', input: { command: 'cat /home/user/beta/.env && echo API_KEY=sk_live_9' }, error: rule },
+    })
+    part('msg_2', {
+      type: 'tool',
+      tool: 'read',
+      callID: 'c3',
+      state: { status: 'error', input: { filePath: '/home/user/acme/b.ts' }, error: 'The user rejected permission to use this specific tool call.' },
+    })
+    part('msg_2', {
+      type: 'tool',
+      tool: 'read',
+      callID: 'c4',
+      state: { status: 'error', input: { filePath: '/home/user/acme/c.ts' }, error: 'Error: permission denied, open' },
+    })
+    const { s, msgs, parts } = read()
+    const refused = contextOf(s, msgs, parts, null).refused
+    expect(refused?.map((r) => r.path)).toEqual(['/home/user/beta/a.ts', '/home/user/beta/.env'])
+    expect(refused?.[0]?.at).toBe(new Date(1776984180000).toISOString())
+    expect(JSON.stringify(refused)).not.toMatch(/API_KEY|sk_live|rule/)
+  })
 })

@@ -38,6 +38,7 @@ import {
   type AccountUsage,
   type LimitedAutomation,
   type TaskFlowFact,
+  type UnreadWhy,
 } from './inbox.js'
 
 // how much run history a failure streak needs (newest first): enough to see
@@ -49,6 +50,9 @@ export interface KernelInboxDeps {
   automations?: AutomationsStore
   agentState?: AgentStateStore
   messages?: MessageStore
+  // is a message from `from` served to `recipient` (project-scope.ts
+  // servable)? A held one is listed at once, with its why. Absent: all are
+  servable?: (recipient: string, from: string) => boolean
   // why a stored `own` operates as told
   // right now — its territory off — or null (control.ts degradedWhy)
   degradedWhy?: (agent: Agent) => 'territory' | 'mission' | null
@@ -300,11 +304,14 @@ function unreadMessageRows(d: KernelInboxDeps, agent: Agent): InboxRow[] {
   if (fresh.length === 0) return []
   const looks = d.heartbeatLooks?.(agent) === true
   const runs = looks ? [...(d.heartbeatRuns?.(agent.id) ?? [])] : []
-  const bySender = new Map<string, { messages: Array<{ id: string; at: number; readOutside?: string[] }>; why?: ReturnType<typeof unreadWhyOf> }>()
+  const bySender = new Map<string, { messages: Array<{ id: string; at: number; readOutside?: string[] }>; why?: UnreadWhy }>()
   for (const m of fresh) {
     const at = Date.parse(m.at) || 0
-    let why: ReturnType<typeof unreadWhyOf> | undefined
-    if (looks) {
+    let why: UnreadWhy | undefined
+    // held (project-scope.ts servable): it will never be served while they
+    // share no project — said now, with its why
+    if (d.servable && !d.servable(agent.id, m.from)) why = 'noProject'
+    else if (looks) {
       // the first heartbeat after the message that has ENDED (not running)
       const next = runs
         .filter((r) => r.status !== 'running' && (Date.parse(r.startedAt ?? r.at) || 0) > at)
@@ -312,10 +319,10 @@ function unreadMessageRows(d: KernelInboxDeps, agent: Agent): InboxRow[] {
       if (!next) continue // its next chance has not come yet
       why = unreadWhyOf(next as Run & { heartbeat?: { skipped?: string } })
     } else if (d.now - at < MESSAGE_UNREAD_ROW) continue
-    const g = bySender.get(m.from) ?? { messages: [] }
+    const g: { messages: Array<{ id: string; at: number; readOutside?: string[] }>; why?: UnreadWhy } = bySender.get(m.from) ?? { messages: [] }
     g.messages.push({ id: m.id, at, ...(m.readOutside ? { readOutside: m.readOutside } : {}) })
-    // the why of the newest message's missed chance
-    if (why) g.why = why
+    // the why of the newest message's missed chance (held stays held)
+    if (why && g.why !== 'noProject') g.why = why
     bySender.set(m.from, g)
   }
   const out: InboxRow[] = []

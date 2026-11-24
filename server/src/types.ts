@@ -352,6 +352,12 @@ export interface SessionContext {
   // secret's reach. The 'commands' sibling (programs launched) was removed:
   // the matrix maps visibility, not activity.
   envRefs?: { name: string; count: number }[]
+  // tool calls a permission rule refused (territory.ts FENCE_REFUSAL_WHOLE_RE
+  // on an is_error result; OpenCode's pinned deny shape): when, and the path
+  // the call's own input named (refusedPathOf — null when none). Never the
+  // refusal text, the command or any output. The newest REFUSED_CAP; absent
+  // when none. Settings › Territory counts them per agent and project.
+  refused?: { at: string; path: string | null }[]
   // its start notice: what the engine told the model about its servers at
   // the conversation's start (start-health.ts). A PART of their health —
   // it names some failures and the sign-ins, never the whole status.

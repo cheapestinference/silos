@@ -16,6 +16,7 @@ import type { ScopeId } from '../components/knows/ScopePill'
 import { effectiveVaultFor } from './vault-view'
 import { basename } from './routes'
 import { DAY_MS } from './rel-time'
+import { foldersOf, inProjects, sameProject, type Member } from '../../../server/src/project-scope'
 
 export interface VaultPageAgent {
   id: string
@@ -68,15 +69,30 @@ function nominalAudience(entry: VaultEntry, agents: VaultPageAgent[]): VaultPage
   return agents.filter((a) => ids.has(a.id))
 }
 
-export function audienceOf(entry: VaultEntry, agents: VaultPageAgent[]): string {
-  if (entry.scope.type === 'global') return 'Every agent'
+/** The install's projects, by name — each folder an agent in play works in,
+ *  folders that nest counted once as the outermost (the one resolver,
+ *  project-scope.ts). What «every agent» reaches, spelled out (D7). */
+export function installProjects(agents: readonly Member[]): string[] {
+  const all = [...new Set(agents.filter(inProjects).flatMap((a) => foldersOf(a)))]
+  const outer = all.filter((f) => !all.some((g) => g !== f && sameProject(f, g) && f.startsWith(`${g}/`)))
+  return [...new Set(outer.map((f) => basename(f)))].sort((a, b) => a.localeCompare(b))
+}
+
+/** «acme and beta», «acme, beta and gamma» */
+export function andList(xs: readonly string[]): string {
+  return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+export function audienceOf(entry: VaultEntry, agents: VaultPageAgent[], projects: readonly string[] = []): string {
+  // «everyone» spelled as the projects it reaches, once the install has more than one
+  if (entry.scope.type === 'global') return projects.length > 1 ? `Every agent · ${projects.join(' + ')}` : 'Every agent'
   if (entry.scope.type === 'folder') return `Project · ${basename(entry.scope.folder)}`
   return `${entry.scope.agentIds.length === 1 ? 'Agent' : 'Agents'} · ${joinNames(entry.scope.agentIds.map((id) => nameOf(agents, id)))}`
 }
 
 /** who the visibility names, inside a sentence: 'Finance', 'Finance + Builder', 'acme' */
-function audienceWords(entry: VaultEntry, agents: VaultPageAgent[]): string {
-  if (entry.scope.type === 'global') return 'every agent'
+function audienceWords(entry: VaultEntry, agents: VaultPageAgent[], projects: readonly string[] = []): string {
+  if (entry.scope.type === 'global') return projects.length > 1 ? `every agent of ${andList(projects)}` : 'every agent'
   if (entry.scope.type === 'folder') return basename(entry.scope.folder)
   return joinNames(entry.scope.agentIds.map((id) => nameOf(agents, id)))
 }
@@ -90,7 +106,7 @@ export function scopeIdOf(entry: VaultEntry): ScopeId {
  * Groups come out sorted by name; a group with >1 entries is a collision
  * (same env var from several visibilities — the page must say who wins).
  */
-export function vaultGroups(entries: VaultEntry[], agents: VaultPageAgent[]): VaultGroup[] {
+export function vaultGroups(entries: VaultEntry[], agents: VaultPageAgent[], projects: readonly string[] = []): VaultGroup[] {
   // the winner per (agent, name) — the server's resolution, reused verbatim.
   const winners = new Map<string, string>() // `${agentId}\u0000${name}` -> entry id
   for (const a of agents) {
@@ -127,7 +143,14 @@ export function vaultGroups(entries: VaultEntry[], agents: VaultPageAgent[]): Va
         if (winners.get(`${a.id}\u0000${name}`) === entry.id) reaches.push(a.name)
         else shadowedFor.push(a.name)
       }
-      return { entry, scope: scopeIdOf(entry), audience: audienceOf(entry, agents), audienceWords: audienceWords(entry, agents), reaches, shadowedFor }
+      return {
+        entry,
+        scope: scopeIdOf(entry),
+        audience: audienceOf(entry, agents, projects),
+        audienceWords: audienceWords(entry, agents, projects),
+        reaches,
+        shadowedFor,
+      }
     })
     groups.push({ name, entries: annotated })
   }
@@ -141,8 +164,8 @@ export function lossPhrase(v: AnnotatedVaultEntry): string {
   if (e.scope.type === 'agents') return `${v.audienceWords} lose${e.scope.agentIds.length === 1 ? 's' : ''} it`
   if (e.scope.type === 'folder') return `everything in ${v.audienceWords} loses it`
   // global: honest about the agents that keep their own more specific copy.
-  if (v.shadowedFor.length > 0) return `every agent but ${joinNames(v.shadowedFor)} loses it`
-  return 'every agent loses it'
+  if (v.shadowedFor.length > 0) return `${v.audienceWords} but ${joinNames(v.shadowedFor)} loses it`
+  return `${v.audienceWords} loses it`
 }
 
 /** the page's pulse line — composed only of real counts, zero parts dropped. */

@@ -137,6 +137,10 @@ describe('the four ways to start something', () => {
     render(<AgentModal />)
     const dialog = screen.getByRole('dialog', { name: 'new agent' })
     await waitFor(() => expect(within(dialog).getByDisplayValue('Research lab')).toBeInTheDocument())
-    expect(within(dialog).getByDisplayValue('/home/u/research-lab')).toBeInTheDocument()
+    // the folder New project just made is no path to type: it is what Create sends
+    mocked.agents.create.mockResolvedValue({ agent: { id: 'research-lab', name: 'Research lab' } } as never)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+    await waitFor(() => expect(mocked.agents.create).toHaveBeenCalled())
+    expect(mocked.agents.create.mock.calls[0]![0]).toMatchObject({ name: 'Research lab', folder: '/home/u/research-lab' })
   })
 })

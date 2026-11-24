@@ -1,10 +1,12 @@
 // Welcome.tsx — the first run (moment 3): a fresh install has no agent of
 // its own and no sessions, and instead of an empty pane it walks the
-// newcomer through short steps — who (its first agent: a loose
-// conversation is not offered, the «+» menu keeps it), the engine, what it
-// runs on, what a new project starts with («At start», only for an engine
-// that declares classes: four steps otherwise), which silos — each saying in
-// a line what the thing is. Every step starts on its recommended value and
+// newcomer through short steps — its project (a new one by name, the
+// folder it gets said under it), who (its first agent: a loose
+// conversation is not offered, the «+» menu keeps it), the engine (only
+// when this machine can run more than one), what it runs on, what a new
+// project starts with («At start», only for an engine that declares
+// classes), which silos — each saying in a line what the thing is. The
+// project's name follows the agent's until typed. Every step starts on its recommended value and
 // Create is live from the first one, so «a name + Create» is still the
 // whole first run when nothing else matters (defaults are sent as absence).
 // The rail on top names each step with what is picked in it: what Create
@@ -19,32 +21,23 @@ import { Check } from 'lucide-react'
 import { Logo } from './Logo'
 import { useStore } from '../store'
 import { api } from '../lib/api'
-import { missionProblem, splitMission } from '../lib/mission'
 import { startFirstMeeting } from '../lib/first-meeting'
 import { defaultHarnessId, descriptorOf, useHarnessDescriptors } from '../lib/harnesses'
-import {
-  agentPayloadExtras,
-  worksPayload,
-  worksProblem,
-  engineRows,
-  siloOps,
-  siloRows,
-  tourSteps,
-  withEngine,
-  type SiloRow,
-  type TourChoice,
-} from '../lib/first-run'
-import { keepsOut, type TourStep } from '../lib/new-agent'
+import { agentPayloadExtras, engineOf, engineRows, siloOps, siloRows, tourSteps, withEngine, type SiloRow, type TourChoice } from '../lib/first-run'
+import { keepsOut, PROJECT_NEW, TOUR_STEPS, type TourStep } from '../lib/new-agent'
 import { classOn, startingSetPatch, type ChosenClass } from '../lib/starting-set'
 import { providerLabel } from '../lib/providers'
 import type { EngineCompat, ProviderView, StartingFacts } from '../lib/types'
-import { slugify } from './AgentModal'
-import { WhoStep, type WhoDraft } from './welcome/WhoStep'
+import { birthPayload, birthProblems, birthReady, emptyBirth, knownProjects, projectName, type Birth } from '../lib/birth'
+import { fieldForError } from './AgentModal'
+import { ProjectStep } from './welcome/ProjectStep'
+import { WhoStep } from './welcome/WhoStep'
 import { EngineStep } from './welcome/EngineStep'
 import { RunsOnStep } from './welcome/RunsOnStep'
 import { SilosStep } from './welcome/SilosStep'
 import { AtStartStep } from './welcome/AtStartStep'
 
+const errorAtProject = (error: string | null): boolean => error !== null && fieldForError(error) === 'project'
 const engineRefusedId = (rows: readonly { id: string; usable: boolean }[], id: string): boolean => rows.some((r) => r.id === id && !r.usable)
 
 // a call that may be unmocked or fail: its answer, or null
@@ -57,8 +50,9 @@ const soft = <T,>(f: () => Promise<T> | undefined): Promise<T | null> =>
 export function Welcome() {
   const loadOverview = useStore((s) => s.loadOverview)
   const descriptors = useHarnessDescriptors()
-  const [step, setStep] = useState<TourStep>('who')
-  const [draft, setDraft] = useState<WhoDraft>({ name: '', mission: '', folder: '', works: 'told' })
+  const agents = useStore((s) => s.agents)
+  const [step, setStep] = useState<TourStep>('project')
+  const [birth, setBirth] = useState<Birth>(emptyBirth)
   const [choice, setChoice] = useState<TourChoice>(() => ({ engine: defaultHarnessId(), provider: '', silos: {} }))
   const [compat, setCompat] = useState<EngineCompat[]>([])
   const [providers, setProviders] = useState<ProviderView[] | null>(null)
@@ -85,11 +79,17 @@ export function Welcome() {
     void soft(() => api.platformSettings.get()).then((v) => setStartClasses(v?.startingSet ?? {}))
   }, [loadProviders])
 
+  const engines = useMemo(() => engineRows(descriptors, compat), [descriptors, compat])
+  // no Engine step (one engine runs here): the tour runs that one
+  useEffect(() => {
+    const only = engineOf(choice.engine, engines)
+    if (only !== choice.engine) setChoice((c) => withEngine(c, only))
+  }, [engines, choice.engine])
   const classes = useMemo(() => startClasses[choice.engine] ?? [], [startClasses, choice.engine])
-  const steps = useMemo(() => tourSteps(classes), [classes])
+  const steps = useMemo(() => tourSteps(classes, engines), [classes, engines])
   // what you set up here and what the account sends, read for the folder
-  // the agent would get (debounced while the folder is typed)
-  const folderAsked = draft.folder.trim().startsWith('/') ? draft.folder.trim() : ''
+  // the agent would get: an existing project's, or none yet (a new one)
+  const folderAsked = birth.project.kind === 'new' ? '' : birth.project.folder
   useEffect(() => {
     if (classes.length === 0) {
       setFacts(null)
@@ -107,14 +107,13 @@ export function Welcome() {
     }
   }, [classes.length, choice.engine, folderAsked])
 
-  const engines = useMemo(() => engineRows(descriptors, compat), [descriptors, compat])
   const engine = descriptorOf(choice.engine)
 
-  const clean = draft.name.trim()
-  const id = slugify(clean)
-  const hint = missionProblem(splitMission(draft.mission), clean || 'it') ?? worksProblem(draft.works, splitMission(draft.mission).text, clean)
+  const clean = birth.name.trim()
+  const known = useMemo(() => knownProjects(agents), [agents])
+  const problems = birthProblems(birth, known)
   const engineRefused = engines.find((r) => r.id === choice.engine && !r.usable) ?? null
-  const ready = engineRefused === null && id !== '' && hint === null
+  const ready = engineRefused === null && birthReady(problems)
 
   // a provider connected or signed in here is picked: the new id
   async function providersChanged(): Promise<void> {
@@ -170,8 +169,9 @@ export function Welcome() {
         }
       }
       // an engine Silos uses is a WIRED engine (owner 23-11): connecting it
-      // on the first run installs the two hooks — said in the step's copy;
-      // Settings › Engines removes them. Never re-added behind the owner's
+      // on the first run installs the two hooks — what they are is said in
+      // Settings › Engines, which removes them (the tour says only that
+      // Silos connects to it). Never re-added behind the owner's
       // back: if they go missing later, a Needs-you row says so instead.
       let hooksWarn: string | null = null
       try {
@@ -181,14 +181,7 @@ export function Welcome() {
       }
       const silosWarn =
         [failed.length ? `Couldn’t change ${failed.join(', ')} — finish it in Settings › Silos.` : null, hooksWarn, startWarn].filter(Boolean).join(' ') || null
-      const m = splitMission(draft.mission)
-      const made = await api.agents.create({
-        name: clean,
-        ...(draft.folder.trim() ? { folder: draft.folder.trim() } : {}),
-        ...(m.text ? { mission: m } : {}),
-        ...agentPayloadExtras(choice, defaultHarnessId()),
-        ...worksPayload(draft.works, m.text),
-      })
+      const made = await api.agents.create({ ...birthPayload(birth), ...agentPayloadExtras(choice, defaultHarnessId()) })
       const warn = [made.warn, silosWarn].filter(Boolean).join(' ')
       startFirstMeeting({ agentId: made.agent.id, ...(warn ? { warn } : {}), ...(made.startWarn ? { startWarn: made.startWarn } : {}) })
       await loadOverview()
@@ -203,6 +196,7 @@ export function Welcome() {
   // what each step has picked, under its name on the rail
   const siloCount = (silos ?? []).filter((r) => choice.silos[r.id] ?? r.on).length
   const picked: Record<TourStep, string> = {
+    project: projectName(birth) || PROJECT_NEW,
     who: clean || 'An agent',
     engine: engine.label,
     'runs-on': choice.provider === '' ? (engine.ui.ownLogin ? 'Its own sign-in' : 'Your subscription') : providerLabel(providers ?? [], choice.provider),
@@ -217,9 +211,22 @@ export function Welcome() {
     engine.providerKinds.includes('claude-account') &&
     (providers ?? []).some((p) => p.kind === 'claude-account' && p.id === 'default' && !p.account.loggedIn)
   if (machineOut) picked['runs-on'] = 'Not signed in yet'
-  const attention: Partial<Record<TourStep, boolean>> = { 'runs-on': machineOut, engine: engineRefusedId(engines, choice.engine) }
-  // a step the engine no longer has (At start, after switching engines) gives way to the one before it
-  const shown: TourStep = steps.some((s) => s.id === step) ? step : 'runs-on'
+  const attention: Partial<Record<TourStep, boolean>> = {
+    project: problems.project !== null || errorAtProject(error),
+    'runs-on': machineOut,
+    engine: engineRefusedId(engines, choice.engine),
+  }
+  // a step the tour no longer has (At start after switching engines, Engine
+  // once a second one proves unusable) gives way to the nearest one before it
+  const order = TOUR_STEPS.map((s) => s.id)
+  const shown: TourStep =
+    order
+      .slice(0, order.indexOf(step) + 1)
+      .reverse()
+      .find((id) => steps.some((s) => s.id === id)) ?? 'project'
+  // a refusal that names a field is said under it while its step is shown
+  const errorAt = error ? fieldForError(error) : null
+  const errorField = (errorAt === 'project' && shown === 'project') || (errorAt === 'name' && shown === 'who') ? errorAt : null
   const at = steps.findIndex((s) => s.id === shown)
   const next = steps[at + 1]
   const back = steps[at - 1]
@@ -264,8 +271,33 @@ export function Welcome() {
         </ol>
 
         <div className="mt-6">
-          {shown === 'who' ? (
-            <WhoStep draft={draft} id={id} hint={hint} onEnter={() => void create()} onDraft={(d) => setDraft((cur) => ({ ...cur, ...d }))} />
+          {shown === 'project' ? (
+            <ProjectStep
+              birth={birth}
+              known={known}
+              agents={agents}
+              problems={problems}
+              onEnter={() => {
+                if (ready) void create()
+                else if (next) setStep(next.id)
+              }}
+              errors={{ project: errorField === 'project' ? error : null }}
+              onBirth={(d) => {
+                setBirth((cur) => ({ ...cur, ...d }))
+                setError(null)
+              }}
+            />
+          ) : shown === 'who' ? (
+            <WhoStep
+              birth={birth}
+              problems={problems}
+              onEnter={() => void create()}
+              errors={{ name: errorField === 'name' ? error : null }}
+              onBirth={(d) => {
+                setBirth((cur) => ({ ...cur, ...d }))
+                setError(null)
+              }}
+            />
           ) : shown === 'engine' ? (
             <EngineStep rows={engines} engine={choice.engine} onPick={(eid) => setChoice((c) => withEngine(c, eid))} />
           ) : shown === 'runs-on' ? (
@@ -291,10 +323,11 @@ export function Welcome() {
 
         {engineRefused ? (
           <p role="alert" className="mt-4 text-sm text-terracotta">
-            {engineRefused.why ?? `${engineRefused.label} can’t run on this machine.`} Pick another engine, or install it and come back.
+            {engineRefused.why ?? `${engineRefused.label} can’t run on this machine.`}
+            {steps.some((s) => s.id === 'engine') ? ' Pick another engine, or install it and come back.' : ' Install it and come back.'}
           </p>
         ) : null}
-        {error ? (
+        {error && errorField !== 'project' && errorField !== 'name' ? (
           <p role="alert" className="mt-4 text-sm text-terracotta">
             {error}
           </p>

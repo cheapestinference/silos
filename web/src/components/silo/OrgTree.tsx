@@ -19,9 +19,8 @@ import { agentWorking } from '../../lib/live'
 import { useTasks } from '../../hooks/useTasks'
 import { useAgentPositions } from '../../hooks/useAgentMoves'
 import { MovesGlyphs, ON_ITS_OWN_WORDS, PROACTIVE_WORDS } from '../MovesGlyphs'
-import { flatten, liveCounts, liveEdges, orgAgents, orgForest, reportCandidates, type OrgNode } from '../../lib/org'
+import { apartEdges, flatten, inOrg, liveCounts, liveEdges, orgAgents, orgForest, reportCandidates, type OrgNode } from '../../lib/org'
 import { basename } from '../../lib/routes'
-import { territoriesOf } from '../../lib/territory'
 import type { AgentView, SiloRelationEdge } from '../../lib/types'
 import { missionLine } from '../../lib/mission'
 
@@ -74,7 +73,7 @@ export function OrgTree({
   const changePage = useStore((s) => s.changePage)
   const now = useStore((s) => s.nowTick)
   const tasks = useTasks()
-  const placed = useMemo(() => orgAgents(agents).filter((a) => folder === undefined || territoriesOf(a).includes(folder)), [agents, folder])
+  const placed = useMemo(() => orgAgents(agents).filter((a) => folder === undefined || inOrg(a, folder)), [agents, folder])
   const ids = useMemo(() => placed.map((a) => a.id), [placed])
   const live = useMemo(() => liveEdges(edges, new Set(ids)), [edges, ids])
   // teams first (a root with someone under it, drawn as a tree), then the
@@ -84,8 +83,12 @@ export function OrgTree({
   const loners = useMemo(() => forest.filter((r) => r.children.length === 0).map((r) => r.id), [forest])
   const byId = (id: string): AgentView | undefined => agents.find((a) => a.id === id)
   const nameOf = (id: string): string => byId(id)?.name ?? id
-  // an edge whose far end was archived or deleted since: kept, said, clearable
+  // an edge whose far end was archived or deleted since, or whose ends share
+  // no project any more: kept, said, clearable — out of every chain
   const dead = new Map(edges.filter((e) => e.note).map((e) => [e.from, e]))
+  // (R3/D5) a line whose two agents share no project: drawn apart, under
+  // the org of the one that reports — out of every chain, redrawn here
+  const apart = useMemo(() => (folder === undefined ? edges.filter((e) => e.note === 'apart') : apartEdges(edges, agents, folder)), [edges, agents, folder])
   const [editing, setEditing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ agent: string; text: string } | null>(null)
@@ -241,9 +244,16 @@ export function OrgTree({
                     ) : (
                       <p className="mt-0.5 text-[12px] text-ink-2">
                         {dead.has(n.id) ? (
-                          <>
-                            Reports to an archived agent <span className="text-ink-3">({dead.get(n.id)!.to})</span>
-                          </>
+                          dead.get(n.id)!.note === 'apart' ? (
+                            <>
+                              Reports to {nameOf(dead.get(n.id)!.to)}{' '}
+                              <span className="text-ink-3">— they share no project, so the line is out of the chain</span>
+                            </>
+                          ) : (
+                            <>
+                              Reports to an archived agent <span className="text-ink-3">({dead.get(n.id)!.to})</span>
+                            </>
+                          )
                         ) : up ? (
                           <>
                             Reports to <span className="text-ink">{nameOf(up)}</span>
@@ -362,6 +372,58 @@ export function OrgTree({
           ) : editable ? (
             <p className="mt-2 text-[12px] text-ink-3">Click one to choose whom it reports to.</p>
           ) : null}
+        </section>
+      ) : null}
+      {apart.length > 0 ? (
+        <section className="mt-5" data-testid="org-apart">
+          <p className="mb-1.5 text-[12px] text-ink-3">Kept apart — they share no project, so no chain walks these lines</p>
+          <ul className="flex flex-col gap-1">
+            {apart.map((e) => {
+              const from = byId(e.from)
+              const to = byId(e.to)
+              return (
+                <li key={e.from} data-testid="org-apart-line" data-agent={e.from} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px]">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-[5px] bg-terracotta-soft text-[11px] leading-none"
+                  >
+                    {from?.emoji ?? '·'}
+                  </span>
+                  <button type="button" onClick={() => changePage({ kind: 'agent', id: e.from })} className="text-ink hover:text-terracotta">
+                    {nameOf(e.from)}
+                  </button>
+                  {/* the line itself, broken: drawn, never walked */}
+                  <span aria-hidden="true" className="w-7 border-t border-dashed border-ink-3/70" />
+                  <span className="text-ink-2">reports to</span>
+                  <button type="button" onClick={() => changePage({ kind: 'agent', id: e.to })} className="text-ink-2 hover:text-terracotta">
+                    {nameOf(e.to)}
+                  </button>
+                  {to?.folder ? <span className="font-mono text-[11px] text-ink-3">in {basename(to.folder)}</span> : null}
+                  <span className="text-ink-3">·</span>
+                  {editable ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(e.from)
+                        setError(null)
+                      }}
+                      className="text-ink-2 underline-offset-2 hover:text-terracotta hover:underline"
+                    >
+                      Redraw
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => changePage({ kind: 'silo', id: silo })}
+                      className="text-ink-2 underline-offset-2 hover:text-terracotta hover:underline"
+                    >
+                      Redraw ›
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </section>
       ) : null}
       <p className="mt-5 text-[12px] text-ink-3">

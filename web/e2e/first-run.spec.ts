@@ -1,9 +1,9 @@
 // first-run.spec.ts — a new agent without decisions, end to end:
 // a FRESH install (no agent of its own, no
 // session) on a stub claude with HOME and TMPDIR isolated — no real claude,
-// no real account. In fewer than three screens: Welcome asks who you want
-// working for you (a name, what it takes care of, where its files are —
-// derived), «Create» lands on the agent's page where it reads its mission
+// no real account. In fewer than three screens: Welcome opens on its
+// project (a new one, named like the agent until named), then asks who you
+// want working for you (a name, how it works, what it takes care of), «Create» lands on the agent's page where it reads its mission
 // (one attended chat turn on the stub) and its answer comes back as a card;
 // then «What should Ana do first?» and «Give to Ana».
 // Evidence screenshots under web/test-results/shots/first-run/ when SILOS_SHOTS=1.
@@ -37,7 +37,7 @@ test('name + mission + Give in fewer than three screens — no commands, no deci
   await page.goto(`${srv.url}/?token=${srv.token}`)
   const welcome = page.getByTestId('welcome')
   await expect(welcome).toBeVisible()
-  await expect(welcome.getByRole('heading')).toHaveText('Who do you want working for you?')
+  await expect(welcome.getByTestId('tour-project')).toBeVisible()
   await expect(welcome).not.toContainText(/cp -r|claude plugin install|npm /)
   // the machine never signed in to Claude (an isolated HOME): the first step
   // asks nothing of it; «Runs on» offers Claude's own sign-in — without
@@ -47,12 +47,15 @@ test('name + mission + Give in fewer than three screens — no commands, no deci
   await rail.getByRole('button', { name: /Runs on/ }).click()
   await expect(welcome.getByRole('button', { name: 'Sign in to Claude ›' })).toBeVisible()
   await rail.getByRole('button', { name: /Who/ }).click()
-  await welcome.getByLabel('Name').fill('Ana')
-  await expect(welcome.getByTestId('welcome-folder')).toHaveText('~/Silos/ana · change')
+  await welcome.getByLabel('Name', { exact: true }).fill('Ana')
   // how it works is asked: on its own, it reads its mission now
   await welcome.getByRole('radio', { name: /Also on its own/ }).check()
   await welcome.getByLabel('What will Ana take care of?').fill('Keep the books tidy, every month.\nNever: pay anything')
-  await shot(page, 'welcome.png')
+  await shot(page, 'who.png')
+  // its project, the first step: a new one named like the agent, by default
+  await rail.getByRole('button', { name: /Project/ }).click()
+  await expect(welcome.getByLabel('The new project’s name')).toHaveValue('Ana')
+  await shot(page, 'project.png')
   await welcome.getByRole('button', { name: 'Create' }).click()
 
   // screen 2: its page — the proof of life, then the card as it answered

@@ -425,7 +425,7 @@ describe('POST /api/console — an OpenCode agent', () => {
     expect(cfg.plugin[0]).toMatch(/plugin-opencode\/silos\.ts$/)
     // context file first (briefing + roster), role prompt second
     expect(cfg.instructions).toEqual([join(h.agentState.pathFor('oc'), 'opencode', 'context.md'), join(h.agentState.pathFor('oc'), 'opencode', 'role.md')])
-    expect(readFileSync(cfg.instructions[0]!, 'utf8')).toMatch(/Your fleet \(Silos\):/)
+    expect(readFileSync(cfg.instructions[0]!, 'utf8')).toMatch(/Your projects \(Silos\):/)
     // the mission rides role.md as the head of the append
     expect(readFileSync(cfg.instructions[1]!, 'utf8').startsWith('Your mission: You are Oc, the OpenCode agent.\n\n')).toBe(true)
     expect(cfg.permission).toBeUndefined() // no territory dep: no fence

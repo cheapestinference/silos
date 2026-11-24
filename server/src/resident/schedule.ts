@@ -13,10 +13,12 @@ import { SIX_HOURS_MS, RESTART_INTERRUPTED, CRASH_LOOP_CAP, WATCH_PROMPT_CAP } f
 import { defaultExecFn, type CheckResult } from './helpers.js'
 import { REARM_CAUSE } from './heartbeat.js'
 import { ResidentPart, type ResidentCore } from './core.js'
+import { guardedFetch } from '../net-guard.js'
 import type { RunEngine } from './runs.js'
 
 export class Schedule extends ResidentPart {
   private fetchFn: typeof fetch
+  private guardedFetchFn: NonNullable<ResidentCore['deps']['guardedFetchFn']>
   private execFn: (command: string, cwd: string) => Promise<{ stdout: string; code: number }>
 
   constructor(
@@ -26,6 +28,7 @@ export class Schedule extends ResidentPart {
     super(core)
     const deps = core.deps
     this.fetchFn = deps.fetchFn ?? fetch
+    this.guardedFetchFn = deps.guardedFetchFn ?? guardedFetch
     this.execFn = deps.execFn ?? defaultExecFn
   }
 
@@ -395,8 +398,12 @@ export class Schedule extends ResidentPart {
         matchedText: stdout,
       }
     }
-    const res = await this.fetchFn(check.url, { method: check.method ?? 'GET', headers: check.headers })
-    const body = await res.text()
+    // a url an agent wrote goes through the address guard on EVERY fetch
+    // (net-guard.ts); the owner's own urls are theirs to point anywhere
+    const body =
+      check.publicOnly === true
+        ? (await this.guardedFetchFn(check.url, { method: check.method, headers: check.headers })).body
+        : await (await this.fetchFn(check.url, { method: check.method ?? 'GET', headers: check.headers })).text()
     return { fingerprint: createHash('sha1').update(body).digest('hex'), summary: body.slice(0, 500), matchedText: body }
   }
 }

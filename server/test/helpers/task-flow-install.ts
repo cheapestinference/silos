@@ -214,6 +214,7 @@ export function houseOf(base: string, inst: Install) {
         turnOf(x.rec, x.siblings ?? [], info.dict, (id) => id, {
           now: NOW,
           key: x.key,
+          ...(x.location !== undefined ? { location: x.location } : {}),
           isAgent,
           taskEnv,
           nameOf: (id) => id,

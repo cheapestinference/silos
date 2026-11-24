@@ -206,8 +206,9 @@ before you write a field you have not written before.
 - **Work from another agent of the same project** → a task owned by that
   agent, and `dependsOn` it if you wait (same file). Creating the task wakes
   nobody: only the owner's gesture starts it.
-- **Work in another agent's territory** → a message to that agent; the
-  receiver turns it into a task (rule 6).
+- **Work in a folder of another agent of your projects that is not yours**
+  → a message to that agent; the receiver turns it into a task (rule 6).
+  Outside your projects → the owner: there is nobody else for you to reach.
 - **A question or a review for another agent** → ask it through Silos from
   your own task (`POST /api/tasks/ask`); a wait written by hand reaches
   nobody.

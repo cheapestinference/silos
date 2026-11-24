@@ -13,6 +13,7 @@ import type { HarnessId } from '../harnesses/contract.js'
 import type { ExecService } from '../exec-service.js'
 import type { TerminalService } from '../terminal-service.js'
 import type { SessionIndex } from '../session-index.js'
+import { MASTER_ID } from '../agent-registry.js'
 import type { SessionStore } from '../session-store.js'
 import type { SessionOwners } from '../session-owner.js'
 import type { AgentRegistry } from '../agent-registry.js'
@@ -196,7 +197,18 @@ export function vaultRoutes(app: FastifyInstance, ctx: VaultRoutesCtx): void {
       const agent = vaultAgent(req, reply)
       if (!agent) return reply
       const folders = [agent.folder, ...(agent.folders ?? [])].filter((f): f is string => typeof f === 'string')
-      return { entries: vault.viewFor(agent.id, folders) }
+      const entries = vault.viewFor(agent.id, folders)
+      if (req.agentId === undefined || req.agentId === MASTER_ID) return { entries }
+      // to its bearer, an entry shared with other agents says «shared» —
+      // never their ids (they may be of another project); who wrote it is
+      // said only when it is itself
+      return {
+        entries: entries.map(({ createdBy, scope, ...e }) => ({
+          ...e,
+          scope: scope.type === 'agents' && scope.agentIds.some((x) => x !== agent.id) ? { type: 'shared' as const } : scope,
+          ...(createdBy === agent.id ? { createdBy } : {}),
+        })),
+      }
     })
     // `binding` signs what it wrote (writeOwn may bind
     // its own) — the next call goes through /api/egress/<NAME>/…

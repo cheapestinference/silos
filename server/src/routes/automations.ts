@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { AgentRegistry } from '../agent-registry.js'
 import type { AutomationsStore } from '../automations-store.js'
-import type { Automation } from '../automations-types.js'
+import type { Automation, Thread, Trigger } from '../automations-types.js'
 import {
   selfPatchRefusal,
   selfShaped,
@@ -31,6 +31,9 @@ import type { ProvidersStore } from '../providers-store.js'
 import type { Resident } from '../resident.js'
 import type { VitalsService } from '../vitals.js'
 import { TemplateError, fillTemplate, fromAutomation, templateIdFrom, type AutomationTemplates, type Secret } from '../automation-templates.js'
+import { ofProject, seesAll } from '../project-scope.js'
+import { MASTER_ID } from '../agent-registry.js'
+import { publicUrlRefusal } from '../net-guard.js'
 
 // A run/automation id as it may appear in a log path — one segment, no
 // traversal (same rule as the old module-level const in server.ts).
@@ -55,6 +58,12 @@ export interface AutomationRoutesCtx {
   initiative?: Initiative
   // what each automation spent in 30 days (vitals.ts) — the owner's list only
   usage?: Pick<VitalsService, 'automationUsage'>
+  // the agent a conversation (a Silos session id) belongs to, null when Silos
+  // knows none: a bearer keeps a thread only on a conversation of its own
+  conversationOwner?: (sessionId: string) => string | null
+  // how an `http` watch's host resolves (net-guard.ts publicUrlRefusal) —
+  // absent: the system's DNS. A test's seam, never the network
+  resolveHost?: (host: string) => Promise<string[]>
 }
 
 // The only owner-deletes refusal a bearer hears on DELETE
@@ -164,6 +173,31 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       return typeof t === 'object' && t !== null && t.kind === 'conversation' && t.sourceAgentId !== undefined && t.sourceAgentId !== caller
     }
     const watchesOthersError = (caller: string): string => `agent ${caller} may not watch another agent's conversations — only the owner can set that up`
+    // (R2/R3) where an automation's trigger and kept thread point, against
+    // its agent's projects — the one resolver (project-scope.ts): a `files`
+    // folder, a `path` watch, a kept thread's folder. The owner's desk works
+    // anywhere. `withThread`: the thread's folder is judged too (a bearer's
+    // write; the owner points a thread where it likes).
+    const outsideProjects = (
+      agentId: string,
+      x: { trigger?: Trigger | undefined; thread?: Thread | undefined },
+      withThread: boolean,
+    ): { field: string; path: string } | null => {
+      if (agentId === MASTER_ID) return null
+      const a = registry.get(agentId)
+      const t = x.trigger
+      if (t?.kind === 'files' && !ofProject(a, t.folder)) return { field: 'trigger.folder', path: t.folder }
+      if (t?.kind === 'watch' && t.check.type === 'path' && !ofProject(a, t.check.path)) return { field: 'trigger.check.path', path: t.check.path }
+      if (withThread && x.thread?.mode === 'keep' && typeof x.thread.folder === 'string' && !ofProject(a, x.thread.folder))
+        return { field: 'thread.folder', path: x.thread.folder }
+      return null
+    }
+    // the owner's coherence rule: a trigger the owner sets for an agent lies
+    // in that agent's projects — the wall would refuse the very read it asks
+    const outsideForOwner = (agentId: string, path: string): string =>
+      `${registry.get(agentId)?.name ?? agentId} does not work in ${path} — give it that folder first (its Profile › Runs on)`
+    const outsideForBearer = (field: string): string =>
+      `${field} is outside your projects — an automation of yours watches and runs only where you work; ask the owner for anything else`
     const agentBodyError = (caller: string, body: unknown, verb = 'create'): string | null => {
       const bodyAgent = (body as { agentId?: unknown } | null)?.agentId
       return bodyAgent !== caller ? `agent ${caller} may not ${verb} automations for ${String(bodyAgent)}` : null
@@ -194,6 +228,9 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
         return { code: 400, error: err instanceof Error ? err.message : String(err) }
       }
       if (caller !== undefined && execsWithoutClaude(input)) return { code: 403, error: ownerOnlyExec(caller) }
+      if (caller !== undefined) input = { ...input, trigger: agentWritten(input.trigger) }
+      const off = outsideProjects(input.agentId, input, caller !== undefined)
+      if (off) return caller === undefined ? { code: 409, error: outsideForOwner(input.agentId, off.path) } : { code: 403, error: outsideForBearer(off.field) }
       const bad = runsOnError(caller, input.agentId, input.runsOn)
       if (bad) return bad
       return { input, ...(extras.generatedSecret ? { generatedSecret: extras.generatedSecret } : {}) }
@@ -247,7 +284,27 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       if (!agent || control !== 'own' || !think || !initiative()) return selfRecurringRefusal(control, agent ? heartbeatOf(agent).period : null)
       return null
     }
-    const bearerCreate = (agentId: string, turn: LiveTurn | undefined, body: unknown): { code: number; body: Record<string, unknown> } => {
+    // What a bearer's automation may reach beyond its projects' folders
+    // (outsideProjects): a kept thread only on a conversation of its own,
+    // an http watch only at a public address (the server fetches it —
+    // net-guard.ts). ONE check for every bearer write: its create (POST,
+    // a template's use) and its PATCH.
+    const bearerReach = async (
+      caller: string,
+      a: { trigger?: Automation['trigger'] | undefined; thread?: Automation['thread'] | undefined },
+    ): Promise<{ error: string; field: string } | null> => {
+      const sid = a.thread?.mode === 'keep' ? a.thread.sessionId : undefined
+      if (sid !== undefined && (ctx.conversationOwner?.(sid) ?? null) !== caller)
+        return { error: 'thread.sessionId is not a conversation of yours — an automation of yours keeps only your own thread', field: 'thread.sessionId' }
+      const t = a.trigger
+      if (t?.kind === 'watch' && t.check.type === 'http') {
+        const why = await publicUrlRefusal(t.check.url, ctx.resolveHost)
+        if (why) return { error: `trigger.check.url: ${why} — a watch you set reaches public addresses only`, field: 'trigger.check.url' }
+      }
+      return null
+    }
+
+    const bearerCreate = async (agentId: string, turn: LiveTurn | undefined, body: unknown): Promise<{ code: number; body: Record<string, unknown> }> => {
       const gate = bearerGate(agentId, turn)
       const ledger = initiative()
       if (gate || !ledger || !turn) return { code: 403, body: { error: gate ?? selfRecurringRefusal('told', null) } }
@@ -255,6 +312,8 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       if (selfError) return { code: 400, body: { error: selfError } }
       const prepared = prepareCreate(agentId, body)
       if ('error' in prepared) return { code: prepared.code, body: { error: prepared.error } }
+      const reach = await bearerReach(agentId, prepared.input)
+      if (reach) return { code: 403, body: reach }
       const o = body as Record<string, unknown>
       const signal = typeof o.signal === 'string' && o.signal.trim() !== '' ? o.signal.trim() : undefined
       const id = randomUUID()
@@ -283,7 +342,7 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
 
     app.post<{ Body: unknown }>('/api/automations', async (req, reply) => {
       if (req.agentId !== undefined) {
-        const r = bearerCreate(req.agentId, req.turn, req.body)
+        const r = await bearerCreate(req.agentId, req.turn, req.body)
         if (r.code === 201 && r.body.automation) return reply.code(201).send({ automation: shownTo(req, r.body.automation as Automation) })
         return reply.code(r.code).send(r.body)
       }
@@ -353,6 +412,23 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       try {
         const extras: ValidateExtras = {}
         const validated = validateAutomationPatch(req.body, registry, current, extras)
+        // (R2/R3) a bearer points a trigger or a thread only inside its
+        // projects, keeps a thread only on a conversation of its own, and
+        // watches over http only a public address (net-guard.ts — the
+        // server fetches it); the owner's trigger lies in the agent's
+        // projects (the coherence rule). Each refusal names its field.
+        const target = validated.agentId ?? current.agentId
+        if (validated.trigger !== undefined)
+          validated.trigger = req.agentId !== undefined ? agentWritten(validated.trigger) : keptAgentMark(validated.trigger, current.trigger)
+        if (req.agentId !== undefined) {
+          const off = outsideProjects(target, { trigger: validated.trigger, thread: validated.thread }, true)
+          if (off) return reply.code(403).send({ error: outsideForBearer(off.field), field: off.field })
+          const reach = await bearerReach(req.agentId, validated)
+          if (reach) return reply.code(403).send(reach)
+        } else if (validated.trigger !== undefined || validated.agentId !== undefined) {
+          const off = outsideProjects(target, { trigger: validated.trigger ?? current.trigger }, false)
+          if (off) return reply.code(409).send({ error: outsideForOwner(target, off.path), field: off.field })
+        }
         // the owner's new period lifts the budget it needs
         const patch = req.agentId === undefined ? withPatchedPeriodBudget(validated, current, req.body) : validated
         // checked against the EFFECTIVE pair and agent: a new agent on another
@@ -388,7 +464,10 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       // a bearer withdraws only its OWN recurring work: to the trash,
       // registered as «X withdrew: <name>» — the owner's Restore › brings it back
       if (req.agentId !== undefined) {
-        if (doomed.origin !== 'self' || doomed.agentId !== req.agentId) return reply.code(403).send({ error: DELETE_NOT_OWN })
+        // another agent's automation answers as one that does not exist (R2:
+        // existence is not confirmed); its own, not self-made, is the owner's
+        if (doomed.agentId !== req.agentId) return reply.code(404).send({ error: 'automation not found' })
+        if (doomed.origin !== 'self') return reply.code(403).send({ error: DELETE_NOT_OWN })
         const ledger = initiative()
         if (!ledger || !req.turn) return reply.code(403).send({ error: DELETE_NOT_OWN })
         resident.cancelPendingApprovals(doomed.id)
@@ -497,6 +576,15 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
     const templates = ctx.templates
     if (templates) {
       const TEMPLATE_ID = /^[a-z0-9][a-z0-9-]{0,62}$/
+      // a template the owner saved keeps the prompt, trigger and folder of an
+      // automation of some project: it is the owner's. A bearer (but the
+      // owner's desk) sees the built-ins only, and any other id answers as
+      // one that names nothing (project-scope.ts)
+      const templateFor = (req: FastifyRequest, tid: string) => {
+        const t = TEMPLATE_ID.test(tid) ? templates.get(tid) : null
+        if (!t) return null
+        return seesAll(req.agentId) || t.source === 'builtin' ? t : null
+      }
       const templateErr = (err: unknown): { error: string; field?: string } =>
         err instanceof TemplateError
           ? { error: err.message, ...(err.field ? { field: err.field } : {}) }
@@ -506,7 +594,7 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
       const filled = (
         req: FastifyRequest<{ Params: { tid: string }; Body: unknown }>,
       ): { code: number; body: Record<string, unknown> } | { input: Omit<Automation, 'id' | 'createdAt'>; generatedSecret?: string } => {
-        const t = TEMPLATE_ID.test(req.params.tid) ? templates.get(req.params.tid) : null
+        const t = templateFor(req, req.params.tid)
         if (!t) return { code: 404, body: { error: 'template not found' } }
         const params = (req.body as { params?: unknown } | null)?.params
         let body: Record<string, unknown>
@@ -520,17 +608,17 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
         return prepared
       }
 
-      app.get('/api/automations/templates', async () => ({ templates: templates.list() }))
+      app.get('/api/automations/templates', async (req) => ({ templates: templates.list().filter((t) => seesAll(req.agentId) || t.source === 'builtin') }))
 
       app.get<{ Params: { tid: string } }>('/api/automations/templates/:tid', async (req, reply) => {
-        const t = TEMPLATE_ID.test(req.params.tid) ? templates.get(req.params.tid) : null
+        const t = templateFor(req, req.params.tid)
         if (!t) return reply.code(404).send({ error: 'template not found' })
         return { template: t }
       })
 
       // the file as it travels to another Silos: the template alone, no listing marks
       app.get<{ Params: { tid: string } }>('/api/automations/templates/:tid/file', async (req, reply) => {
-        const t = TEMPLATE_ID.test(req.params.tid) ? templates.get(req.params.tid) : null
+        const t = templateFor(req, req.params.tid)
         if (!t) return reply.code(404).send({ error: 'template not found' })
         const { source: _s, ownerOnly: _o, ...file } = t
         reply.header('content-disposition', `attachment; filename="${t.id}.silos-template.json"`)
@@ -554,7 +642,7 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
         if (req.agentId !== undefined) {
           const gate = bearerGate(req.agentId, req.turn)
           if (gate) return reply.code(403).send({ error: gate })
-          const t = TEMPLATE_ID.test(req.params.tid) ? templates.get(req.params.tid) : null
+          const t = templateFor(req, req.params.tid)
           if (!t) return reply.code(404).send({ error: 'template not found' })
           const extra = (req.body ?? {}) as { params?: unknown; signal?: unknown; missionLine?: unknown }
           let body: Record<string, unknown>
@@ -563,7 +651,7 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
           } catch (err) {
             return reply.code(400).send(templateErr(err))
           }
-          const out = bearerCreate(req.agentId, req.turn, {
+          const out = await bearerCreate(req.agentId, req.turn, {
             ...body,
             ...(extra.signal !== undefined ? { signal: extra.signal } : {}),
             ...(extra.missionLine !== undefined ? { missionLine: extra.missionLine } : {}),
@@ -636,4 +724,17 @@ export function automationRoutes(app: FastifyInstance, ctx: AutomationRoutesCtx)
     })
   }
   return createApi!
+}
+
+// An http watch's url an agent wrote is fetched through the guard (the
+// resident's guardedFetch — net-guard.ts); the write-time check alone would
+// miss a name that resolves elsewhere by the time it is fetched.
+function agentWritten<T extends Automation['trigger']>(t: T): T {
+  return t.kind === 'watch' && t.check.type === 'http' ? { ...t, check: { ...t.check, publicOnly: true } } : t
+}
+// The owner's edit keeps the mark while the url stays the agent's: a new
+// url is the owner's own to point anywhere.
+function keptAgentMark<T extends Automation['trigger']>(next: T, prev: Automation['trigger']): T {
+  if (next.kind !== 'watch' || next.check.type !== 'http' || prev.kind !== 'watch' || prev.check.type !== 'http') return next
+  return prev.check.publicOnly === true && prev.check.url === next.check.url ? agentWritten(next) : next
 }

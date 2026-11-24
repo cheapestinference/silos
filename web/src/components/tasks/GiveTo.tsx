@@ -26,8 +26,12 @@ export function GiveTo({
   onGive,
   onCancel,
   error,
+  initial = '',
 }: {
   handTo: NonNullable<TaskModeView['handTo']>
+  // a name the page's prompt picked (the agents of its project); the
+  // gesture is still Give
+  initial?: string
   // the page showed «added outside Silos ›» (OriginMark)
   outside: boolean
   busy: boolean
@@ -35,7 +39,7 @@ export function GiveTo({
   onCancel: () => void
   error: React.ReactNode
 }) {
-  const [to, setTo] = useState('')
+  const [to, setTo] = useState(initial)
   const chosen = handTo.find((x) => x.id === to) ?? null
   const agents = handTo.filter((x) => x.id !== 'owner')
   return (

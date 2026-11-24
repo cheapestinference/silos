@@ -144,9 +144,9 @@ describe('GET /api/agents/:id/loaded', () => {
     expect((await app.inject({ url: '/api/agents/nobody/loaded', headers: LOCAL })).statusCode).toBe(404)
   })
 
-  it('an agent bearer reads its own, never another agent’s', async () => {
+  it('an agent bearer reads neither its own nor another agent’s: it is the owner’s screen', async () => {
     const auth = { ...LOCAL, authorization: `Bearer ${tokens.tokenFor('finance')}` }
-    expect((await app.inject({ url: '/api/agents/finance/loaded', headers: auth })).statusCode).toBe(200)
+    expect((await app.inject({ url: '/api/agents/finance/loaded', headers: auth })).statusCode).toBe(403)
     expect((await app.inject({ url: '/api/agents/oc/loaded', headers: auth })).statusCode).toBe(403)
   })
 })

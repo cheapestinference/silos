@@ -33,11 +33,15 @@ export interface HeartbeatFactsDeps {
   // linked and open (task-asks.ts asksTo — the text is the store's)
   asks?: (agentId: string) => readonly AskLine[]
   nameOf: (agentId: string) => string
+  // may the agent see `id` named (project-scope.ts mayName)? No: the id as
+  // written — an id it wrote in its own plan is never decorated. Absent: yes
+  mayName?: (reader: string, id: string) => boolean
 }
 
 export type HeartbeatFacts = Omit<PacketInput, 'agentId' | 'since' | 'now' | 'lastListed' | 'considered'>
 
 export function heartbeatFacts(d: HeartbeatFactsDeps, agent: Agent, since: number, now: number): HeartbeatFacts {
+  const nameFor = (id: string): string => (d.mayName === undefined || d.mayName(agent.id, id) ? d.nameOf(id) : id)
   const out: HeartbeatFacts = { messages: [], failedRuns: [], yours: [], waits: [], routed: [], decided: [], owner: [], asks: [] }
   // messages: its inbox's `new` ones — a message still new always re-enters (m6)
   try {
@@ -75,10 +79,13 @@ export function heartbeatFacts(d: HeartbeatFactsDeps, agent: Agent, since: numbe
     }
   }
   // yours: its tasks ready with nobody on them (idle); waits: its tasks blocked on
-  // someone other than the owner or itself
+  // someone other than the owner or itself — only the tasks of its projects
+  // (R3: a task of another project it is written as the owner of is never
+  // listed to it — its key is that project's path; the owner sees it as
+  // owner-outside-project)
   try {
     for (const t of d.tasks?.(now) ?? []) {
-      if (t.owner !== agent.id) continue
+      if (t.owner !== agent.id || t.ownerOutside === true) continue
       // ready and nobody on it — the kernel's `idle`, carried on the task,
       // never derived again here
       if (t.idle === true) {
@@ -91,7 +98,7 @@ export function heartbeatFacts(d: HeartbeatFactsDeps, agent: Agent, since: numbe
           ref: t.ref,
           title: t.title,
           at: since + 1,
-          ...(by !== undefined ? { by, ...(by !== 'unknown' && by !== 'owner' ? { byName: d.nameOf(by) } : {}) } : {}),
+          ...(by !== undefined ? { by, ...(by !== 'unknown' && by !== 'owner' ? { byName: nameFor(by) } : {}) } : {}),
         })
       } else if (t.state === 'blocked' && t.waitingFor && t.waitingFor.owner !== 'owner' && t.waitingFor.owner !== agent.id) {
         // a wait carries no clock of its own here: its first listing starts its
@@ -100,7 +107,7 @@ export function heartbeatFacts(d: HeartbeatFactsDeps, agent: Agent, since: numbe
           key: t.key,
           ref: t.ref,
           title: t.title,
-          who: d.nameOf(t.waitingFor.owner),
+          who: nameFor(t.waitingFor.owner),
           since: since,
           ...(t.asked === true ? { carried: true } : {}),
         })

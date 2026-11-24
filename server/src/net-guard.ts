@@ -113,3 +113,120 @@ export function guardedLookup(reason: PrivateReason = privateAddressReason, who 
   }
   return guarded as typeof dnsLookup
 }
+
+/** Why a URL an AGENT wrote may not be fetched by the server (an automation's
+ *  `http` watch it set), or null when it names a public address — the same
+ *  rule as the signer's: an IP literal is judged as it is, a name by every
+ *  address it resolves to now (`resolve`; a name that does not resolve is
+ *  refused). Judged when the agent writes it; the owner's watches are the
+ *  owner's to point anywhere. */
+export async function publicUrlRefusal(raw: string, resolve: (host: string) => Promise<string[]> = resolveAll): Promise<string | null> {
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    return 'it is not a URL'
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return 'it is not an http(s) URL'
+  const host = u.hostname.replace(/^\[(.*)\]$/, '$1')
+  if (isIP(host) !== 0) {
+    const why = privateAddressReason(host)
+    return why ? `${host} is ${why}` : null
+  }
+  if (host === 'localhost' || host.endsWith('.localhost')) return `${host} is loopback`
+  let ips: string[]
+  try {
+    ips = await resolve(host)
+  } catch {
+    return `${host} does not resolve`
+  }
+  if (ips.length === 0) return `${host} does not resolve`
+  for (const ip of ips) {
+    const why = privateAddressReason(ip)
+    if (why) return `${host} resolves to ${why}`
+  }
+  return null
+}
+
+function resolveAll(host: string): Promise<string[]> {
+  return new Promise((ok, fail) =>
+    dnsLookup(host, { all: true }, (err, list) => (err ? fail(err) : ok((Array.isArray(list) ? list : []).map((a) => a.address)))),
+  )
+}
+
+export interface GuardedFetchOptions {
+  method?: string
+  headers?: Record<string, string>
+  /** the lookup every connection uses — guardedLookup unless a test injects one */
+  lookup?: typeof dnsLookup
+  reason?: PrivateReason
+  maxRedirects?: number
+  maxBytes?: number
+  timeoutMs?: number
+}
+
+const REDIRECTS = new Set([301, 302, 303, 307, 308])
+
+/** GET (or `method`) a url an AGENT wrote, only ever over public addresses:
+ *  the IP literal judged before connecting, every DNS answer through
+ *  guardedLookup AS the connection's lookup (no window between the check
+ *  and the connect — rebinding dies there), and each redirect followed by
+ *  hand through the same gate. A refusal throws (code EPRIVATE). */
+export async function guardedFetch(raw: string, o: GuardedFetchOptions = {}): Promise<{ status: number; body: string }> {
+  const reason = o.reason ?? privateAddressReason
+  const lookup = o.lookup ?? guardedLookup(reason, 'a watch an agent set')
+  const maxRedirects = o.maxRedirects ?? 5
+  let url = new URL(raw)
+  let method = (o.method ?? 'GET').toUpperCase()
+  let headers = o.headers ?? {}
+  for (let hop = 0; ; hop++) {
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw Object.assign(new Error(`${url.protocol} is not http(s)`), { code: 'EPRIVATE' })
+    const host = url.hostname.replace(/^\[(.*)\]$/, '$1')
+    if (isIP(host) !== 0) {
+      const why = reason(host)
+      if (why !== null)
+        throw Object.assign(new Error(`${host} is ${why} — a watch an agent set only talks to public addresses`), { code: 'EPRIVATE', why, address: host })
+    }
+    const res = await requestOnce(url, method, headers, lookup, o.maxBytes ?? 2_000_000, o.timeoutMs ?? 30_000)
+    const loc = res.location
+    if (!REDIRECTS.has(res.status) || loc === undefined) return { status: res.status, body: res.body }
+    if (hop >= maxRedirects) throw new Error(`more than ${maxRedirects} redirects`)
+    const next = new URL(loc, url)
+    if (next.origin !== url.origin) headers = {} // a header set for one origin never travels to another
+    if (res.status === 303 || ((res.status === 301 || res.status === 302) && method === 'POST')) method = 'GET'
+    url = next
+  }
+}
+
+async function requestOnce(
+  url: URL,
+  method: string,
+  headers: Record<string, string>,
+  lookup: typeof dnsLookup,
+  maxBytes: number,
+  timeoutMs: number,
+): Promise<{ status: number; body: string; location?: string }> {
+  const mod = url.protocol === 'https:' ? await import('node:https') : await import('node:http')
+  return new Promise((ok, fail) => {
+    const req = mod.request(url, { method, headers, lookup, timeout: timeoutMs }, (res) => {
+      const chunks: Buffer[] = []
+      let size = 0
+      res.on('data', (c: Buffer) => {
+        size += c.length
+        if (size > maxBytes) {
+          req.destroy(new Error(`the answer is over ${maxBytes} bytes`))
+          return
+        }
+        chunks.push(c)
+      })
+      res.on('end', () => {
+        const loc = res.headers.location
+        ok({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8'), ...(typeof loc === 'string' ? { location: loc } : {}) })
+      })
+      res.on('error', fail)
+    })
+    req.on('timeout', () => req.destroy(new Error(`no answer in ${timeoutMs} ms`)))
+    req.on('error', fail)
+    req.end()
+  })
+}

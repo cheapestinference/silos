@@ -24,7 +24,8 @@ import { MASTER_ID } from '../../lib/constants'
 import { descriptorIn, useHarnessDescriptors } from '../../lib/harnesses'
 import { relTimeOf } from '../../lib/rel-time'
 import { refusedToday, secretsOf, servedNotCallable, type Hold, type SecretsReading } from '../../lib/territory-view'
-import type { AgentEgress, AgentView, EgressRejection, FenceScope, TerritoryAgent, VaultEntry } from '../../lib/types'
+import type { AgentEgress, AgentView, EgressRejection, FenceRefusedAgent, FenceScope, TerritoryAgent, VaultEntry } from '../../lib/types'
+import { basename } from '../../lib/routes'
 import { FenceScopeLines } from '../FenceScope'
 import { MODE_DELIVERED, MODE_SIGNED, SIGNING_DOESNT, SIGNING_HOLDS, SignedCallsFold } from '../VaultSigning'
 import { QUIET_BTN, Section } from './primitives'
@@ -32,9 +33,15 @@ import { QUIET_BTN, Section } from './primitives'
 // ---- the surfaces, said once ------------------------------------------
 
 const FILES_HOLDS = [
-  "Its file tools and a plain shell read (a cat) stay out of Silos' own data, Claude login & settings, other agents' state and your private paths — unless it works inside one.",
+  "Every agent with a folder, its territory on or off: its file tools and a plain shell read (a cat) stay out of other projects' folders, their conversations and memory, and the credentials Silos keeps.",
+  "Territory on: also out of Silos' other data, Claude login & settings, other agents' state and your private paths — unless it works inside one.",
+  "Territory on: its shell can't drive Silos' consoles (tmux), and no process's command line or environment is readable — reductions, not walls.",
 ]
-const FILES_DOESNT = ['A script or interpreter it runs in a shell — that runs as you and reaches what you reach.']
+const FILES_DOESNT = [
+  'A script or interpreter it runs in a shell — that runs as you and reaches what you reach.',
+  "A folder that holds what every agent needs — Silos itself, its data, the temp dir (say, your home) — stays open; the agent's row says which, and why.",
+  'A console keeps the fence it started with until it is reopened.',
+]
 const SECRETS_DOESNT_EXTRA = 'An entry in its environment: that value is in its hands.'
 export const NETWORK_HOLDS = [
   'The slip-ups and casual exfiltration — curl, npm, any tool that honours the proxy env (nearly all do).',
@@ -526,6 +533,9 @@ export function TerritorySection() {
   const [vault, setVault] = useState<VaultEntry[] | null>(null)
   const [egress, setEgress] = useState<Map<string, AgentEgress> | null>(null)
   const [refusals, setRefusals] = useState<EgressRejection[]>([])
+  // the file fence's refusals today, per agent and project (server fence-refusals.ts)
+  const [fileRefused, setFileRefused] = useState<Map<string, FenceRefusedAgent>>(new Map())
+  const openSession = useStore((s) => s.openSession)
   const [openId, setOpenId] = useState<string | null>(null)
   const descriptors = useHarnessDescriptors()
 
@@ -566,6 +576,13 @@ export function TerritorySection() {
       })
       .catch(() => {
         /* owner-only rows; none to count */
+      })
+    Promise.resolve(api.territory.refused())
+      .then((r) => {
+        if (!cancelled && Array.isArray(r)) setFileRefused(new Map(r.map((x) => [x.agentId, x])))
+      })
+      .catch(() => {
+        /* an older server, or not the owner: nothing to count */
       })
     return () => {
       cancelled = true
@@ -694,6 +711,19 @@ export function TerritorySection() {
                               {a.name}
                             </span>
                           </button>
+                          {/* what the file fence refused today, by the project of the path —
+                              the door opens the row on the conversations where it happened */}
+                          {(fileRefused.get(a.id)?.buckets ?? []).map((b) => (
+                            <button
+                              key={b.project ?? ''}
+                              type="button"
+                              onClick={() => setOpenId(a.id)}
+                              data-testid={`file-refused-${a.id}`}
+                              className="block pl-[19px] text-left text-[11px] text-[var(--health-amber)] hover:underline"
+                            >
+                              {b.count} refused {b.project ? `in ${basename(b.project)}` : 'elsewhere'} ›
+                            </button>
+                          ))}
                           {/* on a phone the refusals ride under the name — the Network cell is a dot alone */}
                           {refused > 0 ? (
                             <span
@@ -771,6 +801,39 @@ export function TerritorySection() {
                               </>
                             )}
                           </Band>
+                          {fileRefused.get(a.id) ? (
+                            <Band name="Refused today">
+                              <ul className="space-y-2" data-testid={`file-refused-band-${a.id}`}>
+                                {fileRefused.get(a.id)!.buckets.map((b) => (
+                                  <li key={b.project ?? ''}>
+                                    <p className="text-ink">
+                                      {b.count}{' '}
+                                      {b.project ? (
+                                        <>
+                                          in <span className="font-mono">{basename(b.project)}</span>
+                                        </>
+                                      ) : (
+                                        'elsewhere — in no project'
+                                      )}
+                                    </p>
+                                    <ul className="mt-0.5">
+                                      {b.conversations.map((c) => (
+                                        <li key={`${c.folder}/${c.id}`}>
+                                          <button type="button" onClick={() => void openSession(c.folder, c.id)} className="text-left hover:text-terracotta">
+                                            {a.sessions.find((x) => x.id === c.id)?.title || 'a conversation'}
+                                            <span className="text-ink-3">
+                                              {' '}
+                                              · {c.count} · {relTimeOf(c.lastAt) ?? ''} ›
+                                            </span>
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </li>
+                                ))}
+                              </ul>
+                            </Band>
+                          ) : null}
                           <Band name="Secrets">
                             {secrets ? <SecretsBand agent={a} secrets={secrets} nameOf={nameOf} /> : <p>The Vault could not be read.</p>}
                           </Band>

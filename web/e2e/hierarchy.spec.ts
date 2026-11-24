@@ -120,10 +120,11 @@ test.describe('installing it from the catalog', () => {
     await shot(page, 'install-review.png')
     await page.getByRole('button', { name: /Install Hierarchy/ }).click()
     await page.goto(`${fresh.url}/silo/hierarchy?token=${fresh.token}`)
-    // one org per project: here every agent is alone in its project,
-    // so there is no org to draw — said once, and each one named quietly
-    await expect(page.getByTestId('org-by-project')).toContainText('No project has two agents yet')
-    await expect(page.getByTestId('org-solo')).toContainText('Web in')
+    // one org per project: the launch plan's folder holds E2E and Web (Web
+    // works there too), installed with no edges — nobody reports to anybody;
+    // every other agent is alone in its project, named quietly
+    await expect(page.getByTestId('org-by-project')).toContainText('Nobody reports to anybody yet')
+    await expect(page.getByTestId('org-solo')).toContainText('Acme in')
     await shot(page, 'installed-empty.png')
   })
 })

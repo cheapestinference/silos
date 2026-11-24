@@ -902,6 +902,9 @@ export interface EvalEnv {
   // flowOf does; absent, by the owner and the task's id in any plan. It is
   // THIS record's: a child's, a sibling's or a parent's env never carries it
   key?: string
+  // the record's silo location (voice.ts KindRecord.location): a task's flow
+  // judges its owner against it (owner-outside-project). Absent: not judged
+  location?: string
   // (E6) the ids of the siblings the parent's file holds
   // that the reader could not build — the task flow's (voice.ts KindRecord)
   unreadableSiblings?: readonly string[]

@@ -55,6 +55,7 @@ const STALL_ON_CHAIN: Record<StalledCause, string> = {
   'blocker-parked': 'waits on untouched work',
   'blocker-cancelled': 'waits on a dropped task',
   'owner-cannot-run': 'waits on a task whose owner never wakes on its own',
+  'owner-outside-project': 'waits on a task whose owner does not work in this project',
   // never down the chain: the kernel says a blocker in these as untouched work
   'review-without-reviewer': 'waits on untouched work',
   'in-progress-nothing-live': 'waits on untouched work',
@@ -67,6 +68,7 @@ const STALL_OF_ITS_OWN: Record<StalledCause, string> = {
   'blocker-parked': 'waits on untouched work',
   'blocker-cancelled': 'waits on a dropped task',
   'owner-cannot-run': 'its owner never wakes on its own',
+  'owner-outside-project': 'its owner does not work in this project',
   'review-without-reviewer': 'in review — nobody is reviewing it',
   'in-progress-nothing-live': 'in progress, but nothing is working on it',
 }
@@ -103,6 +105,8 @@ export interface TurnVoice {
   // the task's record key, when the caller has it (a wake on the way is
   // asked by it — task-flow's wakeOnTheWay)
   key?: string
+  // the task's silo location (voice.ts KindRecord.location)
+  location?: string
   // the ids of the tasks its plan's file holds that the
   // reader could not build (voice.ts KindRecord.unreadableSiblings)
   unreadableSiblings?: readonly string[]
@@ -164,6 +168,7 @@ export function turnOf(
     isAgent,
     ...(v.taskEnv ? { taskEnv: v.taskEnv } : {}),
     ...(v.key ? { key: v.key } : {}),
+    ...(v.location !== undefined ? { location: v.location } : {}),
     ...(v.unreadableSiblings ? { unreadableSiblings: v.unreadableSiblings } : {}),
   })
   // (E1) the stall is said first only by the task that is its own SEAT — a

@@ -77,6 +77,13 @@ export interface TaskAsksDeps {
   isAgent(id: string): boolean
   inPlay(id: string): boolean
   nameOf(id: string): string
+  // the project boundary (project-scope.ts): an ask is about a task, so its
+  // `to` is an agent of the task's project — and the asks shown to an agent
+  // are those of its projects. Absent: no bound (a test's choice)
+  ofProject?(id: string, folder: string | null): boolean
+  // may `reader` see `id` named (project-scope.ts mayName)? No: the id
+  // stays as written, never a name. Absent: everyone is named
+  mayName?(reader: string, id: string): boolean
   // Task mode wakes this agent on its tasks (the answered wake's owner)
   bound(id: string): boolean
   // (H8) when `to`'s next heartbeat falls counted from `atMs`, or null
@@ -150,6 +157,21 @@ export class TaskAsks {
   private task(key: string): TaskSnap | undefined {
     return this.d.tasks().find((t) => t.key === key)
   }
+  private mayName(reader: string, id: string): boolean {
+    return this.d.mayName ? this.d.mayName(reader, id) : true
+  }
+  private nameFor(reader: string, id: string): string {
+    return this.mayName(reader, id) ? this.d.nameOf(id) : id
+  }
+  private ofProject(id: string, folder: string | null): boolean {
+    return this.d.ofProject ? this.d.ofProject(id, folder) : true
+  }
+  // «message its owner (POST …)» only when the reader may reach that owner
+  private messageOwner(reader: string, owner: string): string {
+    return owner !== '' && owner !== 'owner' && this.mayName(reader, owner)
+      ? `message its owner instead: POST /api/agents/${owner}/messages`
+      : 'ask the owner instead (waitingOn {owner: "owner", action, asked})'
+  }
 
   // the (H9) round trips: `answered` wakes of `to` on this task DELIVERED in
   // the last ANSWERS_WINDOW_MS
@@ -186,7 +208,7 @@ export class TaskAsks {
       return {
         ok: false,
         code: 403,
-        error: `${t.ref} is ${this.d.nameOf(t.owner) || 'nobody'}'s task, not yours — only a task's owner asks on it (message its owner instead: POST /api/agents/${t.owner}/messages)`,
+        error: `${t.ref} is ${this.nameFor(i.agentId, t.owner) || 'nobody'}'s task, not yours — only a task's owner asks on it (${this.messageOwner(i.agentId, t.owner)})`,
       }
     if (!isStr(i.to) || i.to.trim() === '') return { ok: false, code: 400, error: 'send {to}: the id of the agent you ask' }
     if (!isStr(i.action) || i.action.trim() === '')
@@ -199,7 +221,7 @@ export class TaskAsks {
     const action = clip(i.action.trim(), ASK_ACTION_MAX)
     const asked = clip(isStr(i.asked) ? i.asked.trim() : '', ASK_ASKED_MAX)
     const review = i.review === true
-    const toName = this.d.nameOf(to)
+    const toName = this.nameFor(i.agentId, to)
     if (to === i.agentId)
       return { ok: false, code: 409, error: 'you can\'t ask yourself — write a note, or ask the owner (waitingOn {owner: "owner", action, asked})' }
     if (to === 'owner')
@@ -208,7 +230,10 @@ export class TaskAsks {
         code: 409,
         error: 'the owner is asked in the file: write waitingOn {owner: "owner", action, asked} on your task — POST /api/tasks/ask is for another agent',
       }
-    if (!this.d.inPlay(to))
+    // an ask is about a task: `to` is an agent of the task's project — any
+    // other id (another project's agent, a typo, an archived one) gets the
+    // one answer, the same words (project-scope.ts: existence is not confirmed)
+    if (!this.d.inPlay(to) || !this.ofProject(to, t.folder))
       return { ok: false, code: 409, error: `${to} is not an agent in play — ask the owner instead (waitingOn {owner: "owner", action, asked})` }
     if (action.startsWith(SILOS_WAIT_PREFIX))
       return { ok: false, code: 409, error: `an action starting «${SILOS_WAIT_PREFIX.trim()}» is Silos' own wait — say what you wait on in other words` }
@@ -246,7 +271,7 @@ export class TaskAsks {
         // it waits on someone already — anything but this very ask, or its own
         // ask still linked (re-arming over it replaces it, H5)
         if (isObj(wait) && isStr(wait.owner) && wait.owner.trim() !== '' && !same && !linkedNow) {
-          const who = wait.owner.trim() === 'owner' ? 'the owner' : this.d.nameOf(wait.owner.trim())
+          const who = wait.owner.trim() === 'owner' ? 'the owner' : this.nameFor(i.agentId, wait.owner.trim())
           const what = isStr(wait.action) && wait.action.trim() !== '' ? ` (${wait.action.trim()})` : ''
           return `${t.ref} waits on ${who} already${what} — one wait at a time: clear that one first (remove waitingOn from your task), then ask`
         }
@@ -324,7 +349,7 @@ export class TaskAsks {
       return {
         ok: false,
         code: 403,
-        error: `${t.ref} asks ${this.d.nameOf(fact.to)}, not you — leave a note on it, or message its owner (POST /api/agents/${t.owner}/messages)`,
+        error: `${t.ref} asks ${this.nameFor(i.agentId, fact.to)}, not you — leave a note on it, or ${this.messageOwner(i.agentId, t.owner)}`,
       }
     if (!isStr(i.text) || i.text.trim() === '') return { ok: false, code: 400, error: 'send {text}: your answer — «not mine, ask the owner» is an answer too' }
     const text = clip(i.text.trim(), ASK_ANSWER_MAX)
@@ -364,7 +389,8 @@ export class TaskAsks {
       return { ok: false, code: w.code, error: w.reason }
     }
     const owner = t.owner
-    const woke = owner !== '' && this.d.isAgent(owner) && this.d.bound(owner)
+    // (R3) an owner that does not work in the task's project is never woken on it
+    const woke = owner !== '' && this.d.isAgent(owner) && this.d.bound(owner) && this.ofProject(owner, t.folder)
     this.d.store.update((s) => {
       // consumed — only the fact this answer answered (a new ask landed meanwhile keeps its own)
       const cur = s.armed[t.key]
@@ -406,8 +432,8 @@ export class TaskAsks {
       /* the tick looks again */
     }
     const says = woke
-      ? `answered — ${this.d.nameOf(owner)} wakes on ${t.ref} with your answer`
-      : `answered — your note is on ${t.ref}; ${this.d.nameOf(owner) || 'its owner'} reads it there`
+      ? `answered — ${this.nameFor(i.agentId, owner)} wakes on ${t.ref} with your answer`
+      : `answered — your note is on ${t.ref}; ${this.nameFor(i.agentId, owner) || 'its owner'} reads it there`
     return { ok: true, value: { key: t.key, ref: t.ref, state: out.state, woke, says } }
   }
 
@@ -420,6 +446,9 @@ export class TaskAsks {
     for (const [key, f] of armed) {
       const t = byKey.get(key)
       if (!t || CLOSED.has(t.state) || !askLinked(f, t.waitingFor)) continue
+      // only the asks of its projects reach it (an ask armed before the
+      // folders changed stays until it is of its project again)
+      if (!this.ofProject(agentId, t.folder)) continue
       let outside: string[] | null = null
       try {
         outside = this.d.askReadOutside?.(key, t.owner, f.at) ?? null
@@ -431,7 +460,7 @@ export class TaskAsks {
         ref: t.ref,
         title: t.title,
         from: t.owner,
-        fromName: this.d.nameOf(t.owner),
+        fromName: this.nameFor(agentId, t.owner),
         action: f.action,
         asked: f.asked,
         at: f.at,
@@ -443,10 +472,19 @@ export class TaskAsks {
   }
 
   // ── the escalation's hop to an agent (H10) ──
+  // A hop arms the same fact an ask arms, so it obeys the ask's bound on
+  // `to` (R3): only an agent of the task's project. The escalation never
+  // picks another (escalation/evaluate.ts ofLocation); this is the floor
+  // under it — a hop to an agent outside writes and arms nothing.
+  private hopOutside(key: string, to: string): boolean {
+    const t = this.task(key)
+    return t !== undefined && this.d.isAgent(to) && !this.ofProject(to, t.folder)
+  }
   /** The fact for an agent hop is armed (asked '', Silos' own action) — the
    *  same fact kept (its `at`) when it is there already. Never counted in
    *  any agent's day. */
   armHop(key: string, to: string, action: string, now = this.now()): void {
+    if (this.hopOutside(key, to)) return
     const cur = this.d.store.armedOf(key)
     if (cur && cur.to === to && cur.action === action && cur.asked === '') return
     this.d.store.update((s) => {
@@ -460,6 +498,7 @@ export class TaskAsks {
   /** The hop's write — the wait on `to` and blocked, ONE write the stamper
    *  expects (H4). true: it landed (or was so already). */
   writeHop(key: string, to: string, action: string): boolean {
+    if (this.hopOutside(key, to)) return false
     const out: { undo: (() => void) | null } = { undo: null }
     const w = this.d.write(
       key,

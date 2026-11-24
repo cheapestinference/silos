@@ -1,8 +1,9 @@
-// EngineStep.tsx — the first run's engine: every engine Silos registered,
+// EngineStep.tsx — the first run's engine, only when this machine can run
+// more than one (lib/first-run.ts tourSteps): every engine Silos registered,
 // with its version on this machine, the default recommended; one this
 // machine can't run is shown with its verdict and can't be picked.
 import type { EngineRow } from '../../lib/first-run'
-import { ENGINE_ABOUT, ENGINE_ASK, ENGINE_ONCE, ENGINE_WIRES } from '../../lib/new-agent'
+import { ENGINE_ABOUT, ENGINE_ASK, ENGINE_CONNECTS, ENGINE_ONCE } from '../../lib/new-agent'
 import { ChoiceGroup, ChoiceRow } from './ChoiceRow'
 
 export function EngineStep({ rows, engine, onPick }: { rows: readonly EngineRow[]; engine: string; onPick: (id: string) => void }) {
@@ -31,7 +32,7 @@ export function EngineStep({ rows, engine, onPick }: { rows: readonly EngineRow[
         ))}
       </ChoiceGroup>
       <p className="mt-2 text-xs text-ink-3">{ENGINE_ONCE}</p>
-      <p className="mt-1 text-xs text-ink-3">{ENGINE_WIRES}</p>
+      <p className="mt-1 text-xs text-ink-3">{ENGINE_CONNECTS}</p>
     </section>
   )
 }

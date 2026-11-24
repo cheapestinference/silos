@@ -24,6 +24,7 @@ import { agentAtWork, parkedWords, sessionSignal } from './live'
 import { executionWord } from './execution'
 import { countsOf } from './counts'
 import { territoriesOf } from './territory'
+import { sameProject } from '../../../server/src/project-scope'
 import { baselineWords } from './initiative'
 import { isStandingParent, isTaskRow, taskTitle } from './home-projects'
 import type {
@@ -571,7 +572,7 @@ function headlineCore(input: {
         head = `${agentName(top.automation?.agentId ?? '')} wants your go to run ${top.automation?.name ?? 'an automation'}${tail}`
         break
       case 'proposal':
-        head = `${agentName(top.agentId)} ${top.proposalKind === 'skill' ? 'wrote a skill' : 'suggests'}: ${top.title}${tail}`
+        head = `${agentName(top.agentId)} ${top.proposalKind === 'skill' ? (top.skillOf ? `changed a skill of ${top.skillOf}` : 'wrote a skill') : 'suggests'}: ${top.title}${tail}`
         break
       case 'proposalSummary':
         head = `${agentName(top.agentId)} suggests ${top.count} things${tail}`
@@ -599,11 +600,17 @@ function headlineCore(input: {
       case 'cut':
         head = `Silos stopped ${agentName(top.agentId)} from creating work on its own${tail}`
         break
+      case 'folderRefused':
+        head = `${top.voice}${tail}`
+        break
       case 'auditUnreadable':
         head = `Silos couldn't read the transcript of ${agentName(top.agentId)}'s ${top.heartbeat ? 'heartbeat' : top.task ? `turn on ${top.task.ref}` : (top.automation?.name ?? 'run')}${tail}`
         break
       case 'unreadMessages':
-        head = `${agentName(top.agentId)} hasn't read ${top.count === 1 ? 'a message' : `${top.count} messages`} from ${top.from === 'owner' ? 'you' : agentName(top.from)}${tail}`
+        head =
+          top.why === 'noProject'
+            ? `${top.from === 'owner' ? 'You' : agentName(top.from)} wrote to ${agentName(top.agentId)} — they share no project${tail}`
+            : `${agentName(top.agentId)} hasn't read ${top.count === 1 ? 'a message' : `${top.count} messages`} from ${top.from === 'owner' ? 'you' : agentName(top.from)}${tail}`
         break
       case 'agentSummary':
         head = `${agentName(top.agentId)}: ${top.count} ${top.runsOnly ? 'automations failing' : 'things need you'}${tail}`
@@ -687,9 +694,20 @@ export function inFolder(folder: string, path: string | null | undefined): boole
 // any agent's, Anywhere's orphans included — whose cwd does. A folder that
 // matches nothing (a mistyped /project link) is not a quiet
 // project; the page says so instead of scoping to nothing.
-// Member of a folder: ANY territory (folder or folders[]) at or under it.
+// Member of a folder's project: ANY territory (folder or folders[]) that is
+// the same project as it — the server's one resolver (project-scope.ts
+// sameProject): folders that nest are one project, both ways, so an agent
+// whose folder is AROUND this one is of it too; a sibling prefix is not.
 export function memberOf(a: Pick<AgentView, 'folder' | 'folders'>, folder: string): boolean {
-  return territoriesOf(a).some((t) => inFolder(folder, t))
+  return territoriesOf(a).some((t) => sameProject(t, folder))
+}
+// The folder AROUND `folder` through which an agent is of its project — when
+// none of its folders is `folder` itself or inside it (it works in acme, the
+// page is acme/web): the project page says «from acme». null: it works here.
+export function aroundFolder(a: Pick<AgentView, 'folder' | 'folders'>, folder: string): string | null {
+  const mine = territoriesOf(a).filter((t) => sameProject(t, folder))
+  if (mine.length === 0 || mine.some((t) => t === folder || t.startsWith(`${folder}/`))) return null
+  return mine.sort((x, y) => y.length - x.length)[0] ?? null
 }
 // Starts in a folder: its PRIMARY folder is exactly it — the agents a
 // folder's skills, MCP servers and memory actually reach (the engine loads

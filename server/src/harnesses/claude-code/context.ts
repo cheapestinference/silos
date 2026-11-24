@@ -14,6 +14,7 @@ import { homedir } from 'node:os'
 import { textOf, toolResultsOf, isNoise, conversationalMessage, planProposalOf, planApproved, PARKING_KIND } from './parser.js'
 import { modelsWithoutPrice, priceUsage } from './model-prices.js'
 import { scrubReason } from '../../tool-health.js'
+import { FENCE_REFUSAL_WHOLE_RE, normalizeToolError, refusedPathOf, REFUSED_CAP } from '../../territory.js'
 import type { SessionContext, PlanTask, SubagentRef, StartNotice } from '../../types.js'
 
 // EPHEMERAL bookkeeping (doesn't travel in `state`, same as `pendingTools`
@@ -192,6 +193,13 @@ export class ContextAccumulator {
   // which environment variables its Bash calls named (Map › Uses: Vault
   // secrets by NAME — never a value)
   private envRefsMap = new Map<string, number>()
+  // refused tool calls (SessionContext.refused): when + the path the call
+  // named. The refusal's own text is never kept (f9284902: a raw denial is
+  // a log line, not a fact) — only what Territory counts.
+  private refusedArr: { at: string; path: string | null }[] = []
+  // EPHEMERAL: tool_use id → the path its input named, until its result
+  // (bounded — a result that never comes leaves nothing behind for long)
+  private pendingPaths = new Map<string, string | null>()
   private flagsObj: SessionContext['flags'] = { remote: false, permissionMode: null, gitBranch: null, effort: null, model: null }
   private waitingObj: SessionContext['waiting'] = null
   // outbound sends still shown (proof of life) — see types.ts
@@ -321,6 +329,8 @@ export class ContextAccumulator {
     for (const t of state.tools) this.toolsMap.set(this.toolKey(t.server, t.name), { ...t })
     // caches < v37 carry no envRefs
     for (const c of state.envRefs ?? []) this.envRefsMap.set(c.name, c.count)
+    // caches before the refused list carry none (no bump: counted from the lines read since)
+    this.refusedArr = (state.refused ?? []).map((r) => ({ at: r.at, path: r.path }))
     this.flagsObj = { ...state.flags }
     this.waitingObj = state.waiting ? { ...state.waiting } : null
     // caches < v40 carry no outbound; live-joined fields (state/answer) are
@@ -395,6 +405,7 @@ export class ContextAccumulator {
       documents: this.docsArr.map((d) => ({ ...d })),
       fileHistory: [...this.fhMap.entries()].map(([path, v]) => ({ path, ...v })).sort((a, b) => (a.lastAt < b.lastAt ? 1 : a.lastAt > b.lastAt ? -1 : 0)),
       ...(this.planModeObj ? { planMode: { ...this.planModeObj } } : {}),
+      ...(this.refusedArr.length > 0 ? { refused: this.refusedArr.map((r) => ({ ...r })) } : {}),
       ...(this.envRefsMap.size > 0 ? { envRefs: [...this.envRefsMap].map(([name, count]) => ({ name, count })) } : {}),
       ...(this.outboundArr.length > 0 ? { outbound: this.outboundArr.map((o) => ({ ...o })) } : {}),
       ...(this.startObj
@@ -591,6 +602,10 @@ export class ContextAccumulator {
 
       this.registerTool(name)
       this.attributePlanMentions(name, input)
+      if (id) {
+        this.pendingPaths.set(id, refusedPathOf(name, input))
+        if (this.pendingPaths.size > 500) this.pendingPaths.delete(this.pendingPaths.keys().next().value!)
+      }
       if (name === 'Bash' && typeof input.command === 'string') {
         this.registerCommand(input.command)
         // a message POST to an agent's inbox — pending until its result
@@ -911,6 +926,14 @@ export class ContextAccumulator {
     }
 
     for (const r of toolResultsOf(content)) {
+      // a refused call: only an is_error result whose WHOLE text is a pinned
+      // refusal shape — a Read of a file quoting the phrase is not one
+      const path = this.pendingPaths.get(r.toolUseId)
+      this.pendingPaths.delete(r.toolUseId)
+      if (r.isError && FENCE_REFUSAL_WHOLE_RE.test(normalizeToolError(r.text))) {
+        this.refusedArr.push({ at: ts ?? '', path: path ?? null })
+        if (this.refusedArr.length > REFUSED_CAP) this.refusedArr.splice(0, this.refusedArr.length - REFUSED_CAP)
+      }
       this.resolveTaskCreate(r.toolUseId, r.text)
       this.resolveArtifact(r.toolUseId, r.text, e.toolUseResult as { url?: unknown; path?: unknown; title?: unknown } | undefined, ts)
       this.resolveAgent(r.toolUseId, r.text, e.toolUseResult as { agentId?: unknown } | undefined, ts)

@@ -279,6 +279,24 @@ describe('evaluateEscalation — hop timing', () => {
       ).map((x) => x.fire),
     ).toEqual([[], [], [OWNER]])
   })
+  it("(R3) a hop goes only to an agent of the subject's location: a manager or a creator outside the project is skipped, and it ends on the owner", () => {
+    // writer's chain: finance (another project), then builder (this one)
+    const here = new Set(['writer', 'builder', 'ana'])
+    const ofLocation = (id: string, loc: string): boolean => loc === 'folder:/w' && here.has(id)
+    const steps = (s: Subject) => {
+      let prev: Record<string, Case> = {}
+      return [T0, T0 + W, T0 + 2 * W, T0 + 3 * W].map((at) => {
+        const ev = evaluateEscalation({ subjects: [s], prev, now: at, windowMs: W, chain: chainOf(ORG), ofLocation })
+        prev = ev.cases
+        return ev.fire.map((f) => f.to)
+      })
+    }
+    expect(steps(subj({ location: 'folder:/w', creator: 'ana' }))).toEqual([['builder'], ['ana'], [OWNER], []])
+    // a row of another agent's state: only that agent is of it — straight to the owner
+    expect(steps(subj({ id: 'row:f:0:k', kind: 'row', location: 'agent:writer' })).flat()).toEqual([OWNER])
+    // no location (a platform record): not judged
+    expect(steps(subj())[0]).toEqual(['finance'])
+  })
   it('a subject no longer stuck closes its case', () => {
     const r = run([
       { at: T0, subjects: [subj()] },

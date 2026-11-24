@@ -6,7 +6,6 @@
 // domain, behavior unchanged). Engine plumbing (hooks/hookContext) and
 // the session vocabulary (validParams) stay in buildServer and arrive
 // through the ctx.
-import { mkdirSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { slugify } from '../slug.js'
 import { join } from 'node:path'
@@ -23,12 +22,15 @@ import {
   checkProactive,
   ControlError,
   heartbeatOf,
+  noMissionForOwn,
   parseControlPatch,
   positionOf,
+  proactiveAtBirth,
   storedControl,
   storedProactive,
   type ControlPatch,
 } from '../control.js'
+import { birthFolder, parseBirthProject } from '../birth-project.js'
 import { noteControlChange } from '../fleet-events.js'
 import { missionHeader } from '../mission.js'
 import { validateAgentProviderFields } from '../providers-validate.js'
@@ -121,6 +123,8 @@ export interface AgentRoutesCtx {
   /** the user's starting set (platform-settings.ts) — what a folder's first
    *  agent of an engine sets there (starting-set.ts); absent: Recommended */
   startingSettings?: StartingSetDeps['settings']
+  /** (D6) the birth's machine class off (workspace.ts fills it) */
+  machineOff?: StartingSetDeps['machineOff']
 }
 
 export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
@@ -424,7 +428,9 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
     }
   }
 
-  const birthDeps: StartingSetDeps | null = ctx.startingSettings ? { registry, home, settings: ctx.startingSettings } : null
+  const birthDeps: StartingSetDeps | null = ctx.startingSettings
+    ? { registry, home, settings: ctx.startingSettings, ...(ctx.machineOff ? { machineOff: ctx.machineOff } : {}) }
+    : null
 
   // the New agent form's line: what a new agent of `framework` would start
   // with in `folder` — the set (the user's or Recommended), whether the
@@ -496,9 +502,13 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
       }
       // born On its own with a mission, Only when told without; the
       // control fields are the registry's to set at birth, never the body's —
-      // except the one ask that takes autonomy away: «told» with a mission
-      // (the mission then only describes the job)
-      const askedTold = (req.body as { control?: unknown } | null)?.control === 'told'
+      // except two asks, both the owner's words on the New agent form and
+      // Welcome: «told» with a mission (less autonomy: the mission then only
+      // describes the job) and «proactive» (the ladder's third rung: On its
+      // own with Silos' default limits — it needs a mission like own)
+      const asked = (req.body as { control?: unknown } | null)?.control
+      const askedTold = asked === 'told'
+      const askedProactive = asked === 'proactive'
       const {
         control: _c,
         heartbeat: _h,
@@ -508,21 +518,23 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
         cut: _cut,
         proactive: _p,
         id: _id,
+        project: rawProject,
         ...body
       } = req.body as Parameters<AgentRegistry['create']>[0] & Record<string, unknown>
       // creation without decisions: the id comes from the name
-      // (the client no longer sends one), the folder — when none was chosen —
-      // is ~/Silos/<id>, made now
+      // (the client no longer sends one); the folder is its project's
+      // (birth-project.ts): a new project by name, one Silos knows, or —
+      // when none was asked — a new project named like the agent
       const name = typeof body.name === 'string' ? body.name.trim() : ''
       const id = slugify(name, 32)
       if (id === '') throw new Error('name is required — use letters or digits')
       if (registry.get(id)) throw new ControlError(409, `an agent called ${name} exists — pick another name`)
-      let folder = typeof body.folder === 'string' ? body.folder.trim() : ''
-      if (folder === '') {
-        folder = join(home, 'Silos', id)
-        mkdirSync(folder, { recursive: true })
-      }
-      return registry.create({ ...body, id, name, folder, control: !askedTold && body.mission !== undefined && body.mission !== null ? 'own' : 'told' })
+      const hasMission = body.mission !== undefined && body.mission !== null
+      if (askedProactive && !hasMission) throw new ControlError(409, noMissionForOwn(name))
+      const project = parseBirthProject(rawProject)
+      const folder = birthFolder({ project, folder: typeof body.folder === 'string' ? body.folder.trim() : '', agentId: id, registry, home })
+      const made = registry.create({ ...body, id, name, folder, control: !askedTold && hasMission ? 'own' : 'told' })
+      return askedProactive ? registry.update(made.id, proactiveAtBirth(made.id, Date.now())) : made
     })
     // Fenced at birth, first thing after the create —
     // nothing later can leave the agent created-but-unfenced. Settings ›
@@ -1126,9 +1138,14 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
     app.get<{ Params: { id: string } }>('/api/agents/:id/territory', async (req, reply) => {
       const agent = registry.get(req.params.id)
       if (agent === null) return reply.code(404).send({ error: 'unknown agent' })
+      // the fence its launches carry: whole when its territory is on, the
+      // two always-on groups (other projects, Silos' credentials) when off
       const fence = territory.fenceFor(agent.id)
+      const enabled = territoryStore ? territoryStore.isEnabled(agent.id) : fence !== null
       return {
-        fenced: fence !== null,
+        // its territory is on — the switch, not «carries rules» (an agent
+        // whose territory is off carries the always-on groups)
+        fenced: fence !== null && enabled,
         // The rollout gate: false = the owner has not enabled this agent yet.
         enabled: territoryStore ? territoryStore.isEnabled(agent.id) : true,
         territories: territoriesOf(agent),

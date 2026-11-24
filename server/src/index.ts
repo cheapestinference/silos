@@ -91,6 +91,7 @@ import { TransitionJournal } from './silos/journal.js'
 import { OverlayStore } from './silos/overlay.js'
 import { createSiloValidate } from './silos/validator.js'
 import { bearerLocations, bearerMayReadLocation } from './silos/bearer-scope.js'
+import { knows, mayName, ofLocation, ofProject, ownerOutside, servable } from './project-scope.js'
 import { SiloSurfaces } from './silos/surfaces.js'
 import { SiloOperatorStore } from './silos/operator.js'
 import { SiloInstaller } from './silos/installer.js'
@@ -148,7 +149,7 @@ import { SessionTokenStore } from './session-tokens.js'
 import { buildServer } from './server.js'
 import { silosApiUrl } from './agent-env.js'
 import { PeerRegistry } from './harnesses/claude-code/peer-registry.js'
-import { sdkQueryFn } from './harnesses/claude-code/sdk.js'
+import { sdkQueryFn, sdkSettingsIn } from './harnesses/claude-code/sdk.js'
 import { purgeTrash, TRASH_PURGE_INTERVAL_MS } from './trash-purge.js'
 import { MachineSampler } from './machine-sampler.js'
 import { LoopStalls, startLoopStallMonitor } from './loop-stalls.js'
@@ -231,8 +232,13 @@ const muted = loadMuted(cfg.dataDir)
 // ephemeral.ts, test harnesses only.
 const ephemeral = resolveEphemeralPrefix()
 
-const registry = new AgentRegistry(join(cfg.dataDir, 'agents.json'))
+// every door that writes an agent's folder goes through the project folder
+// check (project-folder.ts), against this machine's places
+const registry = new AgentRegistry(join(cfg.dataDir, 'agents.json'), { folderCheck: { home: cfg.home, dataDir: cfg.dataDir } })
 registry.load()
+// the boot audit: every in-play agent's folder the project folder check
+// would refuse today — said here and as a Needs you row, never fixed
+for (const o of registry.auditFolders()) console.warn(`agents.json: ${o.agentId}'s folder breaks the project folder rule — ${o.reason}`)
 // The agent↔platform state channel: per-agent files under
 // <dataDir>/agent-state/<id>/ (runmode.json, status.json) — see
 // agent-state.ts. Constructed before ChatService/buildServer (and the
@@ -312,7 +318,17 @@ const vaultCredentialsOf = (agentId: string): VaultCredential[] => {
   const a = registry.list(true).find((x) => x.id === agentId)
   return vault.credentialsFor(agentId, a ? territoriesOf(a) : [])
 }
-const territory = makeTerritory({ registry, agentState, store: territoryStore, home: cfg.home, dataDir: cfg.dataDir })
+const territory = makeTerritory({
+  registry,
+  agentState,
+  store: territoryStore,
+  home: cfg.home,
+  dataDir: cfg.dataDir,
+  sessionCwds: () => index.allSessions().map((m) => m.cwd),
+})
+// a turn's settings (its fence) ride an owner-only file beside the consoles'
+// appends, never the engine's argv (sdk.ts; D8)
+sdkSettingsIn(join(cfg.dataDir, 'console-append'))
 // What one agent's launches load (loads-scopes.ts, 0600, restore regime):
 // Project › Tools' agent lines write it; every launch of the agent — chat,
 // console, run, wake, round — carries it beside the fence, through its
@@ -683,8 +699,14 @@ const siloKernel: SiloKernel = new SiloKernel({
 // the v0 actions; their events go to ~/.silos/silos/events.jsonl, acks to
 // silos/acks.json, proposals to silos/proposals/ (silos/actions.ts)
 const siloEvents = new SiloEvents(siloRegistry.root)
+// (R3) the one reading of «this agent is of where the thing lives» — a
+// record's location, a task's project (project-scope.ts): what Silos moves
+// on its own (a routed row, a producer's hand-off, an escalation hop) goes
+// only to such an agent
+const agentOfLocation = (agentId: string, location: string): boolean => ofLocation(registry.get(agentId), location)
 const siloActions = new SiloActions({
   registry: siloRegistry,
+  ofLocation: agentOfLocation,
   kernel: siloKernel,
   events: siloEvents,
   acks: new SiloAcks(siloRegistry.root),
@@ -713,6 +735,7 @@ const siloActions = new SiloActions({
 // silos/submissions/, uninstalled manifests in silos/uninstalled/
 const siloInstaller = new SiloInstaller({
   root: siloRegistry.root,
+  mayName: (reader, id) => mayName(reader, id, registry.list(true)),
   registry: siloRegistry,
   operator: siloOperator,
   kernel: siloKernel,
@@ -737,6 +760,7 @@ const siloSurfaces = new SiloSurfaces({
   isAgent: isAgentId,
   inPlay: isAgentInPlay,
   acks: new SiloAcks(siloRegistry.root),
+  ofLocation: agentOfLocation,
   proposals: (id) => siloActions.proposalsNeedsYou(id),
   producersOf: (id) => siloOperator.producersOf(id),
   audienceOff: (id) => siloOperator.audienceOff(id),
@@ -755,6 +779,8 @@ const siloSurfaces = new SiloSurfaces({
     wakes: (agentId) => (isAgentInPlay(agentId) && taskModeBound().has(agentId) ? wakesOfControl('own') : 'never'),
     // the door can start it: in play, with a folder (F11)
     startable: (agentId) => isAgentInPlay(agentId) && !!registry.get(agentId)?.folder,
+    // (R3) its owner does not work in the task's project (project-scope.ts)
+    ownerOutside: (owner, location) => ownerOutside(registry.get(owner), location),
     // a task-mode wake on its way (G2) — the engine is built further down,
     // reached lazily (a read before it exists says none)
     wakeOnTheWay: (q) => {
@@ -854,6 +880,7 @@ function taskFlowsNow(now: number): TaskFlowFact[] {
       const turn = turnOf(r.rec, r.siblings ?? [], info.dict, refOf, {
         now,
         key: r.key,
+        ...(r.location !== undefined ? { location: r.location } : {}),
         ...(v.isAgent ? { isAgent: v.isAgent } : {}),
         ...(v.taskEnv ? { taskEnv: v.taskEnv } : {}),
         ...(v.nameOf ? { nameOf: v.nameOf } : {}),
@@ -980,8 +1007,14 @@ const context = new ContextService()
 let instanceUsage: InstanceUsage | null = null
 const liveTurns = new LiveTurns({ file: join(cfg.dataDir, 'live-turns.json'), onTurn: (attended) => instanceUsage?.countTurn(attended) })
 // the serving of an inbox, marked by the class of the turn — one for
-// the chat engines and the messages route
-const messageReads = new MessageReads(messages, liveTurns, (agentId) => taskAsksBox.v?.asksTo(agentId) ?? [])
+// the chat engines and the messages route. What reaches a recipient is what
+// is SERVABLE to it (project-scope.ts): a message from an agent it does not
+// know stays unread and unserved, and the owner sees it in the unread row
+const servedMessages: Pick<typeof messages, 'list' | 'markRead'> = {
+  list: (agentId, state) => messages.list(agentId, state).filter((m) => servable(agentId, m.from, registry.list(true))),
+  markRead: (agentId, ids) => messages.markRead(agentId, ids),
+}
+const messageReads = new MessageReads(servedMessages, liveTurns, (agentId) => taskAsksBox.v?.asksTo(agentId) ?? [])
 // Usage: the windows each turn and console opens
 // (usage-ledger.ts) and the reader that drops every transcript record into
 // one (usage.ts). Its closures reach stores built further down — called
@@ -1465,9 +1498,10 @@ const resident = new Resident({
     facts: (agent, since, now) =>
       heartbeatFacts(
         {
-          messages,
+          messages: servedMessages,
           automations,
           nameOf: nameOfAgent,
+          mayName: (reader, id) => mayName(reader, id, registry.list(true)),
           tasks: (t) => taskMode.tasks(t),
           routedRows: (t) => siloSurfaces.routedRows(t),
           proposals,
@@ -1543,6 +1577,9 @@ const taskMode: TaskModeEngine = new TaskModeEngine({
       : null
   },
   bound: taskModeBound,
+  // (R3) a task whose agent owner does not work in its project is never
+  // moved for it (project-scope.ts — the one resolver)
+  ownerOutside: (owner, folder) => folder !== null && ownerOutside(registry.get(owner), `folder:${folder}`),
   // the kernel's flow of every plan task (task-flow.ts, the same live facts
   // Home's rows read): its stall — what the stuck sweep wakes on — and its
   // idle / waitsStart / live, read by assign and the heartbeat (A1.1)
@@ -1866,6 +1903,9 @@ const taskAsks = new TaskAsks({
   isAgent: isAgentId,
   inPlay: isAgentInPlay,
   nameOf: (agentId) => registry.list(true).find((a) => a.id === agentId)?.name ?? agentId,
+  // the project boundary (project-scope.ts)
+  ofProject: (agentId, folder) => ofProject(registry.get(agentId), folder),
+  mayName: (reader, id) => mayName(reader, id, registry.list(true)),
   bound: (agentId) => isAgentInPlay(agentId) && taskModeBound().has(agentId),
   seenBy: askSeenBy,
   ownWrite: (key, shape) => plansStamper.ownWrite(key, shape),
@@ -1884,11 +1924,14 @@ taskAsksBox.v = taskAsks
 // whose next heartbeat falls inside the window — then to the owner's
 // Needs you; with no chain installed, straight to Needs you.
 const siloRelations = new RelationStore(siloRegistry.root)
+// an edge is walked only while its ends share a project (R3/D5: a reporting
+// line never widens the wall — project-scope.ts knows)
 const relationLookup = {
   stateOf: (id: string): EndpointState => {
     const a = registry.list(true).find((x) => x.id === id)
     return !a ? 'gone' : a.archived ? 'archived' : 'ok'
   },
+  knows: (a: string, b: string): boolean => knows(registry.get(a), registry.get(b)),
 }
 const nameOfAgent = (agentId: string): string => registry.list(true).find((a) => a.id === agentId)?.name ?? agentId
 const escalationStore = new EscalationStore(cfg.dataDir)
@@ -1907,6 +1950,8 @@ const escalation: EscalationEngine = new EscalationEngine({
     return { installed: true, up: (agent) => chainUp(edges, agent) }
   },
   isAgent: isAgentInPlay,
+  // (R3) a hop only to an agent of the subject's location
+  ofLocation: agentOfLocation,
   nameOf: nameOfAgent,
   setField: (key, field, value) => {
     const r = siloActions.setField(PLANS_SILO, key, field, value, { by: SILOS_AUTHOR })

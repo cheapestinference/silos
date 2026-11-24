@@ -21,10 +21,16 @@ import { asOwner } from './helpers/owner.js'
 
 const LOCAL = { host: '127.0.0.1:3210' }
 // per fenceable agent: the harness it runs on and what its fence really
-// denies there (fenceFor emits Read/Edit rules only — no bash), enabled or not
+// denies there once on (Read/Edit rules, and Bash on Silos' tmux server), enabled or not
 const AGENTS = [
-  { id: 'builder', harness: 'claude-code', label: 'Claude Code', fenced: ['read', 'edit'], scope: expect.objectContaining({ works: expect.any(Array) }) },
-  { id: 'oc', harness: 'opencode', label: 'OpenCode', fenced: ['read', 'edit'], scope: expect.objectContaining({ works: expect.any(Array) }) },
+  {
+    id: 'builder',
+    harness: 'claude-code',
+    label: 'Claude Code',
+    fenced: ['read', 'edit', 'bash'],
+    scope: expect.objectContaining({ works: expect.any(Array) }),
+  },
+  { id: 'oc', harness: 'opencode', label: 'OpenCode', fenced: ['read', 'edit', 'bash'], scope: expect.objectContaining({ works: expect.any(Array) }) },
 ]
 let app: FastifyInstance, tokens: AgentTokens, store: TerritoryStore, dataDir: string, folder: string, extra: string
 
@@ -156,7 +162,7 @@ describe('PUT /api/territory enabled — the rollout gate', () => {
 })
 
 describe('GET /api/agents/:id/territory', () => {
-  it('not enabled yet: no fence, enabled false, 0 applied private paths', async () => {
+  it('not enabled yet: territory off, 0 applied private paths — its launches still carry the always-on groups', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/agents/builder/territory', headers: LOCAL })
     expect(r.statusCode).toBe(200)
     expect(r.json()).toEqual({
@@ -164,10 +170,14 @@ describe('GET /api/agents/:id/territory', () => {
       enabled: false,
       territories: [folder, extra],
       privatePaths: 0,
-      deny: 0,
+      deny: expect.any(Number),
       skipped: [],
       scope: expect.objectContaining({ works: expect.any(Array) }),
     })
+    const off = r.json().deny as number
+    expect(off).toBeGreaterThan(0)
+    store.setEnabled(['builder'])
+    expect((await app.inject({ method: 'GET', url: '/api/agents/builder/territory', headers: LOCAL })).json().deny).toBeGreaterThan(off)
   })
 
   it('a fenced agent: territories, private path count, deny rule count', async () => {

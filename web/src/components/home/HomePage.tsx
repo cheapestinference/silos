@@ -70,6 +70,7 @@ import {
   notParked,
   waitingOnWords,
   doneToday,
+  aroundFolder,
   type FleetRow,
   type InboxItem,
 } from '../../lib/home'
@@ -607,15 +608,24 @@ function InboxRow({
       const a = byId(item.agentId)
       const view = proposalViews.get(item.proposalId)
       const skill = item.proposalKind === 'skill'
+      // a proposal that crosses the agent's projects says it in its first
+      // line, beside its title (R6); what it reaches is the card's «Crosses»
       const marks = [item.territoryOff, item.readOutside].filter((x): x is string => !!x)
       return (
         <>
           {row(
             <Seal agent={a} size="sm" />,
-            `${agentName(a)} · ${skill ? 'wrote a skill' : 'suggests'} · ${relTime(item.at, nowTick)}`,
+            `${agentName(a)} · ${skill ? (item.skillOf ? 'changed a skill' : 'wrote a skill') : 'suggests'} · ${relTime(item.at, nowTick)}`,
             <>
               <span className="font-medium">{item.title}</span>
+              {item.crosses ? (
+                <span className="text-terracotta" data-testid="proposal-crosses" title={item.crosses}>
+                  {' '}
+                  — outside its projects: {item.crosses}
+                </span>
+              ) : null}
               {item.brake ? <span className="text-ink-2"> — {item.brake}</span> : null}
+              {item.skillOf ? <span className="text-ink-2"> — in {item.skillOf}</span> : null}
             </>,
             item.review ? (
               <>
@@ -1071,6 +1081,13 @@ function InboxRow({
         toRuns,
       )
     }
+    case 'folderRefused': {
+      // an agent in a folder no project may have (the server's audit): the
+      // reason in the check's words; the door is its Profile, where Runs on is
+      const a = byId(item.agentId)
+      const toProfile = (): void => openAgentSettings(item.agentId)
+      return row(<Seal agent={a} size="sm" />, `${agentName(a)} · folder`, <>{item.reason}</>, <Act onClick={toProfile}>Change its folder ›</Act>, toProfile)
+    }
     case 'cut': {
       // Silos cut its capability of creating work on its own
       const a = byId(item.agentId)
@@ -1134,7 +1151,8 @@ function InboxRow({
         `${agentName(a)} · unread ${item.count === 1 ? 'message' : 'messages'} · ${relTime(item.at, nowTick)}`,
         <>{item.voice}</>,
         <span className="flex gap-2">
-          {a ? (
+          {/* a held message (they share no project) is never served: no door opens a conversation for it */}
+          {a && item.why !== 'noProject' ? (
             <Act primary onClick={open}>
               {openLabel(surface)}
             </Act>
@@ -1534,7 +1552,7 @@ function TaskRowGlyph({ rowKey, agents, now }: { rowKey: string; agents: readonl
 
 // an agent on its project's page: its seal and name, its duty, and what is
 // true of it today — the tile is the door to the agent's page.
-function AgentTile({ row, view, now }: { row: FleetRow; view: HeartbeatView | null; now: number }) {
+function AgentTile({ row, view, now, folder }: { row: FleetRow; view: HeartbeatView | null; now: number; folder?: string }) {
   const changePage = useStore((s) => s.changePage)
   const a = row.agent
   const w = agentWord(row, view, now)
@@ -1551,6 +1569,9 @@ function AgentTile({ row, view, now }: { row: FleetRow; view: HeartbeatView | nu
   ]
   // its mission, under its name (the duty is no longer shown)
   const duty = (a.mission?.text ?? '').trim()
+  // of this project through a folder AROUND this one (folders that nest are
+  // one project): said «from acme», so the page never reads as its own
+  const around = folder ? aroundFolder(a, folder) : null
   return (
     <Tile
       testId="agent-tile"
@@ -1562,6 +1583,11 @@ function AgentTile({ row, view, now }: { row: FleetRow; view: HeartbeatView | nu
         <span className="flex items-center gap-2.5">
           <Seal agent={a} signal={signalOf(row)} />
           {agentName(a)}
+          {around ? (
+            <span data-testid="agent-tile-from" title={around} className="self-end pb-[3px] font-body text-[12px] text-ink-3">
+              from {basename(around)}
+            </span>
+          ) : null}
         </span>
       }
       lines={lines}
@@ -2994,7 +3020,7 @@ export function HomePage({ scope, after }: { scope?: { folder: string }; after?:
               {sections
                 .flatMap((sec) => sec.rows)
                 .map((r) => (
-                  <AgentTile key={r.agent.id} row={r} view={autonomy[r.agent.id] ?? null} now={nowTick} />
+                  <AgentTile key={r.agent.id} row={r} view={autonomy[r.agent.id] ?? null} now={nowTick} folder={scope.folder} />
                 ))}
               {quietTile ? (
                 <Tile

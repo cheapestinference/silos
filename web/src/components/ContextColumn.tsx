@@ -48,6 +48,8 @@ import { Turn as TurnRow } from './Turn'
 import { MediaScope } from './MediaImage'
 import { PlanModeRow } from './PlanProposal'
 import { FileViewer } from './FileViewer'
+import { ProposalDetail } from './home/ProposalDetail'
+import { startMissionReview } from '../lib/mission-review'
 import { resolvePath, useFileRef, usedFileDoor } from '../lib/file-refs'
 import { useKnowsSources } from './knows/KnowsAnatomy'
 import { StartedWithBlock } from './StartedWithBlock'
@@ -83,6 +85,7 @@ import {
 } from '../lib/automations'
 import type {
   AgentView,
+  ProposalView,
   PlanUsage,
   Automation,
   DiskSubagent,
@@ -341,6 +344,111 @@ function AutomationApprovalsBlock({ pending, automations }: { pending: Run[]; au
             </div>
           )
         })}
+      </div>
+    </Block>
+  )
+}
+
+// What the agent PROPOSED in this conversation and only the owner decides
+// (an automation, a skill or a change to one, its mission): decided here,
+// without leaving — the same rows and the same sheet as Needs you, which
+// keeps them too. Refetched as the conversation moves (`tick`) and after
+// each decision. A mission and a command are «Review ›»: their editor decides.
+function ProposalsBlock({ sessionId, tick }: { sessionId: string; tick: number }) {
+  const changePage = useStore((s) => s.changePage)
+  const [views, setViews] = useState<ProposalView[]>([])
+  const [open, setOpen] = useState<string | null>(null)
+  const [error, setError] = useState<{ id: string; text: string } | null>(null)
+  const [again, setAgain] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    // a read that fails (or a server that does not answer it) never takes
+    // the column down: it stays as it was, and Needs you has them
+    Promise.resolve()
+      .then(() => api.proposals.ofConversation(sessionId))
+      .then((all) => {
+        if (!cancelled && Array.isArray(all)) setViews(all.filter((p) => p.state === 'pending'))
+      })
+      .catch(() => {
+        /* as it was */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, tick, again])
+  if (views.length === 0) return null
+  const act = async (v: ProposalView, what: 'accept' | 'dismiss'): Promise<void> => {
+    try {
+      if (what === 'accept') {
+        const r = await api.proposals.accept(v.id, v.inputHash)
+        if (r.automation) void useStore.getState().loadAutomations()
+      } else {
+        await api.proposals.dismiss(v.id)
+      }
+      setError(null)
+    } catch (e) {
+      setError({ id: v.id, text: e instanceof Error ? e.message : String(e) })
+    }
+    setAgain((n) => n + 1)
+  }
+  const review = (v: ProposalView): void => {
+    if (v.kind === 'mission') {
+      if (!startMissionReview(v)) {
+        setError({ id: v.id, text: 'This suggestion could not be read — try again in a moment.' })
+        return
+      }
+      changePage({ kind: 'agent', id: v.by })
+      useStore.getState().changeTab('mission')
+    } else {
+      changePage({ kind: 'automation', id: 'new', proposal: v.id, agent: v.by })
+    }
+  }
+  const what = (v: ProposalView): string =>
+    v.kind === 'skill' ? (v.words.skillOf ? 'changed a skill' : 'wrote a skill') : v.kind === 'mission' ? 'its mission' : 'suggests'
+  return (
+    <Block title="Proposed here" count={views.length} accent>
+      <div className="flex flex-col gap-2" data-testid="column-proposals">
+        {views.map((v) => (
+          <div key={v.id} className="rounded-lg border border-line px-2.5 py-1.5" data-testid={`column-proposal-${v.id}`}>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-ink-3">{what(v)}</p>
+            <p className="text-sm text-ink">
+              {v.words.title}
+              {v.words.skillOf ? <span className="text-ink-2"> — in {v.words.skillOf}</span> : null}
+            </p>
+            <p className="text-xs italic text-ink-2">“{v.reason}”</p>
+            {v.words.crosses ? <p className="text-xs text-terracotta/90">Reaches outside its projects: {v.words.crosses}</p> : null}
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => (v.review ? review(v) : void act(v, 'accept'))}
+                className="rounded-full border border-terracotta/40 bg-terracotta-soft px-2 py-0.5 text-[11px] font-medium text-terracotta hover:border-terracotta"
+              >
+                {v.review ? 'Review ›' : 'Accept'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void act(v, 'dismiss')}
+                className="rounded-full border border-line px-2 py-0.5 text-[11px] text-ink-2 hover:border-ink-2 hover:text-ink"
+              >
+                Dismiss
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen((o) => (o === v.id ? null : v.id))}
+                aria-expanded={open === v.id}
+                className="ml-auto text-[11px] text-ink-2 underline decoration-line underline-offset-2 hover:text-terracotta"
+              >
+                {open === v.id ? 'Hide' : 'Read it all'}
+              </button>
+            </div>
+            {error?.id === v.id ? (
+              <p className="mt-1 text-xs text-terracotta" role="alert">
+                {error?.text}
+              </p>
+            ) : null}
+            {open === v.id ? <ProposalDetail view={v} flush /> : null}
+          </div>
+        ))}
       </div>
     </Block>
   )
@@ -2974,6 +3082,7 @@ export function ContextColumn({ agent: viewAgent }: { agent?: AgentView } = {}) 
         {/* c6: the latest plan-mode plan — one row, jumps to its sheet */}
         {context?.planMode ? <PlanModeRow planMode={context.planMode} /> : null}
         {pendingForThisAgent.length > 0 ? <AutomationApprovalsBlock pending={pendingForThisAgent} automations={automations} /> : null}
+        {meta ? <ProposalsBlock sessionId={meta.id} tick={meta.mtime} /> : null}
         {/* the plan-shaped things, durable before ephemeral: the team's
                 «Plan · <name>» (with this conversation's own loose tasks as
                 rows) above this conversation's «Checklist · this

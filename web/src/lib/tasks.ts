@@ -427,7 +427,7 @@ export function isOwnSeat(t: Pick<TaskView, 'id' | 'flow'>): boolean {
   return t.flow?.stalled === true && t.flow.stalledAt === t.id
 }
 
-// the nine causes in the house's words, said so they
+// the ten causes in the house's words, said so they
 // are TRUE beside every status they come with (a pending row must never
 // read «pending · blocked by untouched work»). A cause that lives down
 // the chain is said with «waits on», which is true of a pending, an
@@ -441,6 +441,7 @@ const CAUSE_ON_CHAIN: Record<SiloStalledCause, string> = {
   'blocker-parked': 'waits on untouched work',
   'blocker-cancelled': 'waits on a dropped task',
   'owner-cannot-run': 'waits on a task whose owner never wakes on its own',
+  'owner-outside-project': 'waits on a task whose owner does not work in this project',
   // never down the chain: the kernel says a blocker in these as untouched work
   'review-without-reviewer': 'waits on untouched work',
   'in-progress-nothing-live': 'waits on untouched work',
@@ -453,6 +454,7 @@ const CAUSE_OF_ITS_OWN: Record<SiloStalledCause, string> = {
   'blocker-parked': 'waits on untouched work',
   'blocker-cancelled': 'waits on a dropped task',
   'owner-cannot-run': 'its owner never wakes on its own',
+  'owner-outside-project': 'its owner does not work in this project',
   'review-without-reviewer': 'in review — nobody is reviewing it',
   'in-progress-nothing-live': 'in progress, but nothing is working on it',
 }

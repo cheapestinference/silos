@@ -20,6 +20,8 @@ import {
   type Proactive,
 } from './control.js'
 import { endPass } from './pass.js'
+import { ControlError } from './control.js'
+import { auditProjectFolders, checkProjectFolder, realFolder, type FolderOffence, type FolderPlaces, type FolderVerdict } from './project-folder.js'
 
 export const MASTER_ID = 'master'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,31}$/
@@ -180,7 +182,14 @@ function masterAgent(): Agent {
 
 export class AgentRegistry {
   private agents: Agent[] = []
-  constructor(private file: string) {}
+  /** `folderCheck`: the places the project folder check judges against
+   *  (project-folder.ts) — the server always builds its registry with them,
+   *  so every door that writes a folder goes through the check; a registry
+   *  built without them (another module's test) checks nothing. */
+  constructor(
+    private file: string,
+    private opts: { folderCheck?: FolderPlaces } = {},
+  ) {}
 
   load(): void {
     if (existsSync(this.file)) {
@@ -223,6 +232,48 @@ export class AgentRegistry {
     if (changed) this.save()
   }
 
+  /** The project folder check for `folder` given to agent `selfId` (none =
+   *  a new agent): against every other in-play agent's folders. Without a
+   *  configured check, every absolute folder is fine as written. */
+  checkFolder(folder: string, selfId?: string): FolderVerdict {
+    if (!this.opts.folderCheck)
+      return typeof folder === 'string' && folder.startsWith('/')
+        ? { ok: true, path: strip(folder) }
+        : { ok: false, reason: 'the folder must be an absolute path', conflict: false }
+    return checkProjectFolder(folder, this.opts.folderCheck, this.projectFoldersBut(selfId))
+  }
+
+  /** The boot audit: every in-play agent's folder that breaks the rule
+   *  today, said, never fixed. Empty without a configured check. */
+  auditFolders(): FolderOffence[] {
+    return this.opts.folderCheck ? auditProjectFolders(this.agents, this.opts.folderCheck) : []
+  }
+
+  private projectFoldersBut(selfId: string | undefined): string[] {
+    return this.agents.filter((a) => !a.archived && a.id !== selfId).flatMap((a) => territoriesOf(a))
+  }
+
+  // The territories an agent ends up with, judged: each one not already
+  // among `kept` (what it has now) goes through the check — against the
+  // other agents' projects and its own other folders — and is stored by its
+  // real path. A refusal throws before anything is written.
+  private claimFolders(selfId: string, territories: string[], kept: readonly string[]): string[] {
+    if (!this.opts.folderCheck) return territories
+    const out: string[] = []
+    for (const t of territories) {
+      if (kept.includes(strip(t))) {
+        out.push(t)
+        continue
+      }
+      const own = territories.filter((x) => x !== t)
+      const v = checkProjectFolder(t, this.opts.folderCheck, [...this.projectFoldersBut(selfId), ...own])
+      if (!v.ok) throw new ControlError(v.conflict ? 409 : 400, v.reason)
+      if (own.some((x) => realFolder(x) === v.path)) throw new ControlError(400, `${t} is already one of the agent's folders`)
+      out.push(v.path)
+    }
+    return out
+  }
+
   list(includeArchived = false): Agent[] {
     return this.agents.filter((a) => includeArchived || !a.archived)
   }
@@ -263,13 +314,14 @@ export class AgentRegistry {
     if (!input.name?.trim()) throw new Error('name required')
     if (!input.folder?.startsWith('/')) throw new Error('folder must be an absolute path')
     validateOptionalFields(input)
-    const folders = input.folders === undefined ? [] : normalizeFolders(input.folders, input.folder)
+    const asked = input.folders === undefined ? [] : normalizeFolders(input.folders, input.folder)
+    const [folder, ...folders] = this.claimFolders(input.id, [input.folder, ...asked], []) as [string, ...string[]]
     const mission = input.mission === undefined ? null : parseMission(input.mission)
     const agent: Agent = {
       id: input.id,
       name: input.name.trim(),
       emoji: input.emoji ?? '🤖',
-      folder: input.folder,
+      folder,
       skills: input.skills ?? [],
       ...(folders.length > 0 ? { folders } : {}),
       framework: input.framework ?? defaultFramework(),
@@ -320,13 +372,22 @@ export class AgentRegistry {
     // Validated against the EFFECTIVE folder: a folder change can collide
     // with an existing extra territory just as a folders change can.
     let folders: string[] | undefined
-    if (patch.folders !== undefined || patch.folder !== undefined) {
+    let folder: string | undefined
+    // an archived agent brought back puts its folders in play again: judged
+    // as new, like a birth
+    const reviving = patch.archived === false && a.archived === true
+    if (patch.folders !== undefined || patch.folder !== undefined || reviving) {
       const effFolder = id === MASTER_ID ? null : patch.folder !== undefined ? patch.folder : a.folder
       const effFolders = patch.folders !== undefined ? patch.folders : (a.folders ?? [])
       folders = normalizeFolders(effFolders, effFolder)
+      if (effFolder !== null) {
+        const claimed = this.claimFolders(id, [effFolder, ...folders], reviving ? [] : territoriesOf(a))
+        folder = claimed[0] as string
+        folders = claimed.slice(1)
+      }
     }
     const { mission: _mission, heartbeat: hbPatch, ownTurnsPerDay, unattendedSpendPerDay, ownExemptDay, cut, proactive, ...rest } = patch
-    Object.assign(a, rest, { id: a.id, ...(id === MASTER_ID ? { folder: null } : {}) })
+    Object.assign(a, rest, { id: a.id, ...(id === MASTER_ID ? { folder: null } : folder !== undefined ? { folder } : {}) })
     if (hbPatch !== undefined) a.heartbeat = heartbeatOf({ id: a.id, heartbeat: { ...heartbeatOf(a), ...hbPatch } })
     const knob = <K extends 'ownTurnsPerDay' | 'unattendedSpendPerDay' | 'ownExemptDay' | 'cut' | 'proactive'>(k: K, v: Agent[K] | null | undefined): void => {
       if (v === undefined) return

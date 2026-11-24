@@ -518,6 +518,10 @@ describe('the egress routes', () => {
     expect((await app.inject({ method: 'GET', url: '/api/territory/egress/rejections', headers: asAgent })).statusCode).toBe(403)
     expect((await app.inject({ method: 'GET', url: '/api/territory/egress', headers: asAgent })).statusCode).toBe(403)
     expect((await app.inject({ method: 'GET', url: '/api/territory/egress/rejections', headers: LOCAL })).statusCode).toBe(401)
+    // the file fence's refusals (paths, conversations): the owner's alone too
+    expect((await app.inject({ method: 'GET', url: '/api/territory/refused', headers: asAgent })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'GET', url: '/api/territory/refused', headers: LOCAL })).statusCode).toBe(401)
+    expect((await app.inject({ method: 'GET', url: '/api/territory/refused', headers: OWNER })).json()).toMatchObject({ agents: [] })
     expect((await app.inject({ method: 'PATCH', url: '/api/territory/egress/builder', headers: LOCAL, payload: { mode: 'open' } })).statusCode).toBe(401)
   })
 

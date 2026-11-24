@@ -49,6 +49,7 @@ export interface RoutedRow {
   producer: string
   recordKind: string
   folder?: string
+  location?: string
   file: string | null
 }
 
@@ -68,6 +69,9 @@ export interface EscalationDeps {
   routedRows?(now: number): RoutedRow[]
   chain(): ChainView
   isAgent(id: string): boolean
+  // (R3) the agent is of a location (project-scope.ts ofLocation): a hop
+  // goes only to an agent of the subject's. Absent: every agent is
+  ofLocation?(agentId: string, location: string): boolean
   nameOf(id: string): string
   // the plans silo's verbs, as Silos itself (SILOS_AUTHOR)
   setField(key: string, field: string, value: unknown): { ok: boolean; reason?: string }
@@ -129,6 +133,7 @@ export class EscalationEngine {
         since,
         folder: t.folder,
         file: t.file,
+        ...(t.folder !== null ? { location: `folder:${t.folder}` } : {}),
         ...(wokeAt ? { wokeAt } : {}),
         ...(notStarted ? { notStarted: true } : {}),
       })
@@ -167,6 +172,7 @@ export class EscalationEngine {
         siloName: r.siloName,
         entry: r.entry,
         folder: r.folder ?? null,
+        ...(r.location !== undefined ? { location: r.location } : {}),
         file: r.file,
       })
     }
@@ -186,7 +192,8 @@ export class EscalationEngine {
       if (!baseline && subjects.length === 0 && Object.keys(prev).length === 0) return
       const windowMs = this.d.store.windowMs()
       const isAgent = (id: string): boolean => this.d.isAgent(id) && (this.d.hopOk ? this.d.hopOk(id, now, windowMs) : true)
-      const ev = evaluateEscalation({ subjects, prev, now, windowMs, chain: this.d.chain(), isAgent, baseline })
+      const ofLocation = this.d.ofLocation ? (id: string, location: string): boolean => this.d.ofLocation!(id, location) : undefined
+      const ev = evaluateEscalation({ subjects, prev, now, windowMs, chain: this.d.chain(), isAgent, ...(ofLocation ? { ofLocation } : {}), baseline })
       // a task case's writes (its wait, blocked) land BEFORE the case is
       // kept as Silos' move: each hop due now, and every earlier one whose
       // writes did not land (writesDue) — tried again until they do

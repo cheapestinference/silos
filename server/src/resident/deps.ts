@@ -50,6 +50,9 @@ export interface ResidentDeps {
   claudeSessionsDir?: string // default homedir()/.claude/sessions — injectable for tests
   isPidAlive?: (pid: number) => boolean
   fetchFn?: typeof fetch
+  // the fetch of an http watch an AGENT wrote (check.publicOnly) — default
+  // net-guard.ts guardedFetch; injectable for tests
+  guardedFetchFn?: (url: string, o: { method?: string; headers?: Record<string, string> }) => Promise<{ status: number; body: string }>
   execFn?: (command: string, cwd: string) => Promise<{ stdout: string; code: number }>
   tickIntervalMs?: number
   runTimeoutMs?: number // injectable for tests (default RUN_TIMEOUT_MS, 30 min)

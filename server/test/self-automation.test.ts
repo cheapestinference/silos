@@ -325,12 +325,12 @@ describe('DELETE by the bearer', () => {
     expect(creations.list('x').find((c) => c.action === 'withdrew')).toMatchObject({ ref: id, title: 'Read new tax law' })
   })
 
-  it("the owner's automation of the agent, and another agent's own: 403", async () => {
+  it("the owner's automation of the agent: 403; another agent's own: as none (404)", async () => {
     const owners = (await app.inject({ method: 'POST', url: '/api/automations', headers: LOCAL, payload: weekly() })).json().automation
     expect((await del(owners.id)).json()).toEqual({ error: DELETE_NOT_OWN })
     const theirs = (await create(weekly({ agentId: 'y' }), 'y')).json().automation
     const r = await del(theirs.id, 'x')
-    expect(r.statusCode).toBe(403)
+    expect(r.statusCode).toBe(404)
     expect(automations.get(owners.id)).not.toBeNull()
     expect(automations.get(theirs.id)).not.toBeNull()
   })

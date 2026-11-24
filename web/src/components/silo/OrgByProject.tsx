@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { useStore } from '../../store'
 import { orgProjects } from '../../lib/org'
+import { sameProject } from '../../../../server/src/project-scope'
 import { basename } from '../../lib/routes'
 import type { SiloRelationEdge } from '../../lib/types'
 import { OrgTree } from './OrgTree'
@@ -29,7 +30,7 @@ export function OrgByProject({
 }) {
   const agents = useStore((s) => s.agents)
   const changePage = useStore((s) => s.changePage)
-  const projects = useMemo(() => orgProjects(agents).filter((p) => only === undefined || p.folder === only), [agents, only])
+  const projects = useMemo(() => orgProjects(agents).filter((p) => only === undefined || sameProject(p.folder, only)), [agents, only])
   const teams = projects.filter((p) => p.ids.length > 1)
   const solo = projects.filter((p) => p.ids.length === 1)
   const nameOf = (id: string): string => agents.find((a) => a.id === id)?.name ?? id

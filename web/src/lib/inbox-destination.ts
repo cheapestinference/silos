@@ -59,6 +59,7 @@ export function inboxDestination(row: InboxRow, inPlay: (agentId: string) => boo
       return row.automation ? { kind: 'page', page: { kind: 'automation', id: row.automation.id } } : null
     }
     case 'territoryOff':
+    case 'folderRefused':
     case 'cut':
       // its control lives on its page
       return inPlay(row.agentId) ? { kind: 'page', page: { kind: 'agent', id: row.agentId } } : null

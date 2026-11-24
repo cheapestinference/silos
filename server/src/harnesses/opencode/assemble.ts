@@ -188,7 +188,7 @@ export function assembleOpencode(
   const has = skillNamesIn(skillsPaths).filter((n) => !denied.has(n))
   // + the agent's unread messages after the roster (inbox-text.ts, the
   // twin of the hook's inbox.py): what a Claude console gets at SessionStart
-  const briefing = silosBriefing(deps.agents(), agent.id, { withBearer: 'SILOS_AGENT_TOKEN' in stateEnv, has })
+  const briefing = silosBriefing(deps.agents(), agent.id, { withBearer: 'SILOS_AGENT_TOKEN' in stateEnv, has, cwd })
   let inbox = ''
   try {
     inbox = deps.inboxFor?.(agent.id) ?? ''

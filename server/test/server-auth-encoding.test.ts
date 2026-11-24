@@ -98,9 +98,9 @@ describe('auth on the decoded path', () => {
     }
   })
 
-  it('owner on loopback GET /%61pi/agents → 200 (local no-token is still the owner)', async () => {
+  it('loopback GET /%61pi/agents with no identity → 401, like /api/agents (nothing under /api answers it)', async () => {
     const r = await app.inject({ method: 'GET', url: '/%61pi/agents', headers: LOCAL })
-    expect(r.statusCode).toBe(200)
+    expect(r.statusCode).toBe(401)
   })
 
   it('remote websocket upgrade on /%77s without a token is destroyed (no 101)', async () => {

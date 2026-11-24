@@ -5,6 +5,54 @@ All notable changes to Silos are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-24
+
+### Changed for installs
+
+- **A project is the edge of what an agent knows and reaches.** An agent is
+  told only the agents of its projects, messages, asks and hands tasks only
+  inside them, and reads only their plans and files. What Silos does on its
+  own (wakes, escalations, routed rows, automations) stays in the project a
+  thing lives in. The file fence now closes other projects' folders, their
+  engine stores and Silos' own credentials for every agent, with or without
+  territory turned on. An agent that worked across projects before needs the
+  other folder added to it (its profile › Runs on).
+
+### Added
+
+- **Agent birth in one model**: Project · Name · How it works · Mission ·
+  Engine, the same in Welcome and New agent; Welcome has its own Project
+  step, and Engine is asked only when more than one engine runs here.
+- **Skill change proposals**: an agent proposes a change to a skill its
+  project has; you see the diff in Needs you and accept it in one click. A
+  proposal made in a conversation is decided in that conversation's column.
+- **Settings › Territory** shows what the file fence refused today, per
+  agent and project, with a door to the conversations.
+- **Org** draws each project's own chart; a reporting line whose agents
+  share no project is drawn apart, with a way to redraw it.
+- **A task whose owner works in another project** offers its own project's
+  agents to give it to.
+- **New project** starts with what you set up on this machine, on by
+  default and easy to turn off; Silos never writes to the engine's own
+  settings for it.
+
+### Changed
+
+- The profile's Runs on line says who the agent works with, and a change of
+  folders says what it opens before you save.
+- The Vault's Add a secret starts at the scope it was opened from, and a
+  secret for everyone is spelled as the projects it reaches.
+- A nested folder's page says which project each agent around it comes from.
+- One project-folder check at every door (real path, refusals derived from
+  the fence), with an audit at boot that lands in Needs you.
+
+### Security
+
+- An `http` watch an agent set is fetched through the address guard on
+  every check: each connection and each redirect must reach a public
+  address, so a name that resolves to a private one later is refused.
+- A bearer's automation create reaches exactly what its edit may.
+
 ## [0.1.0] - 2026-11-24
 
 The first public release.
@@ -102,4 +150,5 @@ The first public release.
   Railway; remote sign-in through Silos ID, its settings in the environment
   or in `server.env` in the data folder.
 
+[0.2.0]: https://github.com/cheapestinference/silos/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cheapestinference/silos/releases/tag/v0.1.0

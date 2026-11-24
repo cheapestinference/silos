@@ -28,6 +28,12 @@
 // falls inside the window (engine.ts hopOk); the
 // others are skipped. The owner hop is one Needs you row, blocking, and the last.
 //
+// (R3) A hop goes to an agent only when it is of the subject's LOCATION —
+// the task's project, the row's record location (project-scope.ts
+// ofLocation): an agent up the chain, the creator or the root that does not
+// work there is skipped like one asleep, and at the end the owner. Reporting
+// lines never widen the wall.
+//
 // A case closes when its subject is no longer stuck — the task moved (its
 // state, its wait), the row cleared. Never reassigns, never changes owners.
 
@@ -53,6 +59,9 @@ export interface Subject {
   notStarted?: true // task: Silos could not start its agent's turn at all (task-mode cannotStart)
   folder?: string | null
   file?: string | null
+  // the silo location the subject lives in (`folder:<f>` for a plan task, the
+  // record's for a row) — who may be asked about it. Absent: not judged
+  location?: string
 }
 
 export interface Hop {
@@ -115,6 +124,9 @@ export function evaluateEscalation(input: {
   windowMs: number
   chain: ChainView
   isAgent?: (id: string) => boolean
+  // (R3) the agent is of that location (project-scope.ts ofLocation) —
+  // asked per subject. Absent: every agent is
+  ofLocation?: (id: string, location: string) => boolean
   // the engine's FIRST look at routed rows: every row case it holds or opens
   // now is baseline — only rows routed afterwards get the window
   baseline?: boolean
@@ -146,7 +158,9 @@ export function evaluateEscalation(input: {
     const due = last !== null ? last + windowMs : c.kind === 'task' ? Date.parse(c.openedAt) : Date.parse(c.openedAt) + windowMs
     if (Number.isNaN(due) || now < due) continue
     const asked = new Set(c.hops.map((h) => h.to))
-    const next = hopTargets(c, chain, input.isAgent).find((t) => !asked.has(t))
+    const here = (id: string): boolean =>
+      (input.isAgent ? input.isAgent(id) : true) && (c.location === undefined || !input.ofLocation || input.ofLocation(id, c.location))
+    const next = hopTargets(c, chain, here).find((t) => !asked.has(t))
     if (!next) continue
     c.hops.push({ to: next, at: iso })
     out.fire.push({ c, to: next, hop: c.hops.length - 1 })

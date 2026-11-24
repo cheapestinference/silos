@@ -9,7 +9,7 @@
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as pty from 'node-pty'
@@ -1010,6 +1010,23 @@ export class TerminalService extends EventEmitter {
   // the agent's MEMORY, so it never touches the shared /tmp: it lives under
   // ~/.silos in an owner-only dir (0700) with owner-only files (0600).
   // Best effort: a write failure just spawns the console without the append.
+  // The console's settings (its fence among them) as an owner-only file
+  // beside its append, named by `--settings` — never the JSON on argv,
+  // which /proc/<pid>/cmdline shows to every process of the user (D8). Kept
+  // for the console's life like the append: the engine may read it again.
+  private writeSettingsFile(key: string, json: string): string | undefined {
+    if (!/^[\w-]+$/.test(key)) return undefined
+    try {
+      mkdirSync(this.appendDir, { recursive: true, mode: 0o700 })
+      const p = join(this.appendDir, `${key}.settings.json`)
+      writeFileSync(p, json, { mode: 0o600 })
+      chmodSync(p, 0o600)
+      return p
+    } catch {
+      return undefined
+    }
+  }
+
   private writeAppendFile(key: string, append?: string): string | undefined {
     if (!append || append.trim() === '') return undefined
     try {
@@ -1216,6 +1233,7 @@ export class TerminalService extends EventEmitter {
         ...(input.rolePluginDir ? { rolePluginDir: input.rolePluginDir } : {}),
         ...(input.carried && input.carried.length > 0 ? { carried: input.carried, ...(input.loginDirs ? { loginDirs: input.loginDirs } : {}) } : {}),
         cwd: input.cwd,
+        settingsFile: (json) => this.writeSettingsFile(input.key, json),
       })
     // The client environment does NOT reach a new session once the tmux
     // server is already running (sessions inherit the server's global

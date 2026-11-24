@@ -23,7 +23,8 @@ import { MemoryService } from '../src/memory-service.js'
 import { buildServer } from '../src/server.js'
 import { AgentTokens } from '../src/agent-tokens.js'
 import { VaultStore } from '../src/vault-store.js'
-import { privateAddressReason, guardedLookup } from '../src/net-guard.js'
+import { privateAddressReason, guardedLookup, guardedFetch } from '../src/net-guard.js'
+import { createServer, type Server } from 'node:http'
 import { liveTurnOf } from './helpers/live-turn.js'
 
 describe('privateAddressReason', () => {
@@ -177,5 +178,53 @@ describe('the signer with the real guard', () => {
     const r = await sign()
     expect(r.status).toBe(502)
     expect(((await r.json()) as { error: string }).error).toContain('only talks to public addresses')
+  })
+})
+
+// (t7) an http watch an agent set is fetched through the guard on EVERY
+// check — the address it named when written may resolve elsewhere now, and a
+// redirect may point anywhere. Two loopback hosts stand for the internet:
+// 127.0.0.2 is «public», everything else private.
+describe('guardedFetch', () => {
+  const onlyDot2 = (ip: string): string | null => (ip === '127.0.0.2' ? null : 'private')
+  let srv: Server
+  let port = 0
+  beforeEach(async () => {
+    srv = createServer((req, res) => {
+      if (req.url === '/to-literal') {
+        res.writeHead(302, { location: `http://127.0.0.1:${port}/` })
+        res.end()
+        return
+      }
+      if (req.url === '/to-name') {
+        res.writeHead(301, { location: `http://localhost:${port}/` })
+        res.end()
+        return
+      }
+      if (req.url === '/hop') {
+        res.writeHead(307, { location: '/' })
+        res.end()
+        return
+      }
+      res.end('hello')
+    })
+    await new Promise<void>((ok) => srv.listen(0, '127.0.0.2', ok))
+    port = (srv.address() as AddressInfo).port
+  })
+  afterEach(async () => {
+    await new Promise<void>((ok) => srv.close(() => ok()))
+  })
+
+  it('fetches a public address and follows a redirect that stays public', async () => {
+    expect(await guardedFetch(`http://127.0.0.2:${port}/hop`, { reason: onlyDot2 })).toEqual({ status: 200, body: 'hello' })
+  })
+  it('a private literal is refused before any connection', async () => {
+    await expect(guardedFetch(`http://127.0.0.1:${port}/`, { reason: onlyDot2 })).rejects.toMatchObject({ code: 'EPRIVATE' })
+  })
+  it('a redirect to a private literal is refused', async () => {
+    await expect(guardedFetch(`http://127.0.0.2:${port}/to-literal`, { reason: onlyDot2 })).rejects.toMatchObject({ code: 'EPRIVATE' })
+  })
+  it('a redirect to a name that resolves private dies in the lookup (rebinding)', async () => {
+    await expect(guardedFetch(`http://127.0.0.2:${port}/to-name`, { reason: onlyDot2 })).rejects.toMatchObject({ code: 'EPRIVATE' })
   })
 })

@@ -293,6 +293,25 @@ describe('scopeToFolder', () => {
     )
     expect(scoped.agents.map((a) => a.id)).toEqual(['multi'])
   })
+  it('folders that nest are one project, both ways — the server resolver (project-scope.ts) is the rule', () => {
+    const scoped = scopeToFolder(
+      {
+        agents: [
+          agent('inside', [], { folder: proj + '/web' }),
+          agent('around', [], { folder: '/home/u' }),
+          agent('root', [], { folder: '/' }),
+          agent('away', [], { folder: '/home/u/other' }),
+        ],
+        cards: [],
+        needsYou: [],
+        pending: [],
+        automations: [],
+      },
+      proj,
+      'master',
+    )
+    expect(scoped.agents.map((a) => a.id)).toEqual(['inside', 'around'])
+  })
   it('a secondary territory is a known project folder (no "unknown project")', () => {
     const agents = [agent('multi', [], { folder: '/home/u/ci', folders: [proj] })]
     expect(knowsFolder(agents, proj)).toBe(true)

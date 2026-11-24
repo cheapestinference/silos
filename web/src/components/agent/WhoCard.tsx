@@ -24,19 +24,29 @@ function ReportsToLine({ agentId }: { agentId: string }) {
   const siloTick = useStore((s) => s.siloTick)
   const agents = useStore((s) => s.agents)
   const [to, setTo] = useState<string | null>(null)
+  // (R3/D5) its line to an agent it shares no project with: kept, out of
+  // every chain — said here, redrawn on the org's page
+  const [apart, setApart] = useState(false)
   useEffect(() => {
     if (!source) {
       setTo(null)
+      setApart(false)
       return
     }
     let cancelled = false
     api.silos
       .relation(source.silo, source.relation)
       .then((r) => {
-        if (!cancelled) setTo(r.edges.find((e) => e.from === agentId && !e.note)?.to ?? null)
+        if (cancelled) return
+        const e = r.edges.find((x) => x.from === agentId && (!x.note || x.note === 'apart'))
+        setTo(e?.to ?? null)
+        setApart(e?.note === 'apart')
       })
       .catch(() => {
-        if (!cancelled) setTo(null)
+        if (!cancelled) {
+          setTo(null)
+          setApart(false)
+        }
       })
     return () => {
       cancelled = true
@@ -44,6 +54,28 @@ function ReportsToLine({ agentId }: { agentId: string }) {
   }, [source?.silo, source?.relation, agentId, siloTick]) // eslint-disable-line react-hooks/exhaustive-deps
   const boss = to ? agents.find((a) => a.id === to && !a.archived) : undefined
   if (!boss) return null
+  if (apart && source)
+    return (
+      <p className="mt-1 text-[12px] text-ink-3" data-testid="reports-to" data-apart="true">
+        Reports to{' '}
+        <button
+          type="button"
+          onClick={() => useStore.getState().changePage({ kind: 'agent', id: boss.id })}
+          className="text-ink-2 underline-offset-2 hover:text-terracotta hover:underline"
+        >
+          {boss.name}
+        </button>{' '}
+        — they share no project, so no chain walks this line
+        <span className="text-ink-3"> · </span>
+        <button
+          type="button"
+          onClick={() => useStore.getState().changePage({ kind: 'silo', id: source.silo })}
+          className="text-ink-2 underline-offset-2 hover:text-terracotta hover:underline"
+        >
+          Redraw ›
+        </button>
+      </p>
+    )
   return (
     <p className="mt-1 text-[12px] text-ink-3" data-testid="reports-to">
       Reports to{' '}

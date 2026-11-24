@@ -62,6 +62,7 @@ const KIND_WORDS: Record<InboxRowKind, [one: string, many: string]> = {
   accountLimit: ['a usage limit', 'usage limits'],
   missedRetry: ['a missed retry', 'missed retries'],
   territoryOff: ['an agent whose territory turned off', 'agents whose territory turned off'],
+  folderRefused: ['an agent in a folder no project may have', 'agents in folders no project may have'],
   cut: ['an agent stopped from creating work', 'agents stopped from creating work'],
   plansBaseline: ['tasks from before Silos watched', 'tasks from before Silos watched'],
   auditUnreadable: ['a run Silos could not audit', 'runs Silos could not audit'],

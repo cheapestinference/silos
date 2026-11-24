@@ -21,21 +21,27 @@ import type { ResolvedProvider } from '../providers-store.js'
 import { folderPersonal, switchFolderPersonal } from '../folder-personal.js'
 import { folderInstructionPlaces, switchFolderInstruction } from '../folder-instruction-places.js'
 import type { FolderInstructionsDeps } from '../folder-instructions.js'
-import { bulkFolderLoads, onlyAgentLoad, undoFolderBulk, undoViews, type BulkAt, type SkillWant } from '../loads-bulk.js'
+import { bulkFolderLoads, machineOffAtBirth, onlyAgentLoad, undoFolderBulk, undoViews, type BulkAt, type SkillWant } from '../loads-bulk.js'
 import type { ToolHealthLedger } from '../tool-health.js'
 import { CheckBusy, CheckRefused, type LoadsChecks } from '../loads-check.js'
 import type { AgentStateStore } from '../agent-state.js'
 import type { AgentRegistry } from '../agent-registry.js'
+import type { Agent } from '../types.js'
 import type { SessionIndex } from '../session-index.js'
 import type { PrefsStore } from '../prefs-store.js'
 import type { LoadsScopesStore } from '../loads-scopes.js'
 import { OWN_TURNS_PER_DAY, UNATTENDED_SPEND_USD_DAY } from '../limits.js'
+import { agentsOf, seesAll, sharedFolders } from '../project-scope.js'
+import { firstSentence } from '../mission.js'
 
 /** The places POST …/loads/switch takes as `scope` (spec scopes §9) — a
  *  new place (a conversation's, T5) joins here and in switchFolderLoad. */
 const LOADS_SWITCH_SCOPES = ['project', 'machine', 'agent', 'conversation'] as const
 
 export interface WorkspaceRoutesCtx {
+  /** (D6) filled here: a project's birth with what you set up on this
+   *  machine off — the agents' routes call it (starting-set.ts machineOff) */
+  births?: { machineOff?: (folder: string, engine: string) => void }
   registry: AgentRegistry
   index: SessionIndex
   prefs: PrefsStore
@@ -83,11 +89,29 @@ export function workspaceRoutes(app: FastifyInstance, ctx: WorkspaceRoutesCtx): 
   const { registry, index, prefs, muted, claudeManagedDir, home, agentState, toolHealth, checks, controlOf, positionOf, loadsScopes } = ctx
   // the defaults an agent without its own knobs has (the web never
   // hard-codes them, P7); `controlNow` = the derived control
+  // A bearer is answered its own projects (project-scope.ts): its own record
+  // as the owner reads it, then the agents it knows as roster rows — id,
+  // name, emoji, the folders they share with it, its mission's first
+  // sentence; nothing else of them (no other folder, no «Never» lines, no
+  // knobs). `?all=1` (archived too) is the owner's. The owner and the
+  // owner's desk (master) read the whole install.
   app.get<{ Querystring: { all?: string } }>('/api/agents', async (req) => {
+    const full = (a: Agent) => (controlOf ? { ...a, controlNow: controlOf(a.id), ...(positionOf ? { positionNow: positionOf(a.id) } : {}) } : a)
+    if (!seesAll(req.agentId)) {
+      const me = registry.get(req.agentId!)
+      const rows = me
+        ? agentsOf(me, registry.list()).map((a) => ({
+            id: a.id,
+            name: a.name,
+            emoji: a.emoji,
+            folders: sharedFolders(me, a),
+            ...(a.mission?.text ? { mission: { text: firstSentence(a.mission.text) } } : {}),
+          }))
+        : []
+      return { agents: [...(me ? [full(me)] : []), ...rows], ownTurnsPerDayDefault: OWN_TURNS_PER_DAY, unattendedSpendPerDayDefault: UNATTENDED_SPEND_USD_DAY }
+    }
     return {
-      agents: registry
-        .list(req.query.all === '1')
-        .map((a) => (controlOf ? { ...a, controlNow: controlOf(a.id), ...(positionOf ? { positionNow: positionOf(a.id) } : {}) } : a)),
+      agents: registry.list(req.query.all === '1').map(full),
       ownTurnsPerDayDefault: OWN_TURNS_PER_DAY,
       unattendedSpendPerDayDefault: UNATTENDED_SPEND_USD_DAY,
     }
@@ -213,6 +237,7 @@ export function workspaceRoutes(app: FastifyInstance, ctx: WorkspaceRoutesCtx): 
       engineVersion,
       folderLogins,
     })
+    if (ctx.births) ctx.births.machineOff = (folder, engine) => machineOffAtBirth(loadsDeps(), folder, engine)
     // a session the web names → ITS conversation in this folder (the thread
     // the server resolves); null: none — the caller answers 404. A session
     // of another folder, or one the index does not know, is no conversation
