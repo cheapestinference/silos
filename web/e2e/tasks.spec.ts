@@ -226,11 +226,13 @@ test("the sidebar folds every plan to one line under a short «Now»; a click un
   for (const title of ['Write the launch post', 'Take the screenshots', 'Proofread the post', 'Choose the docs theme'])
     await expect(nowGroup.getByText(title)).toBeVisible()
   await expect(nowGroup.getByTestId('sidebar-task')).toHaveCount(4)
-  // each plan one folded line with its counts; its tasks hidden
+  // each plan one folded unit with its fraction over ALL its tasks (a dropped one out) and its yours-count; its tasks hidden
   const launch = side.locator('[data-testid="sidebar-plan"][data-plan="public-launch"]')
   await expect(launch).toHaveAttribute('data-open', 'false')
-  await expect(launch.getByTestId('sidebar-plan-counts')).toHaveText('8 open · 1 yours to do')
-  await expect(side.locator('[data-plan="docs-site"]').getByTestId('sidebar-plan-counts')).toHaveText('2 open · 1 yours to do')
+  const counts = (el: ReturnType<typeof side.locator>) =>
+    el.getByTestId('sidebar-plan-counts').evaluate((n) => [(n as HTMLElement).dataset.done, (n as HTMLElement).dataset.total, (n as HTMLElement).dataset.yours])
+  expect(await counts(launch)).toEqual(['1', '9', '1'])
+  expect(await counts(side.locator('[data-plan="docs-site"]'))).toEqual(['1', '3', '1'])
   await expect(side.getByText('Fix the RSS feed')).toHaveCount(0)
   await shot(page, 'sidebar-folded-light.png')
   // a click unfolds it, and the viewer's choice survives a reload

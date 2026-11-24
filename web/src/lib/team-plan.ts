@@ -83,6 +83,25 @@ export function planProjectFolder(path: string): string {
   return i >= 0 ? path.slice(0, i) : ''
 }
 
+// A plan file the protocol moved to `<project>/plans/closed/`: a FINISHED
+// plan of that project — its own, read only. Never «outside Silos'
+// projects»: the reader leaves plans/closed/ out of its locations on purpose
+// (closed plans are in no task list), not because the file is foreign.
+export function isClosedPlanPath(path: string): boolean {
+  return path.includes('/plans/closed/')
+}
+
+// The home a plan line names, from the conversation sitting in `cwd`: a
+// plan read outside every Silos project says so; a plan of ANOTHER project
+// (open or closed) names it («in <project>»); this project's own plans need
+// no home. A closed plan is its project's, wherever it moved inside it.
+export function planHomeWords(p: { path: string; outside: boolean; closed?: boolean }, cwd: string | null): string | null {
+  const closed = p.closed === true || isClosedPlanPath(p.path)
+  if (p.outside && !closed) return "outside Silos' projects"
+  const folder = planProjectFolder(p.path)
+  return folder !== '' && folder !== cwd ? `in ${folder.slice(folder.lastIndexOf('/') + 1)}` : null
+}
+
 // Where a task's conversation lives in the index the web holds (each
 // agent's session list), or null when it is not there — a link that opened
 // nothing would be a lie. The task's OWNER's session in the plan's project

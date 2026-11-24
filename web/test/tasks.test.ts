@@ -20,6 +20,8 @@ import {
   nowTasks,
   ownerSessionIds,
   planFold,
+  planProgress,
+  closedPlanFolds,
   planIdOf,
   presetCounts,
   reviewWithoutReviewer,
@@ -39,7 +41,9 @@ import {
   tasksOfSession,
   withLiveFlow,
   type TaskView,
+  type WorkedTask,
   NO_PLAN_FACET,
+  ownLooseTasks,
   identityWords,
   isStandingPlan,
   planHeading,
@@ -473,6 +477,28 @@ describe('the one conversation a door names', () => {
   })
 })
 
+describe("a conversation's own loose tasks", () => {
+  const w = (over: Partial<WorkedTask>): WorkedTask => ({
+    key: 'folder:/w/p/tasks/tasks/t1',
+    ref: 'tasks#t1',
+    title: 'x',
+    state: 'pending',
+    closed: false,
+    current: true,
+    view: null,
+    file: '/w/p/plans/tasks.plan.json',
+    ...over,
+  })
+  it("open, held tasks of a project's list only — never a named plan's, a finished, closed or let-go one", () => {
+    const own = w({})
+    const named = w({ key: 'folder:/w/p/ship/tasks/t1', file: '/w/p/plans/ship.plan.json' })
+    const done = w({ state: 'done' })
+    const closed = w({ closed: true })
+    const letGo = w({ current: false })
+    expect(ownLooseTasks([own, named, done, closed, letGo])).toEqual([own])
+  })
+})
+
 describe("a plan's name opens its house", () => {
   it('Tasks narrowed to that plan, Open — the same address from every door', () => {
     expect(planHouse(PLAN)).toEqual({ kind: 'tasks', view: 'open', plan: [PLAN] })
@@ -617,14 +643,49 @@ describe('the sidebar: «Now» on top, every plan one folded line', () => {
     expect(isReadyOnOwner(plan.get('dep')!, plan, ids)).toBe(false)
     expect(isReadyOnOwner(plan.get('agent')!, plan, ids)).toBe(false)
   })
-  it("a plan's fold: its open tasks, how many are on the owner, whether one is live", () => {
+  it("a plan's fold: its open tasks, how many are on the owner, whether one is live, and the ONE fraction over all its tasks", () => {
     const open = [
       task('w', { owner: 'writer', state: 'in_progress', conversations: ['live'] }),
       task('h', { owner: 'owner' }),
       task('h2', { owner: 'owner', state: 'blocked' }),
     ]
-    expect(planFold(open, agents, NOW)).toEqual({ open: 3, onYou: 2, live: true })
-    expect(planFold(open.slice(1), agents, NOW)).toEqual({ open: 2, onYou: 2, live: false })
+    expect(planFold(open, agents, NOW)).toEqual({ open: 3, onYou: 2, live: true, done: 0, total: 3 })
+    expect(planFold(open.slice(1), agents, NOW)).toEqual({ open: 2, onYou: 2, live: false, done: 0, total: 2 })
+    // finished tasks count in the fraction, never in open / yours / live; a dropped one leaves the total
+    const all = [
+      ...open,
+      task('d1', { owner: 'owner', state: 'done' }),
+      task('d2', { owner: 'writer', state: 'done', conversations: ['live'] }),
+      task('x', { owner: 'owner', state: 'cancelled' }),
+    ]
+    expect(planFold(all, agents, NOW)).toEqual({ open: 3, onYou: 2, live: true, done: 2, total: 5 })
+    expect(planProgress(all)).toEqual({ done: 2, total: 5 })
+    // a team plan's tasks (`status`) read the same
+    expect(planProgress([{ status: 'done' }, { status: 'cancelled' }, { status: 'pending' }])).toEqual({ done: 1, total: 2 })
+  })
+  it('the closed plans fold by month: the current month first and open, earlier months behind a fold, newest first', () => {
+    const at = (iso: string): number => Date.parse(iso)
+    const cp = (title: string, iso: string) => ({
+      key: `folder:/p/${title}`,
+      title,
+      folder: '/p',
+      file: `/p/plans/closed/${title}.plan.json`,
+      mtime: at(iso),
+      done: 1,
+      dropped: 0,
+      open: 0,
+    })
+    const now = at('2026-11-24T12:00:00Z')
+    const folds = closedPlanFolds(
+      [cp('old', '2025-12-03T00:00:00Z'), cp('a', '2026-11-02T00:00:00Z'), cp('oct', '2026-10-30T00:00:00Z'), cp('b', '2026-11-20T00:00:00Z')],
+      now,
+    )
+    expect(folds.map((f) => [f.month, f.label === null, f.plans.map((p) => p.title)])).toEqual([
+      ['2026-11', true, ['b', 'a']],
+      ['2026-10', false, ['oct']],
+      ['2025-12', false, ['old']],
+    ])
+    expect(closedPlanFolds([], now)).toEqual([])
   })
 })
 

@@ -23,12 +23,18 @@
 //                               signed pass, never anywhere else
 //   GET  /jwks                  the broker's public key
 //   GET  /healthz
+// Usage, on the instance's own record (`id:<id>`): boots (each /register),
+// passes issued (each /login/exchange) and, per UTC day for USAGE_DAYS days,
+// the signed-in emails with their pass count. Best effort: KV is read then
+// written, so two writes racing may lose one count. Read with
+// `npm run usage` (scripts/usage.mjs) — no route serves it.
 // The pass is a short RS256 JWT: {iss: the broker's origin, aud: the
 // instance id, sub: the Firebase uid, email, email_verified, name?,
 // picture?, nonce: the instance's state, iat, exp: +120 s}. The instance
 // (server/src/silos-id.ts) verifies it against /jwks, checks the state it
 // bound to the browser, and decides who gets in (SILOS_OWNER_EMAIL): the
-// broker lets nobody in by itself and stores no account, only origins.
+// broker lets nobody in by itself and stores no account, only origins and
+// their usage.
 import { GoogleKeys, importSigningKey, randomId, signJwt, verifyFirebaseIdToken, type SigningKey } from './jwt.js'
 import { loginPage, type BrokerFirebase } from './page.js'
 
@@ -66,7 +72,7 @@ export interface KV {
 }
 
 export interface Env {
-  /** KV: `origin:<origin>` → id, `id:<id>` → {origin, registeredAt} */
+  /** KV: `origin:<origin>` → id, `id:<id>` → InstanceRecord */
   INSTANCES: KV
   /** Worker secret: the PKCS8 PEM that signs the passes (scripts/gen-key.mjs) */
   SILOS_ID_PRIVATE_KEY?: string
@@ -143,31 +149,85 @@ export class RateLimiter {
   }
 }
 
+/** How many UTC days of per-day usage an instance record keeps. */
+export const USAGE_DAYS = 90
+
+export interface DayUsage {
+  logins: number
+  users: Record<string, number>
+}
+/** `id:<id>` in KV: the origin plus its usage (all usage fields optional —
+ *  records written before usage existed carry none). */
+export interface InstanceRecord {
+  origin: string
+  registeredAt: number
+  boots?: number
+  lastBootAt?: number
+  logins?: number
+  lastLoginAt?: number
+  days?: Record<string, DayUsage>
+}
+
 interface Instance {
   id: string
   origin: string
+  record: InstanceRecord
 }
 
 async function lookup(kv: KV, id: string): Promise<Instance | null> {
   const raw = await kv.get(`id:${id}`)
   if (raw === null) return null
   try {
-    const o = JSON.parse(raw) as { origin?: unknown }
+    const o = JSON.parse(raw) as Partial<InstanceRecord>
     const origin = typeof o.origin === 'string' ? normalizeOrigin(o.origin) : null
-    return origin ? { id, origin } : null
+    return origin ? { id, origin, record: { ...o, origin, registeredAt: typeof o.registeredAt === 'number' ? o.registeredAt : 0 } } : null
   } catch {
     return null
   }
 }
 
-/** One id per origin. Known origins cost one read and no write (instances
- *  re-register on every boot). Two first registrations racing may mint two
- *  ids for one origin: both point at that origin, so both are harmless. */
+const utcDay = (t: number): string => new Date(t).toISOString().slice(0, 10)
+
+/** A boot: one more count on the instance's record. */
+export function countBoot(r: InstanceRecord, now: number): InstanceRecord {
+  return { ...r, boots: (r.boots ?? 0) + 1, lastBootAt: now }
+}
+
+/** A pass issued to `email`: counted overall and on today, days past
+ *  USAGE_DAYS dropped. */
+export function countLogin(r: InstanceRecord, email: string, now: number): InstanceRecord {
+  const today = utcDay(now)
+  const oldest = utcDay(now - (USAGE_DAYS - 1) * 86_400_000)
+  const days: Record<string, DayUsage> = {}
+  for (const [d, u] of Object.entries(r.days ?? {})) if (d >= oldest) days[d] = u
+  const day = days[today] ?? { logins: 0, users: {} }
+  const who = email.toLowerCase()
+  days[today] = { logins: day.logins + 1, users: { ...day.users, [who]: (day.users[who] ?? 0) + 1 } }
+  return { ...r, logins: (r.logins ?? 0) + 1, lastLoginAt: now, days }
+}
+
+/** Usage never stands between anyone and their sign-in or boot. */
+async function save(kv: KV, id: string, r: InstanceRecord): Promise<void> {
+  try {
+    await kv.put(`id:${id}`, JSON.stringify(r))
+  } catch {
+    /* best effort */
+  }
+}
+
+/** One id per origin; every call is a boot of that instance (instances
+ *  register on every boot) and counts as one. Two first registrations racing
+ *  may mint two ids for one origin: both point at that origin, so both are
+ *  harmless. */
 async function register(kv: KV, origin: string, now: number): Promise<string> {
   const known = await kv.get(`origin:${origin}`)
-  if (known !== null && INSTANCE_ID.test(known) && (await lookup(kv, known))?.origin === origin) return known
+  const instance = known !== null && INSTANCE_ID.test(known) ? await lookup(kv, known) : null
+  if (instance?.origin === origin) {
+    await save(kv, instance.id, countBoot(instance.record, now))
+    return instance.id
+  }
   const id = randomId(16)
-  await kv.put(`id:${id}`, JSON.stringify({ origin, registeredAt: now }))
+  await kv.put(`id:${id}`, JSON.stringify(countBoot({ origin, registeredAt: now }, now)))
   await kv.put(`origin:${origin}`, id)
   return id
 }
@@ -310,6 +370,7 @@ export function createBroker(deps: BrokerDeps = {}): Broker {
         },
         await keyOf(cfg.pem),
       )
+      await save(env.INSTANCES, instance.id, countLogin(instance.record, who.email, now()))
       const q = new URLSearchParams({ pass, state: b.state })
       return json({ redirect: `${instance.origin}/api/auth/silos-id/callback?${q.toString()}` })
     },

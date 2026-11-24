@@ -1,16 +1,20 @@
 // SidebarTasks — the sidebar's list body when its switch says «Tasks».
 // The sidebar is navigation (docs/product.md): a way
-// to move, never the whole list to read. On top, «All tasks · N open» opens
+// to move, never the whole list to read — but at rest it is the photograph
+// of the work (work-photograph §3.2). On top, «All tasks · N open» opens
 // exactly the set it counts (Tasks › Open). Then, unfolded, «Now» — the
 // tasks a conversation is working and the owner's ready ones, the ready ones
 // capped (the rest: «N more yours to do ›», Tasks › Yours to do). Below,
-// project → plan: the project's
-// project's list is no plan — its tasks hang straight from the project's name,
-// no head, no fold —, and each named plan is ONE
-// folded line with its counts; its chevron unfolds its task tree (remembered
-// per viewer, lib/tasks-prefs.ts), its name opens the view on that plan and
+// per project, its named PLANS first, each a two-line unit: the full name
+// (+ the live dot), then the shared bar and fraction over ALL its tasks
+// (lib/tasks.ts planProgress — the plan view's and the column's number)
+// and «N yours to do». Its chevron unfolds its task tree (remembered per
+// viewer, lib/tasks-prefs.ts), its name opens its house (planHouse) and
 // unfolds it too, and the plan of the task open in the main pane unfolds on
-// its own. Finished work lives in the view's Done preset.
+// its own. Then the project's list — no plan — under the quiet head «No
+// plan», only when it holds open tasks. Finished plans are hidden here
+// (owner 24-11: they have state, shown when asked): one quiet foot door,
+// «Finished plans ›», opens Tasks › Done, whose Plans strip lists them.
 //
 // The two switches (SidebarListSwitch) sit at the top of the list: the
 // owner's choice is remembered per viewer (store.sidebarList → localStorage).
@@ -26,6 +30,7 @@ import { useNewTasks } from '../../hooks/useTaskSeen'
 import { isFinished } from '../../lib/team-plan'
 import {
   byActivity,
+  finishedPlansPage,
   isHumanOwner,
   isLiveTask,
   isYou,
@@ -41,6 +46,7 @@ import {
 } from '../../lib/tasks'
 import { readExpandedPlans, writeExpandedPlans } from '../../lib/tasks-prefs'
 import { NewWord, TaskGlyph } from './TaskBits'
+import { Progress } from '../PlanView'
 import type { AgentView } from '../../lib/types'
 import { SiloDoor } from '../silo/SiloDoor'
 
@@ -238,34 +244,27 @@ export function SidebarTasks() {
       ) : null}
 
       {tree.map((p) => (
-        <div key={p.folder ?? '__outside__'} className="[&+&]:mt-3">
+        <div key={p.folder ?? '__outside__'} data-testid="sidebar-project" className="[&+&]:mt-3">
           <div className="px-2 pb-0.5 text-[11px] text-ink-3" title={p.folder ?? undefined}>
             {p.name}
           </div>
-          {p.loose.length > 0 ? (
-            <ul data-testid="sidebar-loose" className="mb-1">
-              {flatten(p.loose, 0).map(({ n, depth }) => (
-                <li key={n.task.key}>{row(n.task, depth)}</li>
-              ))}
-            </ul>
-          ) : null}
           {p.plans.map((plan) => {
             const f = planFold(
-              open.filter((t) => t.planKey === plan.planKey),
+              all.filter((t) => t.planKey === plan.planKey),
               agents,
               now,
             )
             const isOpen = expanded.has(plan.planKey) || (currentPlan === plan.planKey && foldedOn !== current)
             return (
-              <div key={plan.planKey} data-testid="sidebar-plan" data-plan={plan.ref} data-open={isOpen ? 'true' : 'false'}>
-                <div className="group flex w-full items-center rounded-md pr-2 hover:bg-canvas/60">
+              <div key={plan.planKey} data-testid="sidebar-plan" data-plan={plan.ref} data-open={isOpen ? 'true' : 'false'} className="mb-0.5">
+                <div className="group flex w-full items-start rounded-md pr-2 hover:bg-canvas/60">
                   <button
                     type="button"
                     aria-expanded={isOpen}
                     aria-label={`${isOpen ? 'Fold' : 'Unfold'} ${plan.title}`}
                     onClick={() => toggle(plan.planKey, isOpen)}
                     data-testid="sidebar-plan-fold"
-                    className="flex shrink-0 self-stretch items-center py-[3px] pl-1 pr-1"
+                    className="flex shrink-0 items-center py-[5px] pl-1 pr-1"
                   >
                     <ChevronRight
                       size={11}
@@ -273,7 +272,7 @@ export function SidebarTasks() {
                       className={`text-ink-3 transition-transform duration-150 group-hover:text-ink-2 motion-reduce:transition-none ${isOpen ? 'rotate-90' : ''}`}
                     />
                   </button>
-                  {/* the plan's name is a door: its open tasks, already filtered */}
+                  {/* the plan's name is a door: its house (Tasks narrowed to it) */}
                   <button
                     type="button"
                     title={`${plan.title} — its open tasks`}
@@ -282,20 +281,17 @@ export function SidebarTasks() {
                       if (!isOpen) toggle(plan.planKey, false)
                       changePage(planHouse(plan.planKey))
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-1 py-[3px] text-left"
+                    className="flex min-w-0 flex-1 flex-col gap-0.5 py-[3px] text-left"
                   >
-                    <span className={`min-w-0 flex-1 truncate text-[12.5px] ${isOpen ? 'text-ink' : 'text-ink-2 group-hover:text-ink'}`}>{plan.title}</span>
-                    {f.live ? (
-                      <span aria-label="a conversation is working on one" className="dot-blink h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
-                    ) : null}
-                    <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-3" data-testid="sidebar-plan-counts">
-                      {f.open} open
-                      {f.onYou > 0 ? (
-                        <>
-                          {' '}
-                          · <span className="text-terracotta">{f.onYou} yours to do</span>
-                        </>
+                    <span className="flex w-full min-w-0 items-center gap-1">
+                      <span className={`min-w-0 flex-1 truncate text-[12.5px] ${isOpen ? 'text-ink' : 'text-ink-2 group-hover:text-ink'}`}>{plan.title}</span>
+                      {f.live ? (
+                        <span aria-label="a conversation is working on one" className="dot-blink h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
                       ) : null}
+                    </span>
+                    <span className="flex items-center gap-1.5" data-testid="sidebar-plan-counts" data-done={f.done} data-total={f.total} data-yours={f.onYou}>
+                      <Progress done={f.done} total={f.total} />
+                      {f.onYou > 0 ? <span className="font-mono text-[10px] tabular-nums text-terracotta">· {f.onYou} yours to do</span> : null}
                     </span>
                   </button>
                 </div>
@@ -309,8 +305,29 @@ export function SidebarTasks() {
               </div>
             )
           })}
+          {p.loose.length > 0 ? (
+            <section aria-label="No plan" data-testid="sidebar-loose" className={p.plans.length > 0 ? 'mt-1.5' : ''}>
+              <div className="px-2 pb-0.5 text-[11px] text-ink-3">No plan</div>
+              <ul className="mb-1">
+                {flatten(p.loose, 0).map(({ n, depth }) => (
+                  <li key={n.task.key}>{row(n.task, depth)}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       ))}
+
+      {/* finished plans: hidden here, one quiet door to their one house */}
+      <button
+        type="button"
+        data-testid="sidebar-finished-plans"
+        onClick={() => changePage(finishedPlansPage())}
+        className="mt-4 flex w-full items-center gap-1 px-2 py-1 text-left text-[11px] text-ink-3 hover:text-ink"
+      >
+        Finished plans
+        <ChevronRight size={10} aria-hidden="true" />
+      </button>
     </div>
   )
 }

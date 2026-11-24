@@ -506,7 +506,7 @@ describe('ContextColumn — Plan (team plan file)', () => {
 
     // another folder's plan moving does not re-read this one
     mockedApi.file.text.mockResolvedValue(
-      JSON.stringify({ title: 'Sprint v2', tasks: [{ id: 't1', title: 'prep', owner: 'finance', status: 'done', dependsOn: [] }] }),
+      JSON.stringify({ title: 'Sprint v2', tasks: [{ id: 't1', title: 'prep', owner: 'finance', status: 'in_progress', dependsOn: [] }] }),
     )
     act(() => useStore.setState({ plansVersion: { '/elsewhere': 1 } }))
     expect(mockedApi.file.text).toHaveBeenCalledTimes(1)
@@ -555,10 +555,10 @@ describe('ContextColumn — Plan with several plan files', () => {
       },
     })
     render(<ContextColumn />)
-    const tax = await screen.findByTestId('team-plan-tax.plan.json')
-    const header = screen.getByText('Plan').closest('details')
+    await screen.findByTestId('team-plan-tax.plan.json')
+    // two named plans: the block is «Plans · 2»
+    const header = screen.getByText('Plans').closest('details')
     expect(header?.className).toContain('border-l-terracotta')
-    expect(tax).toHaveTextContent('1 on you')
     expect(screen.getAllByTestId('team-plan-title').map((el) => el.textContent)).toEqual(['Tax'])
     expect(await screen.findByTestId('team-plan-row-sprint.plan.json')).toHaveTextContent('Sprint')
   })
@@ -669,9 +669,10 @@ describe('ContextColumn — Plan with several plan files', () => {
     expect(mockedApi.file.meta).not.toHaveBeenCalled()
   })
 
-  // A finished plan stays in the column (the conversation did write it)
-  // but folds to its result — never "the agent has the ball" over a 14/14.
-  it('a finished plan folds to a ✓ row and never says the agent has the ball', async () => {
+  // A finished plan is hidden unless asked (owner rule): never a card, never
+  // folded among the open ones — ONE quiet «✓ N finished ›» line whose door
+  // is Tasks › Done (its Plans strip).
+  it('a finished plan is no card: the open plan is, and the ✓ line opens Tasks › Done', async () => {
     byPath({
       '/proj/plans/sprint.plan.json': planText('Sprint', [
         { id: 't1', title: 'a', owner: 'finance', status: 'done', dependsOn: [] },
@@ -696,17 +697,24 @@ describe('ContextColumn — Plan with several plan files', () => {
       },
     })
     render(<ContextColumn />)
-    const sprint = await screen.findByTestId('team-plan-row-sprint.plan.json')
-    expect(sprint).toHaveTextContent('✓')
-    expect(sprint).not.toHaveTextContent(/agent has the ball/)
+    const finishedLine = await screen.findByTestId('team-plan-finished')
+    expect(finishedLine).toHaveTextContent(/1 finished/)
+    // the finished plan is neither a card nor a folded row
+    expect(screen.queryByTestId('team-plan-sprint.plan.json')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('team-plan-row-sprint.plan.json')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('team-plan-others')).not.toBeInTheDocument()
     expect(screen.getByTestId('team-plan-tax.plan.json')).toHaveTextContent('1 open')
     expect(screen.getAllByTestId('team-plan-title').map((el) => el.textContent)).toEqual(['Tax'])
-    // the block's count is the OPEN tasks only (none from the finished plan)
+    // the pair names the open plan; the count is its open tasks only
     const header = screen.getByText('Plan').closest('summary')
-    expect(header).toHaveTextContent('1')
+    expect(header).toHaveTextContent('Tax')
+    expect(header?.lastElementChild).toHaveTextContent(/^1$/)
+    fireEvent.click(finishedLine)
+    await waitFor(() => expect(useStore.getState().page).toMatchObject({ kind: 'tasks', view: 'done' }))
+    expect(useStore.getState().page).not.toHaveProperty('plan')
   })
 
-  it('when every plan is finished the newest one is the card, folded to "N/N · done"', async () => {
+  it('when every plan is finished the block is the ✓ line alone, under its pair title', async () => {
     byPath({
       '/proj/plans/sprint.plan.json': planText('Sprint', [
         { id: 't1', title: 'a', owner: 'finance', status: 'done', dependsOn: [] },
@@ -724,9 +732,10 @@ describe('ContextColumn — Plan with several plan files', () => {
       },
     })
     render(<ContextColumn />)
-    const sprint = await screen.findByTestId('team-plan-sprint.plan.json')
-    expect(sprint).toHaveTextContent('✓')
-    expect(sprint).not.toHaveTextContent(/agent has the ball/)
+    expect(await screen.findByTestId('team-plan-finished')).toHaveTextContent(/1 finished/)
+    expect(screen.queryAllByTestId('team-plan-title')).toHaveLength(0)
+    expect(screen.queryByTestId('team-plan-sprint.plan.json')).not.toBeInTheDocument()
+    expect(screen.getByText('Plan').closest('summary')).toHaveTextContent('Sprint')
   })
 
   it('an unreadable plan is dropped silently while its siblings still render', async () => {
@@ -827,6 +836,49 @@ describe('ContextColumn — Plan by link', () => {
     const line = await screen.findByTestId('team-plan-tools.plan.json')
     expect(line).toHaveTextContent(/in silos/)
     expect(screen.getAllByTestId('team-plan-title')).toHaveLength(1)
+  })
+
+  // the conversation's OWN loose task (a project's-list task it holds) is a
+  // row of the Plan block, «<project>#tN · title», marked «no plan»; the
+  // project's list itself never paints, and a loose task it does not hold
+  // never shows
+  it('an own loose task is a row with its ref; the list is no door', async () => {
+    const LIST = '/proj/plans/tasks.plan.json'
+    files({
+      [LIST]: planText('', [
+        { id: 't1', title: 'wire it', owner: 'builder', status: 'in_progress', dependsOn: [], conversations: ['root-1'] },
+        { id: 't2', title: 'not mine', owner: 'builder', status: 'pending', dependsOn: [] },
+      ]),
+    })
+    link({ file: LIST, plan: 'tasks', folder: '/proj' })
+    useStore.setState({
+      agents: [makeAgent({ id: 'builder', folder: '/proj' })],
+      selected: { folder: 'f', id: 's1' },
+      detail: { meta: makeSession({ cwd: '/proj' }), turns: [], total: 0, context: empty() },
+    })
+    render(<ContextColumn />)
+    const row = await screen.findByTestId('team-plan-loose-folder:/proj/tasks/tasks/t1')
+    expect(row).toHaveTextContent(/proj#t1/)
+    expect(row).toHaveTextContent(/wire it/)
+    expect(within(screen.getByTestId('team-plan-block')).queryByText(/not mine/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('column-standing-tasks')).not.toBeInTheDocument()
+    fireEvent.click(row)
+    await waitFor(() => expect(useStore.getState().page).toMatchObject({ kind: 'task', plan: 'folder:/proj/tasks', task: 't1' }))
+  })
+
+  it('a loose task of the list it wrote but does not hold is no row', async () => {
+    const LIST = '/proj/plans/tasks.plan.json'
+    files({ [LIST]: planText('', [{ id: 't1', title: 'someone else', owner: 'builder', status: 'pending', dependsOn: [], conversations: ['other-1'] }]) })
+    mockedApi.sessionTasks.mockResolvedValue({ tasks: [] })
+    useStore.setState({
+      agents: [makeAgent({ id: 'builder', folder: '/proj' })],
+      selected: { folder: 'f', id: 's1' },
+      detail: { meta: makeSession({ cwd: '/proj' }), turns: [], total: 0, context: { ...empty(), files: [{ path: LIST, edits: 1, writes: 0, reads: 0 }] } },
+    })
+    render(<ContextColumn />)
+    await waitFor(() => expect(mockedApi.file.text).toHaveBeenCalled())
+    expect(screen.queryByText(/someone else/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('team-plan-block')).not.toBeInTheDocument()
   })
 
   it('an authored plan still paints; a plan only READ does not; authored AND linked is one line', async () => {
@@ -2516,7 +2568,8 @@ describe('Executing — a plan run step by step with subagents', () => {
       ),
     })
     render(<ContextColumn />)
-    await screen.findByText('Event layer')
+    // the finished plan is no card: the block's ✓ line alone
+    await screen.findByTestId('team-plan-finished')
     expect(screen.queryByText('Executing')).not.toBeInTheDocument()
     expect(screen.queryByTestId('execution-progress')).not.toBeInTheDocument()
     // after Plan, beside Agents — not under the status
@@ -2616,11 +2669,91 @@ describe('Executing — a plan run step by step with subagents', () => {
   })
 })
 
+// Three plan-shaped things, three owners: the team's Plan (durable) above
+// this conversation's Checklist (ephemeral); the project's list — no plan —
+// is its own door outside the Plan block. One fraction everywhere
+// (planProgress), one cut-word («yours to do» = the Yours-to-do set).
+describe("Plan · Checklist · the project's list — order, door, fraction, yours", () => {
+  const tasks = (statusOwner: Array<[string, string, string[]?]>) =>
+    statusOwner.map(([status, owner, dependsOn], i) => ({ id: `t${i + 1}`, title: `x${i + 1}`, owner, status, dependsOn: dependsOn ?? [] }))
+  const setup = (plans: Record<string, string>, extra: Partial<SessionContext> = {}) => {
+    mockedApi.file.text.mockImplementation(async (p: string) => {
+      if (!(p in plans)) throw new Error('404')
+      return plans[p]!
+    })
+    mockedApi.file.dir.mockResolvedValue({ path: '/proj/plans', entries: [] })
+    const go = vi.fn()
+    useStore.setState({
+      changePage: go as never,
+      agents: [makeAgent({ id: 'builder' })],
+      selected: { folder: 'f', id: 's1' },
+      detail: {
+        meta: makeSession({ cwd: '/proj' }),
+        turns: [],
+        total: 0,
+        context: { ...empty(), ...extra, files: Object.keys(plans).map((path) => ({ path, edits: 0, writes: 1, reads: 0 })) },
+      },
+    })
+    return go
+  }
+
+  it("the Plan block comes before the Checklist; the project's list is no door in the column", async () => {
+    setup(
+      {
+        '/proj/plans/launch.plan.json': JSON.stringify({ title: 'Launch', tasks: tasks([['pending', 'builder']]) }),
+        '/proj/plans/tasks.plan.json': JSON.stringify({ title: '', tasks: tasks([['pending', 'owner']]) }),
+      },
+      { plan: { done: 0, total: 1, tasks: [{ id: 'c1', subject: 'step', status: 'pending', createdAt: '2026-08-19T00:00:00Z', agents: [] }] } },
+    )
+    render(<ContextColumn />)
+    const block = await screen.findByTestId('team-plan-block')
+    const checklist = screen.getByText('Checklist').closest('details')!
+    const planDetails = block.closest('details')!
+    // document order: Plan, then Checklist
+    expect(planDetails.compareDocumentPosition(checklist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // the list is never one of the Plan block's plans, nor a door anywhere
+    expect(
+      within(block)
+        .queryAllByRole('button')
+        .map((b) => b.getAttribute('title')),
+    ).not.toContain('/proj/plans/tasks.plan.json')
+    expect(screen.queryByTestId('column-standing-tasks')).not.toBeInTheDocument()
+  })
+
+  it("only the project's list, no task of it held: no block at all", async () => {
+    setup({ '/proj/plans/tasks.plan.json': JSON.stringify({ title: '', tasks: tasks([['pending', 'owner']]) }) })
+    render(<ContextColumn />)
+    await waitFor(() => expect(mockedApi.file.text).toHaveBeenCalled())
+    expect(screen.queryByTestId('team-plan-block')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('column-standing-tasks')).not.toBeInTheDocument()
+  })
+
+  it("the card's fraction is planProgress (a dropped task leaves the total); its yours-to-do count is your open tasks of it", async () => {
+    setup({
+      '/proj/plans/launch.plan.json': JSON.stringify({
+        title: 'Launch',
+        tasks: tasks([
+          ['done', 'builder'],
+          ['cancelled', 'builder'],
+          ['pending', 'owner'], // yours, ready
+          ['blocked', 'owner', ['t6']], // yours, not ready — still yours to do
+          ['done', 'owner'], // finished: not to do
+          ['pending', 'sam'], // another person's: never yours
+        ]),
+      }),
+    })
+    render(<ContextColumn />)
+    const card = await screen.findByTestId('team-plan-launch.plan.json')
+    expect(card).toHaveTextContent(/^2\/5/)
+    expect(card).toHaveTextContent(/\b2 yours to do\b/)
+  })
+})
+
 describe('Plan — one plan in play, the rest folded', () => {
   const files = (...names: string[]) => ({ ...empty(), files: names.map((n) => ({ path: `/proj/plans/${n}`, edits: 0, writes: 1, reads: 0 })) })
   const plan = (title: string, statuses: string[]) =>
     JSON.stringify({ title, tasks: statuses.map((s, i) => ({ id: `t${i + 1}`, title: `${title} ${i + 1}`, owner: 'silos', status: s, dependsOn: [] })) })
-  it('the newest unfinished plan is the card; finished and older ones fold with their progress', async () => {
+  it('the newest unfinished plan is the card; older open ones fold with their progress, finished ones are the ✓ line', async () => {
     mockedApi.file.text.mockImplementation(async (p: string) =>
       p.endsWith('old.plan.json')
         ? plan('Old', ['done', 'pending'])
@@ -2649,11 +2782,12 @@ describe('Plan — one plan in play, the rest folded', () => {
     expect(card).toHaveTextContent(/1m ago|just now/)
     expect(screen.queryByTestId('team-plan-old.plan.json')).not.toBeInTheDocument()
     const others = screen.getByTestId('team-plan-others')
-    expect(others).toHaveTextContent('2 other plans')
+    expect(others).toHaveTextContent('1 other plan')
     expect(screen.getByTestId('team-plan-row-old.plan.json')).not.toBeVisible()
-    fireEvent.click(within(others).getByText('2 other plans'))
+    fireEvent.click(within(others).getByText('1 other plan'))
     expect(screen.getByTestId('team-plan-row-old.plan.json')).toHaveTextContent('1/2')
-    expect(screen.getByTestId('team-plan-row-finished.plan.json')).toHaveTextContent('✓')
+    expect(screen.queryByTestId('team-plan-row-finished.plan.json')).not.toBeInTheDocument()
+    expect(screen.getByTestId('team-plan-finished')).toHaveTextContent(/1 finished/)
     mockedApi.file.meta.mockResolvedValue({
       path: '/proj/plans/old.plan.json',
       name: 'old.plan.json',
@@ -2669,7 +2803,7 @@ describe('Plan — one plan in play, the rest folded', () => {
     await waitFor(() => expect(go).toHaveBeenCalledWith(expect.objectContaining({ kind: 'tasks', view: 'open' })))
     expect(mockedApi.file.meta).not.toHaveBeenCalledWith('/proj/plans/old.plan.json')
     // the Plan block's count is the CARD's open tasks only (2); the folded plans are history
-    expect(screen.getByText('Plan').parentElement!.textContent).toBe('Plan2')
+    expect(screen.getByText('Plans').closest('summary')!.lastElementChild).toHaveTextContent(/^2$/)
   })
   it('a plan waiting on you is the card even when an agent-only plan is newer', async () => {
     mockedApi.file.text.mockImplementation(async (p: string) =>

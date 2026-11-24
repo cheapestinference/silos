@@ -37,8 +37,9 @@ npm start                  # http://127.0.0.1:3210
 ```
 
 `npm run pack:npm` assembles the npm package `silosplatform` (command
-`silos`) into `.pack/`; it never publishes. Releases publish it from
-`.github/workflows/release.yml`.
+`silos`) into `.pack/`; it never publishes. Releases publish it, and the
+container image, from `.github/workflows/release.yml` — versions, tags and
+how to cut one are in [docs/releasing.md](docs/releasing.md).
 
 Use a throwaway data directory while you develop, so your real agents and
 transcripts are never touched:

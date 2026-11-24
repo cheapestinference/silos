@@ -3,7 +3,18 @@
 // writing the file are the kernel's since the plans kernelectomy): ready /
 // parallel, human tasks, what a Done unblocks, the v-next states.
 import { describe, expect, it } from 'vitest'
-import { isFinished, isPlanFile, planIsOf, readyTasks, humanTasks, humanReadyTasks, unblocksOf, type TeamPlan } from '../src/lib/team-plan'
+import {
+  isClosedPlanPath,
+  isFinished,
+  isPlanFile,
+  planHomeWords,
+  planIsOf,
+  readyTasks,
+  humanTasks,
+  humanReadyTasks,
+  unblocksOf,
+  type TeamPlan,
+} from '../src/lib/team-plan'
 
 function plan(): TeamPlan {
   return {
@@ -74,5 +85,23 @@ describe("planIsOf — whose plan a conversation's column shows", () => {
     const fresh = { tasks: [task('t1', [])] }
     expect(planIsOf(fresh, 'this-session', true)).toBe(true)
     expect(planIsOf(fresh, 'this-session', false)).toBe(false)
+  })
+})
+
+// A plan the protocol moved to <project>/plans/closed/ is that project's own
+// (read only) — never «outside Silos' projects», though the reader leaves
+// plans/closed/ out of its locations and serves it as outside.
+describe('a closed plan path belongs to its project', () => {
+  it('classifies plans/closed/ as closed, plans/ as not', () => {
+    expect(isClosedPlanPath('/w/proj/plans/closed/ship.plan.json')).toBe(true)
+    expect(isClosedPlanPath('/w/proj/plans/ship.plan.json')).toBe(false)
+  })
+  it('the home line: own project says nothing, another project is named, closed is never «outside»', () => {
+    const closed = '/w/proj/plans/closed/ship.plan.json'
+    expect(planHomeWords({ path: closed, outside: true }, '/w/proj')).toBeNull()
+    expect(planHomeWords({ path: closed, outside: true, closed: true }, '/w/other')).toBe('in proj')
+    expect(planHomeWords({ path: '/w/proj/plans/ship.plan.json', outside: false }, '/w/proj')).toBeNull()
+    expect(planHomeWords({ path: '/w/other/plans/ship.plan.json', outside: false }, '/w/proj')).toBe('in other')
+    expect(planHomeWords({ path: '/tmp/x/plans/ship.plan.json', outside: true }, '/w/proj')).toBe("outside Silos' projects")
   })
 })

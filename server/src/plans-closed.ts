@@ -45,6 +45,18 @@ export interface ClosedPlansDeps {
   conventionDirs: () => string[]
 }
 
+// one finished plan, as Tasks › Done's Plans strip lists it
+export interface ClosedPlanEntry {
+  key: string // the record's key it had while open
+  title: string
+  folder: string | null
+  file: string // absolute, under plans/closed/ — the strip's door (read-only)
+  mtime: number // ms: when it was moved there (its last write)
+  done: number
+  dropped: number
+  open: number // a closed plan still holding open tasks (the inbox's row says it)
+}
+
 export class ClosedPlans {
   private cache = new Map<string, { mtimeMs: number; rec: SiloRecord | null }>()
   constructor(private deps: ClosedPlansDeps) {}
@@ -92,6 +104,35 @@ export class ClosedPlans {
     }
     for (const k of this.cache.keys()) if (!seen.has(k)) this.cache.delete(k)
     return out
+  }
+
+  // Tasks › Done's Plans strip (work-photograph R2): every finished PLAN as
+  // one line — title · file · when it closed (the file's mtime: the move to
+  // closed/ is the last write) · its done words as counts. A LISTING, never
+  // an ingestion: no task of these files enters any open reading. The
+  // project's list's monthly archives (the rotation's tasks-YYYY-MM files)
+  // are not plans — Done folds them by month already — so they stay out.
+  listing(env: ReadEnv = {}): ClosedPlanEntry[] {
+    const manifest = this.deps.manifest()
+    if (!manifest) return []
+    const archives = rotationsOf(manifest).map((r) => r.archive)
+    return this.records(env)
+      .filter((r) => !archives.some((a) => a.test(basename(r.file))))
+      .map((r) => {
+        const tasks = (Array.isArray(r.record.tasks) ? r.record.tasks : []).filter(isObj)
+        const count = (pred: (s: unknown) => boolean): number => tasks.filter((t) => pred(t.state)).length
+        return {
+          key: `${r.location}/${r.record.id}`,
+          title: typeof r.record.title === 'string' && r.record.title !== '' ? r.record.title : String(r.record.id),
+          folder: r.location.startsWith('folder:') ? r.location.slice('folder:'.length) : null,
+          file: r.file,
+          mtime: r.mtimeMs,
+          done: count((s) => s === 'done'),
+          dropped: count((s) => s === 'cancelled'),
+          open: count((s) => s !== 'done' && s !== 'cancelled'),
+        }
+      })
+      .sort((a, b) => b.mtime - a.mtime)
   }
 
   // the closed record a key names: the record's own key, or a child's under

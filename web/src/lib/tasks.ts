@@ -14,9 +14,9 @@ import { ESCALATION_ACTION } from './org'
 import { sessionSignal } from './live'
 import { relTime } from './rel-time'
 import { basename, type TasksQuery } from './routes'
-import { isFinished, type PlanStatus } from './team-plan'
+import { isClosedPlanPath, isFinished, planProgress as statesProgress, type PlanStatus } from './team-plan'
 import type { ActiveFilter, FacetExtractor } from './facets'
-import type { AgentView, SessionTaskLine, SessionView, SiloRecordRow, SiloStalledCause, SiloTaskFlow, SiloTaskTurn } from './types'
+import type { AgentView, ClosedPlanEntry, SessionTaskLine, SessionView, SiloRecordRow, SiloStalledCause, SiloTaskFlow, SiloTaskTurn } from './types'
 
 const STATES: readonly PlanStatus[] = ['pending', 'in_progress', 'in_review', 'blocked', 'done', 'cancelled']
 
@@ -814,7 +814,10 @@ export function taskTree(tasks: readonly TaskView[]): TreeProject[] {
 // dropped task is finished, never done
 export function doneWords(tasks: readonly Pick<TaskView, 'state'>[]): string {
   const dropped = tasks.filter((t) => t.state === 'cancelled').length
-  const done = tasks.length - dropped
+  return doneCountWords(tasks.length - dropped, dropped)
+}
+// the same words from counts (a closed plan's line in Done's Plans strip)
+export function doneCountWords(done: number, dropped: number): string {
   return dropped === 0 ? `${done} done` : done === 0 ? `${dropped} dropped` : `${done} done, ${dropped} dropped`
 }
 
@@ -1117,9 +1120,18 @@ export function planHouse(planKey: string): { kind: 'tasks'; view: 'open'; plan:
 // no door (null).
 export type PlanDoor = { kind: 'house'; page: ReturnType<typeof planHouse> } | { kind: 'file'; path: string }
 export function planDoor(p: { key: string; file?: string | null; closed?: boolean; unreadable?: boolean; outside?: boolean }): PlanDoor | null {
-  const closed = p.closed === true || (p.file ?? '').includes('/plans/closed/')
+  const closed = p.closed === true || isClosedPlanPath(p.file ?? '')
   if (closed || p.unreadable || p.outside) return p.file ? { kind: 'file', path: p.file } : null
   return { kind: 'house', page: planHouse(p.key) }
+}
+
+// A conversation's OWN loose tasks — the rows its column's Plan block paints
+// beside its plans: tasks of a project's list (no plan) it still holds
+// (current — a let-go link is history) that are still open. A named plan's
+// task never; a finished or closed one never.
+export function ownLooseTasks(work: readonly WorkedTask[]): WorkedTask[] {
+  const loose = (t: WorkedTask): boolean => t.view?.standingList ?? (t.file !== null && isStandingPlan(t.file))
+  return work.filter((t) => loose(t) && t.current && !t.closed && !isFinished(t.state))
 }
 
 // a task's key from its plan's key and id (the silo's sub-kind key)
@@ -1173,18 +1185,66 @@ export function nowTasks(all: readonly TaskView[], agents: readonly AgentView[],
   return { shown: [...live, ...ready.slice(0, room)], more: Math.max(0, ready.length - room) }
 }
 
-// one plan's folded line: its open tasks, how many are on the owner, whether
-// a conversation works one now
+// A plan's ONE fraction (work-photograph §3.2): done over what is still meant
+// to be done, over ALL its tasks — finished ones included, a dropped one
+// leaving the total (team-plan.ts's rule). The sidebar's plan unit, the plan
+// view's head and the column's plan card say this number, never their own.
+// Takes Silos' tasks (`state`) or a team plan's (`status`).
+export function planProgress(tasks: ReadonlyArray<{ state: PlanStatus } | { status: PlanStatus }>): { done: number; total: number } {
+  return statesProgress(tasks.map((t) => ('state' in t ? t.state : t.status)))
+}
+
+// one plan's unit (the sidebar): its fraction over ALL its tasks
+// (planProgress), its open tasks, how many of those are the owner's (the
+// Yours-to-do word), whether a conversation works one now
 export interface PlanFold {
   open: number
   onYou: number
   live: boolean
+  done: number
+  total: number
 }
-export function planFold(planOpen: readonly TaskView[], agents: readonly AgentView[], now: number): PlanFold {
+export function planFold(planAll: readonly TaskView[], agents: readonly AgentView[], now: number): PlanFold {
   const agentIds = new Set(agents.map((a) => a.id))
+  const open = planAll.filter((t) => !isFinished(t.state))
   return {
-    open: planOpen.length,
-    onYou: planOpen.filter((t) => isHumanOwner(t.owner, agentIds) && isYou(t.owner)).length,
-    live: planOpen.some((t) => isLiveTask(t, agents, now)),
+    open: open.length,
+    onYou: open.filter((t) => isHumanOwner(t.owner, agentIds) && isYou(t.owner)).length,
+    live: open.some((t) => isLiveTask(t, agents, now)),
+    ...planProgress(planAll),
   }
+}
+
+// Tasks › Done's Plans strip: the finished plans (plans/closed/), the current
+// month in view, each earlier month behind its own fold — like the archives.
+// `month` 'YYYY-MM' (UTC), newest first; `label` null for the current month
+// (it shows open, no head of its own), «Oct» / «Dec 2025» for the others.
+export interface ClosedPlanFold {
+  month: string
+  label: string | null
+  plans: ClosedPlanEntry[]
+}
+export function closedPlanFolds(plans: readonly ClosedPlanEntry[], now: number): ClosedPlanFold[] {
+  const monthOf = (ms: number): string => new Date(ms).toISOString().slice(0, 7)
+  const current = monthOf(now)
+  const year = new Date(now).getUTCFullYear()
+  const by = new Map<string, ClosedPlanEntry[]>()
+  for (const p of [...plans].sort((a, b) => b.mtime - a.mtime)) {
+    const m = monthOf(p.mtime)
+    by.set(m, [...(by.get(m) ?? []), p])
+  }
+  return [...by.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([month, list]) => {
+      if (month >= current) return { month, label: null, plans: list }
+      const [y, mo] = month.split('-').map(Number) as [number, number]
+      const name = new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
+      return { month, label: `${name}${y === year ? '' : ` ${y}`}`, plans: list }
+    })
+}
+
+// The sidebar's foot door «Finished plans ›»: Tasks › Done, unnarrowed —
+// the one house of finished plans (its Plans strip)
+export function finishedPlansPage(): { kind: 'tasks'; view: 'done' } {
+  return { kind: 'tasks', view: 'done' }
 }

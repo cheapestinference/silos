@@ -77,6 +77,15 @@ The first public release.
   their place; the conversation's column is one summary line and a door
   per kind, and its tools alert counts only live failures — a thing you
   turned off is never a problem.
+- **Plans you can read at a glance**: the sidebar lists each project's
+  plans first, each with its full name, a progress bar (done over all its
+  tasks) and how many are yours to do, then the tasks in no plan under
+  «No plan». A plan's own view opens with its name, progress and the one
+  thing it waits on you for; finished plans are listed in Tasks › Done
+  («Finished plans ›» at the sidebar's foot). A conversation's column
+  labels what each block is — «Plan · name», «Checklist · this
+  conversation», «Plan mode · Claude's plan» — and the Tasks head counts
+  tasks in plans and in no plan apart.
 - **Territory**: an optional per-agent fence and a per-agent API token.
 - **Vault**: secrets delivered to agents through their environment, scoped
   to the agents you choose.

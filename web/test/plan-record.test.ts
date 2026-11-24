@@ -157,6 +157,15 @@ describe('loadPlan / planTaskDone', () => {
     ])
   })
 
+  it("a plan under its project's plans/closed/ loads closed (its own, read only), never written", async () => {
+    vi.spyOn(api.silos, 'recordByFile').mockResolvedValueOnce(detail({ outside: true, version: null }))
+    const p = (await loadPlan('/p/plans/closed/august-close.plan.json'))!
+    expect(p.closed).toBe(true)
+    const act = vi.fn()
+    await expect(planTaskDone(p, 't2', { act })).rejects.toThrow(/closed/)
+    expect(act).not.toHaveBeenCalled()
+  })
+
   it("a plan read outside Silos' projects is never written", async () => {
     vi.spyOn(api.silos, 'recordByFile').mockResolvedValueOnce(detail({ outside: true, version: null }))
     const p = (await loadPlan('/elsewhere/plans/x.plan.json'))!

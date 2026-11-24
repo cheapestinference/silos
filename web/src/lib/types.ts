@@ -3000,6 +3000,19 @@ export interface TaskModeView {
 // :folder/:id/tasks and /api/tasks/by-session — one function, session-tasks.ts):
 // `current` false once its thread was unlinked; `closed` a task
 // of a plan under plans/closed/ (read only)
+// a finished plan (plans/closed/), as Tasks › Done's Plans strip lists it
+// (GET /api/tasks/closed-plans — a listing; its tasks are in no reading).
+// `mtime`: ms, when it moved to closed/; `open`: tasks it still holds open
+export interface ClosedPlanEntry {
+  key: string
+  title: string
+  folder: string | null
+  file: string
+  mtime: number
+  done: number
+  dropped: number
+  open: number
+}
 export interface SessionTaskLine {
   key: string
   ref: string

@@ -1,7 +1,13 @@
 # Railway template
 
-Silos deploys on Railway as **one service built from the repo's `Dockerfile`**,
-with **one volume** and no database: the filesystem is the source of truth.
+Silos deploys on Railway as **one service running the released image**,
+`ghcr.io/cheapestinference/silos:latest`, with **one volume** and no
+database: the filesystem is the source of truth. Every GitHub release
+publishes that image (`.github/workflows/release.yml`), and Railway's image
+auto-updates move an instance to it — the template's service has
+**Settings → Source → Image** set to it, with automatic updates on. A
+service can still build the repo's `Dockerfile` instead (below: «Without a
+template»); it then updates only when you redeploy.
 
 The image (~1.2 GB) carries everything an instance needs: the built server and web UI,
 the Silos plugin, `tmux` (the real console) and the **Claude Code CLI** pinned
@@ -22,17 +28,17 @@ region and size included) applied with `railway config apply` — not a file a
 product shipped to any install can carry. The **template composer** is the
 source of truth. Set these on the service there:
 
-| Setting (composer → service)            | Value                                                                                                                           |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Settings → Build → Builder              | **Dockerfile** (path `Dockerfile`)                                                                                              |
-| Settings → Deploy → Healthcheck path    | **`/healthz`**                                                                                                                  |
-| Settings → Deploy → Healthcheck timeout | **120** s                                                                                                                       |
-| Settings → Deploy → Restart policy      | **Always**                                                                                                                      |
-| Settings → Deploy → Replicas            | **1** (the resident holds a lock on `/data`)                                                                                    |
-| Settings → Deploy → Serverless / sleep  | **off** (the resident runs automations with nobody watching)                                                                    |
-| Attach Volume → mount path              | **`/data`** (everything persistent lives there)                                                                                 |
-| Variables                               | `SILOS_TOKEN = ${{secret(32)}}`, `SILOS_ID_URL` preset, `SILOS_OWNER_EMAIL` **required, empty — the deployer fills it** (below) |
-| Networking                              | a generated domain; the server reads Railway's `PORT` (`SILOS_HOST=0.0.0.0` in the image)                                       |
+| Setting (composer → service)            | Value                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings → Source                       | **Image** `ghcr.io/cheapestinference/silos:latest`, automatic updates **on** (building from the repo instead: Builder **Dockerfile**, path `Dockerfile`) |
+| Settings → Deploy → Healthcheck path    | **`/healthz`**                                                                                                                                           |
+| Settings → Deploy → Healthcheck timeout | **120** s                                                                                                                                                |
+| Settings → Deploy → Restart policy      | **Always**                                                                                                                                               |
+| Settings → Deploy → Replicas            | **1** (the resident holds a lock on `/data`)                                                                                                             |
+| Settings → Deploy → Serverless / sleep  | **off** (the resident runs automations with nobody watching)                                                                                             |
+| Attach Volume → mount path              | **`/data`** (everything persistent lives there)                                                                                                          |
+| Variables                               | `SILOS_TOKEN = ${{secret(32)}}`, `SILOS_ID_URL` preset, `SILOS_OWNER_EMAIL` **required, empty — the deployer fills it** (below)                          |
+| Networking                              | a generated domain; the server reads Railway's `PORT` (`SILOS_HOST=0.0.0.0` in the image)                                                                |
 
 **Without a template** (a plain `railway up` or a GitHub-linked service), the
 service starts with Railway's defaults: set the same values **once** in the

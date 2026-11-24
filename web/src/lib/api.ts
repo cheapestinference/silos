@@ -104,6 +104,7 @@ import type {
   TaskFeedCard,
   TaskWorkAnswer,
   SessionTaskLine,
+  ClosedPlanEntry,
   SiloRelationReading,
   EscalationView,
   AgentTaskWakes,
@@ -766,6 +767,10 @@ export const api = {
   },
   // the same reading for every conversation at once (the sidebar's ☑):
   // { [sessionId]: tasks } — the server's sessionTasks, never recomputed here
+  // Tasks › Done's Plans strip: the finished plans, newest first (owner-only)
+  tasksClosedPlans(): Promise<{ plans: ClosedPlanEntry[] }> {
+    return req<{ plans: ClosedPlanEntry[] }>('/api/tasks/closed-plans')
+  },
   tasksBySession(session?: string): Promise<Record<string, SessionTaskLine[]>> {
     return req<Record<string, SessionTaskLine[]>>(`/api/tasks/by-session${session ? `?session=${encodeURIComponent(session)}` : ''}`)
   },

@@ -86,12 +86,26 @@ Claude Code's; it never goes in `plans/`.»
 
 ### How tasks work
 
-A named plan shows as a crumb, a fold in the sidebar and the Tree's groups
-(«project › plan › task»); nowhere else does a plan earn a surface. Every
+A named plan shows as a crumb, a unit in the sidebar, the Tree's groups
+(«project › plan › task»), the head of its own narrowed view and, once
+finished, a line in Tasks › Done's Plans strip; nowhere else does a plan
+earn a surface. In the sidebar, per project, the named plans come FIRST,
+each a two-line unit: its full name (and the live dot), then a progress
+bar with done/total over ALL its tasks — a dropped task leaves the total —
+and «N yours to do». Its chevron unfolds its task tree; its name opens its
+house. That fraction is ONE number (`planProgress`): the sidebar's, the
+plan head's and the conversation column's. Tasks narrowed to exactly one
+named plan (never «No plan», never two) wear that plan's head — the serif
+name, the bar, and the one wait that names you, when one does. Finished
+plans are hidden everywhere else (owner 24-11: no echo of them in the
+sidebar); the sidebar's quiet foot door «Finished plans ›» opens Tasks ›
+Done, whose Plans strip lists them from `plans/closed/` — a listing only,
+each row opening its file read-only; their tasks join no open list. Every
 project has a default list, `plans/tasks.plan.json`: a reserved
 name, seeded as `{"title": "", "tasks": []}` (the empty title is on purpose),
-never closed, with no name in the UI — its tasks hang straight from the
-project, and where a task has no named plan the one word for that absence
+never closed, with no name in the UI — its tasks sit under the quiet head
+«No plan», AFTER the project's plans (only when it holds open tasks), and
+where a task has no named plan the one word for that absence
 is «No plan». New task always lands in the project's list; a named plan only
 when the owner picks it, or opens New task from that plan.
 So a task never needs a plan to exist. Light grouping is done in place with
@@ -605,8 +619,12 @@ the pulse.
   (Needs you and Yours to do rows land here) and moment 1 (what the fleet
   works). **One word per set**: the tabs are Yours to do · Open ·
   Untouched · Done, and «open» means the same set everywhere it is counted
-  (the tab, the sidebar's «All tasks · N open», a plan's «N open», Org's
-  counts, the facts line); «Untouched» is the kernel's stalled flow — its
+  (the tab, the sidebar's «All tasks · N open», a plan's «N open» in the
+  column, Org's counts, the facts line). The head sentence counts the kinds
+  apart: «18 open — 13 in 3 plans, 5 in no plan, …» — «in N plans» covers
+  only tasks in named plans, the rest are said «in no plan», the two always
+  sum to open, and the project's list is never counted as «a plan»;
+  «Untouched» is the kernel's stalled flow — its
   address says it too (`view=untouched`) and no copy says «stuck» or
   «stalled». `idle` and `start` are addresses, not tabs: each narrows
   Open, so Open stays lit and the narrowing is a removable chip. Doors: the
@@ -1143,9 +1161,19 @@ the pulse.
   their count, a door to Knows › Tools, where they are listed); what it produced; its subagents
   («Subagents»), the `claude -p` runs it launched («Nested runs»), what it
   sent to other conversations and agents («Sent») and what it left running
-  on the machine («Processes», each row a door to System); its plans, ONE line each
-  (progress · open · on you), the line being the door to the plan's view —
-  the column never lists a plan's tasks nor marks them done; **Used here**,
+  on the machine («Processes», each row a door to System); its plans,
+  under the label pair «Plan · <name>» («Plans · N» when it works several),
+  ONE line each for the OPEN ones (the shared done/total · «N open» · «N
+  yours to do» — the very set Tasks › Yours to do shows for that plan;
+  the accent still fires only on a task ready for you), the line being
+  the door to the plan's view — the column never lists a plan's tasks nor
+  marks them done; its finished plans are never lines, only ONE quiet
+  «✓ N finished ›» onto Tasks › Done; a plan under its project's
+  plans/closed/ is that project's own, never «outside Silos' projects»;
+  the project's list is no plan and has no door here (its house is the
+  sidebar's «No plan» group) — only this conversation's OWN open loose
+  tasks paint in the block, each a row «<project>#tN · title» marked «no
+  plan»; **Used here**,
   one folded block with a count line (files · tools · links · events), each
   kind unfolding its own list — what it USED, while what it CAN use is
   Knows. **Knows** says, on a conversation, one summary line per kind as
@@ -1189,10 +1217,12 @@ the pulse.
   (the four nouns' link; nothing when it works none), and a conversation
   without one shows nothing there — ⌘K offers «Make this a task» and «Link
   this conversation to a task…» (and «Unlink this conversation from
-  «title»» when it works one); the column shows the engine's own
-  per-conversation list by its name, the **Checklist** («Checklist 3/7»,
-  only when it exists — Silos never turns it on), and plan mode's proposal as
-  «Plan mode · Claude's plan». Its
+  «title»» when it works one); the column says each plan-shaped thing with
+  a label pair, the second word whose it is: «Plan · <name>» (the team's,
+  durable) sits ABOVE «Checklist · this conversation» — the engine's own
+  per-conversation list by its name, only when it exists, Silos never turns
+  it on —, and plan mode's proposal keeps «Plan mode · Claude's plan» and
+  its high place, right under what needs you. Its
   «Context size» row says what that size costs: «Each step re-reads
   about this much.» and «X re-read so far.» — the cache reads its replies billed,
   measured, never estimated. At or past half of its model's window (the one
@@ -1430,11 +1460,20 @@ are not that, and a long page you must scroll through is not a virtue.
   action keeps its name through the whole flow. Native things keep their
   native names: Claude Code's
   per-conversation list (TaskCreate, Ctrl+T) is the **Checklist** — never
-  «Plan» or «Tasks»; plan mode stays «Plan mode · Claude's plan». A
+  «Plan» or «Tasks»; plan mode stays «Plan mode · Claude's plan». The three
+  plan-shaped things take the scope pairs' grammar, the second word saying
+  whose: «Plan · <name>» · «Checklist · this conversation» · «Plan mode ·
+  Claude's plan». A **Plan** is only a named plan: the project's list is
+  never «a plan» nor counted among plans, and its one word is **«No plan»**
+  (the sidebar's head, the column's door, the facet). A plan's progress is
+  one fraction everywhere (`planProgress`: done over all its tasks, dropped
+  out of the total). A
   **Task** is only Silos' task. **Needs you** is what blocks on you —
   and, on Home, the one list that also carries the tasks you own after it;
   **Yours to do** is the tasks you own (the Tasks page's view, the full
-  list of your own) — no «On you», «Yours», «ready on you» as its label. Written exceptions: «waits / waiting on
+  list of your own) — no «On you», «Yours», «ready on you» as its label;
+  counted, it is «N yours to do» (a plan's unit in the sidebar, its line in
+  the column), always the set that view would show. Written exceptions: «waits / waiting on
   you» is the verb of Needs you; «Yours» stays the quiet word of a row of
   yours, never the tasks' label.
   - **Fixed phrases**: «in any project» and

@@ -14,7 +14,7 @@ import { useStore } from '../store'
 import { api, ApiError } from '../lib/api'
 import { PLANS_SILO } from '../lib/plan-record'
 import { openTasksBySession, taskOfRow, type TaskView } from '../lib/tasks'
-import type { AgentView } from '../lib/types'
+import type { AgentView, ClosedPlanEntry } from '../lib/types'
 
 export type TasksReading =
   | { state: 'loading'; tasks: TaskView[] }
@@ -91,6 +91,51 @@ export function useTasks(enabled = true): TasksReading {
 export function resetTasksCache(): void {
   cache = null
   inflight = null
+}
+
+// The finished plans (GET /api/tasks/closed-plans — plans/closed/, a
+// listing: their tasks are in no reading), for Tasks › Done's Plans strip.
+// Read once per Plans WS tick (a plan moving to closed/ rewrites the plans
+// folder) and only while a surface asks (`enabled`); a failure keeps the
+// last answer — the strip is a trace, never a blocker.
+let closedCache: { tick: number; plans: ClosedPlanEntry[] } | null = null
+let closedInflight: number | null = null
+const closedListeners = new Set<(p: ClosedPlanEntry[]) => void>()
+function loadClosed(tick: number): void {
+  if (closedInflight === tick) return
+  const call = (api as { tasksClosedPlans?: typeof api.tasksClosedPlans }).tasksClosedPlans
+  const p = call?.()
+  if (!p || typeof p.then !== 'function') return
+  closedInflight = tick
+  p.then((r) => {
+    closedCache = { tick, plans: Array.isArray(r?.plans) ? r.plans : [] }
+    for (const l of closedListeners) l(closedCache.plans)
+  })
+    .catch(() => {
+      /* the last answer stands; the next tick asks again */
+    })
+    .finally(() => {
+      if (closedInflight === tick) closedInflight = null
+    })
+}
+export function useClosedPlans(enabled = true): ClosedPlanEntry[] {
+  const tick = useStore((s) => s.siloTick)
+  const [plans, setPlans] = useState<ClosedPlanEntry[]>(() => closedCache?.plans ?? [])
+  useEffect(() => {
+    if (!enabled) return
+    closedListeners.add(setPlans)
+    if (closedCache?.tick !== tick) loadClosed(tick)
+    else setPlans(closedCache.plans)
+    return () => {
+      closedListeners.delete(setPlans)
+    }
+  }, [tick, enabled])
+  return enabled ? plans : []
+}
+// tests: forget the closed listing between cases
+export function resetClosedPlansCache(): void {
+  closedCache = null
+  closedInflight = null
 }
 
 // The sidebar's ☑: every conversation

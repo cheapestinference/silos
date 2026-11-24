@@ -1,6 +1,9 @@
 name: Release
 # A published GitHub release tagged v<version> publishes the npm package
-# `silosplatform` (command `silos`), assembled by scripts/pack-npm.mjs.
+# `silosplatform` (command `silos`), assembled by scripts/pack-npm.mjs, and
+# the image ghcr.io/<owner>/silos (<version>; a stable release also
+# <major>.<minor> and latest — docs/releasing.md) — the one the
+# Railway template runs, so Railway's image auto-updates follow releases.
 # The tag must match the version in the root package.json.
 on:
   release:
@@ -32,6 +35,52 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run pack:npm
-      - run: npm publish .pack/silosplatform-*.tgz --provenance --access public
+      - run: npm publish .pack/silosplatform-*.tgz --provenance --access public --tag "$DIST_TAG"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
+  image:
+    if: startsWith(github.event.release.tag_name, 'v')
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image name and version
+        id: meta
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          OWNER: ${{ github.repository_owner }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          v="${TAG#v}"
+          name="ghcr.io/${OWNER,,}/silos"
+          {
+            echo "tags<<EOF"
+            echo "$name:$v"
+            # a stable release also moves <major>.<minor> and latest (docs/releasing.md)
+            if [ "$PRERELEASE" != "true" ]; then
+              echo "$name:$(echo "$v" | cut -d. -f1,2)"
+              echo "$name:latest"
+            fi
+            echo "EOF"
+            echo "version=$v"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

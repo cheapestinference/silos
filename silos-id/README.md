@@ -10,7 +10,7 @@ registered origin with a pass — a 120-second RS256 JWT for that instance
 only. The instance checks the pass against `/jwks`, against the sign-in it
 started in that browser, and against its own `SILOS_OWNER_EMAIL`. Silos ID
 decides nothing about who gets in, and stores no account: only the origins
-of the instances that registered.
+of the instances that registered, and their usage (below).
 
 The official broker answers at `https://auth.silosplatform.com`. This
 folder is that broker, a Cloudflare Worker that fits the Workers free tier.
@@ -93,9 +93,14 @@ Put the local values in a `.dev.vars` file, which git ignores:
 - **Look:** the page carries the house tokens and the tricorn inline, and
   takes Source Serif 4 and Inter from Google Fonts (Georgia and the system
   face if they don't load). No static assets to deploy.
-- **Privacy:** the broker sees the email of whoever signs in and keeps
-  nothing of it. KV holds `origin:<origin>` → id and `id:<id>` →
-  `{origin, registeredAt}`.
+- **Privacy:** KV holds `origin:<origin>` → id and `id:<id>` → the
+  instance's record: `{origin, registeredAt}` plus its usage — boots
+  (`boots`, `lastBootAt`), passes issued (`logins`, `lastLoginAt`) and, per
+  UTC day for the last 90 days, the emails that signed in with their pass
+  count. Tell the people who sign in through your broker. No route serves
+  usage: read it with `npm run usage` (your `wrangler login`; `-- --json`
+  for the raw records). Counts are best effort — KV is read then written,
+  so two writes racing may lose one.
 
 ## Tests
 

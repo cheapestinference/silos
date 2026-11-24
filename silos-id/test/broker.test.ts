@@ -15,8 +15,11 @@ import {
   STATE,
   SIGN_IN_EMAIL,
   readSignInPick,
+  countLogin,
+  USAGE_DAYS,
   type Broker,
   type Env,
+  type InstanceRecord,
 } from '../src/broker.js'
 import * as instanceSide from '../../server/src/silos-id.js'
 
@@ -108,7 +111,7 @@ describe('configuration', () => {
 })
 
 describe('register', () => {
-  it('is idempotent per origin, normalizes to the origin, and costs no write for a known origin', async () => {
+  it('is idempotent per origin, normalizes to the origin, and adds no key for a known origin', async () => {
     const kv = env.INSTANCES as ReturnType<typeof memoryKV>
     const id = await register(INSTANCE)
     const writes = kv.map.size
@@ -264,6 +267,43 @@ describe('exchange', () => {
     for (let i = 0; i < 12; i++) codes.push((await exchange({ idToken: idToken(), instance: id, state: STATE_A }, '3.3.3.3')).status)
     expect(codes.slice(0, 10).every((c) => c === 200)).toBe(true)
     expect(codes).toContain(429)
+  })
+})
+
+describe('usage', () => {
+  const recordOf = (id: string): InstanceRecord => JSON.parse((env.INSTANCES as ReturnType<typeof memoryKV>).map.get(`id:${id}`)!) as InstanceRecord
+  it('counts boots and passes per instance and per UTC day, by email, and keeps USAGE_DAYS days', async () => {
+    const id = await register(INSTANCE)
+    await register(INSTANCE)
+    const other = await register('https://other.example.com')
+    expect(recordOf(id)).toMatchObject({ origin: INSTANCE, boots: 2, lastBootAt: NOW })
+    expect((await exchange({ idToken: idToken({ email: 'Ana@example.com' }), instance: id, state: STATE_A })).status).toBe(200)
+    expect((await exchange({ idToken: idToken({ email: 'ana@example.com' }), instance: id, state: STATE_A })).status).toBe(200)
+    expect((await exchange({ idToken: idToken({ email: 'bo@example.com' }), instance: id, state: STATE_A })).status).toBe(200)
+    // a refused sign-in is not a login
+    expect((await exchange({ idToken: idToken({ email_verified: false }), instance: id, state: STATE_A })).status).toBe(401)
+    const today = new Date(NOW).toISOString().slice(0, 10)
+    expect(recordOf(id)).toMatchObject({ logins: 3, lastLoginAt: NOW, days: { [today]: { logins: 3, users: { 'ana@example.com': 2, 'bo@example.com': 1 } } } })
+    expect(recordOf(other).logins).toBeUndefined()
+    const later = countLogin(recordOf(id), 'ana@example.com', NOW + USAGE_DAYS * 86_400_000)
+    expect(Object.keys(later.days!)).toEqual([new Date(NOW + USAGE_DAYS * 86_400_000).toISOString().slice(0, 10)])
+    expect(later.logins).toBe(4)
+  })
+
+  it('a KV that refuses writes never stops a sign-in', async () => {
+    const id = await register(INSTANCE)
+    const kv = env.INSTANCES as ReturnType<typeof memoryKV>
+    env = {
+      ...env,
+      INSTANCES: {
+        get: kv.get,
+        put: async () => {
+          throw new Error('KV down')
+        },
+      },
+    }
+    expect((await exchange({ idToken: idToken(), instance: id, state: STATE_A })).status).toBe(200)
+    expect((await call('/register', { body: { url: INSTANCE } })).status).toBe(200)
   })
 })
 

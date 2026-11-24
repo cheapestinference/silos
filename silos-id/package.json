@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "gen-key": "node scripts/gen-key.mjs",
     "dev": "npx --yes wrangler@4.159.0 dev",
-    "deploy": "npx --yes wrangler@4.159.0 deploy"
+    "deploy": "npx --yes wrangler@4.159.0 deploy",
+    "usage": "node scripts/usage.mjs"
   },
   "devDependencies": {
     "@types/node": "26.2.0",

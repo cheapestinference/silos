@@ -711,3 +711,18 @@ describe('TerminalService native-bound — only a NEW pair with key ≠ id', () 
     expect(seen).toEqual([['key-0001', 'ses_0001']])
   })
 })
+
+describe('GET /api/tasks/closed-plans (work-photograph R2)', () => {
+  it('lists the finished plans to the owner, adds no task to the open reading, and is refused to an agent', async () => {
+    const w = await world([t('t1')])
+    const closedFile = join(w.proj, 'plans', 'closed', 'beta.plan.json')
+    mkdirSync(join(closedFile, '..'), { recursive: true })
+    writeFileSync(closedFile, JSON.stringify({ title: 'Beta invites', tasks: [t('b1', { status: 'done' }), t('b2', { status: 'cancelled' })] }))
+    const res = await w.get('/api/tasks/closed-plans')
+    expect(res.statusCode).toBe(200)
+    expect(res.json().plans).toEqual([expect.objectContaining({ title: 'Beta invites', file: closedFile, done: 1, dropped: 1, open: 0 })])
+    const tasks = (await w.get('/api/silos/plans/records?kind=plan/task&values=1')).json().records as Array<{ key: string }>
+    expect(tasks.map((r) => r.key)).toEqual([w.key('t1')])
+    expect(agentMayRead('writer', '/api/tasks/closed-plans')).toBe(false)
+  })
+})

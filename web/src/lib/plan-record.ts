@@ -10,7 +10,7 @@
 // (a session id, or {session}). Unknown fields ride along — except a loose
 // `conversation`, which the view model derives from conversations[] alone.
 import { api, ApiError } from './api'
-import type { PlanStatus, TeamPlan, TeamPlanTask } from './team-plan'
+import { isClosedPlanPath, type PlanStatus, type TeamPlan, type TeamPlanTask } from './team-plan'
 import type { PlanHandoff, SiloRecordDetail } from './types'
 
 // the built-in silo that reads plans/*.plan.json (server silos/native.ts)
@@ -88,6 +88,9 @@ export interface LoadedPlan {
   key: string
   version: string | null
   outside: boolean
+  // a finished plan under its project's plans/closed/ (isClosedPlanPath, or
+  // the server said so): the project's own, read only — never «outside»
+  closed: boolean
   // the reader's remarks on the plan (a task it could not build says
   // «tasks[N] is not read: <why>» — unreadTasksOf)
   remarks: string[]
@@ -101,6 +104,7 @@ export function loadedOf(path: string, d: SiloRecordDetail): LoadedPlan | null {
     key: d.record.key,
     version: d.version,
     outside: d.outside === true,
+    closed: d.closed === true || isClosedPlanPath(path),
     remarks: Array.isArray(d.record.remarks) ? d.record.remarks : [],
   }
 }

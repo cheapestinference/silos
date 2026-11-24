@@ -91,7 +91,9 @@ function registeredMkdtemp(prefix: string): string {
 // hand here, only consumes the array above.
 export function cleanupTempDirs(): void {
   for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true })
+    // the server may still be flushing a write while the walk runs, which
+    // surfaces as ENOTEMPTY on the parent rmdir — Node retries it for us
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
   tempDirs.length = 0
 }

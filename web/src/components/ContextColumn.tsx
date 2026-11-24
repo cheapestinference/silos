@@ -19,7 +19,7 @@
 // via openDossier. Scope legibility is carried by the material (bg-panel,
 // the column's only tinted stretch) and the cockpit's mono voice — nothing
 // in Setup should read as conversation status.
-import { isStandingPlan, planDoor, planHeading, standingProjectOf } from '../lib/tasks'
+import { finishedPlansPage, isStandingPlan, isYou, ownLooseTasks, planDoor, planHeading, planProgress, type WorkedTask } from '../lib/tasks'
 import { runningNote } from '../lib/running'
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { createPortal } from 'react-dom'
@@ -54,7 +54,7 @@ import { StartedWithBlock } from './StartedWithBlock'
 import { useKnowsHere } from './knows/knows-here'
 import { agentToolsFigure } from '../lib/agent-tabs'
 import { memoryNotes } from '../lib/knows-anatomy'
-import { humanReadyTasks, isFinished, isPlanFile, planIsOf, planProjectFolder } from '../lib/team-plan'
+import { humanReadyTasks, isFinished, isPlanFile, planHomeWords, planIsOf, planProjectFolder } from '../lib/team-plan'
 import { loadPlan, type LoadedPlan } from '../lib/plan-record'
 import {
   executionOver,
@@ -115,6 +115,7 @@ function timeSince(iso: string): string {
 // while closed (neither focus nor search is lost).
 function Block({
   title,
+  whose,
   count,
   note,
   defaultOpen = true,
@@ -123,6 +124,11 @@ function Block({
   children,
 }: {
   title: string
+  // whose: the label pair's second word (scope grammar, «Project · acme»):
+  // whose the block's thing is and how long it lives — «Plan · Public
+  // launch», «Checklist · this conversation». Said in plain case after the
+  // title, so the two plan-shaped blocks never read alike.
+  whose?: string
   count?: number
   // note: a quiet summary that reads with the block CLOSED ("17 of 17
   // done · 16h ago" on a finished execution) — takes the count's slot.
@@ -145,7 +151,8 @@ function Block({
           aria-hidden="true"
           className={`shrink-0 transition-transform duration-150 group-open:rotate-90 ${accent ? 'text-terracotta' : 'text-ink-2'}`}
         />
-        <span className={`text-[11px] font-medium uppercase tracking-wider ${accent ? 'text-terracotta' : 'text-ink-2'}`}>{title}</span>
+        <span className={`shrink-0 text-[11px] font-medium uppercase tracking-wider ${accent ? 'text-terracotta' : 'text-ink-2'}`}>{title}</span>
+        {whose !== undefined ? <span className="-ml-1 min-w-0 truncate text-[11.5px] text-ink-3">· {whose}</span> : null}
         {/* a note rides BESIDE a count when both are given (Processes: its
             ports, quietly, then how many) — alone it takes the count's slot */}
         {note !== undefined ? <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-ink-3">{note}</span> : null}
@@ -1120,9 +1127,11 @@ function NestedRunsBlock({ runs, now, onOpen }: { runs: SessionView[]; now: numb
 }
 
 // Claude Code's own checklist (TaskCreate/TaskUpdate, Ctrl+T — context.plan)
-// — titled "Checklist", its native name: «Tasks»
-// are Silos' (plan tasks with an owner, ☑) and «Plan» is the file-based block
-// below (TeamPlanBlock, plans/*.plan.json) — three things, three words.
+// — titled «Checklist · this conversation»: its native name, and whose it is
+// (this conversation's steps, gone with it). «Tasks» are Silos' (plan tasks
+// with an owner, ☑) and «Plan · <name>» is the file-based block ABOVE it
+// (TeamPlanBlock, plans/*.plan.json — the durable, shared thing outranks the
+// scratchpad) — three things, three label pairs.
 // Processes — what THIS conversation (its whole thread) left running on the
 // machine: builds, test runs, dev servers (the System silo's `process`
 // records; closed by default). Moment 1, «What's
@@ -1272,7 +1281,7 @@ function TasksBlock({
   const plan = context.plan!
   const pct = plan.total > 0 ? Math.round((plan.done / plan.total) * 100) : 0
   return (
-    <Block title="Checklist" count={plan.total} defaultOpen={false}>
+    <Block title="Checklist" whose="this conversation" count={plan.total} defaultOpen={false}>
       <div className="mb-2 flex items-center gap-2">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full rounded-full bg-terracotta" style={{ width: `${pct}%` }} />
@@ -2418,14 +2427,17 @@ function ContextHeader({ agent, status }: { agent: AgentView | null; status: { l
 // command) or holds a task of (claimed/linked, the server's inverse); the
 // caller applies the cut. Read through the plans
 // silo (lib/plan-record.ts: the record by its file — the file IS the truth,
-// the kernel its reader) and re-read whenever the session moves (mtime). ONE plan in play is the card and
-// every other plan folds under "N other plans" (every plan as a card
-// reached 10 cards in one conversation). In play = among unfinished plans the ones
+// the kernel its reader) and re-read whenever the session moves (mtime). ONE open plan in play is the card and
+// every other open plan folds under "N other plans" (every plan as a card
+// reached 10 cards in one conversation); finished plans (all tasks
+// finished, or moved to plans/closed/) are never cards — one quiet
+// «✓ N finished ›» onto Tasks › Done. In play = among open plans the ones
 // waiting on a human first, then the newest file; a plan
 // living in ANOTHER folder paints too, with its home named — "in my-project ›"
 // opening that project (authorship over territory; plans merely read
 // stay hidden); a plan in a folder no agent
-// lives in reads «outside Silos' projects», read-only.
+// lives in reads «outside Silos' projects», read-only — never one under
+// its project's plans/closed/, which is that project's own (planHomeWords).
 // Marking done is the silo's set-field, exactly like the full viewer's.
 type FoundPlan = LoadedPlan
 
@@ -2465,15 +2477,16 @@ function useTeamPlans(
         }),
       )
       const plans = loaded.filter((p): p is FoundPlan => p !== null)
-      // one listing per plans/ folder dates every plan file in it
-      const folders = [...new Set(plans.map((p) => planFolderOf(p.path)).filter((f) => f !== ''))]
+      // one listing per folder holding a plan file (plans/, or
+      // plans/closed/ for a finished one) dates every plan file in it
+      const dirs = [...new Set(plans.filter((p) => planFolderOf(p.path) !== '').map((p) => p.path.slice(0, p.path.lastIndexOf('/'))))]
       const dated = new Map<string, number>()
       await Promise.all(
-        folders.map(async (folder) => {
+        dirs.map(async (dir) => {
           try {
-            const listing = await api.file.dir(`${folder}/plans`)
+            const listing = await api.file.dir(dir)
             // an mtime of 0 is no date ("updated 20000d ago"): left out
-            for (const e of listing?.entries ?? []) if (e.type === 'file' && e.mtime > 0) dated.set(`${folder}/plans/${e.name}`, e.mtime)
+            for (const e of listing?.entries ?? []) if (e.type === 'file' && e.mtime > 0) dated.set(`${dir}/${e.name}`, e.mtime)
           } catch {
             /* unreadable folder — its plans fall back to their updatedAt */
           }
@@ -2491,13 +2504,23 @@ function useTeamPlans(
   return { found, setFound, mtimes }
 }
 
+// The Silos plans this conversation works: «Plan · <name>» (one named plan)
+// or «Plans · N» — the label pair says whose it is (the team's, durable),
+// apart from the engine's «Checklist · this conversation». The project's
+// list is no plan and never paints as one; the conversation's OWN loose
+// tasks of it (`loose`: open, claimed — ownLooseTasks) are plain rows in
+// here, «<project>#tN · title» with a quiet «no plan» mark. The project's
+// list as a whole is project navigation (the sidebar's «No plan» group),
+// never conversation state: no door to it here.
 function TeamPlanBlock({
   found,
+  loose,
   mtimes,
   cwd,
   onOpenFile,
 }: {
   found: FoundPlan[]
+  loose: readonly WorkedTask[]
   mtimes: Map<string, number>
   cwd: string | null
   onOpenFile: (path: string) => void
@@ -2505,42 +2528,42 @@ function TeamPlanBlock({
   const agents = useStore((s) => s.agents)
   const changePage = useStore((s) => s.changePage)
   const now = useStore((s) => s.nowTick)
-  if (found.length === 0) return null
+  const named = found.filter((p) => !isStandingPlan(p.path))
+  if (named.length === 0 && loose.length === 0) return null
   const agentIds = new Set(agents.map((a) => a.id))
   // accent condition (needs_you language): READY human tasks specifically
   // — the same cut the Board's plan-task needs_you source uses server-side.
   const onYou = (p: FoundPlan) => humanReadyTasks(p.plan, agentIds).length > 0
-  const finished = (p: FoundPlan) => p.plan.tasks.length > 0 && p.plan.tasks.every((t) => isFinished(t.status))
-  // human-ready plans first, finished ones last; within a rank the newest
-  // file first (its listing mtime, else the plan's own updatedAt)
-  const rank = (p: FoundPlan) => (onYou(p) ? 0 : finished(p) ? 2 : 1)
+  // finished: every task finished, or the plan moved to plans/closed/.
+  // Finished plans are hidden unless asked (owner rule): never a card, only
+  // ONE quiet line «✓ N finished ›» — its door, Tasks › Done's Plans strip.
+  const finished = (p: FoundPlan) => p.closed || (p.plan.tasks.length > 0 && p.plan.tasks.every((t) => isFinished(t.status)))
+  const done = named.filter(finished)
+  // human-ready plans first; within a rank the newest file first (its
+  // listing mtime, else the plan's own updatedAt)
+  const rank = (p: FoundPlan) => (onYou(p) ? 0 : 1)
   const mtimeOf = (p: FoundPlan): number | undefined => mtimes.get(p.path)
   const newness = (p: FoundPlan): number => mtimeOf(p) ?? (Date.parse(p.plan.updatedAt ?? '') || 0)
-  const here = [...found].sort((a, b) => rank(a) - rank(b) || newness(b) - newness(a))
-  // the plan in play: the first unfinished one; when every plan is finished,
-  // the newest finished one — there is always one card.
-  const inPlay = here.find((p) => rank(p) < 2) ?? here[0]!
-  const others = here.filter((p) => p !== inPlay)
-  // a plan whose folder is not this conversation's cwd is painted with its
-  // home — the owner sees the work AND that it lives in another project.
-  const homeOf = (p: FoundPlan): string | null => {
-    const folder = planFolderOf(p.path)
-    return folder !== '' && folder !== cwd ? folder : null
+  const here = named.filter((p) => !finished(p)).sort((a, b) => rank(a) - rank(b) || newness(b) - newness(a))
+  // the plan in play: the first open one; none when every plan is finished
+  // (the block is then the ✓ line alone, under its pair title)
+  const inPlay = here[0] ?? null
+  const others = here.slice(1)
+  // the pair names the cards — the open plans; with none open, the
+  // conversation's plans (all finished)
+  const titled = here.length > 0 ? here : named
+  // the header counts the card's open tasks (and its own loose rows): the
+  // folded plans are history
+  const open = (inPlay ? inPlay.plan.tasks.filter((t) => !isFinished(t.status)).length : 0) + loose.length
+  // a loose task's row opens its page (the task's one house)
+  const openTask = (t: WorkedTask): void => {
+    const i = t.key.lastIndexOf('/tasks/')
+    if (i > 0) changePage({ kind: 'task', plan: t.key.slice(0, i), task: t.key.slice(i + '/tasks/'.length), ...conversationOrigin() })
   }
-  // the header counts the card's open tasks only: the folded plans are history
-  const open = inPlay.plan.tasks.filter((t) => !isFinished(t.status)).length
+  const openFinished = (): void => changePage({ ...finishedPlansPage(), ...conversationOrigin() })
 
-  // The WHOLE card is the door to the plan: one click
-  // anywhere goes through the plan's door (planDoor — its house, Tasks
-  // narrowed to it; a closed or outside plan's file). The two inner actions keep
-  // their own meaning and stop the click: "Done" marks a task, the home
-  // mark opens the project.
-  // the project's list is no plan: never a plan card —
-  // one door to the project's tasks, «Tasks of <project> ›», with its open count
-  const openTasksOf = (p: FoundPlan): void => {
-    const folder = standingProjectOf(p.path)
-    changePage({ kind: 'tasks', view: 'open', ...(folder ? { project: [folder] } : {}), ...conversationOrigin() })
-  }
+  // The WHOLE line is the door to the plan (planDoor — its house, Tasks
+  // narrowed to it; a closed or outside plan's file).
   const openPlan = (p: FoundPlan): void => {
     const door = planDoor({ key: p.key, file: p.path, outside: p.outside })
     if (door?.kind === 'file')
@@ -2548,20 +2571,23 @@ function TeamPlanBlock({
     else if (door) changePage({ ...door.page, ...conversationOrigin() })
   }
   // one line per plan (it leads straight to the plan view without showing
-  // the task list): its progress, its name, what is open
-  // and what is on you — the whole line is its door. The project's list is
-  // no plan: its line opens the project's open tasks.
+  // the task list): its progress — planProgress, the one fraction the plan's
+  // own view and the sidebar show (a dropped task leaves the total) —, its
+  // name, what is open and what is yours to do (the Yours-to-do set: your
+  // open tasks of it, what its door's «Yours to do» lists); the accent still
+  // fires only on a task READY on a person (humanReadyTasks).
   const line = (p: FoundPlan, inPlayLine = false) => {
-    const total = p.plan.tasks.length
-    const doneN = p.plan.tasks.filter((t) => t.status === 'done').length
+    const { done: doneN, total } = planProgress(p.plan.tasks)
     const openN = p.plan.tasks.filter((t) => !isFinished(t.status)).length
-    const youN = humanReadyTasks(p.plan, agentIds).length
+    const yoursN = yoursToDoCount(p)
     const mtime = mtimeOf(p)
-    const home = homeOf(p)
+    // its home (planHomeWords): another project's plan names it — the owner
+    // sees the work AND where it lives; a plan under plans/closed/ is its
+    // project's own, never «outside»
     const facts = [
       openN > 0 ? `${openN} open` : null,
-      youN > 0 ? `${youN} on you` : null,
-      p.outside ? "outside Silos' projects" : home ? `in ${baseName(home)}` : null,
+      yoursN > 0 ? `${yoursN} yours to do` : null,
+      planHomeWords(p, cwd),
       mtime !== undefined ? relTime(mtime, now) : null,
     ]
       .filter(Boolean)
@@ -2570,20 +2596,16 @@ function TeamPlanBlock({
       <button
         key={p.path}
         type="button"
-        data-testid={isStandingPlan(p.path) ? 'column-standing-tasks' : inPlayLine ? `team-plan-${baseName(p.path)}` : `team-plan-row-${baseName(p.path)}`}
+        data-testid={inPlayLine ? `team-plan-${baseName(p.path)}` : `team-plan-row-${baseName(p.path)}`}
         aria-label={`Open ${planHeading(p.plan.title, p.path)}`}
-        onClick={() => (isStandingPlan(p.path) ? openTasksOf(p) : openPlan(p))}
+        onClick={() => openPlan(p)}
         title={p.path}
         className={`${ROW_BUTTON} flex flex-col gap-0.5`}
       >
         <span className="flex w-full items-baseline gap-2">
-          {finished(p) ? (
-            <span className="shrink-0 text-[11px] text-emerald-600 dark:text-emerald-400">✓</span>
-          ) : isStandingPlan(p.path) ? null : (
-            <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-3">
-              {doneN}/{total}
-            </span>
-          )}
+          <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-3">
+            {doneN}/{total}
+          </span>
           <span
             {...(inPlayLine ? { 'data-testid': 'team-plan-title' } : {})}
             className="min-w-0 flex-1 truncate text-[12.5px] text-ink group-hover/k:text-terracotta"
@@ -2592,15 +2614,36 @@ function TeamPlanBlock({
           </span>
           <ChevronRight size={12} aria-hidden="true" className="shrink-0 self-center text-ink-3 group-hover/k:text-terracotta" />
         </span>
-        {facts ? <span className={`block truncate pl-0.5 font-mono text-[10.5px] ${youN > 0 ? 'text-terracotta' : 'text-ink-3'}`}>{facts}</span> : null}
+        {facts ? <span className={`block truncate pl-0.5 font-mono text-[10.5px] ${onYou(p) ? 'text-terracotta' : 'text-ink-3'}`}>{facts}</span> : null}
       </button>
     )
   }
 
   return (
-    <Block title="Plan" count={open > 0 ? open : undefined} accent={here.some(onYou)}>
-      <div className="space-y-px">
-        {line(inPlay, true)}
+    <Block
+      title={titled.length === 1 ? 'Plan' : 'Plans'}
+      whose={titled.length === 1 ? planHeading(titled[0]!.plan.title, titled[0]!.path) : titled.length > 1 ? String(titled.length) : undefined}
+      count={open > 0 ? open : undefined}
+      accent={here.some(onYou)}
+    >
+      <div className="space-y-px" data-testid="team-plan-block">
+        {inPlay ? line(inPlay, true) : null}
+        {loose.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            data-testid={`team-plan-loose-${t.key}`}
+            aria-label={`Open ${t.view?.label ?? t.ref} · ${t.title}`}
+            onClick={() => openTask(t)}
+            className={`${ROW_BUTTON} flex items-baseline gap-2`}
+          >
+            <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink group-hover/k:text-terracotta">
+              <span className="font-mono text-[10.5px] text-ink-3">{t.view?.label ?? t.ref}</span> · {t.title}
+            </span>
+            <span className="shrink-0 font-mono text-[10px] text-ink-3">no plan</span>
+            <ChevronRight size={12} aria-hidden="true" className="shrink-0 self-center text-ink-3 group-hover/k:text-terracotta" />
+          </button>
+        ))}
         {others.length > 0 ? (
           <details data-testid="team-plan-others">
             <summary className="cursor-pointer list-none rounded px-1 py-0.5 text-[10px] uppercase tracking-wide text-ink-3 hover:bg-panel [&::-webkit-details-marker]:hidden">
@@ -2609,9 +2652,29 @@ function TeamPlanBlock({
             <div className="space-y-px">{others.map((p) => line(p))}</div>
           </details>
         ) : null}
+        {done.length > 0 ? (
+          <button
+            type="button"
+            data-testid="team-plan-finished"
+            aria-label={`${done.length} finished plan${done.length === 1 ? '' : 's'} — Tasks › Done`}
+            onClick={openFinished}
+            className={`${ROW_BUTTON} flex items-baseline gap-1.5 text-[11px] text-ink-3`}
+          >
+            <span className="text-emerald-600 dark:text-emerald-400">✓</span>
+            <span className="group-hover/k:text-terracotta">{done.length} finished</span>
+            <ChevronRight size={11} aria-hidden="true" className="self-center group-hover/k:text-terracotta" />
+          </button>
+        ) : null}
       </div>
     </Block>
   )
+}
+
+// «Yours to do» on a plan file read here: your open tasks of it — exactly
+// what Tasks' Yours-to-do view narrowed to that plan lists (inPreset
+// 'mine': not finished, the owner is you)
+function yoursToDoCount(p: FoundPlan): number {
+  return p.plan.tasks.filter((t) => !isFinished(t.status) && isYou(t.owner)).length
 }
 
 // A conversation that outgrew its work: its context is at or past
@@ -2811,6 +2874,9 @@ export function ContextColumn({ agent: viewAgent }: { agent?: AgentView } = {}) 
   // a linked plan is its own by the link (the thread rule: the task may list
   // an ancestor of this conversation, a rotation planIsOf cannot see)
   const ownPlans = meta ? teamPlans.found.filter((p) => linkedPlans.has(p.path) || planIsOf(p.plan, meta.id, wrotePlans.has(p.path))) : []
+  // its OWN loose tasks: open tasks of a project's list it holds (claimed
+  // or linked, still current) — rows in the Plan block, never the list
+  const ownLoose = work ? ownLooseTasks([work.lead, ...work.rest]) : []
   // done/total from the record alone — the one the Executions silo lists
   // for this conversation (no plans.json fallback since phase 5)
   const source = progressSource(record)
@@ -2908,8 +2974,15 @@ export function ContextColumn({ agent: viewAgent }: { agent?: AgentView } = {}) 
         {/* c6: the latest plan-mode plan — one row, jumps to its sheet */}
         {context?.planMode ? <PlanModeRow planMode={context.planMode} /> : null}
         {pendingForThisAgent.length > 0 ? <AutomationApprovalsBlock pending={pendingForThisAgent} automations={automations} /> : null}
+        {/* the plan-shaped things, durable before ephemeral: the team's
+                «Plan · <name>» (with this conversation's own loose tasks as
+                rows) above this conversation's «Checklist · this
+                conversation». The project's list as a whole is no
+                conversation state: never a door here */}
+        {meta && (ownPlans.length > 0 || ownLoose.length > 0) ? (
+          <TeamPlanBlock found={ownPlans} loose={ownLoose} mtimes={teamPlans.mtimes} cwd={meta.cwd} onOpenFile={setOpenFilePath} />
+        ) : null}
         {context?.plan ? <TasksBlock context={context} censusIds={censusIds} onOpenSubagent={setOpenSubagent} /> : null}
-        {meta && ownPlans.length > 0 ? <TeamPlanBlock found={ownPlans} mtimes={teamPlans.mtimes} cwd={meta.cwd} onOpenFile={setOpenFilePath} /> : null}
         {/* subagents with no task (or a session with no plan): listed all the same — they're real work.
                 With a disk census (subagents dir) the census wins: it is the
                 complete truth (a skill's children never reach context.agents);

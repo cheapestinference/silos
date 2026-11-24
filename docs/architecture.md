@@ -1796,6 +1796,13 @@ they live in the main checkout (never edit a worktree's copy) and stay out
 of git. A task is said `<project>#t3` (or
 `<project>/tasks#t3` when a plan is named like the project) —
 `silos/task-ref.ts`, read back by the claim/release API with `<plan>#t3`.
+A closed plan's tasks are in no reading; `plans-closed.ts` reads
+`plans/closed/` through the silo's own rules only to resolve old keys and,
+for Tasks › Done's Plans strip, to LIST the finished plans — `GET
+/api/tasks/closed-plans` (owner-only): key · title · folder · file · mtime
+(when it closed) · done/dropped/open counts, newest first, the project's
+list's monthly archives left out. Read-only; the web reads it per Plans WS
+tick while Done is open (`hooks/useTasks.ts useClosedPlans`).
 
 **Task** — one entry of a plan's `tasks[]`: `owner` (an agent id, `owner`,
 or a person), `status`, `dependsOn`, `waitingOn {owner, action, asked?,

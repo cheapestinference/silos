@@ -577,6 +577,17 @@ export function siloRoutes(app: FastifyInstance, ctx: SiloRoutesCtx): void {
         }),
       )
     })
+    // GET /api/tasks/closed-plans → { plans: ClosedPlanEntry[] }: the
+    // finished plans (plans/closed/), newest first — Tasks › Done's Plans
+    // strip. A listing only: their tasks never join a reading
+    // (plans-closed.ts). The owner's (agentMayRead does not list it).
+    app.get('/api/tasks/closed-plans', async () => {
+      const entry = siloRegistry.get(PLANS_SILO)
+      const active = entry?.status.state === 'active'
+      return {
+        plans: active && closedPlans ? closedPlans.listing({ now: Date.now(), isAgent: (v: string) => registry.list(true).some((a) => a.id === v) }) : [],
+      }
+    })
     app.post<{ Params: { id: string }; Body: B }>('/api/silos/:id/record/respond', async (req, reply) => {
       const b = req.body ?? {}
       const key = keyOf(b)

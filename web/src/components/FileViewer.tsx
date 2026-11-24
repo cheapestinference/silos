@@ -576,17 +576,23 @@ function Body({
   // team plans (plans/*.plan.json): render the shared plan, as the plans
   // silo reads it, instead of raw JSON — Edit still opens the raw file. A
   // plan the silo does not read falls through to the code view: honesty
-  // over a broken render. One read outside Silos' projects is drawn
+  // over a broken render. One read outside Silos' projects, or closed, is drawn
   // read-only and says so.
   if (isPlanFile(meta.name) && plan) {
-    const door = planDoor({ key: plan.key, file: meta.path, outside: plan.outside })
+    const door = planDoor({ key: plan.key, file: meta.path, outside: plan.outside, closed: plan.closed })
     // tasks the file holds that the reader can't build: the plan below leaves
     // them out, and this file is where they are fixed (Edit) — said here, the
     // landing of «N tasks in <plan> can't be read»'s door
     const unread = unreadTasksOf(plan.remarks, text)
+    // read only: outside Silos' projects, or closed (its project's own, finished)
+    const readOnly = plan.outside || plan.closed
     return (
       <>
-        {plan.outside ? (
+        {plan.closed ? (
+          <p data-testid="plan-closed" className="px-5 pt-3 font-mono text-[11px] text-ink-3">
+            closed · read only
+          </p>
+        ) : plan.outside ? (
           <p data-testid="plan-outside" className="px-5 pt-3 font-mono text-[11px] text-ink-3">
             outside Silos' projects · read only
           </p>
@@ -612,9 +618,9 @@ function Body({
         <PlanView
           plan={plan.plan}
           planPath={meta.path}
-          planKey={plan.outside ? undefined : plan.key}
-          onMarkDone={plan.outside ? undefined : onPlanMarkDone}
-          onOpenTask={plan.outside ? undefined : (id) => useStore.getState().changePage({ kind: 'task', plan: plan.key, task: id })}
+          planKey={readOnly ? undefined : plan.key}
+          onMarkDone={readOnly ? undefined : onPlanMarkDone}
+          onOpenTask={readOnly ? undefined : (id) => useStore.getState().changePage({ kind: 'task', plan: plan.key, task: id })}
           // the plan's name opens its house (Tasks narrowed to it — B4); the sheet closes on the way
           onOpenPlan={
             door?.kind === 'house'

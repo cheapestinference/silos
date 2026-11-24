@@ -17,13 +17,13 @@
 // are read; the conversations no task names are counted, never hidden.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { ChevronRight, Columns3, List, ListTree } from 'lucide-react'
-import { openFileViewer } from '../../lib/file-refs'
+import { openFileViewer, openPlanDoor } from '../../lib/file-refs'
 import { useStore } from '../../store'
 import { HeaderButton, PageHeader } from '../PageHeader'
 import { HeaderTabs } from '../HeaderTabs'
 import { FacetBar, NarrowChip } from '../FacetBar'
 import { Progress, StatusGlyph } from '../PlanView'
-import { refreshTasks, useTasks } from '../../hooks/useTasks'
+import { refreshTasks, useClosedPlans, useTasks } from '../../hooks/useTasks'
 import { useNewTasks } from '../../hooks/useTaskSeen'
 import { useHeldOrder, useListCursor } from '../../hooks/useTaskKeys'
 import { act, actError } from '../../lib/task-gesture'
@@ -32,12 +32,17 @@ import { drawnOrder } from '../../lib/task-origin'
 import { KeyHelp, KeyHint } from './KeyHelp'
 import { applyFilter, computeFacets, type ActiveFilter } from '../../lib/facets'
 import { relTime } from '../../lib/rel-time'
-import { isFinished, planProgress } from '../../lib/team-plan'
+import { isFinished } from '../../lib/team-plan'
 import {
   BOARD_PAGE,
   TASK_PRESETS,
   activityOf,
   planHouse,
+  planDoor,
+  planProgress,
+  closedPlanFolds,
+  doneCountWords,
+  type ClosedPlanFold,
   archiveFolds,
   archiveMonthOf,
   boardColumns,
@@ -51,6 +56,8 @@ import {
   isHumanOwner,
   isLiveTask,
   chainFacts,
+  isYou,
+  NO_PLAN_FACET,
   ownerSessionIds,
   presetCounts,
   queryOfFilter,
@@ -63,7 +70,9 @@ import {
   taskPage,
   taskTree,
   waitFacts,
+  waitWords,
   withLiveFlow,
+  type ChainFacts,
   type TaskLayout,
   type TaskPreset,
   type TaskView,
@@ -74,7 +83,7 @@ import { TasksIcon } from '../../lib/icons'
 import { readLayout, readLensOff, readPreset, writeLayout, writeLensOff, writePreset } from '../../lib/tasks-prefs'
 import { useOrgEdges } from '../../hooks/useOrgEdges'
 import { floorPanel, lensGroups, liveEdges, orgAgents, type LensReading } from '../../lib/org'
-import type { AgentView } from '../../lib/types'
+import type { AgentView, ClosedPlanEntry } from '../../lib/types'
 import type { Page } from '../../store'
 import { GiveDialog } from './GiveDialog'
 import type { TaskDraft } from '../../lib/new-task'
@@ -429,7 +438,7 @@ function TreeLayout({
                     >
                       {plan.title}
                     </button>
-                    <Progress {...planProgress(planAll.map((t) => t.state))} />
+                    <Progress {...planProgress(planAll)} />
                   </div>
                   <ul className="-ml-2.5">{rows(plan.nodes, 0)}</ul>
                 </div>
@@ -647,6 +656,134 @@ const LAYOUT_ICON: Record<TaskLayout, typeof List> = { list: List, board: Column
 // the id and the ?layout=board address do not change
 const LAYOUT_WORDS: Record<TaskLayout, string> = { list: 'List', board: 'Columns', tree: 'Tree' }
 
+// What the head sentence counts of the rows below it, kinds apart: «in N
+// plans» covers only the tasks that are in a named plan, the project's list
+// is said with its one word («no plan») and is never «a plan».
+// `open` is every row counted (the Done view's rows too — its sentence says
+// them as done/dropped); inPlans + noPlan === open, always.
+export interface HeadCounts {
+  open: number
+  inPlans: number
+  planCount: number
+  noPlan: number
+  stalled: number
+  live: number
+}
+export function headCounts(shown: readonly TaskView[], isLive: (t: TaskView) => boolean): HeadCounts {
+  const inPlan = shown.filter((t) => !t.standingList)
+  return {
+    open: shown.length,
+    inPlans: inPlan.length,
+    planCount: new Set(inPlan.map((t) => t.planKey)).size,
+    noPlan: shown.filter((t) => t.standingList).length,
+    stalled: shown.filter((t) => !isFinished(t.state) && t.flow?.stalled === true).length,
+    live: shown.filter((t) => !isFinished(t.state) && isLive(t)).length,
+  }
+}
+
+// The head of a plan's house: Tasks narrowed to exactly ONE named plan (never
+// «No plan», never two) — its name, its progress over ALL its tasks (the
+// shared planProgress, whatever the view shows), and the one wait that names
+// you, when one does. Null when the view is not one named plan's.
+export interface PlanHead {
+  planKey: string
+  title: string
+  done: number
+  total: number
+  waitsOnYou: string | null
+}
+export function planHeadOf(planFilter: readonly string[] | undefined, all: readonly TaskView[], facts: ChainFacts): PlanHead | null {
+  if (planFilter?.length !== 1) return null
+  const planKey = planFilter[0]!
+  if (planKey === NO_PLAN_FACET) return null
+  const tasks = all.filter((t) => t.planKey === planKey)
+  if (tasks.length === 0 || tasks.some((t) => t.standingList)) return null
+  const plan = siblingsOf(all, planKey)
+  // a declared wait on you, in the words every row says it (waitFacts: a
+  // stalled task says its stall, never a wait)
+  let waitsOnYou: string | null = null
+  for (const t of tasks) {
+    const w = t.waitingOn
+    if (isFinished(t.state) || !w || !isYou(w.owner)) continue
+    const words = waitWords(w, facts)
+    if (waitFacts(t, plan, facts).some((f) => f.words === words)) {
+      waitsOnYou = words
+      break
+    }
+  }
+  return { planKey, title: tasks[0]!.planTitle, ...planProgress(tasks), waitsOnYou }
+}
+
+// Done's Plans strip: each finished plan one line — name ✓ its done words ·
+// the day it closed —, its door the read-only file (planDoor: closed → file).
+// The current month in view, each earlier one behind its own fold.
+function ClosedPlansStrip({
+  folds,
+  openMonths,
+  onToggle,
+  onOpen,
+}: {
+  folds: readonly ClosedPlanFold[]
+  openMonths: Readonly<Record<string, boolean>>
+  onToggle: (key: string, open: boolean) => void
+  onOpen: (p: ClosedPlanEntry) => void
+}) {
+  const line = (p: ClosedPlanEntry) => (
+    <li key={p.key}>
+      <button
+        type="button"
+        data-testid="done-closed-plan"
+        onClick={() => onOpen(p)}
+        title={`${p.title} — open its file (read-only)`}
+        className="flex w-full min-w-0 items-baseline gap-1.5 rounded-md px-1.5 py-[3px] text-left text-[13px] text-ink hover:bg-canvas/60"
+      >
+        <span className="min-w-0 truncate">{p.title}</span>
+        <span aria-hidden="true" className="shrink-0 text-[12px] text-ink-3">
+          ✓
+        </span>
+        <span className="shrink-0 text-[12px] text-ink-2">
+          {doneCountWords(p.done, p.dropped)}
+          {p.open > 0 ? (
+            <>
+              , <span className="text-[var(--health-amber)]">{p.open} still open</span>
+            </>
+          ) : null}
+        </span>
+        <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-3">
+          · {new Date(p.mtime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </span>
+      </button>
+    </li>
+  )
+  return (
+    <section aria-label="Finished plans" data-testid="done-plans" className="mt-4 flex gap-3 border-b border-line pb-3">
+      <div className="w-12 shrink-0 pt-[4px] text-[11px] text-ink-3">Plans</div>
+      <div className="min-w-0 flex-1">
+        {folds.map((f) => {
+          if (f.label === null) return <ul key={f.month}>{f.plans.map(line)}</ul>
+          const k = `plans:${f.month}`
+          const open = openMonths[k] === true
+          return (
+            <div key={f.month}>
+              <button
+                type="button"
+                onClick={() => onToggle(k, !open)}
+                aria-expanded={open}
+                className="flex items-center gap-1 px-1.5 py-[3px] text-[12px] text-ink-2 hover:text-ink"
+              >
+                <ChevronRight size={12} aria-hidden="true" className={`transition-transform ${open ? 'rotate-90' : ''}`} />
+                {f.label}
+                <span className="font-mono text-[10.5px] text-ink-3">{f.plans.length}</span>
+              </button>
+              {open ? <ul>{f.plans.map(line)}</ul> : null}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export function TasksView() {
   const reading = useTasks()
   const ready = reading.state === 'ready'
@@ -801,11 +938,25 @@ export function TasksView() {
   // away — a sheet over Tasks, never a fall into Files
   const planFile = here.plan?.length === 1 ? (all.find((t) => t.planKey === here.plan![0])?.file ?? null) : null
 
-  // the line under the title describes the rows below it, filter and all
-  // the project's list is no plan: never counted as one
-  const planCount = new Set(shown.filter((t) => !t.standingList).map((t) => t.planKey)).size
-  const stalledCount = shown.filter((t) => !isFinished(t.state) && t.flow?.stalled === true).length
-  const liveCount = shown.filter((t) => !isFinished(t.state) && isLiveTask(t, agents, now)).length
+  // Done's Plans strip (work-photograph §3.3): the finished plans, the one
+  // house of them (the sidebar's «Finished plans ›» lands here). It follows
+  // the Project narrowing; narrowed to a plan or an agent it asks for tasks,
+  // which a closed listing does not answer — no strip
+  const closedAll = useClosedPlans(preset === 'done')
+  const closedShown = useMemo(() => {
+    if (preset !== 'done' || here.plan?.length || here.agent?.length) return []
+    const projects = here.project?.length ? new Set(here.project) : null
+    return projects ? closedAll.filter((p) => projects.has(p.folder ?? '')) : closedAll
+  }, [closedAll, preset, here.plan, here.agent, here.project])
+  const closedFolds = useMemo(() => closedPlanFolds(closedShown, now), [closedShown, now])
+
+  // the line under the title describes the rows below it, filter and all —
+  // kinds apart: the project's list is no plan, never counted as one
+  const head = headCounts(shown, (t) => isLiveTask(t, agents, now))
+  const plansWord = (n: number): string => `${n} ${n === 1 ? 'plan' : 'plans'}`
+  // narrowed to ONE named plan, this is its house: a head says its name,
+  // how far along it is, and what waits on you
+  const planHead = useMemo(() => planHeadOf(here.plan, all, chainFacts(agents, now)), [here.plan, all, agents, now])
   const without = ready ? conversationsWithoutTask(agents, all) : 0
   // the SDD executions: hung from their tasks in the tree; the
   // ones no task holds are counted beside the conversations, never hidden
@@ -877,22 +1028,25 @@ export function TasksView() {
               'No task here.'
             ) : (
               // Done holds the dropped too, said apart — dropped is finished, never done
+              // «in N plans» covers only what is in plans; the rest is said «in no plan»
               <>
-                {preset === 'done' ? doneWords(shown) : `${shown.length} open`}
-                {planCount > 0 ? (
+                {preset === 'done' ? doneWords(shown) : `${head.open} open`}
+                {head.planCount === 0 ? null : head.noPlan === 0 ? (
+                  <> in {plansWord(head.planCount)}</>
+                ) : (
                   <>
                     {' '}
-                    in {planCount} {planCount === 1 ? 'plan' : 'plans'}
+                    — {head.inPlans} in {plansWord(head.planCount)}, {head.noPlan} in no plan
+                  </>
+                )}
+                {head.stalled > 0 ? (
+                  <>
+                    , <StallText>{head.stalled} untouched</StallText>
                   </>
                 ) : null}
-                {stalledCount > 0 ? (
+                {head.live > 0 ? (
                   <>
-                    , <StallText>{stalledCount} untouched</StallText>
-                  </>
-                ) : null}
-                {liveCount > 0 ? (
-                  <>
-                    , <span className="text-terracotta">{liveCount} live now</span>
+                    , <span className="text-terracotta">{head.live} live now</span>
                   </>
                 ) : null}
                 .
@@ -997,6 +1151,19 @@ export function TasksView() {
             )
           ) : (
             <>
+              {planHead ? (
+                <div data-testid="plan-head" className="mb-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <h2 className="min-w-0 font-display text-[22px] leading-tight text-ink">{planHead.title}</h2>
+                    <Progress done={planHead.done} total={planHead.total} />
+                  </div>
+                  {planHead.waitsOnYou ? (
+                    <p data-testid="plan-head-wait" className="mt-1 text-[13px] text-terracotta">
+                      {planHead.waitsOnYou}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                   {narrow ? <NarrowChip testId="tasks-narrow" label="Open" value={narrow} onClear={() => setPreset('open')} /> : null}
@@ -1043,6 +1210,17 @@ export function TasksView() {
                   <p role="alert" className="mt-2 text-[12px] text-terracotta">
                     {keyError}
                   </p>
+                ) : null}
+                {closedFolds.length > 0 ? (
+                  <ClosedPlansStrip
+                    folds={closedFolds}
+                    openMonths={olderOpen}
+                    onToggle={(k, v) => setOlderOpen((o) => ({ ...o, [k]: v }))}
+                    onOpen={(p) => {
+                      const d = planDoor({ key: p.key, file: p.file, closed: true })
+                      if (d) openPlanDoor(d, changePage)
+                    }}
+                  />
                 ) : null}
                 <div ref={body} className="mt-4" data-testid="tasks-body">
                   {shown.length === 0 ? (

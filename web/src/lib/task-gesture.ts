@@ -38,6 +38,7 @@ export async function act(key: string, verb: TaskActVerb, args: TaskActArgs = {}
 // markPlanTaskDone was): a plan outside Silos' projects is read, never
 // written — said before anything is sent
 export async function planTaskDone(p: LoadedPlan, taskId: string, deps: ActApi = defaultApi): Promise<TaskActAnswer> {
+  if (p.closed) throw new Error('this plan is closed — read only')
   if (p.outside || p.version === null) throw new Error("this plan lives outside Silos' projects — open the file to change it")
   const t = p.plan.tasks.find((x) => x.id === taskId)
   return act(`${p.key}/tasks/${taskId}`, 'done', { state: t?.status ?? '' }, deps)
