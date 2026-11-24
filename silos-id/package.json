@@ -11,7 +11,7 @@
     "deploy": "npx --yes wrangler@4.159.0 deploy"
   },
   "devDependencies": {
-    "@types/node": "26.2.0",
+    "@types/node": "26.6.6",
     "typescript": "7.0.2",
     "vitest": "4.1.12"
   },
