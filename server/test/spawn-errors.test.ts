@@ -9,8 +9,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = join(__dirname, '..', 'src')
-// how far after the spawn line the handler may be wired
-const WINDOW = 120
+// a chained spawn(…).on('error') sits within a few lines, however the
+// formatter wraps it
+const CHAIN_WINDOW = 12
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -27,8 +28,14 @@ describe('child processes', () => {
       lines.forEach((line, i) => {
         if (!/(^|[^.\w])spawn\(/.test(line)) return
         if (/^\s*(\/\/|\*)/.test(line)) return
-        const window = lines.slice(i, i + WINDOW).join('\n')
-        if (!/\.(on|once)\(\s*['"]error['"]/.test(window)) missing.push(`${relative(ROOT, f)}:${i + 1}`)
+        // `const child = spawn(…)` or `child = spawn(…)`: that variable must get an 'error'
+        // listener somewhere after it; a bare spawn must chain one
+        const bound = /(?:(?:const|let|var)\s+)?(\w+)\s*=\s*spawn\(/.exec(line)
+        const rest = lines.slice(i).join('\n')
+        const ok = bound
+          ? new RegExp(`\\b${bound[1]}\\s*\\.\\s*(on|once)\\(\\s*['"]error['"]`).test(rest)
+          : /\.(on|once)\(\s*['"]error['"]/.test(lines.slice(i, i + CHAIN_WINDOW).join('\n'))
+        if (!ok) missing.push(`${relative(ROOT, f)}:${i + 1}`)
       })
     }
     expect(missing).toEqual([])
