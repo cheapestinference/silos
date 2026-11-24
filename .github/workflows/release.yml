@@ -1,0 +1,37 @@
+name: Release
+# A published GitHub release tagged v<version> publishes the npm package
+# `silosplatform` (command `silos`), assembled by scripts/pack-npm.mjs.
+# The tag must match the version in the root package.json.
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+  id-token: write # npm provenance
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Tag matches package.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          if [ "$want" != "$TAG" ]; then
+            echo "release tag $TAG != $want (root package.json)"; exit 1
+          fi
+      - run: sudo apt-get update && sudo apt-get install -y tmux build-essential python3 jq
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run pack:npm
+      - run: npm publish .pack/silosplatform-*.tgz --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

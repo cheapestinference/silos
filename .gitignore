@@ -1,0 +1,71 @@
+# dependencies
+node_modules
+
+# secrets / local data
+token
+.env
+*.local
+
+# build output
+dist/
+dist-e2e/
+*.tsbuildinfo
+
+# test / tooling output
+test-results/
+playwright-report/
+e2e-results/
+coverage/
+*.log
+
+# worktrees + live team plans (the owner follows these in the running UI)
+.worktrees/
+# leading slash: only the repo-root plans/ dir (a bare `plans/` would
+# swallow nested ones).
+/plans/
+# working specs and plans of a design session are maintainer notes: they go
+# in internal/, never in the published docs
+docs/superpowers/
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code runtime state (moved out of .git/info/exclude, which does not
+# survive a clone) — these are per-machine and must never be committed. The
+# tracked .claude/skills/ is intentionally NOT covered by any rule here.
+/.claude/RESUME.md
+**/.claude/settings.local.json
+**/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
+**/.claude/routines/.state/
+**/.claude/worktrees/
+**/.claude/checkpoints/
+**/.claude/mailbox/
+**/.claude/agent-registry.json
+**/.claude/agent-memory-local
+**/.claude/first-run
+**/.claude/assistant-daemon-state.json
+
+# the maintainer's private notes: a status diary and private project
+# instructions (Claude Code loads CLAUDE.local.md after the tracked CLAUDE.md)
+CLAUDE.local.md
+ESTADO.md
+.pack/
+
+# agent-private working context — never part of the published repo
+/context/
+
+# internal design diaries and the original prototype stay on the maintainer's
+# machine (pre-publication audit 23-11); public design docs are docs/*.md
+/docs/specs/
+/reference/
+.superpowers/
+web/e2e/*.tmp.mjs
+
+# the maintainer's internal studies, design explorations and one-off tools
+/internal/
+
+# TEMPORARY (23-11): the Cfo's daily sync still calls this path; removed once it carries its own copy
+/docs/standard/reference/producers/invoicing-sync.mjs

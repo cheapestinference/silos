@@ -1,0 +1,28 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "hierarchy",
+    "version": "0.1.0",
+    "name": "Hierarchy",
+    "description": "Who reports to whom among your agents: an org chart you draw. It groups tasks by team (the «by team» lens, which can be turned off) and gives escalation its chain — a blocker its owner can't clear is asked upwards, one step at a time, before it reaches you. A reporting line grants no access and no authority: nobody commands anybody for sitting above them."
+  },
+  "spec": {
+    "relations": [
+      {
+        "name": "reports_to",
+        "from": "agent",
+        "to": "agent",
+        "cardinality": "one",
+        "acyclic": true,
+        "writableBy": "owner",
+        "description": "Each agent reports to at most one; no cycles. The owner writes it on the silo's page."
+      }
+    ],
+    "views": [
+      { "id": "org", "archetype": "tree", "relation": "reports_to" }
+    ],
+    "surfaces": {
+      "lens": { "over": "tasks", "label": "by team", "groupBy": { "relation": "reports_to", "by": "subtree" } }
+    }
+  }
+}

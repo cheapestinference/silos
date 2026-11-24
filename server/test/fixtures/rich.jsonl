@@ -1,0 +1,4 @@
+{"type":"user","cwd":"/tmp/rich","timestamp":"2026-08-17T12:00:00.000Z","message":{"role":"user","content":"list the files"}}
+{"type":"assistant","cwd":"/tmp/rich","timestamp":"2026-08-17T12:00:05.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants an ls."},{"type":"thinking","thinking":"I will use Bash."},{"type":"text","text":"Listing them."},{"type":"tool_use","id":"tu_1","name":"Bash","input":{"command":"ls -la"}}]}}
+{"type":"user","cwd":"/tmp/rich","timestamp":"2026-08-17T12:00:06.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu_1","content":[{"type":"text","text":"total 8\ndrwxr-xr-x file.txt"}]}]}}
+{"type":"assistant","cwd":"/tmp/rich","timestamp":"2026-08-17T12:00:08.000Z","message":{"role":"assistant","content":[{"type":"text","text":"There is one file: file.txt"}]}}

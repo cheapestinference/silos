@@ -1,0 +1,382 @@
+{
+ "charter": "cccc cc ccccccccc cc cccc cc ccc ccccc ccc ccc ccc ccccccccccccc ccccccccccc cccccc c cccccccccc c cccccccccc ccccc cccc cc ccccccccccc cccc cccc cc ccccccccc",
+ "loaded": {
+  "injections": [
+   {
+    "command": "/home/user/silos/plugin/hooks/session-start.sh",
+    "name": "Silos briefing",
+    "origin": "silos"
+   },
+   {
+    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\"",
+    "name": "explanatory-output-style",
+    "origin": "plugin"
+   },
+   {
+    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/sg-python.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/ensure_agent_sdk.py\"",
+    "name": "security-guidance",
+    "origin": "plugin"
+   },
+   {
+    "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/lifecycle/sessionStart.mjs",
+    "name": "stripe",
+    "origin": "plugin"
+   },
+   {
+    "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" session-start",
+    "name": "superpowers",
+    "origin": "plugin"
+   }
+  ],
+  "mcp": [
+   {
+    "name": "notion",
+    "source": "project",
+    "from": "~/.claude.json"
+   },
+   {
+    "name": "railway",
+    "source": "project",
+    "from": "~/.claude.json"
+   },
+   {
+    "name": "context7",
+    "source": "plugin",
+    "from": "context7"
+   },
+   {
+    "name": "amplitude",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "amplitude-eu",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "asana",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "atlassian",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "clickup",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "figma",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "fireflies",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "gmail",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "google calendar",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "intercom",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "linear",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "monday",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "notion",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "pendo",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "similarweb",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "slack",
+    "source": "plugin",
+    "from": "product-management"
+   },
+   {
+    "name": "stripe",
+    "source": "plugin",
+    "from": "stripe"
+   },
+   {
+    "name": "Gmail",
+    "source": "account",
+    "from": "claude.ai"
+   },
+   {
+    "name": "Notion",
+    "source": "account",
+    "from": "claude.ai"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "name": "agentforce-adlc:agentforce-generate",
+   "source": "plugin"
+  },
+  {
+   "name": "agentforce-adlc:agentforce-observe",
+   "source": "plugin"
+  },
+  {
+   "name": "agentforce-adlc:agentforce-test",
+   "source": "plugin"
+  },
+  {
+   "name": "axiom",
+   "source": "project"
+  },
+  {
+   "name": "fin-acme",
+   "source": "user"
+  },
+  {
+   "name": "claude-code-setup:claude-automation-recommender",
+   "source": "plugin"
+  },
+  {
+   "name": "claude-md-management:claude-md-improver",
+   "source": "plugin"
+  },
+  {
+   "name": "code-review"
+  },
+  {
+   "name": "ops-acme",
+   "source": "user"
+  },
+  {
+   "name": "fleet-alert-check",
+   "source": "project"
+  },
+  {
+   "name": "frontend-design"
+  },
+  {
+   "name": "frontend-design:frontend-design",
+   "source": "plugin"
+  },
+  {
+   "name": "heartbeat",
+   "source": "project"
+  },
+  {
+   "name": "cost-calibration",
+   "source": "project"
+  },
+  {
+   "name": "price-update",
+   "source": "project"
+  },
+  {
+   "name": "product-launch",
+   "source": "project"
+  },
+  {
+   "name": "prod-db",
+   "source": "project"
+  },
+  {
+   "name": "product-management:competitive-brief",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:metrics-review",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:product-brainstorming",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:roadmap-update",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:sprint-planning",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:stakeholder-update",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:synthesize-research",
+   "source": "plugin"
+  },
+  {
+   "name": "product-management:write-spec",
+   "source": "plugin"
+  },
+  {
+   "name": "key-rotation",
+   "source": "project"
+  },
+  {
+   "name": "outage-runbook",
+   "source": "project"
+  },
+  {
+   "name": "responsibility",
+   "source": "project"
+  },
+  {
+   "name": "skill-creator:skill-creator",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:connect-recommend",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:connect-required-verification-information",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:metronome",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-apps",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-best-practices",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-directory",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-docs",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-pay",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:stripe-projects",
+   "source": "plugin"
+  },
+  {
+   "name": "stripe:upgrade-stripe",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:brainstorming",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:diagnosing-superpowers",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:dispatching-parallel-agents",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:executing-plans",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:finishing-a-development-branch",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:receiving-code-review",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:requesting-code-review",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:subagent-driven-development",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:systematic-debugging",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:test-driven-development",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:using-git-worktrees",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:using-superpowers",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:verification-before-completion",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:writing-plans",
+   "source": "plugin"
+  },
+  {
+   "name": "superpowers:writing-skills",
+   "source": "plugin"
+  },
+  {
+   "name": "support-tickets",
+   "source": "project"
+  },
+  {
+   "name": "team-plan",
+   "source": "project"
+  },
+  {
+   "name": "vault-secrets",
+   "source": "project"
+  },
+  {
+   "name": "verify",
+   "source": "project"
+  },
+  {
+   "name": "vps-ssh",
+   "source": "user"
+  }
+ ],
+ "silosPluginDir": "/home/user/silos/plugin",
+ "projectDir": "/home/user/acme"
+}

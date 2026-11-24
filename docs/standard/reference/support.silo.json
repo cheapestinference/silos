@@ -1,0 +1,156 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "support",
+    "version": "0.2.2",
+    "name": "Support",
+    "icon": "help",
+    "description": "Support cases an agent opens from its mailbox; state, intent, notes and pointers to threads — the messages live in the mailbox, never here"
+  },
+  "spec": {
+    "producer": {
+      "role": "helpdesk",
+      "via": "skill support-inbox",
+      "instructions": {
+        "summary": "Read the mailbox, open or update cases as JSON files; Silos shows them and the owner handles them from Needs you.",
+        "protocol": [
+          "One open case per customer: matched by normalized customerEmail (trim + lowercase).",
+          "If the customer writes and their last case closed less than 14 days ago, that case is REOPENED; otherwise, a new case (the open/reopen/new rule).",
+          "Re-read the file before writing; the kernel merges notes by union — never overwrite notes you didn't write.",
+          "The case id is the file name: [A-Za-z0-9][A-Za-z0-9_-]*, and the id field must match.",
+          "Never write the emails' content into the case: only pointers (threadId, lastMessageId) and your summary."
+        ]
+      }
+    },
+    "sources": [
+      {
+        "id": "cases",
+        "type": "files",
+        "root": "agent-state",
+        "glob": "support/cases/*.json",
+        "parser": "json",
+        "expects": { "producer": "agent" }
+      }
+    ],
+    "kinds": {
+      "case": {
+        "envelope": {
+          "id": { "from": "filename", "mustMatchField": ["id", "caseId", "case"] },
+          "identity": { "template": "{{summary}}" },
+          "state": { "field": "status" },
+          "at": { "field": "lastActivityAt", "written": "authoritative", "fallback": ["updatedAt", "openedAt"] },
+          "anchors": [{ "hub": "agent", "from": "location" }],
+          "updatedBy": { "field": "updatedBy", "values": ["agent", "owner"], "fallback": "agent", "stamp": "updatedAt" }
+        },
+        "states": [
+          { "value": "new", "label": { "one": "new", "many": "new" } },
+          { "value": "needs_owner", "label": { "one": "needs you", "many": "need you" } },
+          { "value": "draft_ready", "label": { "one": "draft ready", "many": "drafts ready" } },
+          { "value": "waiting_customer", "label": { "one": "waiting on the customer", "many": "waiting on customers" } },
+          { "value": "closed", "label": { "one": "closed", "many": "closed" }, "terminal": true }
+        ],
+        "fields": {
+          "customerEmail": {
+            "type": "email", "required": true, "normalize": "trim-lowercase",
+            "aliases": [{ "field": "customer", "accept": "single-email-string" }]
+          },
+          "intent": { "type": "string", "empty": "other" },
+          "summary": { "type": "string", "empty": "" },
+          "userId": { "type": "string", "optional": true },
+          "openedAt": { "type": "timestamp", "required": true, "aliases": ["opened"] },
+          "updatedAt": { "type": "timestamp", "fallback": ["openedAt"] }
+        },
+        "computed": { "lastActivityAt": "max(threads.lastMessageAt…, openedAt)" },
+        "unknownFields": "preserve",
+        "subKinds": {
+          "thread": {
+            "path": "threads[]",
+            "envelope": {
+              "id": { "field": "threadId" },
+              "identity": { "template": "{{subject}}", "empty": "(thread)" },
+              "at": { "field": "lastMessageAt" }
+            },
+            "fields": {
+              "subject": { "type": "string", "empty": "" },
+              "lastMessageId": { "type": "string", "required": true },
+              "draftId": { "type": "string", "optional": true, "aliases": ["draft_id"] },
+              "url": { "type": "url", "optional": true }
+            },
+            "lift": {
+              "when": "no threads[] and a threadId|thread_id on the parent",
+              "synthesize": { "threadId": "{{threadId || thread_id}}", "subject": "", "lastMessageId": "", "lastMessageAt": "{{updatedAt || openedAt}}", "draftId": "{{draftId || draft_id}}" },
+              "precedence": "an explicit threads[] wins over a loose threadId"
+            }
+          },
+          "note": {
+            "path": "notes[]",
+            "appendOnly": true,
+            "writeMerge": "union(at,by,text) ordered by at",
+            "envelope": {
+              "identity": { "template": "{{text}}" },
+              "at": { "field": "at", "mayBeEmpty": true },
+              "updatedBy": { "field": "by", "values": ["agent", "owner"] }
+            },
+            "fields": { "text": { "type": "string", "required": true, "max": 2000 } },
+            "lift": {
+              "when": "a note as a loose string (or the whole of notes as a string)",
+              "synthesize": { "at": "", "by": "agent", "text": "{{the string}}" }
+            }
+          }
+        },
+        "examples": [
+          {
+            "id": "canonical-case", "customerEmail": "customer@example.com", "userId": "u_123",
+            "status": "needs_owner", "intent": "refund", "summary": "Asks for a refund of the annual plan",
+            "threads": [{ "threadId": "th_001", "subject": "Refund request", "lastMessageId": "m_9", "lastMessageAt": "2026-10-28T09:00:00Z", "draftId": "d_2" }],
+            "notes": [{ "at": "2026-10-28T09:05:00Z", "by": "agent", "text": "Customer since March; I propose a prorated refund." }],
+            "openedAt": "2026-10-27T18:00:00Z", "lastActivityAt": "2026-10-28T09:05:00Z",
+            "updatedAt": "2026-10-28T09:05:00Z", "updatedBy": "agent"
+          },
+          {
+            "id": "freehand-case", "case": "freehand-case", "customer": "another@example.com",
+            "status": "waiting_customer", "intent": "other",
+            "thread_id": "th_777", "draft_id": "d_8",
+            "notes": "asked them for the order number",
+            "opened": "2026-10-20T10:00:00Z", "updatedAt": "2026-10-21T08:00:00Z"
+          }
+        ]
+      }
+    },
+    "views": [
+      {
+        "id": "cases", "archetype": "list", "kind": "case",
+        "columns": ["agent", "customerEmail", "state", "intent", "identity", "count(threads)", "at", "last(notes)"],
+        "facets": ["state", "intent", "agent", "project"],
+        "fold": { "when": "state = closed" }
+      }
+    ],
+    "surfaces": {
+      "rail": { "label": "Support", "view": "cases" },
+      "pulse": { "kind": "case", "aggregate": "count", "label": { "one": "support ticket", "many": "support tickets" } },
+      "needs-you": [
+        {
+          "when": "state = needs_owner", "urgency": "due",
+          "clears": "state != needs_owner",
+          "fold": { "when": "state = needs_owner" },
+          "actions": ["open", "set-field", "append-item"]
+        },
+        {
+          "when": "state = draft_ready", "urgency": "due",
+          "clears": "state != draft_ready",
+          "fold": { "when": "state = draft_ready" },
+          "actions": ["open", "ack"]
+        }
+      ],
+      "agent-section": { "house": "machinery" }
+    },
+    "actions": [
+      { "verb": "set-field", "kind": "case", "fields": { "status": { "writableBy": "owner" }, "userId": { "writableBy": "owner", "clearable": true } } },
+      { "verb": "append-item", "subKind": "case/note", "by": ["owner", "producer"] },
+      { "verb": "move-item", "subKind": "case/thread", "betweenParents": true },
+      { "verb": "agent-record-write", "kind": "case", "by": "producer" },
+      { "verb": "ack" },
+      { "verb": "open" }
+    ]
+  }
+}

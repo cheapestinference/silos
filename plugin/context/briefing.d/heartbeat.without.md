@@ -1,0 +1,1 @@
+- **Heartbeat rule.** When your turn opens with «This is your heartbeat», you decide there, you do not work there: that turn's own prompt says what you may do and gives each call, and every one carries `"turn":"$SILOS_TURN"`.

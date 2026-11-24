@@ -1,0 +1,29 @@
+# Silos ID as a Cloudflare Worker (silos-id/README.md has every step).
+# Nothing here is a secret: the signing key is a Worker secret
+# (`npx wrangler secret put SILOS_ID_PRIVATE_KEY`), and the account comes
+# from `wrangler login` or CLOUDFLARE_ACCOUNT_ID, never from this file.
+name = "silos-id"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+# one address only: the passes' `iss` is the custom domain below
+workers_dev = false
+# the domain the broker answers on (its zone must be on this Cloudflare account)
+routes = [{ pattern = "auth.example.com", custom_domain = true }]
+
+# the registered instance origins: `npx wrangler kv namespace create INSTANCES`
+# prints the id to paste here
+[[kv_namespaces]]
+binding = "INSTANCES"
+id = "<your-kv-namespace-id>"
+
+[vars]
+# your Firebase project's web config (public values)
+SILOS_ID_FIREBASE_API_KEY = "<firebase-web-api-key>"
+SILOS_ID_FIREBASE_PROJECT = "<firebase-project-id>"
+# optional, defaults to <project>.firebaseapp.com (Google by button + popup).
+# The broker's own host (auth.example.com) makes Google sign in by redirect —
+# add https://auth.example.com/__/auth/handler to the OAuth client's
+# Authorized redirect URIs FIRST (silos-id/README.md step 4)
+# SILOS_ID_FIREBASE_AUTH_DOMAIN = "auth.example.com"
+# the broker's own origin: the passes' `iss`, the SILOS_ID_URL instances set
+SILOS_ID_PUBLIC_URL = "https://auth.example.com"

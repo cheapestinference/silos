@@ -1,0 +1,27 @@
+# Silos on a VPS with Docker.
+#   echo "SILOS_TOKEN=$(openssl rand -hex 32)" > .env   # repo root (Claude login: from a Silos console)
+#   docker compose -f deploy/docker-compose.yml up -d --build
+# Open http://127.0.0.1:3210/?token=<SILOS_TOKEN>. For HTTPS, put a reverse
+# proxy (e.g. Caddy: `reverse_proxy 127.0.0.1:3210`) or a tunnel in front; it
+# must keep its X-Forwarded-* headers. Volume, variables (SILOS_ID_URL,
+# SILOS_OWNER_EMAIL, SILOS_PUBLIC_URL) and Claude login: docs/deploy/railway-template.md.
+services:
+  silos:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: silos:latest
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      SILOS_HOST: 0.0.0.0
+      PORT: 3210
+    ports:
+      # Loopback only: expose it behind Caddy/nginx, or change to "3210:3210"
+      # to use the bare IP (the token is still required for remote requests).
+      - '127.0.0.1:3210:3210'
+    volumes:
+      - silos-data:/data
+volumes:
+  silos-data:

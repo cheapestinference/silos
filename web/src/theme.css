@@ -1,0 +1,673 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/inter';
+@import '@fontsource/jetbrains-mono';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --canvas: #faf9f5;
+  --panel: #f0eee6;
+  --ink: #141413;
+  --ink-2: rgba(20, 20, 19, 0.62);
+  --ink-3: rgba(20, 20, 19, 0.45);
+  --terracotta: #d97757;
+  --terracotta-soft: rgba(217, 119, 87, 0.12);
+  --line: #e8e6dd;
+  /* health dots — Tailwind's red-700/amber-800, legible as a small speck
+     against a light panel. */
+  --health-red: #b91c1c;
+  --health-amber: #92400e;
+  /* Knows scope language (ScopePill/ScopeBar): one hue per scope across
+     Silos — global violet, project blue, auto teal, agent amber. Light =
+     the mockup's hues darkened until the pill text (small 10-11px) holds
+     ≥4.5:1 (WCAG) on its -soft background composited over --panel (where
+     the pills sit; the worst case) and over --canvas. Computed contrast:
+     on --panel / --canvas — global 4.78 / 5.26, project 4.55 / 4.99,
+     auto 4.63 / 5.09, agent 4.70 / 5.13. */
+  --scope-global: #6547bd;
+  --scope-project: #2d5fb0;
+  --scope-auto: #0d6b61;
+  --scope-agent: #835509;
+  --scope-global-soft: rgba(101, 71, 189, 0.12);
+  --scope-project-soft: rgba(45, 95, 176, 0.12);
+  --scope-auto-soft: rgba(13, 107, 97, 0.12);
+  --scope-agent-soft: rgba(131, 85, 9, 0.12);
+  /* Usage's classes, fixed order — the app's own
+     hues (the scope palette), so a class reads in Silos' language; «With
+     you» never sits on the accent. Follows light/dark through the scopes. */
+  --use-you: var(--scope-project);
+  --use-task: var(--scope-auto);
+  --use-beat: var(--scope-agent);
+  --use-own: var(--scope-global);
+  /* «Automations you set» is Silos' terracotta as a VALUE, not the accent:
+     a look's accent (Settings › Appearance) can be any hue, and a
+     categorical slot that followed it would land on its neighbours (a blue
+     accent on «With you», a teal one on «Task starts»). */
+  --use-set: #d97757;
+  /* Home's «This week»: «With you» keeps Usage's own blue; «On their
+     own» (every other class, grouped) is the accent's family stepped to hold
+     ≥ 3:1 on --canvas. Validated with the dataviz validator: light pair
+     #2d5fb0/#c8643f all checks pass (CVD ΔE 20.9); dark #d4704c ≥ 3:1, CVD
+     ΔE 22.2 against Usage's dark blue. */
+  --use-alone: #c8643f;
+  /* Usage's agents: the day bars By agent, one categorical slot per
+     agent in a fixed order, at most six. The dataviz skill's validated
+     categorical order, slots 1–6, run against --canvas: adjacent CVD
+     ΔE ≥ 9.1, normal-vision ≥ 19.6. Aqua, yellow and magenta sit under 3:1
+     on light — the relief is the rows below, each agent named beside its
+     swatch with its figures (the table view). Distinct hues from the class
+     palette above: one page never shows both stacks at once. */
+  --use-agent-1: #2a78d6;
+  --use-agent-2: #eb6834;
+  --use-agent-3: #1baf7a;
+  --use-agent-4: #eda100;
+  --use-agent-5: #e87ba4;
+  --use-agent-6: #008300;
+  /* Ink on the accent: the label of a solid terracotta button or badge. */
+  --on-terracotta: #fff;
+  /* Done/ok (PlanView's done stroke and ✓) — the emerald-600 it drew with. */
+  --health-green: oklch(59.6% 0.145 163.225);
+  /* The two veils: a wash that lifts (light) or sinks (dark) whatever it
+     sits on, always used at an alpha (bg-veil-light/55, bg-veil-dark/10). */
+  --veil-light: #fff;
+  --veil-dark: #000;
+  /* Shadow colours: a resting lift and a floating card. */
+  --shadow-soft: rgba(0, 0, 0, 0.06);
+  --shadow-float: rgba(0, 0, 0, 0.14);
+  /* Plan swimlanes (PlanView): one hue per AGENT lane, in lane order (a
+     human lane is --terracotta); the band is the hue at low alpha, the label
+     bar solid with --on-lane on it. */
+  --lane-1: #4a6b8a;
+  --lane-2: #6e5a9e;
+  --lane-3: #3f7d55;
+  --lane-4: #8a5a4a;
+  --lane-5: #b9791a;
+  --on-lane: #fff;
+  /* Code highlighting (hljs): strings and numbers. */
+  --code-string: #6b8f5a;
+  --code-number: #b06a3b;
+  /* The live phase's shimmer (.live-phase): a terracotta base and a band. */
+  --glow-base: var(--terracotta);
+  --glow-band: color-mix(in srgb, var(--terracotta) 45%, transparent);
+  /* The real console painted dark (its birth theme can differ from the
+     page's, so these do not follow .dark): its frame, ink, dim ink (the
+     Restart button) and selection, read at runtime by TerminalPanel. */
+  --console-dark-bg: #262624;
+  --console-dark-ink: #f5f4ef;
+  --console-dark-ink-2: #a8a69d;
+  --console-selection: rgba(217, 119, 87, 0.28);
+}
+.dark {
+  --canvas: #262624;
+  --panel: #30302e;
+  --ink: #f5f4ef;
+  /* secondary ink in dark: not dimmed white but CINNAMON — the terracotta
+     family desaturated for text (the 64% white read as
+     "black on dark gray"). Lighter AND warmer, ~7:1 on --canvas. */
+  --ink-2: #cfc0ad;
+  --ink-3: #a3968a;
+  /* #3d3c39 sat at only ~13/255 difference per channel against --panel
+     (#30302e) — a nearly invisible border on cards/composer in real
+     screenshots (team rows, the composer's border). Lightened to #46453f:
+     still reads as "subtle", but is now distinguishable from the panel. */
+  --line: #46453f;
+  /* red-400/amber-300 in dark — the light pair above reads as a
+     near-invisible speck on #30302e. */
+  --health-red: #f87171;
+  --health-amber: #fcd34d;
+  /* the approved mockup's scope palette verbatim (backgrounds at 12-13 %). */
+  --scope-global: #b49cf5;
+  --scope-project: #7aa6f0;
+  --scope-auto: #5fd0c0;
+  --scope-agent: #e4b45e;
+  --scope-global-soft: rgba(180, 156, 245, 0.13);
+  --scope-project-soft: rgba(122, 166, 240, 0.13);
+  --scope-auto-soft: rgba(95, 208, 192, 0.12);
+  --scope-agent-soft: rgba(228, 180, 94, 0.13);
+  /* the same six hues stepped for the dark surface (validated against
+     --canvas #262624: adjacent CVD ΔE ≥ 8.4, all ≥ 3:1) */
+  --use-agent-1: #3987e5;
+  --use-agent-2: #d95926;
+  --use-agent-3: #199e70;
+  --use-agent-4: #c98500;
+  --use-agent-5: #d55181;
+  --use-agent-6: #0ca30c;
+  --use-alone: #d4704c;
+  --on-terracotta: #fff;
+  --health-green: oklch(59.6% 0.145 163.225);
+  --veil-light: #fff;
+  --veil-dark: #000;
+  --shadow-soft: rgba(0, 0, 0, 0.06);
+  --shadow-float: rgba(0, 0, 0, 0.14);
+  --lane-1: #4a6b8a;
+  --lane-2: #6e5a9e;
+  --lane-3: #3f7d55;
+  --lane-4: #8a5a4a;
+  --lane-5: #b9791a;
+  --on-lane: #fff;
+  /* lighter code hues: the light pair goes dim on the dark --canvas/--panel
+     (confirmed in real screenshots) */
+  --code-string: #9bc48a;
+  --code-number: #d99a6c;
+  /* the shimmer's band shines toward a near-cream terracotta in dark (less
+     alpha would darken toward the background) */
+  --glow-base: color-mix(in srgb, var(--terracotta) 90%, transparent);
+  --glow-band: #f0beaa;
+  --console-dark-bg: #262624;
+  --console-dark-ink: #f5f4ef;
+  --console-dark-ink-2: #a8a69d;
+  --console-selection: rgba(217, 119, 87, 0.28);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-soft: var(--terracotta-soft);
+  --color-line: var(--line);
+  --color-on-terracotta: var(--on-terracotta);
+  --color-veil-light: var(--veil-light);
+  --color-veil-dark: var(--veil-dark);
+  --color-console-dark-ink: var(--console-dark-ink);
+  --color-console-dark-ink-2: var(--console-dark-ink-2);
+  --font-display: 'Source Serif 4 Variable', georgia, serif;
+  --font-body: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+/* The sidebar's "agent working" dot. `pulse` above is a breath (opacity
+   0.45 + scale) — on a 6px dot it reads as SOLID, and reduced-motion
+   turned it off outright: the owner saw fixed dots on working
+   conversations. This one is an unmistakable blink: opacity only
+   (no motion to reduce), near-off at the bottom. Under reduced-motion it
+   slows down and softens but never stops — blinking IS the information. */
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+.dot-blink {
+  animation: dot-blink 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot-blink {
+    animation: dot-blink 2.4s ease-in-out infinite;
+    opacity: 1;
+  }
+}
+/* working only on a background command: the same blink, a calmer beat */
+.dot-blink.dot-blink-slow {
+  animation-duration: 3.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot-blink.dot-blink-slow {
+    animation-duration: 4.8s;
+  }
+}
+
+/* the "live" in-progress state: the phase text pulses with a light sweep
+   like Claude Code — a ink-2→ink→ink-2 gradient running across the
+   text (background-clip:text). No new accent color; with
+   prefers-reduced-motion it stays static in ink-2. */
+@keyframes phase-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.live-phase {
+  display: inline-block; /* its own box: background-clip:text doesn't clip in flex */
+  white-space: nowrap;
+  /* a dim base + a LIGHT band sweeping across the text (claude.ai's
+     shimmer). Explicit per-theme colors, no color-mix (for compat): in
+     light mode the band is near-white over gray; in dark, near-white over light gray. */
+  /* the band is lighter than the base but always LEGIBLE — claude.ai uses
+     a shimmering mid-gray, not a white. */
+  /* the live phrase shares its family with the terracotta glyph — a full
+     terracotta base, a paler band (less alpha over a light background = lighter). */
+  background-image: linear-gradient(90deg, var(--glow-base) 0%, var(--glow-base) 38%, var(--glow-band) 50%, var(--glow-base) 62%, var(--glow-base) 100%);
+  background-size: 250% 100%;
+  /* repeat: with no-repeat, shifting the gradient left the letters with no
+     background transparent → the text "disappeared" in patches */
+  background-repeat: repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: phase-shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-phase {
+    animation: none;
+    background-image: none;
+    color: var(--terracotta);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+/* the StatusLine's live ✻: terracotta like Claude Code — a continuous slow
+   spin + a gentle opacity pulse. Two animations on different properties
+   (transform / opacity) so the spin stays linear without the pulse turning
+   mechanical. With prefers-reduced-motion it stays static (the color
+   already says "live"). */
+@keyframes glyph-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes glyph-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.glyph-live {
+  animation:
+    glyph-spin 3.2s linear infinite,
+    glyph-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .glyph-live {
+    animation: none;
+  }
+}
+
+/* the reconnect band: a subtle opacity pulse while the WS is down, and a
+   clean ~2s fade on return ("Reconnected" fading away). The system-notice
+   family: amber, mono, no drama. */
+@keyframes band-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.band-pulse {
+  animation: band-pulse 1.8s ease-in-out infinite;
+}
+@keyframes band-fade {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.band-fade {
+  animation: band-fade 2s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .band-pulse {
+    animation: none;
+  }
+  /* no fade: "Reconnected" stays visible statically and the component
+     unmounts on its own after 2s (ReconnectBand) — never an opacity flash. */
+  .band-fade {
+    animation: none;
+  }
+}
+
+/* micro-interactions */
+
+/* modals: a subtle fade + scale-in (AgentModal, CreateSkillDialog, ShortcutsOverlay) */
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.modal-pop {
+  animation: modal-pop 0.15s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-pop {
+    animation: none;
+  }
+}
+
+/* Sheet (a tile's list): slides in from the right — the answer to a click */
+@keyframes sheet-in {
+  from {
+    opacity: 0.6;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.sheet-in {
+  animation: sheet-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-in {
+    animation: none;
+  }
+}
+
+/* the keyboard's cursor: the ring only when the keyboard put it there (never the
+   accent, which is for what is alive), and a row that left keeping its gap */
+[data-nav-row][data-cursor='key'] {
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 32%, transparent);
+}
+[data-nav-row][data-cursor='key'] :focus-visible,
+[data-nav-row][data-cursor='key']:focus-visible {
+  outline: none;
+}
+[data-nav-row][data-gone] {
+  opacity: 0.42;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-nav-row][data-gone] {
+    transition: none;
+  }
+}
+
+/* a task's card on its reference: it answers the hover, no travel */
+@keyframes peek-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.peek-in {
+  animation: peek-in 0.1s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .peek-in {
+    animation: none;
+  }
+}
+
+/* ErrorStrip: slides in from below */
+@keyframes strip-slide-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.strip-slide-up {
+  animation: strip-slide-up 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip-slide-up {
+    animation: none;
+  }
+}
+
+/* Knows live: a row's total pulses once (~1.6 s) when the server reports a
+   write of that kind — terracotta flash back to ink. Reduced-motion keeps
+   the color cue without the scale. */
+@keyframes knows-pulse {
+  0% {
+    color: var(--terracotta);
+    transform: scale(1);
+  }
+  25% {
+    color: var(--terracotta);
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.knows-pulse {
+  transform-origin: left center;
+  animation: knows-pulse 1.6s ease-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes knows-pulse-still {
+    0%,
+    40% {
+      color: var(--terracotta);
+    }
+  }
+  .knows-pulse {
+    animation: knows-pulse-still 1.6s ease-out 1;
+  }
+}
+
+/* a subtle fade+rise ONLY for the turn/streak that just arrived during this
+   session view (an index past whatever turns already existed when it was
+   opened) — never on a thread's initial load with history, and no other
+   new ambient animation. */
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.turn-appear {
+  animation: appear 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-appear {
+    animation: none;
+  }
+}
+
+/* the transcript's markdown */
+.turn-md p {
+  margin: 0.5rem 0;
+}
+.turn-md p:first-child {
+  margin-top: 0;
+}
+.turn-md p:last-child {
+  margin-bottom: 0;
+}
+.turn-md ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.turn-md ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.turn-md li {
+  margin: 0.15rem 0;
+}
+.turn-md h1 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.turn-md h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.turn-md h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin: 0.6rem 0 0.4rem;
+}
+.turn-md blockquote {
+  border-left: 2px solid var(--line);
+  padding-left: 0.75rem;
+  color: var(--ink-2);
+  margin: 0.5rem 0;
+}
+.turn-md a {
+  color: var(--terracotta);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.turn-md table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.9em;
+}
+.turn-md th,
+.turn-md td {
+  border: 1px solid var(--line);
+  padding: 0.25rem 0.5rem;
+}
+
+/* an hljs palette using our own tokens — no external theme import needed */
+.hljs {
+  background: transparent;
+  color: var(--ink);
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--ink-2);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-tag {
+  color: var(--terracotta);
+}
+.hljs-string,
+.hljs-doctag,
+.hljs-addition {
+  color: var(--code-string);
+}
+.hljs-number,
+.hljs-attribute,
+.hljs-deletion {
+  color: var(--code-number);
+}
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--ink);
+  font-weight: 600;
+}
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-built_in,
+.hljs-builtin-name {
+  color: var(--terracotta);
+  opacity: 0.85;
+}
+.hljs-meta {
+  color: var(--ink-2);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* Real console: xterm's own scrollbar tracks ITS buffer, which is not what
+   is on screen (tmux owns the history and repaints in place) — a thumb
+   that moves for no reason and does nothing when dragged. Hidden; the
+   pane draws its own bar from tmux's scroll position (ConsoleScrollbar). */
+.console-pane .xterm-viewport {
+  scrollbar-width: none;
+}
+.console-pane .xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+/* The header's line of facts (PageHeader + <Fact>): each fact carries its
+   «·» in front of it, and the run is pulled left by exactly one separator
+   inside a clipping box — so whichever fact opens a line (the first one,
+   or one that wrapped) has its «·» out of sight. A fact line never opens
+   on an orphan separator, and on a phone it wraps whole facts instead of
+   cutting one mid-letter. Desktop keeps the one truncating line. */
+.page-facts:has(.page-fact) {
+  column-gap: 0;
+  margin-left: -1.25em;
+}
+.page-fact::before {
+  content: '·';
+  flex: none;
+  width: 1.25em;
+  text-align: center;
+  color: var(--ink-3);
+}
+.page-fact:empty {
+  display: none;
+}
+@media (min-width: 48rem) {
+  .page-fact[data-bare]::before {
+    content: '';
+    width: 0.375rem;
+  }
+}
+@media (max-width: 47.99rem) {
+  .page-facts:has(.page-fact) {
+    flex-wrap: wrap;
+    row-gap: 1px;
+    white-space: normal;
+  }
+  .page-fact {
+    max-width: 100%;
+  }
+}

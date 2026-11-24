@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/cheapestinference/silos/main/docs/standard/silo.schema.json",
+  "title": "Silo Standard v0 — silo.json",
+  "description": "The manifest of a silo (silo-standard-v0.md). The schema freezes only vocabulary that a reference manifest exercises; designed pieces nothing exercises yet are proposed in proposed-extensions.md (party, proposal, mention/hand-off, automation templates, the Horizon strip, sensitive, more archetypes). Field classes: EVERY spec field in this schema is ADDITIVE (a kernel that does not understand one loads what it understands and lists the rest as wants); the RESTRICTIVE class (unknown ⇒ the install is refused) exists in the standard and is EMPTY in v0 — its first planned member is `sensitive` (annex). The `status` block is written only by the kernel and is not described here: it is not part of the file an author submits.",
+  "type": "object",
+  "required": ["apiVersion", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "silo-standard/v0" },
+    "metadata": {
+      "type": "object",
+      "required": ["id", "version", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "The silo id. Reserved: the kernel's words and the ids of silos already approved (they survive uninstall). The CONVENTION is not declared: the kernel derives it from the canonical root of each source and writes it in status." },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "icon": { "enum": ["help", "invoice", "document", "people", "system", "inbox", "tasks", "calendar"], "description": "The silo's glyph, a name from the closed catalog (catalogs.md, Icons). The kernel draws it wherever the silo is named by a mark: the rail, its pages. Absent = the kernel's own silo glyph. A name, never an image: a manifest carries no UI." }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "anyOf": [{ "required": ["relations"], "properties": { "relations": { "minItems": 1 } } }, { "required": ["theme"] }] },
+          "then": { "dependentRequired": { "sources": ["kinds", "producer"], "kinds": ["sources", "producer"] } },
+          "else": { "required": ["producer", "sources", "kinds"] }
+        }
+      ],
+      "properties": {
+        "producer": { "$ref": "#/$defs/producer" },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } },
+        "kinds": {
+          "type": "object", "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*$" },
+          "additionalProperties": { "$ref": "#/$defs/kind" },
+          "description": "Kinds are published qualified by the silo (invoices/invoice); here they carry no prefix because the prefix IS metadata.id."
+        },
+        "relations": {
+          "type": "array", "items": { "$ref": "#/$defs/relation" },
+          "description": "Typed relations between existing hubs that the KERNEL stores (<dataDir>/silos/<id>/relations.json), written by the owner. A silo with relations may have no sources, no kinds and no producer: it is an edge-only silo. For now: agent → agent only, cardinality one."
+        },
+        "views": { "type": "array", "items": { "$ref": "#/$defs/view" } },
+        "surfaces": { "$ref": "#/$defs/surfaces" },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "theme": {
+          "type": "object", "required": ["name", "light", "dark"], "additionalProperties": false,
+          "description": "Optional, declared: a LOOK the silo brings — colour values only, in the standard's closed vocabulary (catalogs.md «Theme tokens»), for light AND dark. The kernel checks its contrast at validation (conformance §12: a failing pair rejects the manifest); approving makes it AVAILABLE in Settings › Appearance beside the built-in looks — nothing changes on screen until someone chooses it, per browser. A theme never sets fonts, layout, status colours or the terminal palette. A silo whose only content is a theme is valid: no producer, sources or kinds.",
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[^\\r\\n]*$", "description": "The look's name in the picker («Heather»)." },
+            "light": { "$ref": "#/$defs/themeMode" },
+            "dark": { "$ref": "#/$defs/themeMode" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "themeColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "#rrggbb only — no alpha, no names, no functions: a manifest carries values, never CSS." },
+    "themeMode": {
+      "type": "object",
+      "required": ["background", "panel", "text", "text-2", "text-3", "border", "accent", "on-accent"],
+      "propertyNames": { "enum": ["background", "panel", "text", "text-2", "text-3", "border", "accent", "on-accent", "accent-soft"] },
+      "additionalProperties": { "$ref": "#/$defs/themeColor" },
+      "description": "One mode of a theme: the closed token vocabulary (catalogs.md «Theme tokens»). An unknown token is an ERROR, not a want — a colour the kernel cannot place would be silently dropped. accent-soft is optional: absent, the kernel derives it from accent."
+    },
+    "expression": {
+      "type": "string", "minLength": 1,
+      "description": "Layer 1 of the language (expressions.md): field comparison, membership (in []), and/or, now ± duration, since(state), is human, startsWith. No aggregation — the aggregators (count/sum/max/all/any, one level, over sub-kinds or refs only) appear only in computed and in pulse.aggregate."
+    },
+    "template": {
+      "type": "string",
+      "description": "A template with {{field}} and {{a || b}} as a fallback chain."
+    },
+    "label": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "one": { "type": "string" }, "many": { "type": "string" }, "term": { "type": "string" } },
+      "description": "Plain words for a state or a pulse term; the raw value is never painted."
+    },
+    "producer": {
+      "type": "object", "required": ["role"], "additionalProperties": false,
+      "properties": {
+        "role": { "type": "string", "description": "The producer role; the approval dialog binds it to one or SEVERAL agents (the operator's level) and the binding lives in the operator store. 'any-agent' = any agent with the skill named in via." },
+        "via": { "type": "string", "description": "The skill or mechanism through which it produces (e.g. team-plan)." },
+        "instructions": {
+          "type": "object", "required": ["summary"], "additionalProperties": false,
+          "properties": {
+            "summary": { "type": "string" },
+            "protocol": { "type": "array", "items": { "type": "string" }, "description": "The producer's rules (open/reopen/new, re-read before writing…). Prose: injected ONLY into the declared producers, in both engines." }
+          }
+        },
+        "sync": {
+          "type": "object", "required": ["service", "contract"], "additionalProperties": false,
+          "description": "Only when the producer syncs from an outside service. Mechanical precondition: with ownerWritable fields, the silo validates only if the producer holds a bearer (it reads the merged view through the API).",
+          "properties": {
+            "service": { "type": "string" },
+            "contract": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Minimum required: one record per file, idempotence, normalization (money {amount,currency}, ISO dates, canonical state), never over the owner's overlay." },
+            "stateMap": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Table from exported value to canonical state; part of the producer's contract, not of the reader." }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object", "required": ["id", "type", "root"], "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "root": { "const": "kernel" } }, "required": ["root"] },
+          "then": {
+            "required": ["kind"],
+            "properties": { "type": { "const": "kernel" }, "glob": false, "parser": false, "expects": false }
+          },
+          "else": {
+            "required": ["glob", "parser"],
+            "properties": { "type": { "const": "files" }, "kind": false }
+          }
+        }
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "type": { "enum": ["files", "kernel"], "description": "files: globs by convention. kernel: the data already lives in the kernel — the source names a kind of the kernel-kinds catalog and reads no one's files. In a kernel source type and root say the same thing and must match." },
+        "root": { "enum": ["agent-state", "project", "kernel"], "description": "agent-state: expands under silos/<id>/ of EVERY agent (legacy exceptions are a closed list of the kernel, never a field here). project: over the project folders Silos knows; a worktree resolves to its main checkout. kernel: the kernel holds the records — no glob, no parser, no expects; the derived convention is kernel:<kind>." },
+        "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Only in a kernel source: the kind of the kernel-kinds catalog that the silo presents (catalogs.md «Kernel kinds», unprefixed — kernel names are reserved). A kind this kernel does not publish = the silo does not validate." },
+        "glob": { "type": "string", "description": "The validator confines it to the location class of root: realpath, no .., no symlink escape, regular files only, size caps. A glob over the root of a project does not validate. From the resolved canonical root the kernel DERIVES the convention (one per source)." },
+        "parser": { "enum": ["json", "md-frontmatter"] },
+        "expects": {
+          "type": "object", "required": ["producer"], "additionalProperties": false,
+          "properties": {
+            "producer": { "enum": ["agent", "sync"] },
+            "cadence": { "type": "string", "pattern": "^\\d+(m|h|d)$", "description": "When the last write is older than this, EVERY slot of the silo says so (freshness)." }
+          }
+        }
+      }
+    },
+    "envelope": {
+      "type": "object", "required": ["id", "identity", "state", "at", "anchors"], "additionalProperties": false,
+      "description": "The envelope: what every record maps. updatedBy may be declared absent (absent: unknown).",
+      "properties": {
+        "id": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "from": { "const": "filename" },
+            "field": { "type": "string" },
+            "mustMatchField": { "type": "array", "items": { "type": "string" }, "description": "Names under which the id may appear in the file; it must match the file name or the record does not parse (and the explanation says so)." },
+            "charset": { "type": "string", "default": "^[A-Za-z0-9][A-Za-z0-9_-]*$", "description": "The charset of RECORD ids (per kind) — distinct from the charset of silo ids." }
+          }
+        },
+        "identity": {
+          "type": "object", "required": ["template"], "additionalProperties": false,
+          "properties": { "template": { "$ref": "#/$defs/template" }, "empty": { "$ref": "#/$defs/template" } }
+        },
+        "state": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "field": { "type": "string" }, "computed": { "$ref": "#/$defs/expression" } },
+          "oneOf": [{ "required": ["field"] }, { "required": ["computed"] }],
+          "description": "computed accepts aggregators over sub-kinds (all(tasks, state = done) ? done : active) — a kind with no state field of its own derives it from its children."
+        },
+        "at": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "field": { "type": "string" },
+            "inherit": { "const": "parent.at", "description": "Sub-kinds without timestamps of their own inherit the parent's." },
+            "written": { "const": "authoritative", "description": "The value written on disk wins even when a formula exists (use it when the stored value is the truth — e.g. it records activity the formula cannot see — and the page's order depends on it)." },
+            "fallback": { "type": "array", "items": { "type": "string" } },
+            "mayBeEmpty": { "type": "boolean", "description": "A record with no moment still reads (empty at): a plan without updatedAt is still a plan. Without it, a missing at makes the record unreadable." },
+            "granularity": { "const": "day" }
+          }
+        },
+        "anchors": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "required": ["hub", "from"], "additionalProperties": false,
+            "properties": {
+              "hub": { "enum": ["agent", "folder", "conversation", "platform", "task"], "description": "conversation only through a declared field or the owner's gesture (mention, v0.x); agent/folder come from the location. platform: platform data — the record belongs to no agent, folder or conversation (an account is not an agent); only a kernel source sustains it, and it is the DECLARED absence of a hub, not a fifth hub with a page. task (annex v0.x «task anchor»): the record hangs from a TASK of the plans silo — only `from: parent`, only over a kernel kind the catalog declares with parent `task` (execution): the kernel resolves the task and writes it; the manifest only presents it." },
+              "from": { "enum": ["location", "parent"], "description": "location: the hub comes from where the record lives. parent: the hub is the parent the kernel resolved for a kernel kind that declares one (hub task)." }
+            }
+          }
+        },
+        "updatedBy": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "field": { "type": "string" },
+            "values": { "type": "array", "items": { "type": "string" } },
+            "fallback": { "type": "string" },
+            "absent": { "const": "unknown", "description": "The kind does not write it (plans): the envelope accepts it declared, never invented." },
+            "stamp": { "type": "string", "description": "The timestamp field the kernel writes with «now» every time it stamps updatedBy = owner (set-field, append-item, move-item) — e.g. support's updatedAt, which the producer's reopen rule reads." }
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object", "required": ["value", "label"], "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string" },
+        "label": { "$ref": "#/$defs/label" },
+        "terminal": { "type": "boolean", "description": "From this derive: what the pulse counts (the live states), Done today (the transition observed in the journal), board columns, fold, needs-you exclusions." }
+      }
+    },
+    "fieldSpec": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^(string|number|email|url|timestamp|money|boolean|actor|path|attachment|object|refs\\([a-z][a-z0-9_-]*\\))$",
+          "description": "money = {amount: number, currency} already normalized (parsing localized strings is the producer's job). number = a finite JSON number with no unit (e.g. a usage window's percent); comparable with numeric literals, never summable in the pulse (sum is money only). actor = an agent id or a human name, soft resolution (enables `is human`). attachment = a path to a document, confined like the globs, opens in the viewer. refs(<sub-kind>) = ids of siblings (withinParent). object = a JSON object preserved as is, read only by a role (a task's wait {owner, action}): never a column, never compared."
+        },
+        "required": { "type": "boolean" },
+        "optional": { "type": "boolean" },
+        "empty": { "description": "The value when missing or empty (never invents: '' or 'other' belong to the manifest, in plain sight)." },
+        "fallback": { "type": "array", "items": { "type": "string" }, "description": "A chain of fields to take the value from when it is missing." },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "object", "required": ["field", "accept"], "additionalProperties": false,
+                "properties": { "field": { "type": "string" }, "accept": { "enum": ["single-email-string"] } },
+                "description": "Conditional alias: accepted only when the value has the requested form; otherwise the explanation names the field and asks." }
+            ]
+          }
+        },
+        "normalize": { "enum": ["trim-lowercase"] },
+        "max": { "type": "integer", "minimum": 1 },
+        "oneOf": { "type": "array", "items": { "type": "string" } },
+        "granularity": { "const": "day" },
+        "withinParent": { "type": "boolean" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 32, "description": "21-11: the words the column header and the record page use for the field («memory», «started»). Voice only. A view's `at` is said with the label of the field the envelope maps it to." },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 8, "pattern": "^\\S(.*\\S)?$", "description": "21-11: only on a `number` field — the unit the cell says the number with («41.5 %», «312 MB»). Voice only: comparing and filtering stay on the number." }
+      }
+    },
+    "lift": {
+      "type": "object", "required": ["when", "synthesize"], "additionalProperties": false,
+      "description": "Declarable structural tolerance: a loose field (or a string) is lifted into a minimal child record — empty, not invented. E.g. a case that carries only a loose threadId reads as one synthesized thread.",
+      "properties": {
+        "when": { "type": "string" },
+        "synthesize": { "type": "object", "additionalProperties": { "$ref": "#/$defs/template" } },
+        "precedence": { "type": "string" }
+      }
+    },
+    "subKind": {
+      "type": "object", "required": ["path", "envelope", "fields"], "additionalProperties": false,
+      "description": "Child records inside the parent's file, with their own envelope anchored to the parent. NO derived surfaces by default (every note in ⌘K would be noise).",
+      "properties": {
+        "path": { "type": "string", "pattern": "\\[\\]$" },
+        "appendOnly": { "type": "boolean" },
+        "writeMerge": { "type": "string", "description": "The discipline when writing an appendOnly sub-kind: union by keys + order (union(at,by,text) ordered by at)." },
+        "envelope": {
+          "type": "object", "required": ["identity"],
+          "properties": {
+            "id": { "type": "object" }, "identity": { "type": "object" },
+            "state": { "type": "object" }, "at": { "type": "object" }, "updatedBy": { "type": "object" }
+          },
+          "description": "The child's envelope; id/state/at/updatedBy optional (at may inherit from the parent; a child without states paints no board)."
+        },
+        "states": { "type": "array", "items": { "$ref": "#/$defs/state" } },
+        "labelOverrides": { "type": "array", "items": { "$ref": "#/$defs/labelOverride" } },
+        "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/fieldSpec" } },
+        "lift": { "$ref": "#/$defs/lift" },
+        "computed": { "type": "object", "additionalProperties": { "$ref": "#/$defs/expression" } },
+        "roles": { "$ref": "#/$defs/roles" },
+        "subKinds": { "type": "object", "additionalProperties": { "$ref": "#/$defs/subKind" }, "description": "The children of a child — e.g. the notes[] and conversations[] of a task. Two levels at most (record → child → grandchild); the validator refuses a third in plain words. Keys `<record>/<collection>/<child>/<collection>/<grandchild>`." }
+      }
+    },
+    "roles": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "due": { "type": "object", "required": ["field"], "properties": { "field": { "type": "string" }, "word": { "type": "string", "pattern": "^[a-z][a-z ]*$", "description": "The word the row uses to say that future («resets» for a usage window; absent = «due»). Voice only: the role and its predicates do not change." } }, "additionalProperties": false },
+        "task": {
+          "type": "object", "required": ["owner", "dependsOn"], "additionalProperties": false,
+          "properties": {
+            "owner": { "type": "string" }, "dependsOn": { "type": "string" },
+            "waitingOn": { "type": "string", "description": "The field (of type object) holding the wait. The role reads from the raw object {owner, action?, asked?, options?} — asked: the question in words (string); options: 1–4 strings of up to 40 characters when the answer is a choice. Outside that shape asked/options are ignored and never invalidate the record (catalogs.md, task role)." }, "nextCheckAt": { "type": "string" }, "conversations": { "type": "string" },
+            "releases": { "type": "string", "description": "The sibling collection of conversations where the release verb marks a thread as released ({session, released}); the last entry of each thread, by position, decides whether it is current or past." }
+          },
+          "description": "Which fields are the owner, the dependencies, the wait {owner, action}, the next check and the conversations of a task. With them the kernel computes — on request, never written — waiting, gate, stalled, stalledCause and stalledBy (the task flow), readable in predicates like any field. It reads the states by their standard names: pending, in_progress, in_review, blocked, done, cancelled; only done resolves a dependency."
+        }
+      },
+      "description": "Field roles of the envelope (of a kind or a sub-kind). due: needs-you predicates and the Horizon strip. task: the flow of a task. party stays in the annex."
+    },
+    "labelOverride": {
+      "type": "object", "required": ["when", "label"], "additionalProperties": false,
+      "properties": { "when": { "$ref": "#/$defs/expression" }, "label": { "type": "string" } },
+      "description": "A state that READS differently under a predicate (done + notes startsWith 'Dropped:' → «dropped»)."
+    },
+    "kind": {
+      "type": "object", "required": ["envelope", "states", "fields", "examples"], "additionalProperties": false,
+      "properties": {
+        "envelope": { "$ref": "#/$defs/envelope" },
+        "states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/state" } },
+        "labelOverrides": { "type": "array", "items": { "$ref": "#/$defs/labelOverride" } },
+        "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/fieldSpec" } },
+        "unknownFields": { "const": "preserve", "default": "preserve", "description": "Unknown fields are ALWAYS preserved (real producers write free-form fields beyond any contract). It is a const: there is no destructive mode." },
+        "subKinds": { "type": "object", "additionalProperties": { "$ref": "#/$defs/subKind" } },
+        "computed": { "type": "object", "additionalProperties": { "$ref": "#/$defs/expression" }, "description": "Derived ON READ over an index invalidated by mtime; never materialized; a field of the same name written on disk is ignored (except with at.written: authoritative) and the explanation names it." },
+        "ownerWritable": { "type": "array", "items": { "type": "string" }, "description": "Fields set-field may write. Over a sync source they trigger the overlay by convention (seals the base value, retires when the source reaches it, contradiction → Needs you)." },
+        "roles": { "$ref": "#/$defs/roles" },
+        "examples": { "type": "array", "minItems": 1, "maxItems": 3, "description": "Mandatory and SYNTHETIC (never personal data): the conformance fixture, the empty-state preview, the dry-run without records, and the worked example of the producer instructions." }
+      }
+    },
+    "relation": {
+      "type": "object", "required": ["name", "from", "to", "cardinality", "acyclic", "writableBy"], "additionalProperties": false,
+      "description": "A typed edge between hubs. The kernel stores it, refuses in words a cycle (if acyclic) or a dangling id, and sets aside from the chain an edge whose agent is archived or deleted (it stays in the file, said).",
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "from": { "enum": ["agent"], "description": "Source hub. For now: agent." },
+        "to": { "enum": ["agent"], "description": "Target hub. For now: agent." },
+        "cardinality": { "const": "one", "description": "Each source points at one target at most." },
+        "acyclic": { "type": "boolean", "description": "true: the kernel refuses the write that would close a cycle. A tree and a lens are declared only over an acyclic relation." },
+        "writableBy": { "const": "owner" },
+        "description": { "type": "string" }
+      }
+    },
+    "view": {
+      "type": "object", "required": ["id", "archetype"], "additionalProperties": false,
+      "allOf": [
+        { "if": { "properties": { "archetype": { "const": "tree" } }, "required": ["archetype"] }, "then": { "required": ["relation"] }, "else": { "required": ["kind"] } }
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "archetype": { "enum": ["list", "board", "tree"], "description": "v0: the ones the reference manifests exercise. record is free for every kind (not declared). tree: roots = the ends with no outgoing edge, children by the relation named in `relation`. timeline/credentials/files enter with the migration that first uses them." },
+        "kind": { "type": "string", "description": "A kind or kind/sub-kind (plan/task). A tree does not carry one: it draws a relation." },
+        "relation": { "type": "string", "description": "Only in a tree: the relation (spec.relations[].name) it draws." },
+        "label": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[^\\r\\n]*$", "description": "21-11, optional: the view's name on its silo's page («Worktrees») — a silo with several list views over different kinds shows a switch between them by these names; the first view is the default." },
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "facets": { "type": "array", "items": { "type": "string" } },
+        "fold": { "type": "object", "required": ["when"], "properties": { "when": { "$ref": "#/$defs/expression" }, "label": { "type": "string", "minLength": 1, "maxLength": 60, "pattern": "^[^\\r\\n]*$", "description": "21-11, optional: what the folded records are, in a few words on one line («ended or another user's») — the fold line says it beside its count («55 ended or another user's · Show»). Without it the page says «55 more»." } }, "additionalProperties": false, "description": "Folds, never hides." },
+        "groupBy": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?$", "description": "board: `state` (its columns). list (21-11): a dimension — a field, `agent`, `folder`, `project` or `state` — whose records go together under a heading with its count over the whole set; those with no value in a group of their own, the last, named («No conversation»). Contiguous across pages." },
+        "first": { "type": "object", "required": ["when"], "properties": { "when": { "$ref": "#/$defs/expression" } }, "additionalProperties": false, "description": "21-11, list: what goes first — the mirror of fold (a predicate, never a hidden order). With groupBy, a group that holds one goes earlier. After that, the most recent." },
+        "swimBy": { "const": "parent" }
+      }
+    },
+    "surfaces": {
+      "type": "object", "additionalProperties": false,
+      "description": "Grants — what the approval dialog lists and the operator switches off per slot. The derived surfaces (⌘K, record, hubs strip, sidebar-glyph) are not requested: they emerge from the envelope.",
+      "properties": {
+        "rail": { "type": "object", "required": ["label", "view"], "additionalProperties": false, "properties": { "label": { "type": "string" }, "view": { "type": "string" } } },
+        "pulse": {
+          "type": "object", "required": ["kind", "aggregate"], "additionalProperties": false,
+          "properties": {
+            "kind": { "type": "string" },
+            "aggregate": { "enum": ["count", "sum"] },
+            "field": { "type": "string", "description": "Required with sum; must be money. Different currencies = separate terms, never summed." },
+            "when": { "$ref": "#/$defs/expression" },
+            "label": { "$ref": "#/$defs/label" }
+          },
+          "description": "A count or sum over live states (derived from terminal) and the COMPLETE set; the order between silos is the operator's and the kernel folds the excess."
+        },
+        "needs-you": {
+          "type": "array",
+          "items": {
+            "type": "object", "required": ["when", "urgency", "clears", "actions"], "additionalProperties": false,
+            "properties": {
+              "when": { "$ref": "#/$defs/expression" },
+              "urgency": { "enum": ["blocking", "due", "routine"] },
+              "clears": { "$ref": "#/$defs/expression", "description": "The dispatchable condition that clears the item. An unconditional blocking does not validate; the operator may raise an item to blocking when the author falls short, never the other way round." },
+              "actions": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "fold": { "type": "object", "required": ["when"], "properties": { "when": { "$ref": "#/$defs/expression" } }, "additionalProperties": false },
+              "audience": { "enum": ["owner", "producer-agent"], "description": "Whom the entry speaks to. Absent = owner. producer-agent: routine rows go to the bound producer — the owner's inbox does not list them; the grant is the OPERATOR's (approving a manifest that declares it, revocable per entry through audienceOff), requires a bound producer and a condition that producer can clear (conformance §7), and never on blocking (what blocks is the owner's by definition)." }
+            }
+          }
+        },
+        "agent-section": { "type": "object", "required": ["house"], "additionalProperties": false, "properties": { "house": { "enum": ["knows", "machinery"] } } },
+        "project-machinery": { "type": "object", "required": ["label"], "additionalProperties": false, "properties": { "label": { "type": "string" } } },
+        "lens": {
+          "type": "object", "required": ["over", "groupBy"], "additionalProperties": false,
+          "description": "Groups or folds an existing surface (a kernel floor that cannot be negotiated away). Folds, never hides: what blocks, what is escalated and what is ready for the owner is painted unfolded above any group; what falls in no group goes to a group of its own, never out. Shown as a chip that switches off in one click.",
+          "properties": {
+            "over": { "enum": ["tasks"], "description": "The surface it groups. For now: the tasks view." },
+            "label": { "type": "string", "description": "The chip's word («by team»)." },
+            "groupBy": {
+              "type": "object", "required": ["relation", "by"], "additionalProperties": false,
+              "properties": {
+                "relation": { "type": "string", "description": "An acyclic agent → agent relation of this silo." },
+                "by": { "enum": ["subtree"], "description": "subtree: one group per root, with everything that hangs from it." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "object", "required": ["verb"], "additionalProperties": false,
+      "properties": {
+        "verb": { "enum": ["set-field", "append-item", "move-item", "ensure-record", "agent-record-write", "ack", "open", "message-agent", "claim", "release", "kernel-verb"], "description": "v0 = the verbs the reference manifests use. re-anchor, hand-off and create-automation enter with the annex piece that first uses them. kernel-verb (21-11, System 0.2.0, additive within v0): a mutation by the KERNEL of its own records, declared and visible as such — only over a kernel source, `name` from an ENUMERATED, closed catalog (catalogs.md «Kernel-verbs»; v0: stop-process) that the kernel kind admits, `kind` the kind that presents it, `when` optional; always an owner gesture. move-item: destination-before-source and idempotent retry are fixed semantics of the verb. ensure-record: ensures ONE reserved record (id) of a top-level kind in a known location — born from its seed when missing, never overwrites one that exists — and, with rotate, moves its old finished children to a file that is not read as live. claim and release (additive within v0): claim adds an id to the identity collection `link` of the subKind (idempotent) and applies `set` in the SAME write; release appends a mark to the releases collection (`link` = roles.task.releases) and never rewrites one; with `dispose` the same write disposes the task's state." },
+        "name": { "type": "string", "description": "kernel-verb: the name of the kernel verb it declares (a closed catalog: stop-process). A name the kernel does not know rejects the manifest." },
+        "when": { "type": "string", "description": "kernel-verb: a predicate (expressions.md) over the record — when the page offers the door. The kernel's own guard (the boolean field the catalog names, e.g. stoppable) is checked at the gesture all the same." },
+        "link": { "type": "string", "description": "claim/release: the subKind collection the verb acts on (claim: an identity collection — a task's conversations[]; release: the collection of roles.task.releases)." },
+        "set": { "type": "object", "additionalProperties": { "type": "string" }, "description": "claim: the fields (with declared states) the verb sets in the same write — plans: {status: in_progress}." },
+        "keep": { "type": "array", "items": { "type": "string" }, "description": "claim: declared states that `set` never overwrites — with the task in one of them the claim links the id and leaves the state as it is (plans: [blocked], a wait still open)." },
+        "dispose": {
+          "type": "object", "required": ["field", "from", "default", "allowed"], "additionalProperties": false,
+          "description": "release (additive within v0): the task's disposition on release. Only if the record is in `from` at write time AND the released thread was the last current one, the SAME write of the mark sets `field` to the requested state (one of `allowed`) or to `default` when none is requested; in any other case the state is untouched and the response says `kept`. `field` is the subKind's state field; `from`, `default` and `allowed` are declared states. `set` stays forbidden on release.",
+          "properties": {
+            "field": { "type": "string" },
+            "from": { "type": "string" },
+            "default": { "type": "string" },
+            "allowed": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+          }
+        },
+        "id": { "type": "string", "description": "ensure-record: the reserved id of the record it ensures (plans: tasks)." },
+        "seed": { "type": "object", "description": "ensure-record: the value the record is born with; it must read with the manifest." },
+        "rotate": {
+          "type": "object", "required": ["children", "when", "every", "stamp", "retired", "into"], "additionalProperties": false,
+          "description": "ensure-record: monthly rotation of the standing record. When it is ensured in a new month, the children that match `when` (and that no staying child names through `keepReferencedBy`) are written to `into` ({{month}} = the month being closed, YYYY-MM; union by id if it exists, never overwritten) BEFORE they leave the record; their ids are noted in `retired` (never reused) and `stamp` keeps the month.",
+          "properties": {
+            "children": { "type": "string" },
+            "when": { "type": "string" },
+            "keepReferencedBy": { "type": "array", "items": { "type": "string" } },
+            "every": { "const": "month" },
+            "stamp": { "type": "string" },
+            "retired": { "type": "string" },
+            "into": { "type": "string" },
+            "undated": { "const": "old", "description": "Inside THIS `when`, a since(…) with no recorded transition (null — the journal's baseline) counts as old. Outside the rotation a null since stays false (expressions.md)." }
+          }
+        },
+        "kind": { "type": "string" },
+        "subKind": { "type": "string" },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "type": "object", "additionalProperties": false, "properties": { "writableBy": { "const": "owner" }, "clearable": { "type": "boolean" } } }
+        },
+        "by": { "anyOf": [{ "const": "producer" }, { "type": "array", "items": { "enum": ["owner", "producer", "task-owner"] } }], "description": "task-owner: the agent that roles.task.owner names in THAT record — only on claim and release." },
+        "betweenParents": { "type": "boolean" },
+        "to": { "const": "producer" },
+        "templates": { "type": "array", "items": { "$ref": "#/$defs/template" }, "description": "Pre-written messages; every templated message carries its provenance («composed from record X via silo Y»)." }
+      }
+    }
+  }
+}

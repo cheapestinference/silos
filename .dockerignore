@@ -1,0 +1,18 @@
+node_modules
+**/node_modules
+**/dist
+**/dist-e2e
+web/test-results
+web/playwright-report
+web/e2e-results
+.git
+.worktrees
+.claude
+# docs stays out of the image EXCEPT the signed Silo Standard: the kernel
+# validates every manifest against docs/standard/silo.schema.json at runtime
+# (server/src/silos/manifest.ts DEFAULT_SCHEMA_PATH) — without it every silo
+# reads as `error` in container deploys.
+docs
+!docs/standard
+*.log
+.env

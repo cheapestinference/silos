@@ -1,0 +1,10 @@
+{"type":"mode","mode":"default","sessionId":"s1"}
+{"type":"attachment","attachment":{},"cwd":"/tmp/project-x","sessionId":"s1","timestamp":"2026-08-17T10:00:00.000Z"}
+{"type":"user","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:00:01.000Z","message":{"role":"user","content":"<system-reminder>noise</system-reminder>"}}
+{"type":"user","isMeta":true,"cwd":"/tmp/project-x","timestamp":"2026-08-17T10:00:02.000Z","message":{"role":"user","content":"internal meta that doesn't count"}}
+{"type":"user","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:00:03.000Z","message":{"role":"user","content":"fix the parser bug please"}}
+{"type":"assistant","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:00:10.000Z","message":{"role":"assistant","content":[{"type":"text","text":"I'll take a look."},{"type":"tool_use","name":"Skill","input":{"skill":"finance-acme"}}]}}
+{"type":"assistant","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:00:20.000Z","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"ai-title","aiTitle":"JSONL parser fix","sessionId":"s1"}
+{"type":"user","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:01:00.000Z","message":{"role":"user","content":"Caveat: this is harness noise"}}
+{"type":"assistant","cwd":"/tmp/project-x","timestamp":"2026-08-17T10:01:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Done."}]}}

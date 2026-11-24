@@ -1,0 +1,17 @@
+{
+  "name": "silos",
+  "description": "Silos integration for Claude Code agents. A SessionStart hook writes a zero-token birth marker and injects the Silos briefing, the fleet roster and the agent's unread messages; a PreToolUse gate turns an agent's recurring native crons into Silos automations. Skills: shared tasks in the project's list (team-plan), the heartbeat turn (heartbeat), credentials through the Vault (vault-secrets), support case files (support-inbox) and writing a silo for the owner, submitted for approval (silo-author).",
+  "author": {
+    "name": "Cheapestinference Lab, Co."
+  },
+  "homepage": "https://silosplatform.com",
+  "repository": "https://github.com/cheapestinference/silos",
+  "license": "MIT",
+  "keywords": [
+    "silos",
+    "agents",
+    "tasks",
+    "automations",
+    "hooks"
+  ]
+}

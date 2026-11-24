@@ -1,0 +1,1 @@
+- **Secrets go through the Vault, never the conversation or a file** (`vault-secrets` skill). They reach you as env vars at start. A credential you obtain or rotate yourself goes into your own scope with `POST /api/agents/$SILOS_AGENT_ID/vault` `{"name","value","turn":"$SILOS_TURN"}`; only you see it.

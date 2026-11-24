@@ -1,0 +1,304 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "invoices",
+    "version": "0.1.0",
+    "name": "Invoices",
+    "description": "Test fixture: invoices a finance agent syncs from a service; the owner marks payments and what's overdue shows up in Needs you"
+  },
+  "spec": {
+    "producer": {
+      "role": "finance",
+      "instructions": {
+        "summary": "Every day: produce the export of your invoicing service (with INVOICING_API_KEY from your environment) and write one record per document through the API with your bearer.",
+        "protocol": [
+          "Don't write into silos/invoices/ by hand: write through the API, which validates every record against the manifest.",
+          "A field the owner set (state) lives in their overlay and wins over the sync: never copy it into the file; to change it, propose it (POST …/proposals) and the owner approves."
+        ]
+      },
+      "sync": {
+        "service": "Invoicing",
+        "contract": [
+          "One record per file: the export is split into silos/invoices/<id>.json.",
+          "Idempotent: same service id → same file, regenerated whole; never two files for the same document.",
+          "Normalize on write: money as {amount: number, currency}, ISO dates, canonical state per the manifest's table.",
+          "Derive due: the export's due date if it exists; otherwise date + 30 days — and say so in the dueDerived field.",
+          "The owner's fields are sacred: the producer reads the MERGED VIEW through the API with its bearer, never decides from its own file.",
+          "The service's credentials arrive through the environment as INVOICING_API_KEY — never from ~/secrets or a file, never written into a record."
+        ],
+        "stateMap": {
+          "draft=true": "draft",
+          "status=pending": "open",
+          "status=partial": "partial",
+          "status=completed": "paid",
+          "list refunds_*": "refunded"
+        }
+      }
+    },
+    "sources": [
+      {
+        "id": "invoices",
+        "type": "files",
+        "root": "agent-state",
+        "glob": "silos/invoices/*.json",
+        "parser": "json",
+        "expects": {
+          "cadence": "24h",
+          "producer": "sync"
+        }
+      }
+    ],
+    "kinds": {
+      "invoice": {
+        "envelope": {
+          "id": {
+            "from": "filename",
+            "mustMatchField": [
+              "id"
+            ]
+          },
+          "identity": {
+            "template": "{{documentNumber}} · {{contactName}}",
+            "empty": "{{id}} · {{contactName}}"
+          },
+          "state": {
+            "field": "state"
+          },
+          "at": {
+            "field": "date"
+          },
+          "anchors": [
+            {
+              "hub": "agent",
+              "from": "location"
+            }
+          ],
+          "updatedBy": {
+            "field": "updatedBy",
+            "fallback": "agent"
+          }
+        },
+        "roles": {
+          "due": {
+            "field": "due"
+          }
+        },
+        "states": [
+          {
+            "value": "draft",
+            "label": {
+              "one": "draft",
+              "many": "drafts"
+            }
+          },
+          {
+            "value": "open",
+            "label": {
+              "one": "outstanding",
+              "many": "outstanding"
+            }
+          },
+          {
+            "value": "partial",
+            "label": {
+              "one": "partially paid",
+              "many": "partially paid"
+            }
+          },
+          {
+            "value": "paid",
+            "label": {
+              "one": "paid",
+              "many": "paid"
+            },
+            "terminal": true
+          },
+          {
+            "value": "refunded",
+            "label": {
+              "one": "refunded",
+              "many": "refunded"
+            },
+            "terminal": true
+          }
+        ],
+        "ownerWritable": [
+          "state"
+        ],
+        "fields": {
+          "documentNumber": {
+            "type": "string",
+            "optional": true
+          },
+          "contactId": {
+            "type": "string",
+            "required": true
+          },
+          "contactName": {
+            "type": "string",
+            "required": true
+          },
+          "description": {
+            "type": "string",
+            "empty": ""
+          },
+          "date": {
+            "type": "timestamp",
+            "required": true,
+            "granularity": "day"
+          },
+          "due": {
+            "type": "timestamp",
+            "optional": true,
+            "granularity": "day"
+          },
+          "dueDerived": {
+            "type": "boolean",
+            "empty": false
+          },
+          "total": {
+            "type": "money",
+            "required": true
+          },
+          "tax": {
+            "type": "money",
+            "optional": true
+          },
+          "paymentsPending": {
+            "type": "money",
+            "optional": true
+          },
+          "kind": {
+            "type": "string",
+            "oneOf": [
+              "sale",
+              "purchase",
+              "refund"
+            ],
+            "required": true
+          }
+        },
+        "unknownFields": "preserve",
+        "examples": [
+          {
+            "id": "inv-70a1",
+            "documentNumber": "F2026-0412",
+            "contactId": "c_8812",
+            "contactName": "Acme SL",
+            "description": "Annual plan",
+            "date": "2026-10-02",
+            "due": "2026-11-01",
+            "dueDerived": true,
+            "total": {
+              "amount": 465.51,
+              "currency": "EUR"
+            },
+            "paymentsPending": {
+              "amount": 465.51,
+              "currency": "EUR"
+            },
+            "kind": "sale",
+            "state": "open",
+            "updatedBy": "agent"
+          },
+          {
+            "id": "inv-70b2",
+            "documentNumber": null,
+            "contactId": "c_9001",
+            "contactName": "Cloud Provider Inc",
+            "description": "API credits",
+            "date": "2026-09-14",
+            "due": null,
+            "dueDerived": false,
+            "total": {
+              "amount": 186.04,
+              "currency": "USD"
+            },
+            "kind": "refund",
+            "state": "refunded",
+            "updatedBy": "agent"
+          }
+        ]
+      }
+    },
+    "views": [
+      {
+        "id": "invoices",
+        "archetype": "list",
+        "kind": "invoice",
+        "columns": [
+          "identity",
+          "state",
+          "total",
+          "due",
+          "at"
+        ],
+        "facets": [
+          "state",
+          "kind",
+          "total.currency"
+        ],
+        "fold": {
+          "when": "state in [paid, refunded]"
+        }
+      }
+    ],
+    "surfaces": {
+      "pulse": {
+        "kind": "invoice",
+        "aggregate": "sum",
+        "field": "total",
+        "when": "state in [open, partial] and kind = sale",
+        "label": {
+          "term": "outstanding"
+        }
+      },
+      "needs-you": [
+        {
+          "when": "state in [open, partial] and kind = sale and due < now",
+          "urgency": "due",
+          "clears": "state in [paid, refunded]",
+          "actions": [
+            "set-field",
+            "open",
+            "message-agent"
+          ]
+        }
+      ],
+      "agent-section": {
+        "house": "machinery"
+      }
+    },
+    "actions": [
+      {
+        "verb": "set-field",
+        "kind": "invoice",
+        "fields": {
+          "state": {
+            "writableBy": "owner"
+          }
+        }
+      },
+      {
+        "verb": "message-agent",
+        "kind": "invoice",
+        "to": "producer",
+        "templates": [
+          "Chase payment for {{identity}} ({{total}})",
+          "Check {{identity}} against the bank"
+        ]
+      },
+      {
+        "verb": "agent-record-write",
+        "kind": "invoice",
+        "by": "producer"
+      },
+      {
+        "verb": "open"
+      },
+      {
+        "verb": "ack"
+      }
+    ]
+  }
+}

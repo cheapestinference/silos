@@ -1,0 +1,234 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "documents",
+    "version": "0.1.0",
+    "name": "Documents",
+    "description": "Test fixture: documents with their PDF, issuer and deadline if they have one"
+  },
+  "spec": {
+    "producer": {
+      "role": "documents",
+      "instructions": {
+        "summary": "When an official document lands in context/ (uploaded by the owner or downloaded by you), write its sidecar record in context/documents/<id>.json: type, issuer, date, deadline if there is one, and the PDF's path.",
+        "protocol": [
+          "One record per document; the id is a short slug of the document ([A-Za-z0-9][A-Za-z0-9_-]*).",
+          "attachment points at the PDF by a path relative to the project; never copy or move the PDF.",
+          "due ONLY if the document imposes a real deadline (an official request, a filing quarter); a document without a deadline doesn't invent one.",
+          "The document's content is not copied into the record: a one-sentence summary, and the PDF is the truth."
+        ]
+      }
+    },
+    "sources": [
+      {
+        "id": "documents",
+        "type": "files",
+        "root": "project",
+        "glob": "context/documents/*.json",
+        "parser": "json",
+        "expects": {
+          "producer": "agent"
+        }
+      }
+    ],
+    "kinds": {
+      "document": {
+        "envelope": {
+          "id": {
+            "from": "filename",
+            "mustMatchField": [
+              "id"
+            ]
+          },
+          "identity": {
+            "template": "{{title}}",
+            "empty": "{{type}} · {{issuer}}"
+          },
+          "state": {
+            "field": "state"
+          },
+          "at": {
+            "field": "date",
+            "granularity": "day"
+          },
+          "anchors": [
+            {
+              "hub": "folder",
+              "from": "location"
+            }
+          ],
+          "updatedBy": {
+            "field": "updatedBy",
+            "fallback": "agent"
+          }
+        },
+        "roles": {
+          "due": {
+            "field": "due"
+          }
+        },
+        "states": [
+          {
+            "value": "received",
+            "label": {
+              "one": "received",
+              "many": "received"
+            }
+          },
+          {
+            "value": "action_needed",
+            "label": {
+              "one": "needs a response",
+              "many": "need a response"
+            }
+          },
+          {
+            "value": "filed",
+            "label": {
+              "one": "filed",
+              "many": "filed"
+            },
+            "terminal": true
+          }
+        ],
+        "fields": {
+          "title": {
+            "type": "string",
+            "required": true
+          },
+          "type": {
+            "type": "string",
+            "oneOf": [
+              "registration",
+              "tax-return",
+              "official-request",
+              "deed",
+              "payroll",
+              "receipt",
+              "other"
+            ],
+            "required": true
+          },
+          "issuer": {
+            "type": "string",
+            "empty": ""
+          },
+          "date": {
+            "type": "timestamp",
+            "required": true,
+            "granularity": "day"
+          },
+          "due": {
+            "type": "timestamp",
+            "optional": true,
+            "granularity": "day"
+          },
+          "attachment": {
+            "type": "attachment",
+            "required": true
+          },
+          "summary": {
+            "type": "string",
+            "empty": ""
+          }
+        },
+        "unknownFields": "preserve",
+        "examples": [
+          {
+            "id": "official-request-2026",
+            "title": "Information request — reply",
+            "type": "official-request",
+            "issuer": "Tax agency",
+            "date": "2026-09-29",
+            "due": "2026-10-10",
+            "attachment": "context/documents/attachments/official-request.pdf",
+            "summary": "Request about a tax return; reply in draft",
+            "state": "action_needed",
+            "updatedBy": "agent"
+          },
+          {
+            "id": "registration-resolution",
+            "title": "Business registration — resolution",
+            "type": "registration",
+            "issuer": "Social security",
+            "date": "2026-08-14",
+            "attachment": "context/shared/Business registration. Resolution.pdf",
+            "summary": "Resolution of the business registration",
+            "state": "filed",
+            "updatedBy": "agent"
+          }
+        ]
+      }
+    },
+    "views": [
+      {
+        "id": "documents",
+        "archetype": "list",
+        "kind": "document",
+        "columns": [
+          "identity",
+          "type",
+          "issuer",
+          "at",
+          "due",
+          "state"
+        ],
+        "facets": [
+          "type",
+          "issuer",
+          "state"
+        ],
+        "fold": {
+          "when": "state = filed"
+        }
+      }
+    ],
+    "surfaces": {
+      "needs-you": [
+        {
+          "when": "state = action_needed and due < now + 7d",
+          "urgency": "due",
+          "clears": "state = filed",
+          "actions": [
+            "open",
+            "set-field",
+            "message-agent"
+          ]
+        }
+      ],
+      "project-machinery": {
+        "label": "Documents"
+      }
+    },
+    "actions": [
+      {
+        "verb": "set-field",
+        "kind": "document",
+        "fields": {
+          "state": {
+            "writableBy": "owner"
+          }
+        }
+      },
+      {
+        "verb": "message-agent",
+        "kind": "document",
+        "to": "producer",
+        "templates": [
+          "Prepare the response for {{identity}} (due {{due}})"
+        ]
+      },
+      {
+        "verb": "agent-record-write",
+        "kind": "document",
+        "by": "producer"
+      },
+      {
+        "verb": "open"
+      },
+      {
+        "verb": "ack"
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "silos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local web console to operate your fleet of Claude Code agents as identities — see what's happening, decide what's yours to decide, and hand out work in a sentence.",
+  "keywords": [
+    "claude-code",
+    "claude-agent-sdk",
+    "ai-agents",
+    "agent-fleet",
+    "local-first",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": "Cheapestinference Lab, Co.",
+  "homepage": "https://silosplatform.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cheapestinference/silos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cheapestinference/silos/issues"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "workspaces": [
+    "server",
+    "web",
+    "plugin-opencode",
+    "silos-id"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev-supervisor.mjs",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "node server/dist/index.js",
+    "test": "npm test -w server && npm test -w web && npm test -w plugin-opencode && npm test -w silos-id",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web && npm run typecheck -w plugin-opencode && npm run typecheck -w silos-id",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "e2e": "npm run build:e2e -w web && npm run e2e -w web",
+    "e2e:changed": "node scripts/e2e-changed.mjs",
+    "pack:npm": "node scripts/pack-npm.mjs",
+    "silo-check": "tsx scripts/silo-check.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "prettier": "3.10.1",
+    "typescript-eslint": "8.73.0"
+  },
+  "overrides": {
+    "@opencode-ai/plugin": {
+      "zod": "^4.6.7",
+      "effect": "^4.1.5"
+    },
+    "toml": "^5.0.1"
+  }
+}

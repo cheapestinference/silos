@@ -1,0 +1,641 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "plans",
+    "version": "0.8.2",
+    "name": "Plans",
+    "description": "Shared plans that agents and humans carry out together (team-plan): one file per plan, tasks with dependencies, mixed owners, notes and the conversations that work them"
+  },
+  "spec": {
+    "producer": {
+      "role": "any-agent",
+      "via": "skill team-plan",
+      "instructions": {
+        "summary": "The team-plan skill is this silo's producing half and the ONLY source of task conduct (who takes what, when it is released, how to ask and wait, when a human's task closes: on that person's word or with the evidence in the system, written in the note). Here only the FORMAT of plans/<slug>.plan.json, for every agent; the wake protocol reaches only the agents bound to the «Task mode» silo.",
+        "protocol": [
+          "States: pending | in_progress | in_review | blocked | done | cancelled. Only done resolves a dependency: a cancelled blocker never resolves it.",
+          "blocked = an unfinished dependency (dependsOn) or a declared wait: waitingOn {owner, action, asked?, options?} — asked is the question in words; options, 1 to 4 answers of up to 40 characters when the answer is a choice.",
+          "in_review = done, waiting for someone to review it: an agent's task in in_review names its reviewer with waitingOn {owner, action, asked} — the owner, a person or another agent, never its own owner. nextCheckAt is not a reviewer. Without a reviewer the task is stuck (review-without-reviewer) and a release with \"state\": \"in_review\" is refused (409).",
+          "parent groups subtasks and does NOT block: if the parent really waits on the child, declare it in dependsOn.",
+          "notes[] is append-only ({at, by, text}); a note is never rewritten or deleted. A note in another shape (a string) is not read: the task shows as unreadable.",
+          "conversations[] lists the sessions that worked the task (strings or {session} objects; a loose conversation is not read). releases[] is append-only: {session, released, at, by}; the last mark of each thread, by position, decides whether it is current (no marks or released: false) or history (released: true). Silos's claim and release write it; the manual fallback (Silos doesn't answer) adds the id to conversations[] and, only if that thread's last mark is released: true, {\"session\": \"<id>\", \"released\": false, \"at\": \"<ISO>\", \"by\": \"<you>\"}.",
+          "nextCheckAt (ISO date-time): when its owner looks at it again.",
+          "Dropped: an abandoned task is cancelled with a note that starts 'Dropped:' — it is never deleted and does NOT resolve dependencies: whatever depended on it stays blocked until someone removes or changes that dependency (the owner does it from the dependent's page: remove the dependency, or reopen the dropped one). On screen the cancelled state reads «dropped», with or without a note; the state says it, never the note.",
+          "The project's list: plans/tasks.plan.json (a reserved name) — born as {\"title\": \"\", \"tasks\": []} (the empty title is on purpose), always active, never moved or archived. Its tasks are named by the project: <project>#t3. Tasks done or cancelled before this month (UTC) that no open task names in dependsOn/parent move to plans/closed/tasks-YYYY-MM.plan.json; their ids stay in retired[] and are not reused. A finished named plan → plans/closed/. No plan is named like its project's folder."
+        ]
+      }
+    },
+    "sources": [
+      {
+        "id": "plans",
+        "type": "files",
+        "root": "project",
+        "glob": "plans/*.plan.json",
+        "parser": "json",
+        "expects": {
+          "producer": "agent"
+        }
+      }
+    ],
+    "kinds": {
+      "plan": {
+        "envelope": {
+          "id": {
+            "from": "filename"
+          },
+          "identity": {
+            "template": "{{title}}"
+          },
+          "state": {
+            "computed": "id != 'tasks' and any(tasks, state in [done, cancelled]) and all(tasks, state in [done, cancelled]) ? done : active"
+          },
+          "at": {
+            "field": "updatedAt",
+            "mayBeEmpty": true
+          },
+          "anchors": [
+            {
+              "hub": "folder",
+              "from": "location"
+            }
+          ],
+          "updatedBy": {
+            "absent": "unknown"
+          }
+        },
+        "states": [
+          {
+            "value": "active",
+            "label": {
+              "one": "active",
+              "many": "active"
+            }
+          },
+          {
+            "value": "done",
+            "label": {
+              "one": "done",
+              "many": "done"
+            },
+            "terminal": true
+          }
+        ],
+        "fields": {
+          "title": {
+            "type": "string",
+            "required": true
+          },
+          "createdAt": {
+            "type": "timestamp",
+            "optional": true
+          },
+          "updatedAt": {
+            "type": "timestamp",
+            "optional": true
+          }
+        },
+        "unknownFields": "preserve",
+        "subKinds": {
+          "task": {
+            "path": "tasks[]",
+            "envelope": {
+              "id": {
+                "field": "id"
+              },
+              "identity": {
+                "template": "{{title}}"
+              },
+              "state": {
+                "field": "status"
+              },
+              "at": {
+                "inherit": "parent.at"
+              },
+              "updatedBy": {
+                "absent": "unknown"
+              }
+            },
+            "states": [
+              {
+                "value": "pending",
+                "label": {
+                  "one": "pending",
+                  "many": "pending"
+                }
+              },
+              {
+                "value": "in_progress",
+                "label": {
+                  "one": "in progress",
+                  "many": "in progress"
+                }
+              },
+              {
+                "value": "in_review",
+                "label": {
+                  "one": "in review",
+                  "many": "in review"
+                }
+              },
+              {
+                "value": "blocked",
+                "label": {
+                  "one": "blocked",
+                  "many": "blocked"
+                }
+              },
+              {
+                "value": "done",
+                "label": {
+                  "one": "done",
+                  "many": "done"
+                },
+                "terminal": true
+              },
+              {
+                "value": "cancelled",
+                "label": {
+                  "one": "dropped",
+                  "many": "dropped"
+                },
+                "terminal": true
+              }
+            ],
+            "roles": {
+              "task": {
+                "owner": "owner",
+                "dependsOn": "dependsOn",
+                "waitingOn": "waitingOn",
+                "nextCheckAt": "nextCheckAt",
+                "conversations": "conversations",
+                "releases": "releases"
+              },
+              "due": {
+                "field": "due"
+              }
+            },
+            "fields": {
+              "title": {
+                "type": "string",
+                "required": true
+              },
+              "owner": {
+                "type": "actor",
+                "required": true
+              },
+              "dependsOn": {
+                "type": "refs(task)",
+                "withinParent": true
+              },
+              "parent": {
+                "type": "string",
+                "optional": true
+              },
+              "waitingOn": {
+                "type": "object",
+                "optional": true
+              },
+              "nextCheckAt": {
+                "type": "string",
+                "optional": true
+              },
+              "due": {
+                "type": "string",
+                "optional": true
+              },
+              "source": {
+                "type": "path",
+                "optional": true
+              },
+              "short": {
+                "type": "string",
+                "optional": true
+              },
+              "createdBy": { "type": "string", "optional": true },
+              "origin": { "type": "string", "optional": true },
+              "signal": { "type": "string", "optional": true },
+              "run": { "type": "string", "optional": true }
+            },
+            "computed": {
+              "ready": "state in [pending, in_progress, blocked] and all(dependsOn, state = done) and waiting = false"
+            },
+            "subKinds": {
+              "note": {
+                "path": "notes[]",
+                "appendOnly": true,
+                "writeMerge": "union(at,by,text) ordered by at",
+                "envelope": {
+                  "identity": {
+                    "template": "{{text}}"
+                  },
+                  "at": {
+                    "field": "at",
+                    "mayBeEmpty": true
+                  },
+                  "updatedBy": {
+                    "field": "by"
+                  }
+                },
+                "fields": {
+                  "text": {
+                    "type": "string",
+                    "required": true,
+                    "max": 8000
+                  }
+                }
+              },
+              "conversation": {
+                "path": "conversations[]",
+                "envelope": {
+                  "id": {
+                    "field": "session"
+                  },
+                  "identity": {
+                    "template": "{{session}}"
+                  }
+                },
+                "fields": {
+                  "session": {
+                    "type": "string",
+                    "required": true
+                  }
+                },
+                "lift": {
+                  "when": "a session as a string",
+                  "synthesize": {
+                    "session": "{{the string}}"
+                  }
+                }
+              },
+              "release": {
+                "path": "releases[]",
+                "appendOnly": true,
+                "envelope": {
+                  "identity": {
+                    "template": "{{session}}"
+                  },
+                  "at": {
+                    "field": "at",
+                    "mayBeEmpty": true
+                  },
+                  "updatedBy": {
+                    "field": "by"
+                  }
+                },
+                "fields": {
+                  "session": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "released": {
+                    "type": "boolean",
+                    "required": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "examples": [
+          {
+            "_file": "august-close.plan.json",
+            "title": "August books close",
+            "createdAt": "2026-08-25",
+            "updatedAt": "2026-08-27",
+            "tasks": [
+              {
+                "id": "t1",
+                "title": "Export the month's sales",
+                "owner": "finance",
+                "status": "done",
+                "dependsOn": [],
+                "conversations": [
+                  "6ad8e4db-0000-4000-8000-000000000001"
+                ]
+              },
+              {
+                "id": "t2",
+                "title": "Confirm the figure with the accountant",
+                "owner": "sam",
+                "status": "pending",
+                "dependsOn": [
+                  "t1"
+                ],
+                "notes": [
+                  {
+                    "at": "2026-08-26T09:00:00Z",
+                    "by": "finance",
+                    "text": "Before the 28th"
+                  }
+                ]
+              },
+              {
+                "id": "t3",
+                "title": "Close the month in the ERP",
+                "owner": "finance",
+                "status": "blocked",
+                "dependsOn": [
+                  "t2"
+                ],
+                "notes": [
+                  {
+                    "at": "2026-08-26T09:05:00Z",
+                    "by": "finance",
+                    "text": "Waits for the figure from t2"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "_file": "launch.plan.json",
+            "title": "Launch",
+            "createdAt": "2026-10-30",
+            "updatedAt": "2026-11-02",
+            "tasks": [
+              {
+                "id": "t1",
+                "title": "Write the page",
+                "owner": "writer",
+                "status": "in_review",
+                "dependsOn": [],
+                "waitingOn": {
+                  "owner": "sam",
+                  "action": "review the page",
+                  "asked": "Do we publish this version?"
+                },
+                "conversations": [
+                  "9d99c98d-0000-4000-8000-000000000002"
+                ],
+                "notes": [
+                  {
+                    "at": "2026-11-02T10:00:00Z",
+                    "by": "writer",
+                    "text": "Done; needs sam's OK. Next: sam reviews."
+                  }
+                ]
+              },
+              {
+                "id": "t2",
+                "title": "OK to publish",
+                "owner": "sam",
+                "status": "pending",
+                "dependsOn": [
+                  "t1"
+                ],
+                "due": "2026-11-06"
+              },
+              {
+                "id": "t3",
+                "title": "Translate",
+                "owner": "writer",
+                "status": "blocked",
+                "dependsOn": [],
+                "parent": "t1",
+                "waitingOn": {
+                  "owner": "ana",
+                  "action": "send the glossary"
+                }
+              },
+              {
+                "id": "t4",
+                "title": "Video version",
+                "owner": "writer",
+                "status": "cancelled",
+                "dependsOn": []
+              }
+            ]
+          },
+          {
+            "_file": "plan-with-drop.plan.json",
+            "title": "Plan with a dropped task",
+            "updatedAt": "2026-09-02",
+            "context": "free-form tail fields (context, spec, deadline…) are preserved",
+            "tasks": [
+              {
+                "id": "t1",
+                "title": "Spike of option A",
+                "owner": "writer",
+                "status": "cancelled",
+                "dependsOn": [],
+                "notes": [
+                  {
+                    "at": "2026-08-30T10:00:00Z",
+                    "by": "writer",
+                    "text": "Started 30-08"
+                  },
+                  {
+                    "at": "2026-09-01T12:00:00Z",
+                    "by": "owner",
+                    "text": "Dropped: superseded by option B (owner, 01-09)"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "views": [
+      {
+        "id": "board",
+        "archetype": "board",
+        "kind": "plan/task",
+        "groupBy": "state",
+        "swimBy": "parent",
+        "fold": {
+          "when": "parent.at < now - 30d"
+        }
+      },
+      {
+        "id": "plans",
+        "archetype": "list",
+        "kind": "plan",
+        "columns": [
+          "identity",
+          "state",
+          "at",
+          "folder"
+        ],
+        "fold": {
+          "when": "state = done"
+        }
+      }
+    ],
+    "surfaces": {
+      "pulse": {
+        "kind": "plan/task",
+        "aggregate": "count",
+        "when": "ready and owner = 'owner'",
+        "label": {
+          "one": "task yours to do",
+          "many": "tasks yours to do"
+        }
+      },
+      "needs-you": [
+        {
+          "when": "ready and owner is human and owner != 'owner' and gate",
+          "urgency": "due",
+          "clears": "state in [done, cancelled]",
+          "actions": [
+            "open",
+            "set-field",
+            "append-item"
+          ]
+        },
+        {
+          "when": "ready and owner = 'owner' and (gate or due < now + 7d)",
+          "urgency": "due",
+          "clears": "state in [done, cancelled]",
+          "actions": [
+            "open",
+            "set-field",
+            "append-item"
+          ]
+        },
+        {
+          "when": "ready and owner = 'owner'",
+          "urgency": "routine",
+          "clears": "state in [done, cancelled]",
+          "actions": [
+            "open",
+            "set-field",
+            "append-item"
+          ],
+          "fold": {
+            "when": "parent.at < now - 30d"
+          }
+        },
+        {
+          "when": "waitsOnHuman",
+          "urgency": "due",
+          "clears": "state in [done, cancelled]",
+          "actions": [
+            "open",
+            "append-item"
+          ]
+        }
+      ],
+      "project-machinery": {
+        "label": "Plans"
+      }
+    },
+    "actions": [
+      {
+        "verb": "set-field",
+        "subKind": "plan/task",
+        "fields": {
+          "status": {
+            "writableBy": "owner"
+          },
+          "dependsOn": {
+            "writableBy": "owner"
+          },
+          "nextCheckAt": {
+            "writableBy": "owner",
+            "clearable": true
+          },
+          "waitingOn": {
+            "writableBy": "owner",
+            "clearable": true
+          }
+        }
+      },
+      {
+        "verb": "append-item",
+        "subKind": "plan/task",
+        "by": [
+          "owner",
+          "producer"
+        ]
+      },
+      {
+        "verb": "append-item",
+        "subKind": "plan/task/note",
+        "by": [
+          "owner",
+          "producer"
+        ]
+      },
+      {
+        "verb": "append-item",
+        "subKind": "plan/task/conversation",
+        "by": [
+          "owner"
+        ]
+      },
+      {
+        "verb": "claim",
+        "subKind": "plan/task",
+        "link": "conversations",
+        "set": {
+          "status": "in_progress"
+        },
+        "by": [
+          "owner",
+          "task-owner"
+        ],
+        "keep": [
+          "blocked"
+        ]
+      },
+      {
+        "verb": "release",
+        "subKind": "plan/task",
+        "link": "releases",
+        "by": [
+          "owner",
+          "task-owner"
+        ],
+        "dispose": {
+          "field": "status",
+          "from": "in_progress",
+          "default": "pending",
+          "allowed": [
+            "pending",
+            "in_review",
+            "blocked",
+            "done",
+            "cancelled"
+          ]
+        }
+      },
+      {
+        "verb": "ensure-record",
+        "kind": "plan",
+        "id": "tasks",
+        "by": [
+          "owner"
+        ],
+        "seed": {
+          "title": "",
+          "tasks": []
+        },
+        "rotate": {
+          "children": "tasks",
+          "when": "(state = done and since(done) < monthStart) or (state = cancelled and since(cancelled) < monthStart)",
+          "keepReferencedBy": [
+            "dependsOn",
+            "parent"
+          ],
+          "every": "month",
+          "stamp": "rotatedAt",
+          "retired": "retired",
+          "into": "plans/closed/tasks-{{month}}.plan.json",
+          "undated": "old"
+        }
+      },
+      {
+        "verb": "agent-record-write",
+        "kind": "plan",
+        "by": "producer"
+      },
+      {
+        "verb": "open"
+      },
+      {
+        "verb": "ack"
+      }
+    ]
+  }
+}

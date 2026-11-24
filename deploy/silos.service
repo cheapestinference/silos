@@ -1,0 +1,45 @@
+# deploy/silos.service — EXAMPLE systemd unit to run Silos as a service on a
+# production VPS. A repo artifact — it is never installed or enabled on the
+# development machine.
+#
+# Install (on the VPS, not on dev):
+#   sudo cp deploy/silos.service /etc/systemd/system/silos.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now silos
+#
+# Adjust User/WorkingDirectory/EnvironmentFile to your real install (a
+# dedicated non-root user, built as in README.md › Quick start).
+
+[Unit]
+Description=Silos — Fastify server (Claude Agent SDK)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=silos
+Group=silos
+WorkingDirectory=/opt/silos
+EnvironmentFile=-/opt/silos/.env
+# Consoles and chats run the ONE `claude` on PATH (Claude Code's native
+# installer puts it in ~/.local/bin of the service user), and OpenCode's
+# installer puts `opencode` in ~/.opencode/bin: keep both on PATH.
+Environment=PATH=/home/silos/.local/bin:/home/silos/.opencode/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node /opt/silos/server/dist/index.js
+Restart=always
+RestartSec=5
+# Each real console is a tmux session the server reattaches to: a restart
+# stops the server only, never the open conversations.
+KillMode=process
+
+# Reasonable hardening — loosen it if your distro or the claude CLI needs it
+# (e.g. NoNewPrivileges can clash with the CLI's own sandboxes).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+# ~/.claude and ~/.silos of the `silos` user must stay writable —
+# ProtectHome=false on purpose (ProtectSystem=full already covers the rest).
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

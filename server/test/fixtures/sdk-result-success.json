@@ -1,0 +1,25 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 8421,
+  "duration_api_ms": 7310,
+  "num_turns": 2,
+  "result": "Done — the report is in reports/weekly.md.",
+  "stop_reason": "end_turn",
+  "session_id": "3f0c2a8e-1b7d-4c55-9e2a-6d1f0b9a7c41",
+  "total_cost_usd": 0.0412,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 1840,
+    "cache_read_input_tokens": 21950,
+    "output_tokens": 311,
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard"
+  },
+  "modelUsage": {
+    "claude-sonnet-5": { "inputTokens": 12, "outputTokens": 311, "cacheReadInputTokens": 21950, "cacheCreationInputTokens": 1840, "webSearchRequests": 0, "costUSD": 0.0412, "contextWindow": 200000 }
+  },
+  "permission_denials": [],
+  "uuid": "a7d1e9c2-55b4-4f0e-8c3a-2b9e6f4d1a07"
+}

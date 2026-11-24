@@ -1,0 +1,18 @@
+{
+  "heartbeat": [
+    "4572df46162592298d5af6d1ff088dfad3074273757b1b5d29ad850384ba375e"
+  ],
+  "silo-author": [
+    "24ca33fc9f7d82b259845d8e3b67d6dda6b49356f93c24dae6fde96268a2ff2c",
+    "a157ab8d0146fcfb77236c50297b6544f1fed0fd6e7e7b12433a66ffdf35b098"
+  ],
+  "support-inbox": [
+    "d72b77be28d93d404b5c4ff119393d96d59a60e04d8f40703e3960c29cae70ca"
+  ],
+  "team-plan": [
+    "bf50ce67227c4b31539d7737d08f7f1c697dd5649eedbe7c402180850986fa55"
+  ],
+  "vault-secrets": [
+    "b0e84970e1690358b182b3daf46e20a86bd1905ffc278153389f64309b776698"
+  ]
+}

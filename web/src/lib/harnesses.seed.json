@@ -1,0 +1,90 @@
+{
+  "harnesses": [
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "default": true,
+      "caps": {
+        "compaction": true,
+        "subagents": true,
+        "skills": true,
+        "thinking": true,
+        "costFromHarness": false,
+        "permissionsAsEvents": false,
+        "sendToConsole": false,
+        "outputStyles": true
+      },
+      "providerKinds": [
+        "claude-account",
+        "anthropic-compatible"
+      ],
+      "modeSwitch": true,
+      "ui": {
+        "contextPercent": true,
+        "models": "catalog",
+        "ownLogin": false,
+        "territoryFenced": false,
+        "territoryNote": null,
+        "settingsAbout": null,
+        "loginImport": null,
+        "providerExport": {
+          "target": "claude",
+          "label": "for Claude"
+        },
+        "updateLabel": "claude update",
+        "consoleColours": false,
+        "consoleColoursHint": null,
+        "providersAbout": null,
+        "providerIdPlaceholder": null,
+        "loginCommand": null
+      }
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "default": false,
+      "caps": {
+        "compaction": true,
+        "subagents": true,
+        "skills": false,
+        "thinking": true,
+        "costFromHarness": true,
+        "permissionsAsEvents": true,
+        "sendToConsole": true,
+        "outputStyles": false
+      },
+      "providerKinds": [
+        "anthropic-compatible",
+        "harness-provider",
+        "harness-native"
+      ],
+      "modeSwitch": true,
+      "ui": {
+        "contextPercent": false,
+        "models": "provider-model",
+        "ownLogin": true,
+        "territoryFenced": true,
+        "territoryNote": "On OpenCode a fenced agent runs without the project's own opencode.json (Silos passes the project instructions itself).",
+        "settingsAbout": "The other engine agents can run on. Its logins stay in OpenCode — Silos reads one only when you import it in Accounts & providers.",
+        "loginImport": {
+          "list": "/api/providers/opencode/auth",
+          "import": "/api/providers/import-opencode"
+        },
+        "providerExport": {
+          "target": "opencode",
+          "label": "for OpenCode"
+        },
+        "updateLabel": "opencode upgrade",
+        "consoleColours": true,
+        "consoleColoursHint": "change it with /theme inside the console",
+        "providersAbout": "For agents that run on OpenCode: a key for a provider OpenCode already knows — MiniMax, Z.ai, Kimi — handed to each agent on its own, or OpenCode’s own login.",
+        "providerIdPlaceholder": "provider id (zai, minimax-coding-plan…)",
+        "loginCommand": "opencode auth login",
+        "givenFilesNote": "An OpenCode conversation is not told of files given to it — name the file in your message.",
+        "signIn": {
+          "path": "/api/providers/opencode/sign-in"
+        }
+      }
+    }
+  ]
+}

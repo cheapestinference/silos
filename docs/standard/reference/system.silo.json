@@ -1,0 +1,166 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "system",
+    "version": "0.3.1",
+    "name": "System",
+    "icon": "system",
+    "description": "What your conversations left on this machine. Processes: builds, tests, dev servers — including orphans whose conversation no longer exists —, each with its conversation's title and the ports it listens on, plus every process listening on a TCP port. Worktrees: every git worktree of your projects, what in it is not on its default branch (by ancestry or by patch: what was cherry-picked is not pending work) and the conversation that made it. It reads nobody's file: it presents the kernel kinds `process` and `worktree`. All it does is two kernel-verbs, an owner gesture: stop-process stops a process (SIGTERM, a short grace period, SIGKILL) — never Silos itself nor another user's process —; remove-worktree removes a merged worktree (its untracked files and a bundle of its branch go to the Silos trash) — never one with unmerged work or a process inside. Silos closes on its own the merged worktrees that have been idle for 6 h."
+  },
+  "spec": {
+    "producer": { "role": "kernel" },
+    "sources": [
+      { "id": "processes", "type": "kernel", "root": "kernel", "kind": "process" },
+      { "id": "worktrees", "type": "kernel", "root": "kernel", "kind": "worktree" }
+    ],
+    "kinds": {
+      "process": {
+        "envelope": {
+          "id": { "field": "id" },
+          "identity": { "template": "{{command}}" },
+          "state": { "field": "state" },
+          "at": { "field": "startedAt" },
+          "anchors": [{ "hub": "platform", "from": "location" }],
+          "updatedBy": { "field": "updatedBy", "values": ["kernel"] }
+        },
+        "states": [
+          { "value": "running", "label": { "one": "running", "many": "running" } },
+          { "value": "left", "label": { "one": "left running", "many": "left running" } },
+          { "value": "exited", "label": { "one": "exited", "many": "exited" }, "terminal": true }
+        ],
+        "fields": {
+          "command": { "type": "string", "required": true },
+          "startedAt": { "type": "timestamp", "required": true, "label": "started" },
+          "origin": { "type": "string", "required": true },
+          "pid": { "type": "number", "optional": true },
+          "cpu": { "type": "number", "optional": true, "label": "CPU", "unit": "%" },
+          "memoryMb": { "type": "number", "optional": true, "label": "memory", "unit": "MB" },
+          "processes": { "type": "number", "optional": true },
+          "ports": { "type": "string", "optional": true },
+          "cwd": { "type": "string", "optional": true },
+          "session": { "type": "string", "optional": true },
+          "folder": { "type": "string", "optional": true },
+          "agent": { "type": "string", "optional": true },
+          "conversation": { "type": "string", "optional": true },
+          "why": { "type": "string", "optional": true },
+          "exitedAt": { "type": "timestamp", "optional": true },
+          "stoppable": { "type": "boolean", "optional": true },
+          "stoppedAt": { "type": "timestamp", "optional": true },
+          "stoppedBy": { "type": "string", "optional": true }
+        },
+        "unknownFields": "preserve",
+        "examples": [
+          {
+            "id": "48211-9133377",
+            "command": "node /home/op/shop/node_modules/.bin/vite --port 5193",
+            "startedAt": "2026-11-20T08:14:00.000Z", "origin": "conversation",
+            "pid": 48211, "cpu": 41.5, "memoryMb": 312, "processes": 3, "ports": "5193",
+            "cwd": "/home/op/shop", "session": "6ad8e4db-0000-4000-8000-000000000001",
+            "conversation": "a deleted conversation (6ad8e4db)", "why": "its conversation was deleted",
+            "stoppable": true, "state": "left", "updatedBy": "kernel"
+          },
+          {
+            "id": "51907-9877310",
+            "command": "npm test -- --watch",
+            "startedAt": "2026-11-21T10:02:00.000Z", "origin": "conversation",
+            "pid": 51907, "cpu": 96, "memoryMb": 880, "processes": 7,
+            "cwd": "/home/op/shop", "session": "7be9f5ec-0000-4000-8000-000000000002",
+            "folder": "-home-op-shop", "agent": "writer", "conversation": "Stripe checkout",
+            "stoppable": true, "state": "running", "updatedBy": "kernel"
+          },
+          {
+            "id": "port-5432-113",
+            "command": "a process of another user (postgres) — its command can't be read",
+            "startedAt": "2026-11-21T07:00:00.000Z", "origin": "other-user", "ports": "5432",
+            "stoppable": false, "state": "running", "updatedBy": "kernel"
+          }
+        ]
+      },
+      "worktree": {
+        "envelope": {
+          "id": { "field": "id" },
+          "identity": { "template": "{{branch}}", "empty": "{{path}} (detached)" },
+          "state": { "field": "state" },
+          "at": { "field": "lastCommitAt" },
+          "anchors": [{ "hub": "platform", "from": "location" }],
+          "updatedBy": { "field": "updatedBy", "values": ["kernel"] }
+        },
+        "states": [
+          { "value": "in-use", "label": { "one": "in use", "many": "in use" } },
+          { "value": "merged", "label": { "one": "merged", "many": "merged" } },
+          { "value": "unmerged", "label": { "one": "unmerged", "many": "unmerged" } },
+          { "value": "removed", "label": { "one": "removed", "many": "removed" }, "terminal": true }
+        ],
+        "fields": {
+          "path": { "type": "string", "required": true },
+          "dir": { "type": "string", "required": true, "label": "folder" },
+          "project": { "type": "string", "required": true },
+          "branch": { "type": "string", "optional": true },
+          "base": { "type": "string", "optional": true, "label": "measured against" },
+          "ahead": { "type": "number", "required": true },
+          "landed": { "type": "number", "required": true },
+          "changes": { "type": "number", "required": true },
+          "leftovers": { "type": "number", "required": true, "label": "untracked" },
+          "lastCommitAt": { "type": "timestamp", "required": true, "label": "last commit" },
+          "processes": { "type": "number", "required": true },
+          "session": { "type": "string", "optional": true },
+          "folder": { "type": "string", "optional": true },
+          "agent": { "type": "string", "optional": true },
+          "conversation": { "type": "string", "optional": true },
+          "why": { "type": "string", "optional": true },
+          "removable": { "type": "boolean", "optional": true },
+          "removedAt": { "type": "timestamp", "optional": true },
+          "removedBy": { "type": "string", "optional": true },
+          "trash": { "type": "string", "optional": true }
+        },
+        "unknownFields": "preserve",
+        "examples": [
+          {
+            "id": "wt-3f9a0c41d2b7", "path": ".claude/worktrees/agent-a41f", "dir": "/home/op/shop/.claude/worktrees/agent-a41f",
+            "project": "/home/op/shop", "branch": "worktree-agent-a41f", "base": "main",
+            "ahead": 3, "landed": 3, "changes": 0, "leftovers": 1, "lastCommitAt": "2026-11-19T16:40:00.000Z", "processes": 0,
+            "session": "7be9f5ec-0000-4000-8000-000000000002", "folder": "-home-op-shop", "agent": "writer", "conversation": "Stripe checkout",
+            "why": "its 3 commits landed in main by patch (cherry-picked)", "removable": true, "state": "merged", "updatedBy": "kernel"
+          },
+          {
+            "id": "wt-8c2e51aa0f6d", "path": "../shop-shipping", "dir": "/home/op/shop-shipping",
+            "project": "/home/op/shop", "branch": "shipping", "base": "main",
+            "ahead": 5, "landed": 1, "changes": 2, "leftovers": 0, "lastCommitAt": "2026-11-08T11:05:00.000Z", "processes": 0,
+            "why": "4 commits not in main, 2 tracked files changed", "removable": false, "state": "unmerged", "updatedBy": "kernel"
+          }
+        ]
+      }
+    },
+    "views": [
+      {
+        "id": "processes", "archetype": "list", "kind": "process", "label": "Processes",
+        "columns": ["identity", "state", "ports", "cpu", "memoryMb", "at"],
+        "facets": ["agent", "state", "origin"],
+        "groupBy": "conversation",
+        "first": { "when": "state = left" },
+        "fold": { "when": "state = exited or origin = 'other-user'", "label": "ended or another user's" }
+      },
+      {
+        "id": "worktrees", "archetype": "list", "kind": "worktree", "label": "Worktrees",
+        "columns": ["identity", "state", "ahead", "landed", "changes", "at"],
+        "facets": ["state", "project"],
+        "groupBy": "conversation",
+        "first": { "when": "state = unmerged" },
+        "fold": { "when": "state = removed", "label": "removed" }
+      }
+    ],
+    "surfaces": {
+      "rail": { "label": "System", "view": "processes" },
+      "pulse": {
+        "kind": "process", "aggregate": "count",
+        "when": "state = left",
+        "label": { "one": "process left running", "many": "processes left running" }
+      }
+    },
+    "actions": [
+      { "verb": "open" },
+      { "verb": "kernel-verb", "name": "stop-process", "kind": "process", "when": "stoppable" },
+      { "verb": "kernel-verb", "name": "remove-worktree", "kind": "worktree", "when": "removable" }
+    ]
+  }
+}

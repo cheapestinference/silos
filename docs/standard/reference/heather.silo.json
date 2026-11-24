@@ -1,0 +1,35 @@
+{
+  "apiVersion": "silo-standard/v0",
+  "metadata": {
+    "id": "heather",
+    "version": "0.1.0",
+    "name": "Heather",
+    "description": "A look for Silos taken from moorland: lilac-grey paper and aubergine ink by day, peat-dark pages with heather in bloom at night. It brings nothing else — no records, no agents — only a choice in Settings › Appearance."
+  },
+  "spec": {
+    "theme": {
+      "name": "Heather",
+      "light": {
+        "background": "#f7f5f8",
+        "panel": "#ece7f0",
+        "text": "#221a29",
+        "text-2": "#55475e",
+        "text-3": "#83758a",
+        "border": "#dcd4e2",
+        "accent": "#8a2f6e",
+        "on-accent": "#ffffff",
+        "accent-soft": "#f1e2ec"
+      },
+      "dark": {
+        "background": "#1c1720",
+        "panel": "#262029",
+        "text": "#f3eef4",
+        "text-2": "#c8bccd",
+        "text-3": "#9a8c9f",
+        "border": "#3a3140",
+        "accent": "#e59ac9",
+        "on-accent": "#2a0f22"
+      }
+    }
+  }
+}

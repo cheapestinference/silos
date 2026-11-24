@@ -1,0 +1,34 @@
+# build output, dependencies, tool output
+node_modules/
+dist/
+dist-e2e/
+coverage/
+test-results/
+playwright-report/
+e2e-results/
+.pack/
+*.tsbuildinfo
+package-lock.json
+
+# private / untracked working material
+internal/
+context/
+/plans/
+.claude/
+.worktrees/
+.superpowers/
+
+# fixtures are data: transcripts and recorded payloads stay byte-for-byte
+**/fixtures/
+*.jsonl
+
+# text read verbatim — by tests (protocol-sources, recipes-identical,
+# plugin-hooks, live-turns, harness-descriptor) and by the agents themselves
+# (briefing, skills, hook scripts); a reformat would change pinned text
+plugin/
+docs/product.md
+docs/standard/
+web/src/lib/harnesses.seed.json
+
+# e2e input pasted as-is into a plan
+web/e2e/*.md
