@@ -110,9 +110,9 @@ describe('GET /api/home/since — the visit', () => {
     expect(second).toMatchObject({ done: 0, automations: { ran: 0, of: 0 }, stuck: 0, decided: [], needsYou: 0, usage: null, cost: null })
   })
 
-  it('an unknown local GET reads without stamping (no effects)', async () => {
+  it('an unknown local GET is refused, and stamps nothing', async () => {
     const r = await app.inject({ url: '/api/home/since' })
-    expect(r.statusCode).toBe(200)
+    expect(r.statusCode).toBe(401)
     expect(existsSync(join(dataDir, 'visits.json'))).toBe(false)
   })
 })

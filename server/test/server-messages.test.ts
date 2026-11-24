@@ -156,13 +156,12 @@ describe('messages API', () => {
     }
   })
 
-  it('a GET with no identity reads, with no effects: the messages stay as they were', async () => {
-    const m = messages.send({ from: 'builder', to: 'finance', text: 'a' })
+  it('a GET with no identity is refused, with no effects: the messages stay as they were', async () => {
+    messages.send({ from: 'builder', to: 'finance', text: 'a' })
     const bare = buildServer(deps)
     try {
       const r = await bare.inject({ method: 'GET', url: '/api/agents/finance/messages', headers: LOCAL })
-      expect(r.statusCode).toBe(200)
-      expect(r.json().messages.map((x: { id: string; state: string }) => [x.id, x.state])).toEqual([[m.id, 'new']])
+      expect(r.statusCode).toBe(401)
       expect(messages.list('finance').map((x) => x.state)).toEqual(['new'])
     } finally {
       await bare.close()

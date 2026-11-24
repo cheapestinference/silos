@@ -151,7 +151,7 @@ import type { PlatformSettingsStore } from './platform-settings.js'
 import type { Automation } from './automations-types.js'
 import type { AgentTokens } from './agent-tokens.js'
 import type { ExecutionsSource } from './silos/executions.js'
-import { agentMayRead, agentMayWrite, agentWriteNeedsTurn, isEgressPath, isWriteClass } from './agent-authz.js'
+import { agentMayRead, agentMayWrite, anonymousMayRead, agentWriteNeedsTurn, isEgressPath, isWriteClass } from './agent-authz.js'
 import { PROCESS_SILO, type ProcessRecords, type ProcessView, type StopResult } from './silos/processes.js'
 import type { WorktreeRecords } from './silos/worktrees.js'
 import { conversationThread } from './conversation-thread.js'
@@ -1086,6 +1086,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
   // The 401 of a write (or websocket upgrade) with no identity — the error
   // itself teaches the way.
+  const READS_NEED_IDENTITY =
+    'this read needs an identity — the owner: x-token (or ?token=) with the token in ~/.silos/token, or open Silos from the link the server prints at start; an agent: Authorization: Bearer $SILOS_AGENT_TOKEN'
   const WRITES_NEED_IDENTITY =
     'writes need an identity — the owner: x-token (or ?token=) with the token in ~/.silos/token, or open Silos from the link the server prints at start; an agent: Authorization: Bearer $SILOS_AGENT_TOKEN'
 
@@ -1193,13 +1195,17 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     }
     // Nobody is the owner by default: a genuinely
     // LOCAL request (loopback Host, zero forwarding headers — see
-    // isLocalRequest above) with no credential is UNKNOWN. It still READS
-    // (GET/HEAD — looking fabricates nothing, and the routes give an unknown
-    // read no effects), but every write and every websocket upgrade (they
-    // carry terminal input and chat) needs an identity: 401 that teaches the
-    // way. Anything arriving via tunnel/proxy/public host still requires auth.
+    // isLocalRequest above) with no credential is UNKNOWN. Any process on the
+    // machine can make one — an agent's shell with its bearer left out
+    // included — so it reads only the few routes a session with no identity
+    // needs (anonymousMayRead, agent-authz.ts: the roster and a
+    // conversation's tasks); every other read, every write and every
+    // websocket upgrade (terminal input, chat) needs an identity: 401 that
+    // teaches the way. Anything arriving via tunnel/proxy/public host still
+    // requires auth.
     if (isLocalRequest(req)) {
-      if (!writeClass && !isUpgrade) return
+      if (!writeClass && !isUpgrade && (req.method === 'GET' || req.method === 'HEAD') && anonymousMayRead(path)) return
+      if (!writeClass && !isUpgrade) return reply.code(401).send({ error: READS_NEED_IDENTITY })
       if (isUpgrade) return refuseUpgrade(reply, req, 401, { error: WRITES_NEED_IDENTITY })
       return reply.code(401).send({ error: WRITES_NEED_IDENTITY })
     }

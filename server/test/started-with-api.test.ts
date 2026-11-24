@@ -25,6 +25,7 @@ import { harnesses } from '../src/harnesses/index.js'
 import { buildServer } from '../src/server.js'
 
 const LOCAL = { host: '127.0.0.1:3210' }
+const OWNER = { ...LOCAL, 'x-token': 't0k' }
 let app: FastifyInstance, tokens: AgentTokens, folder: string, dir: string, munged: string, index: ReturnType<typeof claudeSessionIndex>
 
 const L = (o: unknown): string => `${JSON.stringify(o)}\n`
@@ -128,7 +129,7 @@ afterEach(async () => {
 
 describe('GET /api/sessions/:folder/:id/started-with', () => {
   it('a measured conversation: total, mode, parts by owner summing to the total, account', async () => {
-    const r = await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })
+    const r = await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })
     expect(r.statusCode).toBe(200)
     const s = r.json()
     expect(s).toMatchObject({ measured: true, totalTokens: 1000, mode: 'console', accounts: [{ email: 'me@example.test' }] })
@@ -138,12 +139,12 @@ describe('GET /api/sessions/:folder/:id/started-with', () => {
   })
 
   it('unmeasured (no shape, no snapshot): the total alone', async () => {
-    const s = (await app.inject({ url: `/api/sessions/${munged}/u1/started-with`, headers: LOCAL })).json()
+    const s = (await app.inject({ url: `/api/sessions/${munged}/u1/started-with`, headers: OWNER })).json()
     expect(s).toMatchObject({ measured: false, totalTokens: 900, parts: [] })
   })
 
   it('cached by size + mtime: a grown transcript is read again', async () => {
-    const first = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })).json()
+    const first = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })).json()
     expect(first.contextNow.tokens).toBe(1000)
     appendFileSync(
       join(dir, 'c1.jsonl'),
@@ -155,18 +156,18 @@ describe('GET /api/sessions/:folder/:id/started-with', () => {
         message: { role: 'assistant', content: [], usage: { input_tokens: 5000 } },
       }),
     )
-    const again = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })).json()
+    const again = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })).json()
     expect(again.contextNow.tokens).toBe(5000)
     expect(again.totalTokens).toBe(1000)
   })
 
   it('unknown session → 404; an engine without startedWith → null', async () => {
-    expect((await app.inject({ url: `/api/sessions/${munged}/nope/started-with`, headers: LOCAL })).statusCode).toBe(404)
+    expect((await app.inject({ url: `/api/sessions/${munged}/nope/started-with`, headers: OWNER })).statusCode).toBe(404)
     const cc = harnesses['claude-code']!
     const saved = cc.startedWith
     ;(cc as { startedWith?: unknown }).startedWith = undefined
     try {
-      const r = await app.inject({ url: `/api/sessions/${munged}/c2/started-with`, headers: LOCAL })
+      const r = await app.inject({ url: `/api/sessions/${munged}/c2/started-with`, headers: OWNER })
       expect(r.statusCode).toBe(200)
       expect(r.body).toBe('null')
     } finally {
@@ -183,21 +184,21 @@ describe('GET /api/sessions/:folder/:id/started-with', () => {
 
 describe('GET /api/sessions/:folder/:id/started-with/part/:key', () => {
   it("a part's exact text by its ref; unknown key → 404; a malformed key → 400", async () => {
-    const r = await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: LOCAL })
+    const r = await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: OWNER })
     expect(r.statusCode).toBe(200)
     expect(r.json()).toEqual({ ref: 'first', text: 'hello there' })
-    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/file-0`, headers: LOCAL })).json().text).toBe('P'.repeat(300))
-    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/now-file-0`, headers: LOCAL })).json().text).toBe('P'.repeat(300))
-    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/nope`, headers: LOCAL })).statusCode).toBe(404)
-    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/${encodeURIComponent('a b')}`, headers: LOCAL })).statusCode).toBe(400)
+    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/file-0`, headers: OWNER })).json().text).toBe('P'.repeat(300))
+    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/now-file-0`, headers: OWNER })).json().text).toBe('P'.repeat(300))
+    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/nope`, headers: OWNER })).statusCode).toBe(404)
+    expect((await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/${encodeURIComponent('a b')}`, headers: OWNER })).statusCode).toBe(400)
     // an unmeasured conversation has no parts
-    expect((await app.inject({ url: `/api/sessions/${munged}/u1/started-with/part/first`, headers: LOCAL })).statusCode).toBe(404)
+    expect((await app.inject({ url: `/api/sessions/${munged}/u1/started-with/part/first`, headers: OWNER })).statusCode).toBe(404)
   })
 })
 
 describe('GET /api/agents/:id/started-with', () => {
   it('per mode, never mixed: console · chat · run (an automation’s), medians, range, n; unmeasured skipped', async () => {
-    const r = await app.inject({ url: '/api/agents/finance/started-with', headers: LOCAL })
+    const r = await app.inject({ url: '/api/agents/finance/started-with', headers: OWNER })
     expect(r.statusCode).toBe(200)
     const b = r.json()
     expect(b.console).toMatchObject({ n: 3, total: 2000, range: [1000, 3000], latest: { folder: munged, id: 'c1' } })
@@ -210,10 +211,10 @@ describe('GET /api/agents/:id/started-with', () => {
   })
 
   it('an agent with no measured conversation → null; unknown agent → 404', async () => {
-    const r = await app.inject({ url: '/api/agents/idle/started-with', headers: LOCAL })
+    const r = await app.inject({ url: '/api/agents/idle/started-with', headers: OWNER })
     expect(r.statusCode).toBe(200)
     expect(r.body).toBe('null')
-    expect((await app.inject({ url: '/api/agents/nobody/started-with', headers: LOCAL })).statusCode).toBe(404)
+    expect((await app.inject({ url: '/api/agents/nobody/started-with', headers: OWNER })).statusCode).toBe(404)
   })
 })
 
@@ -228,11 +229,11 @@ describe('Started with — a transcript followed as it grows', () => {
 
   it('an unchanged transcript is not fed again; a grown one feeds only what was appended, and reads as the whole file', async () => {
     const fed = vi.spyOn(TranscriptStartedWith.prototype, 'feed')
-    await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })
+    await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })
     expect(linesFed(fed)).toBe(nonBlank(join(dir, 'c1.jsonl')))
     fed.mockClear()
-    await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })
-    await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: LOCAL })
+    await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })
+    await app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: OWNER })
     expect(linesFed(fed)).toBe(0)
     const grow =
       L({
@@ -250,12 +251,12 @@ describe('Started with — a transcript followed as it grows', () => {
         attachment: { type: 'session_context', context: { userEmail: 'other@example.test' } },
       })
     appendFileSync(join(dir, 'c1.jsonl'), grow)
-    const followed = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL })).json()
+    const followed = (await app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER })).json()
     expect(linesFed(fed)).toBe(2)
     // the same answer as a conversation whose identical transcript is read whole
     copyFileSync(join(dir, 'c1.jsonl'), join(dir, 'c1copy.jsonl'))
     await index.refresh(munged, 'c1copy')
-    const whole = (await app.inject({ url: `/api/sessions/${munged}/c1copy/started-with`, headers: LOCAL })).json()
+    const whole = (await app.inject({ url: `/api/sessions/${munged}/c1copy/started-with`, headers: OWNER })).json()
     expect(followed).toEqual(whole)
     expect(followed.accounts.map((a: { email: string }) => a.email)).toEqual(['me@example.test', 'other@example.test'])
   })
@@ -263,11 +264,11 @@ describe('Started with — a transcript followed as it grows', () => {
   it("the column, its part rows and the agent's medians asking at once read each transcript once", async () => {
     const fed = vi.spyOn(TranscriptStartedWith.prototype, 'feed')
     const rs = await Promise.all([
-      app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: LOCAL }),
-      app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: LOCAL }),
-      app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/file-0`, headers: LOCAL }),
-      app.inject({ url: '/api/agents/finance/started-with', headers: LOCAL }),
-      app.inject({ url: '/api/agents/finance/started-with', headers: LOCAL }),
+      app.inject({ url: `/api/sessions/${munged}/c1/started-with`, headers: OWNER }),
+      app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/first`, headers: OWNER }),
+      app.inject({ url: `/api/sessions/${munged}/c1/started-with/part/file-0`, headers: OWNER }),
+      app.inject({ url: '/api/agents/finance/started-with', headers: OWNER }),
+      app.inject({ url: '/api/agents/finance/started-with', headers: OWNER }),
     ])
     for (const r of rs) expect(r.statusCode).toBe(200)
     const all = readdirSync(dir)
@@ -310,7 +311,7 @@ describe('GET /api/folders/:folder/loads/weight', () => {
 
   it('the newest measured start: each part on its row — a server’s tool definitions and names on the server', async () => {
     await withServer()
-    const r = await app.inject({ url: `/api/folders/${encodeURIComponent(folder)}/loads/weight`, headers: LOCAL })
+    const r = await app.inject({ url: `/api/folders/${encodeURIComponent(folder)}/loads/weight`, headers: OWNER })
     expect(r.statusCode).toBe(200)
     const w = r.json()
     expect(w).toMatchObject({ folder, conversation: { folder: munged, id: 'w1' }, total: 2000 })
@@ -321,12 +322,12 @@ describe('GET /api/folders/:folder/loads/weight', () => {
     const keyed = Object.values(w.items as Record<string, { tokens: number }>).reduce((a, x) => a + x.tokens, 0)
     expect(keyed).toBeLessThan(2000)
     // the conversation's own reading names the same row
-    const s = (await app.inject({ url: `/api/sessions/${munged}/w1/started-with`, headers: LOCAL })).json()
+    const s = (await app.inject({ url: `/api/sessions/${munged}/w1/started-with`, headers: OWNER })).json()
     expect(s.parts.find((p: { kind: string }) => p.kind === 'mcp')).toMatchObject({ owner: 'project', label: 'books', item: 'mcp:project:books' })
   })
 
   it('a folder no agent manages is 404; an agent bearer is refused; no measured start → null', async () => {
-    expect((await app.inject({ url: `/api/folders/${encodeURIComponent('/etc')}/loads/weight`, headers: LOCAL })).statusCode).toBe(404)
+    expect((await app.inject({ url: `/api/folders/${encodeURIComponent('/etc')}/loads/weight`, headers: OWNER })).statusCode).toBe(404)
     const auth = { ...LOCAL, authorization: `Bearer ${tokens.tokenFor('finance')}` }
     expect((await app.inject({ url: `/api/folders/${encodeURIComponent(folder)}/loads/weight`, headers: auth })).statusCode).toBe(403)
     const empty = mkdtempSync(join(tmpdir(), 'started-empty-'))
@@ -340,7 +341,7 @@ describe('GET /api/folders/:folder/loads/weight', () => {
         })
       ).statusCode,
     ).toBeLessThan(300)
-    const r = await app.inject({ url: `/api/folders/${encodeURIComponent(empty)}/loads/weight`, headers: LOCAL })
+    const r = await app.inject({ url: `/api/folders/${encodeURIComponent(empty)}/loads/weight`, headers: OWNER })
     expect(r.statusCode).toBe(200)
     expect(r.body).toBe('null')
   })

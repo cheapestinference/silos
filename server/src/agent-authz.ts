@@ -188,6 +188,25 @@ export function agentWriteNeedsTurn(method: string, url: string): boolean {
 // cases included, now a silo — /api/support is gone). Everything
 // else under /api is the owner's. Paths outside /api (the static web app,
 // /healthz) are not this check's business.
+// Reads with NO identity (a genuinely local request carrying no credential
+// — server.ts isLocalRequest): an ALLOW-list too, smaller than an agent's.
+// Only what the plugin's SessionStart hook reads in a session that has no
+// identity of its own: the roster (`/api/agents` exactly) and which tasks a
+// conversation is on (`/api/tasks/by-session`). Everything else under /api
+// — files, transcripts, memory, the vault, settings — needs a credential:
+// any process on the machine can make a local request, an agent's shell
+// included, and a fence on its files means nothing if the server reads
+// them for it. A new route is closed to it by default.
+export function anonymousMayRead(url: string): boolean {
+  if ((url.split('?')[0] ?? '') === '/') return true // the web app's root
+  const seg = decodedSegments(url)
+  if (seg === null) return false
+  if (seg[0] !== 'api') return true
+  if (seg.length === 2 && seg[1] === 'agents') return true
+  if (seg.length === 3 && seg[1] === 'tasks' && seg[2] === 'by-session') return true
+  return false
+}
+
 export function agentMayRead(agentId: string, url: string): boolean {
   if ((url.split('?')[0] ?? '') === '/') return true // the web app's root
   const seg = decodedSegments(url)

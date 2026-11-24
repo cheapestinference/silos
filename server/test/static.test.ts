@@ -124,9 +124,9 @@ describe('static SPA', () => {
     writeFileSync(join(webDist, 'index.html'), '<!doctype html><title>Silos</title>')
     writeFileSync(join(webDist, 'build-id.json'), JSON.stringify({ id: 'b1' }))
     app = buildServer({ ...(await deps(base)), webDist })
-    expect((await app.inject({ url: '/api/overview' })).json().build).toBe('b1')
+    expect((await app.inject({ url: '/api/overview', headers: { 'x-token': TOKEN } })).json().build).toBe('b1')
     writeFileSync(join(webDist, 'build-id.json'), JSON.stringify({ id: 'b2' }))
-    expect((await app.inject({ url: '/api/overview' })).json().build).toBe('b2')
+    expect((await app.inject({ url: '/api/overview', headers: { 'x-token': TOKEN } })).json().build).toBe('b2')
   })
 
   it('without build-id.json (or without webDist) the overview omits build', async () => {

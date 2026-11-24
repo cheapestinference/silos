@@ -405,7 +405,7 @@ describe('GET /api/account-load', () => {
   })
 
   it('the owner reads it (200)', async () => {
-    const r = await app.inject({ method: 'GET', url: '/api/account-load', headers: LOCAL })
+    const r = await app.inject({ method: 'GET', url: '/api/account-load', headers: { ...LOCAL, 'x-token': 't0k' } })
     expect(r.statusCode).toBe(200)
     const body = r.json()
     expect(body.supported).toBe(true)

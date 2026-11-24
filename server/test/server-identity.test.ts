@@ -185,15 +185,17 @@ describe('identity of every write (t0)', () => {
     expect(JSON.stringify(after.json())).not.toContain('Hacked')
   })
 
-  it('a local GET with no identity still reads — as unknown: no agent, no owner credential, author unknown', async () => {
+  it('a local GET with no identity reads only the anonymous routes — never as anyone, whatever it declares', async () => {
+    // any process on the machine can make a local request: past the roster
+    // and a conversation's tasks, a read needs an identity
     const p = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: LOCAL })
-    expect(p.statusCode).toBe(200)
-    expect(seenAgentId).toBeUndefined()
-    expect(p.json()).toEqual({ ok: true, owner: false, author: 'unknown' })
+    expect(p.statusCode).toBe(401)
+    expect(seenAgentId).toBeNull() // the route never ran
     // X-Silos-Agent is declared authorship over a RESOLVED identity, never one
     const named = await app.inject({ method: 'GET', url: '/api/agents/builder/__probe', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })
-    expect(named.json()).toEqual({ ok: true, owner: false, author: 'unknown' })
+    expect(named.statusCode).toBe(401)
     expect((await app.inject({ method: 'HEAD', url: '/api/agents', headers: LOCAL })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: '/api/agents', headers: { ...LOCAL, 'x-silos-agent': 'finance' } })).statusCode).toBe(200)
   })
 
   it('the owner credential writes, local or remote: x-token, ?token= — and only it makes the author «owner»', async () => {

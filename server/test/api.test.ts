@@ -123,20 +123,20 @@ describe('auth', () => {
   // otherwise any web page the user has open could drive the API with no token.
   describe('cross-origin guard', () => {
     const LOCAL = { host: '127.0.0.1' }
-    it('local request with no Origin keeps the no-token bypass (curl, same-origin GET)', async () => {
-      expect((await app.inject({ url: '/api/overview', headers: LOCAL })).statusCode).toBe(200)
+    it('local request with no Origin keeps the no-token bypass for the anonymous reads (curl, same-origin GET)', async () => {
+      expect((await app.inject({ url: '/api/agents', headers: LOCAL })).statusCode).toBe(200)
     })
     it('a foreign Origin loses the local bypass -> 401', async () => {
-      expect((await app.inject({ url: '/api/overview', headers: { ...LOCAL, origin: 'https://evil.example.com' } })).statusCode).toBe(401)
+      expect((await app.inject({ url: '/api/agents', headers: { ...LOCAL, origin: 'https://evil.example.com' } })).statusCode).toBe(401)
     })
     it('Origin: null (sandboxed iframe / opaque) is untrusted -> 401', async () => {
-      expect((await app.inject({ url: '/api/overview', headers: { ...LOCAL, origin: 'null' } })).statusCode).toBe(401)
+      expect((await app.inject({ url: '/api/agents', headers: { ...LOCAL, origin: 'null' } })).statusCode).toBe(401)
     })
     it('the served SPA (loopback Origin, same port) keeps working with no token', async () => {
-      expect((await app.inject({ url: '/api/overview', headers: { ...LOCAL, origin: 'http://127.0.0.1:3210' } })).statusCode).toBe(200)
+      expect((await app.inject({ url: '/api/agents', headers: { ...LOCAL, origin: 'http://127.0.0.1:3210' } })).statusCode).toBe(200)
     })
     it('the Vite dev server (loopback Origin, other port) keeps working with no token', async () => {
-      expect((await app.inject({ url: '/api/overview', headers: { ...LOCAL, origin: 'http://localhost:5173' } })).statusCode).toBe(200)
+      expect((await app.inject({ url: '/api/agents', headers: { ...LOCAL, origin: 'http://localhost:5173' } })).statusCode).toBe(200)
     })
     it('a foreign Origin still works WITH a valid token (the ?token=/x-token escape hatch)', async () => {
       expect((await app.inject({ url: '/api/overview', headers: { ...LOCAL, origin: 'https://evil.example.com', 'x-token': TOKEN } })).statusCode).toBe(200)

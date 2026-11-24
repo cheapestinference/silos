@@ -26,6 +26,7 @@ import { buildServer } from '../src/server.js'
 import { BUILT_INS, registeredIds } from './helpers/built-ins.js'
 
 const LOCAL = { host: '127.0.0.1:3210' }
+const OWNER = { ...LOCAL, 'x-token': 't0k' }
 let app: FastifyInstance
 let agentTokens: AgentTokens
 const unregister: Array<() => void> = []
@@ -81,7 +82,7 @@ afterEach(async () => {
   await app.close()
 })
 
-const get = (url: string, headers: Record<string, string> = LOCAL) => app.inject({ method: 'GET', url, headers })
+const get = (url: string, headers: Record<string, string> = OWNER) => app.inject({ method: 'GET', url, headers })
 
 // a fake engine with every field the descriptor reads (traits, ui, providers)
 const fakeEngine: Harness = {

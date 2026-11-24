@@ -69,9 +69,15 @@ When Silos launches its `claude` it adds, by documented means only:
   every agent has one, the built-in default agent `master` (no folder) included, fence on or off; the server checks
   bearers in memory (`agent-tokens.ts`). Identity on the API: the owner
   carries the static token or a login session, an agent its bearer; a
-  request with neither only reads, and only when it is genuinely local
-  (loopback `Host`, no forwarding or tunnel headers — `isLocalRequest`) —
-  its writes and websockets answer 401, and anything arriving through a
+  request with neither reads only what a session with no identity needs —
+  the roster (`GET /api/agents`) and a conversation's tasks
+  (`/api/tasks/by-session`), an allow-list (`anonymousMayRead`,
+  `agent-authz.ts`; a new route is closed to it) — and only when it is
+  genuinely local (loopback `Host`, no forwarding or tunnel headers —
+  `isLocalRequest`). Any process on the machine can make a local request,
+  an agent's shell with its bearer left out included, so files,
+  transcripts, memory and settings never answer one: its other reads,
+  writes and websockets answer 401, and anything arriving through a
   proxy or tunnel without a credential is refused outright (`server.ts`;
   deployment notes in `docs/deploy/`, reporting a hole in `SECURITY.md`);
   an engine's OWN sign-in by link runs from Silos where the engine offers
