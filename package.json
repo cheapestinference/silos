@@ -2,7 +2,7 @@
   "name": "silos",
   "version": "0.1.0",
   "private": true,
-  "description": "A local web console to operate your fleet of Claude Code agents as identities — see what's happening, decide what's yours to decide, and hand out work in a sentence.",
+  "description": "Run your Claude Code and OpenCode agents like a team: what a terminal hides — what each agent loaded, remembers, costs and left running — on one screen, on your machine.",
   "keywords": [
     "claude-code",
     "claude-agent-sdk",

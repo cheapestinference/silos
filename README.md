@@ -4,10 +4,10 @@
 
 # Silos
 
-**Run Claude Code and OpenCode agents as identities, from one web console.**
+**Run your Claude Code agents like a team.**
 
-See everything an agent knows, loads, spends and does — and steer it from one place.<br>
-With one agent you get the most out of it. With ten, you run them as a team.
+A coding agent in a terminal hides what it loaded, what it remembers, what it costs and what it left running.<br>
+Silos puts all of it on one screen — for one agent or ten — and lets you steer them from there.
 
 [![CI](https://github.com/cheapestinference/silos/actions/workflows/ci.yml/badge.svg)](https://github.com/cheapestinference/silos/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
