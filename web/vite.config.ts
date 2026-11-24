@@ -7,7 +7,14 @@ import { calmRun, yieldCpu } from '../scripts/yield-cpu'
 
 // a test run yields the machine (scripts/yield-cpu.ts) — only under vitest:
 // this config also serves `vite build` and the dev server
-if (process.env.VITEST) yieldCpu()
+if (process.env.VITEST) {
+  yieldCpu()
+  // The web suite runs in worker THREADS (below): a thread cannot change its
+  // own timezone, so period.test's beforeAll TZ swap is a no-op there and the
+  // DST rows of server/test/period-table only hold in this zone. Pin the
+  // whole run before the pool spawns; forks (the server suite) don't need it.
+  process.env.TZ = 'Europe/Madrid'
+}
 
 export default defineConfig(({ command }) => {
   // The stale-tab banner's stamp (see lib/build.ts): every `vite build`
