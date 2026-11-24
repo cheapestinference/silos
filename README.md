@@ -4,10 +4,10 @@
 
 # Silos
 
-**Claude Code is brilliant in one terminal. Silos is how you run ten of them as a team.**
+**Run Claude Code and OpenCode agents as identities, from one web console.**
 
-A local web console where every coding agent is someone: a name, a mission, a folder,<br>
-permissions — and its real Claude Code console, in your browser.
+See everything an agent knows, loads, spends and does — and steer it from one place.<br>
+With one agent you get the most out of it. With ten, you run them as a team.
 
 [![CI](https://github.com/cheapestinference/silos/actions/workflows/ci.yml/badge.svg)](https://github.com/cheapestinference/silos/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -22,8 +22,9 @@ permissions — and its real Claude Code console, in your browser.
 
 ## Why Silos
 
-One agent in one terminal is easy. Five agents across three repositories is tabs you forget, questions nobody answers, and no idea what ran overnight. Silos puts them on one screen:
+A coding agent in a terminal hides most of what matters: what it loaded at the start, what it remembers, what it costs, what it left running. And five agents across three repositories is tabs you forget, questions nobody answers, and no idea what ran overnight. Silos puts all of it on one screen:
 
+- **Worth it with a single agent.** Beside every conversation: the model and account it runs on, what it knows (memory, files, skills, tools, secrets), what loaded at the start and how much context that took, and what it has spent against your subscription's limits. Switch a skill, an MCP server or a plugin off for one folder and it is really off.
 - **Agents are identities, not tabs.** Each has a name, a mission, a working folder, its skills, its secrets and its limits. You talk to _Ops_ or _Payments_, not to «terminal 4».
 - **It is the real thing.** The console is the unmodified `claude` CLI in a tmux session, in your browser; the chat view drives that same `claude`. Your Claude subscription, your machine, your files. Silos only uses what the engine documents: flags, settings, hooks, the SDK.
 - **You decide, they work.** One inbox, _Needs you_, holds every question, approval and failed run. Agents wake on a heartbeat, on a schedule, on a webhook or when a task is handed to them — and each run says what happened in plain words.
@@ -150,7 +151,7 @@ Remote sign-in is opt-in and has one way in: Silos ID (`SILOS_ID_URL` + `SILOS_O
 ## Deploying
 
 <!-- The «Deploy on Railway» button: uncomment the next line when the release it deploys is out (docs/releasing.md, step 6). -->
-<!-- [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/J7u1Ef?referralCode=wLj_vg) -->
+<!-- [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/silos) -->
 
 **Railway, one click — sign-in included.** The supported way to run Silos in the cloud is the [Railway](https://railway.com?referralCode=wLj_vg) template: one service running the released image (`ghcr.io/cheapestinference/silos`, kept up to date by Railway's image auto-updates), one volume at `/data` (it holds `~/.claude` and `~/.silos`), and an access token generated for you. Sign-in is **Silos ID** and it is already wired: the template asks for one thing, `SILOS_OWNER_EMAIL`, and you log in with Google or an email link on your instance's own domain — no auth provider to set up, no Firebase project of your own. Silos ID only vouches for who you are; your instance checks the email and mints its own session, and nothing of your data leaves it. Settings and details: [docs/deploy/railway-template.md](docs/deploy/railway-template.md).
 
