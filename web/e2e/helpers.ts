@@ -2937,9 +2937,24 @@ export async function startServer(opts?: {
     env,
     stdio: 'pipe',
   })
+  // Both pipes are DRAINED: an unread stdout fills its pipe (~64 KB) and a
+  // pipe write on Linux is synchronous — the server then hangs mid-request.
+  // Only a tail is kept, and printed if the server exits unasked.
+  const TAIL = 16_000
   let stderr = ''
+  let stdout = ''
+  let stopping = false
   child.stderr?.on('data', (chunk: Buffer) => {
-    stderr += chunk.toString()
+    stderr = (stderr + chunk.toString()).slice(-TAIL)
+  })
+  child.stdout?.on('data', (chunk: Buffer) => {
+    stdout = (stdout + chunk.toString()).slice(-TAIL)
+  })
+  child.on('exit', (code, signal) => {
+    if (stopping) return
+    console.error(
+      `[e2e] the server on :${port} exited unasked (code ${code}, signal ${signal})\n--- stderr (tail) ---\n${stderr}\n--- stdout (tail) ---\n${stdout}`,
+    )
   })
 
   const url = `http://127.0.0.1:${port}`
@@ -2947,6 +2962,7 @@ export async function startServer(opts?: {
     await waitFor200(`${url}/`, 15_000, child)
     await waitForFile(join(dataDir, 'token'), 15_000)
   } catch (err) {
+    stopping = true
     child.kill('SIGTERM')
     throw err instanceof Error ? new Error(`${err.message}\n--- server stderr ---\n${stderr}`) : err
   }
@@ -2975,6 +2991,7 @@ export async function startServer(opts?: {
     home,
     ...(stubLog ? { stubLog } : {}),
     async stop() {
+      stopping = true
       // the server's tmux consoles outlive the server process (that's the
       // point of tmux) — kill this run's dedicated socket so test claudes
       // never accumulate between runs. AWAITED before touching the socket

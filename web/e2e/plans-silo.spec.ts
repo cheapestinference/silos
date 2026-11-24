@@ -77,7 +77,7 @@ test("«Open plan ›» lands in the plan's house (Tasks narrowed to it); its fi
   // one door per thing: the plan's house, the same address the sidebar and the crumb open
   await expect(page).toHaveURL(/\/tasks\?view=open&plan=/)
   await page.getByTestId('tasks-open-file').click()
-  await expect(page.getByRole('heading', { name: 'Ship the public repo' })).toBeVisible()
+  await expect(page.getByTestId('plan-head').getByRole('heading', { name: 'Ship the public repo' })).toBeVisible()
   await expect(page.getByText('Fill repository and homepage in package.json').first()).toBeVisible()
   await shot(page, 'file-viewer.png')
 })
