@@ -4,6 +4,22 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  attribution:
+    # Commits here carry no AI co-author line: the trailer would list a
+    # tool as a contributor of the repository.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: No Co-Authored-By trailer naming an AI
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then range="$HEAD"; else range="$BASE..$HEAD"; fi
+          bad=$(git log --format='%h %s%n%b' "$range" | grep -iE '^co-authored-by:.*(claude|anthropic|copilot|openai|gpt)|noreply@anthropic\.com' || true)
+          if [ -n "$bad" ]; then echo "::error::A commit carries an AI co-author line — reword it without the trailer:"; echo "$bad"; exit 1; fi
   test:
     runs-on: ubuntu-latest
     steps:
