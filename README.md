@@ -18,7 +18,7 @@ With one agent you get the most out of it. With ten, you run them as a team.
 
 </div>
 
-<img src="docs/images/conversation-dark.webp" alt="A conversation with a Claude Code agent in Silos: the reply with its tool calls and code, the fleet's agents and conversations on the left, and on the right what this agent knows — memory, files, skills, tools, secrets, mission">
+<img src="docs/images/console-dark.webp" alt="A conversation in Silos's real console: the unmodified Claude Code CLI writing code and running its tests, the fleet's agents and conversations on the left, and on the right the account it runs on, its context, its checklist and what its agent knows — memory, files, skills, tools, secrets, mission">
 
 ## Why Silos
 
