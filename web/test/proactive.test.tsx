@@ -4,7 +4,7 @@
 // will stamp), what holds it, the 409s with their doors, the Proactive row
 // and its cut. Copy is pinned loosely — the screenshots carry the words.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ControlSwitch } from '../src/components/agent/ControlSwitch'
 import { useStore } from '../src/store'
 import { api } from '../src/lib/api'
@@ -165,7 +165,11 @@ describe("the ladder on the agent's page", () => {
     render(<ControlSwitch agent={agent({ heartbeat: { period: HOURS }, proactive: { perDay: 5, tools: true } })} />)
     expect(screen.getByTestId('control-proactive')).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByTestId('control-sentence')).toHaveTextContent(/^Goes looking for work\. Every 3 hours from 08:22 · 08:00–20:00 it does a round/)
-    expect(await screen.findByTestId('control-proactive-row')).toHaveTextContent('Up to 5 tasks a day from its mission · 2 today')
+    // the row exists before the heartbeat view resolves (then it says
+    // «change»): wait for the CONTENT, not the container, or a slow
+    // machine asserts on the earlier render
+    const row = await screen.findByTestId('control-proactive-row')
+    await waitFor(() => expect(row).toHaveTextContent('Up to 5 tasks a day from its mission · 2 today'))
     await act(async () => {
       fireEvent.click(screen.getByTestId('control-own'))
     })
