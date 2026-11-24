@@ -66,11 +66,6 @@ takes fixes without features.
    tick «pre-release» for an `-rc`.
 5. Check the workflow run, then `npx silosplatform@<version> --version` and
    `docker pull ghcr.io/cheapestinference/silos:<version>`.
-6. First release only: once the image exists, uncomment the «Deploy on
-   Railway» button in the README's _Deploying_ section. Until then the
-   template's `:latest` has nothing of this version to run. The button's
-   link is the template's deploy address with the maintainer's referral
-   code (`?referralCode=`); the README discloses it.
 
 The workflow runs in the `release` environment, which only accepts `v*`
 tags — and a repository rule lets only the owner create, move or delete

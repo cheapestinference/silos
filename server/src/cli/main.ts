@@ -130,7 +130,14 @@ async function service(sub: string | undefined): Promise<number> {
       say(`No log yet at ${log} — Silos has not started on this data directory.`)
       return 1
     }
-    return await new Promise((resolve) => spawn('tail', ['-n', '100', '-f', log], { stdio: 'inherit' }).on('exit', (c) => resolve(c ?? 0)))
+    return await new Promise((resolve) =>
+      spawn('tail', ['-n', '100', '-f', log], { stdio: 'inherit' })
+        .on('exit', (c) => resolve(c ?? 0))
+        .on('error', (err) => {
+          say(`Could not run tail: ${err.message}`)
+          resolve(1)
+        }),
+    )
   }
   if (s.kind === 'unsupported') {
     say(

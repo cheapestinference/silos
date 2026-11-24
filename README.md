@@ -150,8 +150,7 @@ Remote sign-in is opt-in and has one way in: Silos ID (`SILOS_ID_URL` + `SILOS_O
 
 ## Deploying
 
-<!-- The «Deploy on Railway» button: uncomment the next line when the release it deploys is out (docs/releasing.md, step 6). -->
-<!-- [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/silos) -->
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/silos)
 
 **Railway, one click — sign-in included.** The supported way to run Silos in the cloud is the [Railway](https://railway.com?referralCode=wLj_vg) template: one service running the released image (`ghcr.io/cheapestinference/silos`, kept up to date by Railway's image auto-updates), one volume at `/data` (it holds `~/.claude` and `~/.silos`), and an access token generated for you. Sign-in is **Silos ID** and it is already wired: the template asks for one thing, `SILOS_OWNER_EMAIL`, and you log in with Google or an email link on your instance's own domain — no auth provider to set up, no Firebase project of your own. Silos ID only vouches for who you are; your instance checks the email and mints its own session, and nothing of your data leaves it. Settings and details: [docs/deploy/railway-template.md](docs/deploy/railway-template.md).
 

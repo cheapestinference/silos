@@ -65,9 +65,18 @@ async function serve(cwd: string): Promise<Served> {
   })
   live.add(child)
   child.once('exit', () => live.delete(child))
+  // no `opencode` on this machine (ENOENT) is an answer, not a crash: an
+  // unhandled 'error' event would take the whole server down. The ready
+  // loop below sees no listener and throws its own message.
+  let spawnError: Error | null = null
+  child.once('error', (err) => {
+    spawnError = err
+    live.delete(child)
+  })
   const served = { child, base: `http://127.0.0.1:${port}`, auth: `Basic ${Buffer.from(`silos:${password}`).toString('base64')}` }
   const until = Date.now() + READY_MS
   while (Date.now() < until) {
+    if (spawnError) throw new Error(`OpenCode could not start: ${(spawnError as Error).message}`)
     if (child.exitCode !== null) break
     try {
       const r = await fetch(`${served.base}/provider/auth`, { headers: { authorization: served.auth } })
