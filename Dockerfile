@@ -135,6 +135,9 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data && chown silo
 # externally-managed refusal), pipx and `uv tool` survive a redeploy. Their
 # bin dirs come AFTER the system ones, so the pinned `claude`/`opencode`
 # always win; /etc/profile.d repeats the PATH for login shells.
+# SILOS_ID_URL defaults to the hosted Silos ID broker so «Continue with
+# Google» needs only SILOS_OWNER_EMAIL; without that email, sign-in stays
+# off (silos-id.ts). Set SILOS_ID_URL= (empty) to turn the broker off.
 ENV HOME=/data/home \
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/data/home/.local/bin:/data/home/go/bin:/data/home/.cargo/bin \
     NPM_CONFIG_PREFIX=/data/home/.local \
@@ -145,6 +148,7 @@ ENV HOME=/data/home \
     DISABLE_AUTOUPDATER=1 \
     OPENCODE_DISABLE_AUTOUPDATE=1 \
     SILOS_HOST=0.0.0.0 \
+    SILOS_ID_URL=https://auth.silosplatform.com \
     PORT=3210 \
     NODE_ENV=production \
     SHELL=/bin/bash
