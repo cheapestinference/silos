@@ -28,7 +28,8 @@ import type { AgentEgress, AgentView, EgressRejection, FenceRefusedAgent, FenceS
 import { basename } from '../../lib/routes'
 import { FenceScopeLines } from '../FenceScope'
 import { MODE_DELIVERED, MODE_SIGNED, SIGNING_DOESNT, SIGNING_HOLDS, SignedCallsFold } from '../VaultSigning'
-import { QUIET_BTN, Section } from './primitives'
+import { QUIET_BTN, Section, SettingRow } from './primitives'
+import { setProjectsFolder, useProjectsFolder } from '../../lib/projects-folder'
 
 // ---- the surfaces, said once ------------------------------------------
 
@@ -513,6 +514,96 @@ function NetworkBand({
   )
 }
 
+// ---- the Projects folder ----------------------------------------------
+
+// Where the next new project is born (server: projectsDir, checkProjectsDir).
+// One row: the path, Change, and the sentence that nothing moves. Welcome
+// and the New agent form reach it from the path they show.
+export const PROJECTS_FOLDER_MOVES_NOTHING = 'Changing it moves nothing: every project stays where it is.'
+
+function ProjectsFolderRow() {
+  const folder = useProjectsFolder()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function choose(path: string | null): Promise<void> {
+    setBusy(true)
+    setError(null)
+    try {
+      setProjectsFolder(await api.platformSettings.setProjectsDir(path))
+      setEditing(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="mb-8" data-testid="projects-folder">
+      <SettingRow label="Projects folder" hint={<>Where the next new project is born, as a folder inside it. {PROJECTS_FOLDER_MOVES_NOTHING}</>}>
+        {editing ? null : (
+          <>
+            <span className="font-mono text-xs text-ink">{folder.shown}</span>
+            <button
+              type="button"
+              className={QUIET_BTN}
+              onClick={() => {
+                setDraft(folder.path ?? '')
+                setError(null)
+                setEditing(true)
+              }}
+            >
+              Change
+            </button>
+          </>
+        )}
+      </SettingRow>
+      {editing ? (
+        <form
+          className="mt-1"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void choose(draft.trim())
+          }}
+        >
+          <label htmlFor="projects-folder-path" className="sr-only">
+            The Projects folder’s absolute path
+          </label>
+          <input
+            id="projects-folder-path"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            autoFocus
+            spellCheck={false}
+            placeholder="/home/user/Projects"
+            className="w-full rounded-md border border-line bg-panel px-2.5 py-1.5 font-mono text-xs text-ink outline-none focus:border-ink-2"
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="submit" className={QUIET_BTN} disabled={busy || draft.trim() === ''}>
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" className={QUIET_BTN} disabled={busy} onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+            {folder.chosen ? (
+              <button type="button" className={QUIET_BTN} disabled={busy} onClick={() => void choose(null)}>
+                Back to ~/Silos
+              </button>
+            ) : null}
+            <span className="text-[11px] text-ink-3">A folder already on this machine; it may hold projects, never sit inside one.</span>
+          </div>
+        </form>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-2 font-mono text-[11px] text-terracotta">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 // ---- the section --------------------------------------------------------
 
 // The fence is rolled out one agent at a time (each one
@@ -668,6 +759,7 @@ export function TerritorySection() {
         <p>Loading…</p>
       ) : (
         <>
+          <ProjectsFolderRow />
           {roster.length > 0 ? (
             <div data-testid="territory-roster">
               <div className={`${ROW_GRID} hidden pb-1.5 text-[11px] text-ink-3 sm:grid`}>

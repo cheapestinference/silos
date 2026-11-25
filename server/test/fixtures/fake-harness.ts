@@ -69,7 +69,7 @@ export function makeFakeHarness(o: FakeOptions = {}): Harness {
     id,
     label: o.label ?? 'Fake',
     ownsId: (x: string) => x.startsWith(prefix),
-    caps: { compaction: false, subagents: false, skills: false, thinking: false, costFromHarness: false, permissionsAsEvents: false, sendToConsole: false, outputStyles: false },
+    caps: { compaction: false, subagents: false, skills: false, thinking: false, costFromHarness: false, permissionsAsEvents: false, sendToConsole: false, outputStyles: false, agentAutoMemory: false },
     traits: { deletion: 'hide', handover: false, consolePinsModel: false, agentStateDirs: [] },
     providers: { kinds: ['anthropic-compatible'] },
     ui: { contextPercent: false, models: 'none', ownLogin: true, territoryFenced: true, territoryNote: null, settingsAbout: null, loginImport: null, providerExport: null, consoleColours: true, consoleColoursHint: null },

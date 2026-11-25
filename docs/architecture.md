@@ -37,17 +37,37 @@ takes a name and, optionally, its project, a mission and one ask of how it
 works — the id is the name's slug (`server/src/slug.ts`, the one slugifier;
 the client sends none). Its folder is its project's folder itself
 (`server/src/birth-project.ts`, judged before anything is written):
-`project: { name }` is a new project at `~/Silos/<slug>` (made; refused,
+`project: { name }` is a new project at `<Projects folder>/<slug>` (made; refused,
 409, when that folder is already a managed project or exists with files in
 it — an empty one is taken), `project: { folder }` must be a project Silos
 knows (`managed-folder.ts`: an in-play agent's folder or territory), a
 free `folder` is still taken for the callers that made or chose one (New
 project's door, the API) — never with a project —, and none is
-`~/Silos/<id>`.
+`<Projects folder>/<id>`.
+**The Projects folder** (`projectsFolderOf` in `project-folder.ts`, the one
+source: births and the folder check read it, and so must anything else) is where the next new
+project is born: the install's `projectsDir` in `~/.silos/settings.json`
+(`PlatformSettingsStore`, beside `startingSet`; never an env var) when one is
+chosen, else `<home>/Silos` — on Docker too (`/data/home/Silos`, made by the
+entrypoint). It is read per use (the registry's `folderCheck.projectsFolder`
+is a getter), so a change needs no restart, and changing it moves nothing:
+every existing project stays where its agents' records say; the old folder
+stays refused as a project for as long as it holds one. Its house is
+Settings › Territory (`PATCH /api/settings { projectsDir: path | null }`,
+the owner's; `GET` says `{ path, shown, chosen }`), reached from the path
+Welcome and New agent show. A new value goes through `checkProjectsDir`:
+the same refused places as a project's folder (`/`, home, Silos' and the
+engines' own) minus the Projects-folder clause — it MAY hold projects —,
+409 when it is a registered project or sits inside one, 400 when it is not
+a folder on the machine (a chosen folder is never made); stored by its real
+path. A chosen folder that is gone at a birth (an unmounted disk) refuses
+the birth, 409 — never a silent fall back to `~/Silos`; the default is made
+when missing. Fences are generated at launch, so a running conversation
+sees a change on its next launch.
 **The project folder check** (`server/src/project-folder.ts`) is the one
 check every folder an agent is given goes through: `AgentRegistry.create`
 and `update` call it (the server builds its registry with
-`folderCheck: { home, dataDir }`; a registry built without it, in another
+`folderCheck: { home, dataDir, projectsFolder }`; a registry built without it, in another
 module's tests, checks nothing), so every door is covered — Welcome and New
 agent (`birth-project.ts` judges a new project's folder before making it),
 the Profile's Runs on (`PATCH folder`/`folders[]`), a role pack's install
@@ -75,7 +95,17 @@ of an old agent passes). The owner's loose desk conversation (master's
 logs every in-play agent's folder the check would refuse today, and each
 composes into Needs you as a due `folderRefused` row (`inbox.ts
 folderRefusedRow`, the check's reason, door the agent's Profile) until the
-folder changes or the agent is archived — said, never fixed.
+folder changes or the agent is archived — said, never fixed. **Above a
+project**: what sits in a folder above a project is never a reason to
+refuse it — a file already there is the owner's, listed in Project › Memory
+(«Where it loads», its off switch). The fence keeps agents from writing
+there (below); one case is said: a file right in the Projects folder that
+an engine loads (`loadablesInProjectsFolder`, every registered engine's
+`Harness.loadedFromAbove` matched on disk; `AgentRegistry.auditProjectsFolder`)
+composes a due `projectsFolderFile` row per file (`inbox.ts
+projectsFolderFileRow`, door a project's Memory) until the file leaves.
+The Projects folder is `projectsFolderIn(places)` — the one the check, the
+fence and the audit share.
 With a mission it is born On its own unless it asks
 `control: 'told'`; `control: 'proactive'` (a mission required, 409
 without) is born On its own with `proactive` at Silos' defaults (5 tasks a
@@ -157,8 +187,18 @@ When Silos launches its `claude` it adds, by documented means only:
   returns the browser to that REGISTERED origin with an RS256 pass (aud =
   the instance id, nonce = a single-use state bound to the browser by a
   cookie, 120 s); the instance verifies it against the broker's `/jwks` and
-  `SILOS_OWNER_EMAIL`, and mints its 7-day session (`session-tokens.ts`;
-  setup: `docs/deploy/railway-template.md`). An instance on a broker also
+  its allowed emails, and mints its 7-day session (`session-tokens.ts`;
+  setup: `docs/deploy/railway-template.md`). The allowed emails:
+  `SILOS_OWNER_EMAIL` when set — the deployer's word always wins — else the
+  claimed owner (`owner-store.ts`, `<data>/owner.json`). Without either the
+  instance is UNCLAIMED: `/api/auth/config` says `claim`, the login page
+  asks for the access token besides the sign-in, and the start route mints
+  a claim-marked state only for a request that carries that token (the
+  long-standing `?token=` credential — only the deployer can read it off
+  the deploy). When a claim-marked sign-in completes while the instance is
+  still unclaimed, its verified email is written to `owner.json` once
+  (first claim wins; a different email is refused) and claiming is over —
+  never a first-login ownership. An instance on a broker also
   tells it its use (`instance-usage.ts`, on unless `SILOS_TELEMETRY=off`):
   per UTC day the hours the owner's credential reached the API (the
   `onRequest` hook) and the turns started — attended (chat, console
@@ -288,6 +328,20 @@ When Silos launches its `claude` it adds, by documented means only:
   `.opencode/`, `~/.config/opencode/`) — and Read+Edit on `CLAUDE.md` of
   the config dir, every such folder's `.claude/settings*.json` and
   `/proc/*/environ`. Skills stay READABLE (a skill reads its own files).
+  Every config dir's `rules/**` is Edit-denied too (the user rules every
+  session loads). **Above a project**, territory on or off: Edit on every
+  engine's `Harness.loadedFromAbove(dir, home)` (Claude Code: `CLAUDE.md`,
+  `CLAUDE.local.md`, `AGENTS.md`, `.mcp.json`, and away from home
+  `.claude/{CLAUDE.md,rules,settings*.json,skills,commands,agents}`;
+  OpenCode: `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `opencode.json[c]`,
+  `.opencode/`) in every folder above any known agent's folder and in the
+  Projects folder and every folder above it (`aboveProjectFolders`) — so
+  `~/CLAUDE.md` and `~/AGENTS.md` are the owner's to write, never an
+  agent's, and a project born later inherits the rule. Never a folder that
+  is a known project or inside one, never a path inside a place every
+  agent must reach (the config dir keeps its own file-by-file rules). The
+  lists are supersets: only the instruction files are measured as loading
+  from above; the smoke proves the Edit, Write and shell-redirect refusals.
   Other roles' `context/<id>/` is Edit-denied in each folder of an agent it
   knows that is the same project as one of its own. File tools and direct
   Bash only — an interpreter is not covered
@@ -1249,7 +1303,20 @@ at)`: rule 12 everywhere — what the place follows is no entry, «on» is
   `.git`, `node_modules`, a link or a login dir), imports to the engine's
   depth 5, and auto memory (the index and notes; moved by
   `autoMemoryDirectory` in managed, local or user settings — never the
-  repository's — it is listed read-only naming that file). Each row carries
+  repository's — it is listed read-only naming that file). **Memory per
+  agent**: every launch Silos makes for a registered agent points the
+  engine's auto memory at the agent's own `<dataDir>/agents/<id>/memory/`,
+  through the launch's flag-tier settings (`--settings` on the console,
+  `settings` on the SDK turn — `server-hooks.ts` `autoMemoryOf`,
+  `headless.ts`; never written into any settings file, so sessions Silos
+  did not start keep the engine's per-folder default). `GET /api/memory`
+  with an `agent` lists THAT dir as the auto layer (`autoDir` says where a
+  new note goes; the folder's auto rows are swapped for the agent's), and
+  its files pass the write boundary with backups under
+  `memory-backups/agent-<id>`. OpenCode has no auto memory: its launch
+  already injects the agent's `memory.md` into the system-prompt append.
+  The titler's and the model catalog's one-shots run `autoMemoryEnabled:
+false` — a title never needs the memory index in its prompt. Each row carries
   its origin, engine type, reach (scope + the launch kinds that read it —
   console/chat read user+project+local, a wake and an isolated run
   user+project, a run without a folder user only: `LAUNCH_SOURCES`), when,

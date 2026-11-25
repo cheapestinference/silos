@@ -14,7 +14,7 @@ import { worksPayload, worksProblem, type Works } from './first-run'
 import { projectClash, projectNameEmpty } from './new-agent'
 
 // the agent's project:
-//  new      — a new project by name, at ~/Silos/<slug>; `name: null` follows
+//  new      — a new project by name, at <Projects folder>/<slug>; `name: null` follows
 //             the agent's name until the owner types one of its own
 //  existing — a project Silos knows (an in-play agent's folder)
 //  given    — the folder New project just made (its door hands it over);
@@ -70,11 +70,13 @@ export function projectName(b: Birth): string {
 }
 
 // the folder a new project's name would take among the known ones
-// (~/Silos/<slug>): known projects whose path ends there
-export function projectClashOf(b: Birth, known: readonly string[]): string | null {
+// (<Projects folder>/<slug>, the folder the server said — lib/projects-folder.ts;
+// until it has, ~/Silos): known projects at that path
+export function projectClashOf(b: Birth, known: readonly string[], projectsFolder: string | null = null): string | null {
   if (b.project.kind !== 'new') return null
   const slug = slugOf(projectName(b), PROJECT_SLUG_MAX)
-  return slug !== '' && known.some((f) => f.endsWith(`/Silos/${slug}`)) ? projectClash(projectName(b)) : null
+  const at = (f: string): boolean => (projectsFolder !== null ? f === `${projectsFolder}/${slug}` : f.endsWith(`/Silos/${slug}`))
+  return slug !== '' && known.some(at) ? projectClash(projectName(b)) : null
 }
 
 export interface BirthProblems {
@@ -82,13 +84,13 @@ export interface BirthProblems {
   mission: string | null
   nameEmpty: boolean
 }
-export function birthProblems(b: Birth, known: readonly string[]): BirthProblems {
+export function birthProblems(b: Birth, known: readonly string[], projectsFolder: string | null = null): BirthProblems {
   const name = b.name.trim()
   const m = splitMission(b.mission)
   const newProject = b.project.kind === 'new'
   return {
     // a new project needs a name of its own only once the agent's leaves none
-    project: newProject && name !== '' && slugOf(projectName(b), PROJECT_SLUG_MAX) === '' ? projectNameEmpty : projectClashOf(b, known),
+    project: newProject && name !== '' && slugOf(projectName(b), PROJECT_SLUG_MAX) === '' ? projectNameEmpty : projectClashOf(b, known, projectsFolder),
     mission: missionProblem(m, name || 'it') ?? worksProblem(b.works, m.text, name),
     nameEmpty: slugOf(name, AGENT_SLUG_MAX) === '',
   }

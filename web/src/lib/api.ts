@@ -1602,6 +1602,10 @@ export const api = {
     setStartingSet(patch: Record<string, Record<string, boolean | null>>): Promise<PlatformSettingsView> {
       return req<PlatformSettingsView>('/api/settings', { method: 'PATCH', body: JSON.stringify({ startingSet: patch }) })
     },
+    // where the next new project is born: a folder's absolute path, or null back to ~/Silos — moves nothing
+    setProjectsDir(path: string | null): Promise<PlatformSettingsView> {
+      return req<PlatformSettingsView>('/api/settings', { method: 'PATCH', body: JSON.stringify({ projectsDir: path }) })
+    },
   },
   // Providers v1: inference providers (Settings › Accounts & providers and the
   // per-agent selector). Keys travel whole only TOWARD the server

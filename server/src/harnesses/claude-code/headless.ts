@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -9,6 +9,7 @@ import type { SdkQueryHandle, SdkMessage } from './sdk-types.js'
 import type { Agent } from '../../types.js'
 import { envForProvider } from './env.js'
 import { ensureRolePluginManifest, rolePluginFor } from '../../role-plugin.js'
+import { agentAutoMemoryDir } from '../../memory-service.js'
 import { gatewayModelFor } from '../../provider-models.js'
 import type { ChatTurnHooks, HeadlessEngine } from '../contract.js'
 import { resolveCascade, validateTurnOverrides } from '../../cockpit.js'
@@ -79,7 +80,7 @@ export function unattendedSdkOptions(input: Pick<ChatSendInput, 'unattended' | '
 
 export type ClaudeHeadlessDeps = Pick<
   ChatDeps,
-  'native' | 'queryFn' | 'lineage' | 'convPrefs' | 'catalog' | 'territory' | 'vault' | 'registry' | 'messageReads' | 'loadsCarried' | 'loginDirs'
+  'native' | 'queryFn' | 'lineage' | 'convPrefs' | 'catalog' | 'territory' | 'vault' | 'registry' | 'messageReads' | 'loadsCarried' | 'loginDirs' | 'dataDir'
 > & {
   agentStateEnv(agentId: string): Record<string, string>
   /** agent-env.ts agentProcessEnv over these deps: Vault → state → SILOS_API → SILOS_SESSION_ID → SILOS_TURN. */
@@ -172,6 +173,17 @@ export class ClaudeHeadless {
       const roleStateDir = this.deps.agentStateEnv(agent.id).SILOS_AGENT_STATE ?? null
       const rolePlugin = rolePluginFor(agent.id, roleStateDir)
       if (rolePlugin) ensureRolePluginManifest(rolePlugin, agent.id, agent.name)
+      // the agent's own auto-memory dir (memory per agent): created at
+      // launch, like the state dir; a deps without dataDir (tests) keeps
+      // the engine's per-folder default
+      const autoMemoryDir = this.deps.dataDir !== undefined ? agentAutoMemoryDir(this.deps.dataDir, agent.id) : null
+      if (autoMemoryDir !== null) {
+        try {
+          mkdirSync(autoMemoryDir, { recursive: true })
+        } catch {
+          /* the engine creates it on first write */
+        }
+      }
       const baseSettings: Record<string, unknown> = {
         // a heartbeat runs with hooks off, FIXED (G4-r6): whatever its
         // automation says — a hook is a process the transcript never shows
@@ -179,6 +191,8 @@ export class ClaudeHeadless {
         ...(effectiveCockpit.fastMode ? { fastMode: true } : {}),
         // the territory fence rides the same flag-tier settings layer
         ...(fence ? { permissions: fence.permissions } : {}),
+        // the agent's memory, not the folder's (memory per agent, t48)
+        ...(autoMemoryDir !== null ? { autoMemoryDirectory: autoMemoryDir } : {}),
         // the cockpit's style: `outputStyle` + the style plugins off for
         // this process; nothing when nobody set one (output-styles.ts)
         ...outputStyleSettings(effectiveCockpit.outputStyle),

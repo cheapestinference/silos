@@ -136,6 +136,11 @@ export function scopeInbox(rows: readonly InboxItem[], folder: string, agentIds:
       case 'tasksUnreadable':
         if (inFolder(folder, r.plan.folder)) out.push(r)
         break
+      // a file in the Projects folder reaches every project inside it: this
+      // one's door is its own Memory
+      case 'projectsFolderFile':
+        if (inFolder(r.projectsFolder, folder) && folder !== r.projectsFolder) out.push({ ...r, projects: [folder] })
+        break
       case 'closedPlansOpen': {
         const plans = r.plans.filter((p) => inFolder(folder, p.folder))
         if (plans.length > 0) out.push({ ...r, plans, count: plans.length })
@@ -601,6 +606,9 @@ function headlineCore(input: {
         head = `Silos stopped ${agentName(top.agentId)} from creating work on its own${tail}`
         break
       case 'folderRefused':
+        head = `${top.voice}${tail}`
+        break
+      case 'projectsFolderFile':
         head = `${top.voice}${tail}`
         break
       case 'auditUnreadable':

@@ -154,6 +154,8 @@ export interface HarnessCaps {
   permissionsAsEvents: boolean
   sendToConsole: boolean
   outputStyles: boolean
+  /** memory per agent: the engine's launches read the agent's own auto-memory dir */
+  agentAutoMemory: boolean
 }
 export type ProviderKind = ProviderView['kind']
 export interface HarnessUiFacts {
@@ -688,6 +690,9 @@ export interface PlatformSettingsView {
   keepOwnAccount: string[]
   /** per engine that declares classes: each with what this install chose (absent: Recommended) */
   startingSet?: Record<string, (StartingSetClass & { chosen?: boolean })[]>
+  /** the Projects folder: where the next new project is born (`shown` is
+   *  `~/…` under the home; `chosen` false = the default, ~/Silos) */
+  projectsDir?: { path: string; shown: string; chosen: boolean }
 }
 /** GET /api/starting-set — the New agent form's line */
 export interface StartingSetPreview {
@@ -1157,6 +1162,10 @@ export type InboxRow = InboxRowBase &
     // an agent's folder that breaks the project folder rule (server
     // project-folder.ts): `reason` the check's words; door its Profile
     | { kind: 'folderRefused'; agentId: string; folder: string; reason: string }
+    // a file right in the Projects folder an engine loads into every project
+    // in it (server project-folder.ts): door a project's Memory, where it
+    // shows with its off switch
+    | { kind: 'projectsFolderFile'; path: string; projectsFolder: string; projects: string[] }
     | { kind: 'cut'; agentId: string; why: string }
     // turns of its day without a price — counted, never held
     | { kind: 'spend'; agentId: string; day: string; unpriced: number; models: string[] }
@@ -2045,6 +2054,11 @@ export interface MemoryLayers {
   global: MemoryFileInfo
   project: MemoryFileInfo | null
   autoMemory: MemoryFileInfo[]
+  /** the directory the auto layer lists — the agent's own when an agentId
+   *  was asked and its engine reads one (memory per agent), else the
+   *  folder's; where a new note goes. `autoScope` says which. */
+  autoDir?: string
+  autoScope?: 'agent' | 'folder'
   // the agent's own memory (~/.silos/agents/<id>/memory.md) — present only
   // when the request carried an agentId (see api.memory.list).
   agent: MemoryFileInfo | null
@@ -2934,7 +2948,7 @@ export interface AgentStartedWithMode {
   total: number
   range: [number, number]
   owners: Partial<Record<StartedWithOwner, number>>
-  latest: { folder: string; id: string }
+  latest: { folder: string; id: string; at: string | null; login: string | null }
 }
 export type AgentStartedWith = Partial<Record<StartedWithMode, AgentStartedWithMode>>
 export interface LoadedAtStart {

@@ -106,6 +106,16 @@ export interface FenceInput {
    *  config dir (which fenceFor adds itself): a folder that holds one is
    *  never closed, and says so in `skipped`. */
   mustReach?: readonly MustReach[]
+  /** Each registered engine's loadedFromAbove(dir, home)
+   *  (Harness.loadedFromAbove): what it could load into a project from a
+   *  folder above it. Every agent is denied Edit on the union in every
+   *  folder above a known agent's folder and in the Projects folder and
+   *  above it — the «other projects» rank (switch on or off). */
+  loadedFromAbove?: (dir: string) => string[]
+  /** The Projects folder (project-folder.ts projectsFolderOf, or the
+   *  setting): it and every folder above it carry the rule above, so an
+   *  empty install is covered and a project born later inherits it. */
+  projectsFolder?: string
 }
 
 /** The credentials Silos keeps, relative to the data dir: the owner's
@@ -209,6 +219,9 @@ export const CLAUDE_CONFIG_DENIED: readonly { glob: string; read?: true; edit?: 
   { glob: 'agents/**', edit: true },
   { glob: 'plugins/**', edit: true },
   { glob: 'output-styles/**', edit: true },
+  // the user rules every session of the machine loads, like CLAUDE.md —
+  // Edit only, as the layer above
+  { glob: 'rules/**', edit: true },
 ]
 
 /** Inside each territory: the folder's engine settings (permission rules,
@@ -303,6 +316,34 @@ export function machineMustReach(): MustReach[] {
     { path: SILOS_CHECKOUT, what: 'Silos itself (the briefing files every agent reads)', own: true },
     { path: tmpdir(), what: 'the temp dir' },
   ]
+}
+
+/** Every folder above `folder`, nearest first, down to the first folder
+ *  below `/` (never `/` itself) — where an engine looks for what it loads
+ *  from above a project (Harness.loadedFromAbove). */
+export function foldersAbove(folder: string): string[] {
+  const out: string[] = []
+  if (typeof folder !== 'string' || !folder.startsWith('/')) return out
+  for (let d = dirname(stripTrailingSlash(folder)); dirname(d) !== d; d = dirname(d)) out.push(d)
+  return out
+}
+
+/** The folders that carry the rule «no agent writes what an engine loads
+ *  from above a project»: every folder above each known agent's folders,
+ *  and the Projects folder with every folder above it. Never a folder that
+ *  is a known agent's own or sits inside one (its files are that project's,
+ *  governed by TERRITORY_DENIED) — the project folder check never lets a
+ *  project hold another, so that only drops what a registry without the
+ *  check could hold. */
+export function aboveProjectFolders(agents: readonly Pick<Agent, 'folder' | 'folders'>[], projectsFolder?: string): string[] {
+  const owned = new Set<string>()
+  for (const a of agents) for (const t of territoriesOf(a)) owned.add(t)
+  const inOwned = (d: string): boolean => [...owned].some((t) => d === t || d.startsWith(`${t}/`))
+  const out = new Set<string>()
+  const pf = typeof projectsFolder === 'string' && projectsFolder.startsWith('/') ? stripTrailingSlash(projectsFolder) : null
+  if (pf !== null && pf !== '/') for (const d of [pf, ...foldersAbove(pf)]) if (!inOwned(d)) out.add(d)
+  for (const t of owned) for (const d of foldersAbove(t)) if (!inOwned(d)) out.add(d)
+  return [...out]
 }
 
 /** Trailing slashes off (never `/` itself) — the stored/compared form of a territory. */
@@ -417,6 +458,28 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
       if (store.partly !== undefined && !partly.has(store.path)) {
         partly.add(store.path)
         skipped.push({ path: store.path, reason: store.partly })
+      }
+    }
+  }
+  // what every engine could load from a folder above a project: never
+  // written by an agent, in every folder above any known agent's and in the
+  // Projects folder and above it. Edit only (a file already there is the
+  // owner's: read, shown in Memory). Never inside a place every agent must
+  // reach (the engine's config dir is fenced file by file, below).
+  if (input.loadedFromAbove) {
+    for (const d of aboveProjectFolders([agent, ...agents], input.projectsFolder)) {
+      const reason = globSkipReason(d)
+      if (reason !== null) {
+        skipped.push({ path: d, reason })
+        continue
+      }
+      const real = canon ? canon(d) : d
+      const insideReach = (p: string): boolean =>
+        mustReach.some((r) => at(r.path, p) || (canon !== undefined && at(canon(r.path), `${real}${p.slice(d.length)}`)))
+      for (const raw of input.loadedFromAbove(d)) {
+        const p = strip(raw)
+        if (!p.startsWith(`${d}/`) || insideReach(p)) continue
+        deny.push(`Edit(${abs(p)})`)
       }
     }
   }
@@ -593,6 +656,8 @@ export function makeTerritory(d: {
   dataDir: string
   /** The cwds of the conversations Silos knows (the session index). */
   sessionCwds?: () => readonly (string | null)[]
+  /** The Projects folder, read at every call (FenceInput.projectsFolder). */
+  projectsFolder?: () => string | null
 }): TerritoryAdapter {
   const compute = (agentId: string, gated: boolean): FenceOverlay | null => {
     const agent = d.registry.get(agentId)
@@ -620,6 +685,8 @@ export function makeTerritory(d: {
       sessionCwds: (d.sessionCwds?.() ?? []).filter((c): c is string => typeof c === 'string'),
       canonical: canonicalFolder,
       mustReach: machineMustReach(),
+      loadedFromAbove: (dir) => registeredHarnesses().flatMap((h) => h.loadedFromAbove?.(dir, d.home) ?? []),
+      ...(d.projectsFolder?.() ? { projectsFolder: d.projectsFolder()! } : {}),
     })
     if (fence && stateDir === null) fence.permissions.additionalDirectories = fence.permissions.additionalDirectories.filter((x) => x !== '')
     return fence

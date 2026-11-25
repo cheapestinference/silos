@@ -19,6 +19,7 @@ import { startFirstMeeting } from '../lib/first-meeting'
 import { keepsOut } from '../lib/new-agent'
 import { engineRows } from '../lib/first-run'
 import { birthFor, birthPayload, birthProblems, birthReady, knownProjects, type Birth } from '../lib/birth'
+import { useProjectsFolder } from '../lib/projects-folder'
 import { BirthFields } from './welcome/BirthFields'
 import { defaultHarnessId, harnessDescriptors, useHarnessDescriptors } from '../lib/harnesses'
 import { useModalBehavior } from './Modal'
@@ -158,6 +159,7 @@ export function AgentModal() {
   const setModal = useStore((s) => s.setModal)
   const loadOverview = useStore((s) => s.loadOverview)
   const agents = useStore((s) => s.agents)
+  const projectsFolder = useProjectsFolder()
 
   const open = modal === 'create'
 
@@ -213,7 +215,7 @@ export function AgentModal() {
 
   if (!open) return null
 
-  const problems = birthProblems(birth, known)
+  const problems = birthProblems(birth, known, projectsFolder.path)
   const ready = birthReady(problems)
   const errorField = error ? fieldForError(error) : null
   const errorTop = error && errorField !== 'project' && errorField !== 'name' ? error : null

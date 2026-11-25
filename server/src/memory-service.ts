@@ -23,6 +23,8 @@ import { mungePath, type AgentRegistry } from './agent-registry.js'
 import { territoriesOf } from './territory.js'
 import { folderInstructions, mergedRows, type EngineInstructionRow, type EngineInstructions, type FolderInstructionsDeps } from './folder-instructions.js'
 import type { InstructionPlace, InstructionRow } from './harnesses/contract.js'
+import { findHarness, harnessOf } from './harnesses/registry.js'
+import type { Agent } from './types.js'
 
 // Which of the 4 layers an entry belongs to — stamped on every entry list()
 // returns, so a consumer that flattens the layers still knows each file's
@@ -64,6 +66,11 @@ export interface MemoryLayers {
   global: MemoryFileInfo
   project: MemoryFileInfo | null
   autoMemory: MemoryFileInfo[]
+  /** the directory the auto layer lists — the agent's own when an agentId
+   *  was asked and its engine reads one (caps.agentAutoMemory), else the
+   *  folder's; where a new note is created. `autoScope` says which. */
+  autoDir?: string
+  autoScope?: 'agent' | 'folder'
   // "Agent memory" layer — present only when list() is called with an
   // agentId. Distinct from autoMemory (Claude Code's own auto-memory, per
   // FOLDER): this is the AGENT's own memory, built by Silos (see
@@ -112,6 +119,25 @@ export interface MemoryServiceOpts {
 // full MemoryService.
 export function agentMemoryPath(dataDir: string, agentId: string): string {
   return join(dataDir, 'agents', agentId, 'memory.md')
+}
+
+// The agent's own auto-memory directory: every conversation Silos starts
+// for the agent points the engine's automatic memory here, per launch
+// through the flag-tier settings (`--settings` / the SDK's `settings`) —
+// never written into any settings file, so sessions Silos did not start
+// keep the engine's default per-folder directory. Beside memory.md, so an
+// agent's whole memory lives under agents/<id>/.
+export function agentAutoMemoryDir(dataDir: string, agentId: string): string {
+  return join(dataDir, 'agents', agentId, 'memory')
+}
+
+/** Whether this agent's engine reads the per-agent auto-memory dir (the
+ *  harness's `caps.agentAutoMemory`). An engine the registry does not hold
+ *  (unit tests, boot edges) counts as the default engine: true — in
+ *  production every agent's harness is registered before any request. */
+export function agentAutoMemoryOf(a: Pick<Agent, 'framework'>): boolean {
+  const h = findHarness(harnessOf(a))
+  return h === undefined ? true : h.caps.agentAutoMemory === true
 }
 
 // Internal classification of an already-resolved (realpath) path against
@@ -286,6 +312,7 @@ export class MemoryService {
     const global = this.describe(this.globalPath(), 'global')
     let project: MemoryFileInfo | null = null
     let autoMemory: MemoryFileInfo[] = []
+    let autoDir: string | undefined
     if (folder !== undefined) {
       // any folder an agent works in — its primary folder or a declared
       // territory (folders[]): the project page reads THAT folder's memory,
@@ -294,22 +321,45 @@ export class MemoryService {
       if (!agent) throw new Error('folder not recognized')
       project = this.describe(join(folder, 'CLAUDE.md'), 'project')
       const memDir = join(this.root, mungePath(folder), 'memory')
+      autoDir = memDir
       autoMemory = await this.describeAuto(memDir)
     }
     let agentLayer: MemoryFileInfo | null = null
     let alsoWorksIn: string[] = []
+    let agentAuto = false
     if (agentId !== undefined) {
       const a = this.registry.list(false).find((x) => x.id === agentId)
       if (!a) throw new Error('agent not recognized')
       agentLayer = { ...this.describe(agentMemoryPath(this.dataDir, agentId), 'agent'), name: 'Agent memory' }
+      // the agent's own auto memory (memory per agent): what the agent's
+      // conversations load and write — shown IN PLACE of the folder's,
+      // which only sessions Silos did not start keep using. Its notes'
+      // author is the agent by construction (only its launches point here).
+      // Only for an engine that reads it (caps.agentAutoMemory): an agent
+      // of another engine keeps the folder's view on every surface.
+      agentAuto = agentAutoMemoryOf(a)
+      if (agentAuto) {
+        autoDir = agentAutoMemoryDir(this.dataDir, agentId)
+        autoMemory = (await this.describeAuto(autoDir)).map((n) => (n.type === 'index' ? n : { ...n, author: agentId }))
+      }
       // Claude Code reads instruction files from the folder a conversation
       // starts in: the agent's other folders load none — said, never listed
       const starts = folder ?? a.folder
       alsoWorksIn = territoriesOf(a).filter((f) => f !== starts)
     }
     const engines = await folderInstructions(this.instructionsDeps(), folder ?? null)
-    const rows: MemoryRow[] = mergedRows(engines)
+    let rows: MemoryRow[] = mergedRows(engines)
     const places: MemoryPlace[] = engines.flatMap((e) => e.list.places.map((p) => ({ ...p, engine: e.id })))
+    if (agentAuto) {
+      // the folder's auto rows do not load in this agent's conversations
+      // (its launches point the engine at the agent's own directory):
+      // the agent's files take their place, in the same load order. A
+      // transcript record naming a file of the agent dir (fromRecord,
+      // judged an import by place) would duplicate the agent's own row —
+      // dropped by its real path, whatever the engine called it.
+      const aDirReal = this.safeRealpath(autoDir!) + sep
+      rows = rows.filter((r) => r.origin !== 'auto' && !r.real.startsWith(aDirReal)).concat(autoMemory.map((f) => this.agentAutoRow(f)))
+    }
     if (agentLayer) {
       rows.push(this.agentRow(agentLayer))
       places.push({
@@ -327,12 +377,36 @@ export class MemoryService {
       global,
       project,
       autoMemory,
+      ...(autoDir !== undefined ? { autoDir, autoScope: agentAuto ? ('agent' as const) : ('folder' as const) } : {}),
       agent: agentLayer,
       rows,
       places,
       ...(engines.some((e) => e.list.homeFolder) ? { homeFolder: true as const } : {}),
       ...(alsoWorksIn.length > 0 ? { alsoWorksIn } : {}),
       ...(notes.length > 0 ? { notes } : {}),
+    }
+  }
+
+  /** An agent auto-memory file as a row: the engine loads the index at
+   *  start and the notes on demand, in every launch Silos makes for the agent. */
+  private agentAutoRow(info: MemoryFileInfo): MemoryRow {
+    const bytes = info.size ?? 0
+    const isIndex = info.type === 'index'
+    return {
+      path: info.path,
+      real: realOr(info.path),
+      rel: basename(info.path),
+      origin: 'auto',
+      kind: isIndex ? 'auto-index' : 'auto-note',
+      engineType: isIndex ? 'AutoMem' : null,
+      engine: null,
+      reach: { scope: 'agent', launches: EVERY_LAUNCH },
+      when: { at: isIndex ? 'start' : 'on-demand' },
+      weight: { chars: bytes, tokens: Math.round(bytes / 4), as: 'disk' },
+      bytes,
+      mtime: info.mtime,
+      editable: true,
+      ...(info.inIndex !== undefined ? { inIndex: info.inIndex } : {}),
     }
   }
 
@@ -442,6 +516,12 @@ export class MemoryService {
     // the agent's own memory: Silos', ACTIVE agents only
     for (const a of this.registry.list(false)) {
       if (real === this.safeRealpath(agentMemoryPath(this.dataDir, a.id))) return { kind: { type: 'agent', segment: a.id } }
+      // the agent's auto-memory dir (memory per agent): plain .md files
+      // directly inside — `real` is already resolved, so a link leading
+      // out of the dir never lands here. Only for an engine that reads it.
+      if (agentAutoMemoryOf(a) && dirname(real) === this.safeRealpath(agentAutoMemoryDir(this.dataDir, a.id)) && PLAIN_NAME.test(basename(real))) {
+        return { kind: { type: 'auto', segment: `agent-${a.id}`, rel: basename(real) } }
+      }
     }
     const found = await this.listed(real, opts.folder, true, asked)
     if (!found) throw new MemoryRefusal('memory path not allowed', 400)
@@ -567,6 +647,11 @@ export class MemoryService {
         if (real === join(folderReal, 'CLAUDE.md')) return { type: 'project', segment: mungePath(folderReal) }
       }
       if (real === this.safeRealpath(agentMemoryPath(this.dataDir, a.id))) return { type: 'agent', segment: a.id }
+      // the agent's auto-memory dir (memory per agent), same shape as a
+      // read — only for an engine that reads it
+      if (agentAutoMemoryOf(a) && dirname(real) === this.safeRealpath(agentAutoMemoryDir(this.dataDir, a.id)) && real.endsWith('.md')) {
+        return { type: 'auto', segment: `agent-${a.id}` }
+      }
     }
     const rootReal = this.safeRealpath(this.root)
     if ((real === rootReal || real.startsWith(rootReal + sep)) && real.endsWith('.md')) {

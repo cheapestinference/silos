@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import { createBroker, type Env } from '../../silos-id/src/broker.js'
 import { SilosIdClient, silosIdSettingsFromEnv } from '../src/silos-id.js'
+import { OwnerStore, allowedEmails } from '../src/owner-store.js'
 import { parseServerEnv, readServerEnv, serverSettings, serverEnvWarning } from '../src/server-env.js'
 import { claudeSessionIndex } from '../src/harnesses/claude-code/reader.js'
 import { AgentRegistry } from '../src/agent-registry.js'
@@ -119,7 +120,12 @@ function brokerFetch(b: TestBroker): typeof fetch {
   }) as typeof fetch
 }
 
-async function instance(opts: { client: SilosIdClient; onOwnerActivity?: () => void }): Promise<FastifyInstance> {
+async function instance(opts: {
+  client: SilosIdClient
+  onOwnerActivity?: () => void
+  claimOwner?: (email: string) => void
+  allowlist?: () => string[]
+}): Promise<FastifyInstance> {
   const base = mkdtempSync(join(tmpdir(), 'silos-id-'))
   const root = join(base, 'projects')
   const dataDir = join(base, 'data')
@@ -153,6 +159,8 @@ async function instance(opts: { client: SilosIdClient; onOwnerActivity?: () => v
     authNow: () => NOW,
     silosId: opts.client,
     ...(opts.onOwnerActivity ? { onOwnerActivity: opts.onOwnerActivity } : {}),
+    ...(opts.claimOwner ? { claimOwner: opts.claimOwner } : {}),
+    ...(opts.allowlist ? { allowlist: opts.allowlist } : {}),
   })
 }
 
@@ -463,6 +471,116 @@ describe('Silos ID on the instance', () => {
   })
 })
 
+// An instance deployed with NO owner email starts UNCLAIMED: nobody signs
+// in until the deployer — the one who can read the access token off the
+// deploy — starts a sign-in with it. The verified email of that sign-in
+// becomes the owner, written to <dataDir>/owner.json, and claiming is over.
+describe('claiming an unclaimed instance', () => {
+  let b: TestBroker
+  let client: SilosIdClient
+  let app: FastifyInstance
+  let store: OwnerStore
+
+  beforeEach(async () => {
+    b = broker()
+    // deployed without SILOS_OWNER_EMAIL: the allowed set is empty
+    client = new SilosIdClient(silosIdSettingsFromEnv({ SILOS_ID_URL: BROKER, SILOS_PUBLIC_URL: INSTANCE }) as never, {
+      fetchImpl: brokerFetch(b),
+      now: () => NOW,
+    })
+    store = new OwnerStore(mkdtempSync(join(tmpdir(), 'silos-claim-')))
+    app = await instance({
+      client,
+      claimOwner: (email) => store.claim(email),
+      allowlist: () => allowedEmails(client.ownerEmails, store),
+    })
+  })
+
+  /** the full trip: start (with whatever query), the broker's exchange as `email`, the callback */
+  async function claimTrip(startQuery: string, email: string): Promise<URLSearchParams> {
+    const start = await app.inject({ url: `/api/auth/silos-id/start${startQuery}`, headers: REMOTE })
+    expect(start.statusCode).toBe(302)
+    const to = new URL(String(start.headers.location))
+    expect(to.origin + to.pathname).toBe(`${BROKER}/login`)
+    const instanceId = to.searchParams.get('instance')!
+    const state = to.searchParams.get('state')!
+    const ex = await b.inject({ method: 'POST', url: '/login/exchange', payload: { idToken: idToken({ email }), instance: instanceId, state } })
+    const pass = new URL(ex.json().redirect).searchParams.get('pass')!
+    const cookie = cookieFrom(start.headers['set-cookie'])
+    const res = await app.inject({
+      url: `/api/auth/silos-id/callback?pass=${encodeURIComponent(pass)}&state=${encodeURIComponent(state)}`,
+      headers: { ...REMOTE, cookie },
+    })
+    return new URLSearchParams(new URL(String(res.headers.location), INSTANCE).hash.slice(1))
+  }
+
+  it('unclaimed: config says claim, and a start WITHOUT the access token never leaves for the broker', async () => {
+    expect((await app.inject({ url: '/api/auth/config', headers: REMOTE })).json()).toEqual({ enabled: true, mode: 'silos-id', claim: true })
+    const start = await app.inject({ url: '/api/auth/silos-id/start', headers: REMOTE })
+    expect(start.statusCode).toBe(302)
+    expect(String(start.headers.location)).not.toContain(BROKER)
+    expect(String(start.headers.location)).toContain('silos-id-error')
+  })
+
+  it('the access token starts the claim: the signed-in email becomes the owner, on disk, and gets a session', async () => {
+    const landed = await claimTrip(`?token=${TOKEN}`, OWNER)
+    const session = landed.get('silos-id')
+    expect(session).toMatch(/^[0-9a-f]{64}$/)
+    expect(store.email()).toBe(OWNER)
+    expect((await app.inject({ url: '/api/auth/me', headers: { ...REMOTE, 'x-token': session! } })).json()).toEqual({ who: 'owner' })
+    // claiming is over: config no longer says claim
+    expect((await app.inject({ url: '/api/auth/config', headers: REMOTE })).json()).toEqual({ enabled: true, mode: 'silos-id' })
+  })
+
+  it('after the claim only the claimed email signs in — a stranger is refused, even with the token on the start', async () => {
+    expect((await claimTrip(`?token=${TOKEN}`, OWNER)).get('silos-id')).toBeTruthy()
+    const stranger = await claimTrip(`?token=${TOKEN}`, 'stranger@example.com')
+    expect(stranger.get('silos-id')).toBeNull()
+    expect(stranger.get('silos-id-error')).toBeTruthy()
+    expect(store.email()).toBe(OWNER)
+  })
+
+  it('a claim state spent AFTER someone else claimed does not hand the instance over', async () => {
+    // two claim sign-ins start while unclaimed; the second completes first
+    const first = await app.inject({ url: `/api/auth/silos-id/start?token=${TOKEN}`, headers: REMOTE })
+    const to = new URL(String(first.headers.location))
+    const instanceId = to.searchParams.get('instance')!,
+      state = to.searchParams.get('state')!
+    expect((await claimTrip(`?token=${TOKEN}`, OWNER)).get('silos-id')).toBeTruthy()
+    const ex = await b.inject({
+      method: 'POST',
+      url: '/login/exchange',
+      payload: { idToken: idToken({ email: 'stranger@example.com' }), instance: instanceId, state },
+    })
+    const pass = new URL(ex.json().redirect).searchParams.get('pass')!
+    const res = await app.inject({
+      url: `/api/auth/silos-id/callback?pass=${encodeURIComponent(pass)}&state=${encodeURIComponent(state)}`,
+      headers: { ...REMOTE, cookie: cookieFrom(first.headers['set-cookie']) },
+    })
+    expect(new URLSearchParams(new URL(String(res.headers.location), INSTANCE).hash.slice(1)).get('silos-id')).toBeNull()
+    expect(store.email()).toBe(OWNER)
+  })
+
+  it('SILOS_OWNER_EMAIL always wins over a claim, and an unclaimed store allows nobody', () => {
+    expect(allowedEmails(['a@example.com'], store)).toEqual(['a@example.com'])
+    expect(allowedEmails([], store)).toEqual([])
+    store.claim(OWNER)
+    expect(allowedEmails([], store)).toEqual([OWNER])
+    expect(allowedEmails(['a@example.com'], store)).toEqual(['a@example.com'])
+  })
+
+  it('the store: the first claim wins and survives a reload; a different email is refused, the same one is a no-op', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'silos-claim-store-'))
+    const s1 = new OwnerStore(dir)
+    expect(s1.email()).toBeNull()
+    s1.claim(OWNER)
+    expect(JSON.parse(readFileSync(join(dir, 'owner.json'), 'utf8')).email).toBe(OWNER)
+    expect(() => s1.claim('stranger@example.com')).toThrow(/already claimed/)
+    s1.claim(OWNER.toUpperCase())
+    expect(new OwnerStore(dir).email()).toBe(OWNER)
+  })
+})
+
 describe('Silos ID client mode from the environment', () => {
   it('SILOS_ID_URL turns it on; unset is off, whatever else is set', () => {
     const env = { SILOS_ID_URL: BROKER, SILOS_PUBLIC_URL: INSTANCE, SILOS_OWNER_EMAIL: OWNER }
@@ -470,13 +588,16 @@ describe('Silos ID client mode from the environment', () => {
     expect(silosIdSettingsFromEnv({ SILOS_PUBLIC_URL: INSTANCE, SILOS_OWNER_EMAIL: OWNER })).toBeNull()
   })
 
-  it('the public origin falls back to Railway; no owner email or no origin = off', () => {
+  it('the public origin falls back to Railway; no origin or a non-https broker = off', () => {
     expect(silosIdSettingsFromEnv({ SILOS_ID_URL: BROKER, RAILWAY_PUBLIC_DOMAIN: 'x.up.railway.app', SILOS_OWNER_EMAIL: OWNER })).toMatchObject({
       publicOrigin: 'https://x.up.railway.app',
     })
-    expect(silosIdSettingsFromEnv({ SILOS_ID_URL: BROKER, SILOS_PUBLIC_URL: INSTANCE })).toHaveProperty('off')
     expect(silosIdSettingsFromEnv({ SILOS_ID_URL: BROKER, SILOS_OWNER_EMAIL: OWNER })).toHaveProperty('off')
     expect(silosIdSettingsFromEnv({ SILOS_ID_URL: 'http://id.example.com', SILOS_PUBLIC_URL: INSTANCE, SILOS_OWNER_EMAIL: OWNER })).toHaveProperty('off')
+  })
+
+  it('no owner email is NOT off: the instance starts claimable (empty allowed set)', () => {
+    expect(silosIdSettingsFromEnv({ SILOS_ID_URL: BROKER, SILOS_PUBLIC_URL: INSTANCE })).toEqual({ brokerUrl: BROKER, publicOrigin: INSTANCE, ownerEmails: [] })
   })
 
   it('the registration persists for its broker and origin only', async () => {

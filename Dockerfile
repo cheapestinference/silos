@@ -4,7 +4,8 @@
 # State: EVERYTHING lives on ONE volume mounted at /data (Railway allows a
 # single volume per service). HOME=/data/home, so ~/.claude (Claude Code's
 # login, settings and JSONL transcripts) and ~/.silos (agents, token,
-# automations) both sit on it; agents' working folders go in /data/projects.
+# automations) both sit on it; new projects are born in ~/Silos (/data/home/Silos,
+# the Projects folder — changed in Settings › Territory).
 # Without a volume on /data every redeploy starts from zero.
 
 # ---------- build: web (Vite) + server (tsc) + native addons (node-pty) ----------

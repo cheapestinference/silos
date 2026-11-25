@@ -10,6 +10,7 @@ import { AgentTokens } from '../src/agent-tokens.js'
 import { ProvidersStore } from '../src/providers-store.js'
 import type { HeadlessContext, HeadlessEngine } from '../src/harnesses/contract.js'
 import { ChatService, ASK_DECISIONS_NOTE, AUTOMATIONS_NOTE, askDecisionsNote } from '../src/chat-service.js'
+import { agentAutoMemoryDir } from '../src/memory-service.js'
 
 // a Claude Code agent's append names its question tool (E10 #31)
 const CLAUDE_ASK = askDecisionsNote('AskUserQuestion')
@@ -230,6 +231,18 @@ describe('ChatService.send — a new session', () => {
     const o = calls[0]!.options
     expect(o.settingSources).toEqual(['user'])
     expect(o.settings).toEqual({ disableAllHooks: true })
+  })
+
+  // memory per agent (t48): a turn's auto memory is the AGENT's, not the
+  // folder's — the dir rides the flag-tier settings and exists at launch.
+  it("with a dataDir the turn points auto memory at the agent's own dir and creates it", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'mem-agent-'))
+    const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls), dataDir })
+    await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi' }))
+    const o = calls[0]!.options
+    const dir = agentAutoMemoryDir(dataDir, 'finance')
+    expect((o.settings as { autoMemoryDirectory?: string }).autoMemoryDirectory).toBe(dir)
+    expect(existsSync(dir)).toBe(true)
   })
 
   // R9: with hooks off pre-cron.sh never runs, so CronCreate is withheld

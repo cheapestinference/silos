@@ -13,6 +13,10 @@
 //   · Silos' credentials, `/proc/*/cmdline`, Bash `tmux` (compound too);
 //   · its own folder and its own memory stay open; its own project's skill
 //     is read, and refused to Edit, Write and a shell redirect;
+//   · what an engine loads from above a project (Harness.loadedFromAbove):
+//     the owner's CLAUDE.md above it is read, and refused to Edit, Write and
+//     a shell redirect; nothing new is written above it nor in the Projects
+//     folder (on disk);
 //   · `--settings <file>`: the fence named by path, never on argv;
 //   · the temp store layout, read back from disk after the run.
 //
@@ -61,6 +65,10 @@ plant(join(W, 'own.txt'), 'OWN-FILE')
 // its own project's skill: read and used, never written (proposed instead)
 const ownSkill = join(W, '.claude', 'skills', 'replies', 'SKILL.md')
 plant(ownSkill, 'OWN-SKILL')
+// the owner's file in a folder above the project (T): theirs, read, never written
+const aboveMd = join(T, 'CLAUDE.md')
+plant(aboveMd, 'ABOVE-MD')
+const P = join(T, 'Projects')
 symlinkSync(O, join(W, 'link'))
 const proj = (f: string): string => join(H, '.claude', 'projects', mungePath(f))
 plant(join(proj(O), `${SID}.jsonl`))
@@ -80,6 +88,8 @@ const fence = fenceFor({
   dataDir: D,
   agentStateDir: join(D, 'agent-state', 'builder'),
   projectStores: (folder, own) => [claudeCode, opencode].flatMap((h) => h.projectStores?.(folder, { home: H, dataDir: D, own }) ?? []),
+  loadedFromAbove: (dir) => [claudeCode, opencode].flatMap((h) => h.loadedFromAbove?.(dir, H) ?? []),
+  projectsFolder: P,
 })
 if (!fence) {
   console.log('fenceFor gave no fence')
@@ -111,6 +121,17 @@ const steps: Step[] = [
   { name: 'Edit', input: { file_path: ownSkill, old_string: 'OWN-SKILL', new_string: 'x' }, expect: 'refused' },
   { name: 'Write', input: { file_path: ownSkill, content: 'x' }, expect: 'refused' },
   { name: 'Bash', input: bash(`echo x >> ${ownSkill}`), expect: 'refused' },
+  { name: 'Read', input: { file_path: aboveMd }, expect: /ABOVE-MD/ },
+  { name: 'Edit', input: { file_path: aboveMd, old_string: 'ABOVE-MD', new_string: 'x' }, expect: 'refused' },
+  { name: 'Bash', input: bash(`echo x >> ${aboveMd}`), expect: 'refused' },
+  { name: 'Write', input: { file_path: join(T, 'AGENTS.md'), content: 'x' }, expect: 'refused', disk: { path: join(T, 'AGENTS.md'), exists: false } },
+  {
+    name: 'Write',
+    input: { file_path: join(T, '.claude', 'rules', 'r.md'), content: 'x' },
+    expect: 'refused',
+    disk: { path: join(T, '.claude', 'rules', 'r.md'), exists: false },
+  },
+  { name: 'Bash', input: bash(`mkdir -p ${P} && echo x > ${join(P, 'CLAUDE.md')}`), expect: 'refused', disk: { path: join(P, 'CLAUDE.md'), exists: false } },
   { name: 'Bash', input: bash('tmux -V'), expect: 'refused' },
   { name: 'Bash', input: bash('true && tmux -V'), expect: 'refused' },
   { name: 'Bash', input: bash('cat /proc/self/cmdline'), expect: 'refused' },

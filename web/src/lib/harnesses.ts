@@ -20,7 +20,16 @@ import { useSyncExternalStore } from 'react'
 import seed from './harnesses.seed.json'
 import type { HarnessCaps, HarnessDescriptor, HarnessUiFacts } from './types'
 
-const CAP_KEYS: readonly (keyof HarnessCaps)[] = ['compaction', 'subagents', 'skills', 'thinking', 'costFromHarness', 'permissionsAsEvents', 'sendToConsole']
+const CAP_KEYS: readonly (keyof HarnessCaps)[] = [
+  'compaction',
+  'subagents',
+  'skills',
+  'thinking',
+  'costFromHarness',
+  'permissionsAsEvents',
+  'sendToConsole',
+  'agentAutoMemory',
+]
 const PROVIDER_KINDS: readonly string[] = ['claude-account', 'anthropic-compatible', 'harness-provider', 'harness-native']
 const MODEL_STYLES: readonly string[] = ['catalog', 'provider-model', 'none']
 

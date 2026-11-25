@@ -13,10 +13,17 @@
 //     own theme (its blue `#5c9cf5` on the prompt bar);
 //   · a late answer does not help: once the first detection failed, the TUI
 //     stays on its own theme for the life of the process.
+// On tmux ≥ 3.6 the TUI asks PLAIN instead (no passthrough), trusting the
+// multiplexer: tmux 3.6 answers from the pane's palette — with the index —
+// when `pane-colours` is set (terminal-service.ts sets it at spawn: the
+// primary, race-free path there), else it forwards the question to ONE
+// attached client (the most recently active) — or DROPS it with none
+// attached (verified 25-11, tmux 3.6 from source).
 // So the answer cannot hinge on when a browser happens to attach. Silos
 // attaches its own short-lived tmux client to a newborn console (`-f
 // ignore-size`: it never sizes the window) as EARS: the passthrough-wrapped
-// question reaches attached clients only. The answer does NOT go back
+// question reaches attached clients only, and a tmux-3.6-forwarded plain
+// question reaches the ears the same way (the scanner matches both). The answer does NOT go back
 // through that client: tmux ≥ 3.5 consumes OSC replies typed at a client as
 // answers to its own queries and never forwards them to the pane (verified
 // 24-11 on tmux 3.6 — ten typed replies, none delivered; tmux 3.4 forwarded

@@ -117,9 +117,9 @@ const ZONES = [
   {
     name: 'settings-and-accounts',
     paths: [
-      /^server\/src\/(accounts|providers|fallback|server-env|session-tokens|silos-id|territory|routes\/providers\.ts$)/,
+      /^server\/src\/(accounts|providers|fallback|owner-store|server-env|session-tokens|silos-id|territory|routes\/providers\.ts$)/,
       /^web\/src\/components\/(SettingsPage|settings\/|SkillsInventory|ProviderPanel|ProvidersTab|RunOn|AuthGate|LoginView|FenceScope)/,
-      /^web\/src\/lib\/auth\.ts$/,
+      /^web\/src\/lib\/(auth|catalog)\.ts$/,
     ],
     specs: ['providers', 'selectors', 'sign-in', 'first-run', 'silo-settings'],
   },
@@ -127,7 +127,7 @@ const ZONES = [
   {
     name: 'first-run',
     paths: [
-      /^web\/src\/(components\/(Welcome|welcome\/|ClaudeSignIn|EngineSignIn|AgentModal|NewProjectModal|agent\/(FirstMeeting|GiveContext))|lib\/(first-run|new-agent|birth|first-meeting|starting-set)\.)/,
+      /^web\/src\/(components\/(Welcome|welcome\/|ClaudeSignIn|EngineSignIn|AgentModal|NewProjectModal|agent\/(FirstMeeting|GiveContext))|lib\/(first-run|new-agent|birth|first-meeting|starting-set|projects-folder)\.)/,
       /^server\/src\/(starting-set|platform-settings|birth-project|project-folder)\.ts$/,
     ],
     specs: ['first-run', 'providers'],
@@ -170,6 +170,10 @@ const ZONES = [
     paths: [/^server\/src\/(messages|message-reads|routes\/messages)\.ts$/, /^web\/src\/lib\/messages-view\.ts$/],
     specs: ['inbox', 'inter-session', 'dossier', 'home-board-views'],
   },
+  // the real console (tmux + pty): NO spec drives it — Playwright never
+  // spawns tmux or an engine. Its guard is the real-tmux integration test
+  // (server/test/console-palette-tmux.test.ts), not the e2e suite.
+  { name: 'real-console-machinery', paths: [/^server\/src\/(terminal-service|console-palette)\.ts$/], specs: [] },
   {
     name: 'console-and-task-routes',
     paths: [/^server\/src\/routes\/console\.ts$/],

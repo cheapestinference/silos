@@ -81,6 +81,7 @@ import { UsageLedger } from './usage-ledger.js'
 import { weeklyPercentOf } from './home-since.js'
 import { MANUAL_CAUSE } from './automations-types.js'
 import { PlatformSettingsStore, unattendedPrices } from './platform-settings.js'
+import { projectsFolderOf } from './project-folder.js'
 import { auditPaths, auditSessionsOf, auditToolCalls, collectTurnCalls } from './heartbeat-audit.js'
 import type { RunAudit } from './automations-types.js'
 import { SiloRegistry } from './silos/registry.js'
@@ -143,6 +144,7 @@ import { CONSOLE_BUSY, CONSOLE_UNSURE, TaskModeEngine, TASK_MODE_SILO } from './
 import { OwnerNoteLedger } from './task-mode/owner-notes.js'
 import { SILOS_AUTHOR } from './system-author.js'
 import { SilosIdClient, silosIdSettingsFromEnv } from './silos-id.js'
+import { OwnerStore, allowedEmails } from './owner-store.js'
 import { InstanceUsage, silosVersion, telemetryOn } from './instance-usage.js'
 import { readServerEnv, serverEnvWarning, serverSettings } from './server-env.js'
 import { SessionTokenStore } from './session-tokens.js'
@@ -232,9 +234,23 @@ const muted = loadMuted(cfg.dataDir)
 // ephemeral.ts, test harnesses only.
 const ephemeral = resolveEphemeralPrefix()
 
+// the install's own settings: the unattended provider, the starting set and
+// the Projects folder — before the registry, whose folder check reads it
+const platformSettings = new PlatformSettingsStore(cfg.dataDir)
+platformSettings.load()
+seals.registerFile('settings.json', { onAdopt: () => platformSettings.load() })
 // every door that writes an agent's folder goes through the project folder
-// check (project-folder.ts), against this machine's places
-const registry = new AgentRegistry(join(cfg.dataDir, 'agents.json'), { folderCheck: { home: cfg.home, dataDir: cfg.dataDir } })
+// check (project-folder.ts), against this machine's places — the Projects
+// folder read per use (projectsFolderOf), so a changed setting needs no restart
+const registry = new AgentRegistry(join(cfg.dataDir, 'agents.json'), {
+  folderCheck: {
+    home: cfg.home,
+    dataDir: cfg.dataDir,
+    get projectsFolder() {
+      return projectsFolderOf(cfg.home, platformSettings)
+    },
+  },
+})
 registry.load()
 // the boot audit: every in-play agent's folder the project folder check
 // would refuse today — said here and as a Needs you row, never fixed
@@ -258,10 +274,6 @@ const territoryStore = new TerritoryStore(cfg.dataDir)
 territoryStore.load()
 // restore regime (seal-regimes.ts): «Keep the edit» re-reads the fence
 seals.registerFile('territory.json', { onAdopt: () => territoryStore.load() })
-// the install's own settings: the unattended provider
-const platformSettings = new PlatformSettingsStore(cfg.dataDir)
-platformSettings.load()
-seals.registerFile('settings.json', { onAdopt: () => platformSettings.load() })
 // The egress proxy (egress-proxy.ts): ONE local proxy on
 // a STABLE port (the API's + 1). An agent on egress `allowlist` gets it in
 // its env through the identity channel (agent-state.ts), both engines.
@@ -325,6 +337,7 @@ const territory = makeTerritory({
   home: cfg.home,
   dataDir: cfg.dataDir,
   sessionCwds: () => index.allSessions().map((m) => m.cwd),
+  projectsFolder: () => registry.projectsFolder(),
 })
 // a turn's settings (its fence) ride an owner-only file beside the consoles'
 // appends, never the engine's argv (sdk.ts; D8)
@@ -2043,17 +2056,23 @@ setInterval(() => {
 const sessions = new SessionTokenStore({ file: join(cfg.dataDir, 'sessions.json'), seal: seals })
 
 // Silos ID (silos-id.ts): the one remote sign-in, for any domain, through
-// the broker at SILOS_ID_URL. Who may sign in: SILOS_OWNER_EMAIL. Read from
-// the environment merged with <dataDir>/server.env (server-env.ts: the real
-// environment wins; the file's values never enter process.env, so no agent
-// or child process inherits them). Read once: a change needs a restart.
+// the broker at SILOS_ID_URL. Who may sign in: SILOS_OWNER_EMAIL — and
+// without it the instance starts UNCLAIMED: the first sign-in started with
+// the access token claims it, and the claimed email lands in
+// <dataDir>/owner.json (owner-store.ts). The environment always wins over
+// the claim. Settings read from the environment merged with
+// <dataDir>/server.env (server-env.ts: the real environment wins; the
+// file's values never enter process.env, so no agent or child process
+// inherits them). Read once: a change needs a restart.
 const serverEnv = readServerEnv(cfg.dataDir)
 const serverEnvNote = serverEnvWarning(serverEnv)
 if (serverEnvNote) console.warn(`warning: ${serverEnvNote}`)
 const silosIdSettings = silosIdSettingsFromEnv({ ...process.env, ...serverSettings(process.env, serverEnv.values) })
 if (silosIdSettings && 'off' in silosIdSettings) console.warn(`warning: Silos ID login disabled — ${silosIdSettings.off}`)
 const silosId = silosIdSettings && !('off' in silosIdSettings) ? new SilosIdClient(silosIdSettings, { dataDir: cfg.dataDir }) : null
-const allowlist = (): string[] => (silosId ? silosId.ownerEmails : [])
+const ownerStore = new OwnerStore(cfg.dataDir)
+const allowlist = (): string[] => (silosId ? allowedEmails(silosId.ownerEmails, ownerStore) : [])
+if (silosId && allowlist().length === 0) console.log('Silos ID: unclaimed — the first sign-in started with the access token claims this Silos')
 // on by default with Silos ID; SILOS_TELEMETRY=off (env or server.env) stops it
 if (silosId && telemetryOn(serverSettings(process.env, serverEnv.values).SILOS_TELEMETRY)) {
   const version = silosVersion(process.env)
@@ -2177,6 +2196,7 @@ const app = buildServer({
   onOwnerActivity: () => instanceUsage?.markActive(),
   sessions,
   allowlist,
+  claimOwner: (email) => ownerStore.claim(email),
   seals,
   ownerToken: () => seals.ownerToken() ?? token,
   accountPath: join(cfg.home, '.claude.json'),

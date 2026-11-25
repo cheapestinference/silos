@@ -10,7 +10,7 @@ import { countSessions, type SessionCounts } from './session-counts.js'
 import type { WebSocket } from 'ws'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { activateSkill, heldSkillNames, holdSkill } from './skill-states.js'
 import { LoadsSwitchError } from './harnesses/contract.js'
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify'
@@ -100,6 +100,7 @@ import {
   engineCompatRow,
   engineUnwiredRow,
   folderRefusedRow,
+  projectsFolderFileRow,
   inboxSignature,
   RESIDENT_TICK_MS,
   type InboxRow,
@@ -148,6 +149,8 @@ import { LoginRateLimiter, STATE, cookieOf, readSignInPick, type SilosIdClient }
 import { SessionTokenStore } from './session-tokens.js'
 import type { PeerRegistry } from './harnesses/claude-code/peer-registry.js'
 import type { FenceOverlay, FenceScope } from './territory.js'
+import { territoriesOf } from './territory.js'
+import { realFolder } from './project-folder.js'
 import type { TerritoryStore } from './territory-store.js'
 import type { PlatformSettingsStore } from './platform-settings.js'
 import type { Automation } from './automations-types.js'
@@ -479,6 +482,11 @@ export interface ServerDeps {
   // working on the next request. Default: the Silos ID client's owner
   // emails (SILOS_OWNER_EMAIL).
   allowlist?: () => string[]
+  // Claiming an unclaimed instance (owner-store.ts): called with the
+  // verified email of a claim sign-in — the one the access token started.
+  // Absent (tests, a local server): no claim flow, an empty allowlist
+  // refuses everyone as always.
+  claimOwner?: (email: string) => void
   // The seal (seals.ts): its rows join Needs you and
   // its doors live under /api/seals (owner only). Absent (tests): no seal.
   seals?: Seals
@@ -975,6 +983,11 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   const allowlist = deps.allowlist ?? (() => silosId?.ownerEmails ?? [])
   const ownerToken = deps.ownerToken ?? (() => token)
   const isEmailAllowed = (email: string): boolean => allowlist().some((e) => e.toLowerCase() === email.toLowerCase())
+  // Unclaimed: Silos ID is on but NOBODY may sign in yet (no
+  // SILOS_OWNER_EMAIL, nothing claimed). The claim is the one way in, and
+  // it starts behind the access token. Re-read per request: the moment a
+  // claim lands (or the environment names emails), claiming is over.
+  const claimable = (): boolean => silosId !== null && deps.claimOwner !== undefined && allowlist().length === 0
 
   // Auth is only required for REMOTE requests — detected PER REQUEST, not
   // by binding. A critical subtlety: the owner serves Silos online with
@@ -1260,7 +1273,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   // The ?token= hatch works WITH Silos ID too: the manual escape hatch.
   const loginLimiter = new LoginRateLimiter(10, 60_000, deps.authNow ?? Date.now)
 
-  app.get('/api/auth/config', async () => (silosId ? { enabled: true, mode: 'silos-id' } : { enabled: false }))
+  app.get('/api/auth/config', async () => (silosId ? { enabled: true, mode: 'silos-id', ...(claimable() ? { claim: true } : {}) } : { enabled: false }))
 
   // ——— Silos ID (opt-in, see silos-id.ts) ———
   // start: a single-use state bound to this browser by an HttpOnly cookie,
@@ -1285,8 +1298,13 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!loginLimiter.allow(req.ip)) return landWithError(reply, 'too many sign-in attempts — wait a minute')
     const pick = readSignInPick(req.query as Record<string, unknown>)
     if (pick === null) return landWithError(reply, 'that email address doesn’t look right — check it and send the link again')
+    // Unclaimed: only the deployer may start a sign-in — the access token
+    // (?token=, the variable only they can see) is the proof. authed()
+    // already reads it from this request.
+    const claiming = claimable()
+    if (claiming && !authed(req)) return landWithError(reply, 'this Silos is unclaimed — its access token is needed to claim it')
     try {
-      const { location, bind } = await silosId.start(pick)
+      const { location, bind } = await silosId.start(pick, { claim: claiming })
       return reply.code(302).header('cache-control', 'no-store').header('set-cookie', bindCookie(bind, 600)).header('location', location).send()
     } catch (err) {
       return landWithError(reply, err instanceof Error ? err.message : 'Silos ID is unreachable')
@@ -1304,7 +1322,18 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!state || pass === '') return landWithError(reply, 'malformed sign-in — start again')
     try {
       const who = await silosId.complete(pass, state, bind)
-      if (!isEmailAllowed(who.email)) return landWithError(reply, `${who.email} is not authorized on this Silos`)
+      if (!isEmailAllowed(who.email)) {
+        // The claim: a sign-in the access token started, completed while
+        // the instance is STILL unclaimed, writes its verified email as
+        // the owner — the one moment an email outside the (empty)
+        // allowlist gets in. Anything else is refused as always.
+        if (!(who.claim && claimable() && deps.claimOwner !== undefined)) return landWithError(reply, `${who.email} is not authorized on this Silos`)
+        try {
+          deps.claimOwner(who.email)
+        } catch (err) {
+          return landWithError(reply, err instanceof Error ? err.message : 'this Silos could not be claimed')
+        }
+      }
       const sessionToken = sessions.issue(who.email)
       const frag = new URLSearchParams({
         'silos-id': sessionToken,
@@ -1703,6 +1732,18 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     // the agents' folders that break the project folder rule (the boot
     // audit's finding, read again at each compose): said, never fixed
     const folderRows = registry.auditFolders().map((o) => folderRefusedRow({ ...o, agentName: nameOf(o.agentId), now }))
+    // a file right in the Projects folder an engine loads into every
+    // project in it: said, never fixed, one row per file
+    const projectsFolder = registry.projectsFolder()
+    const projectsFolderReal = projectsFolder === null ? null : realFolder(projectsFolder)
+    const inProjectsFolder =
+      projectsFolder === null
+        ? []
+        : [...new Set(liveAgents.flatMap((a) => territoriesOf(a)).filter((t) => dirname(t) === projectsFolder || dirname(t) === projectsFolderReal))].sort()
+    const projectsFolderRows =
+      projectsFolder === null
+        ? []
+        : registry.auditProjectsFolder().map((path) => projectsFolderFileRow({ path, projectsFolder, projects: inProjectsFolder, now }))
     const automationAgent = new Map((automations ? automations.list() : []).map((a) => [a.id, a.agentId]))
     const inbox = composeInbox({
       nameOf,
@@ -1742,6 +1783,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       kernel: [
         ...engineRows,
         ...folderRows,
+        ...projectsFolderRows,
         ...(deps.seals ? sealInboxRows(deps.seals.rows(), nameOf) : []),
         ...kernelInboxRows({
           agents: liveAgents,
@@ -1950,6 +1992,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     hooks,
     terminals,
     ...(deps.platformSettings ? { settings: deps.platformSettings } : {}),
+    projectsFolder: { home: machineHome, check: (p: string) => registry.checkProjectsDir(p) },
     enginesInUse: () => [
       ...new Set(
         registry.list().flatMap((a) => {

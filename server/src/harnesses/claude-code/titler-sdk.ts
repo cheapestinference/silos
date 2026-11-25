@@ -53,7 +53,9 @@ async function generateWithCwd(queryFn: QueryFn, cwd: string, excerpt: string, s
       maxTurns: 1,
       allowedTools: [], // pure one-shot: no tools
       settingSources: [], // no user settings/hooks — this isn't an owner session
-      settings: { disableAllHooks: true },
+      // auto memory loads regardless of settingSources (SDK docs): off —
+      // a title never needs the folder's memory index in its prompt
+      settings: { disableAllHooks: true, autoMemoryEnabled: false },
       systemPrompt: 'You name conversations with short channel-style titles. Output only the title, nothing else.',
       env: envForProvider(null), // the machine's login, clean env (same criterion as ChatService's default)
     },

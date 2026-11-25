@@ -142,6 +142,34 @@ describe('AuthGate', () => {
     )
     expect(await screen.findByTestId('app')).toBeInTheDocument()
   })
+
+  // a wake-up network HANGS rather than fails (half-dead tunnel connection,
+  // wifi still rising): without a bound the gate waits on its blank canvas
+  // forever — the gate must give up and open the app, like a down server.
+  it('the server hangs (never answers): the gate times out into the app', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          (_input: RequestInfo | URL, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+            }),
+        ),
+      )
+      render(
+        <AuthGate>
+          <div data-testid="app">the app</div>
+        </AuthGate>,
+      )
+      expect(screen.queryByTestId('app')).not.toBeInTheDocument()
+      await vi.advanceTimersByTimeAsync(7000)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(await screen.findByTestId('app')).toBeInTheDocument()
+  })
 })
 
 // Silos ID: the way in is picked HERE, on the instance's own page — the

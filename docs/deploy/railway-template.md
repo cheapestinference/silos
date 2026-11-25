@@ -28,17 +28,17 @@ region and size included) applied with `railway config apply` — not a file a
 product shipped to any install can carry. The **template composer** is the
 source of truth. Set these on the service there:
 
-| Setting (composer → service)            | Value                                                                                                                                                    |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Settings → Source                       | **Image** `ghcr.io/cheapestinference/silos:latest`, automatic updates **on** (building from the repo instead: Builder **Dockerfile**, path `Dockerfile`) |
-| Settings → Deploy → Healthcheck path    | **`/healthz`**                                                                                                                                           |
-| Settings → Deploy → Healthcheck timeout | **120** s                                                                                                                                                |
-| Settings → Deploy → Restart policy      | **Always**                                                                                                                                               |
-| Settings → Deploy → Replicas            | **1** (the resident holds a lock on `/data`)                                                                                                             |
-| Settings → Deploy → Serverless / sleep  | **off** (the resident runs automations with nobody watching)                                                                                             |
-| Attach Volume → mount path              | **`/data`** (everything persistent lives there)                                                                                                          |
-| Variables                               | `SILOS_TOKEN = ${{secret(32)}}`, `SILOS_OWNER_EMAIL` **required, empty — the deployer fills it** (below; `SILOS_ID_URL` comes preset in the image)       |
-| Networking                              | a generated domain; the server reads Railway's `PORT` (`SILOS_HOST=0.0.0.0` in the image)                                                                |
+| Setting (composer → service)            | Value                                                                                                                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings → Source                       | **Image** `ghcr.io/cheapestinference/silos:latest`, automatic updates **on** (building from the repo instead: Builder **Dockerfile**, path `Dockerfile`)         |
+| Settings → Deploy → Healthcheck path    | **`/healthz`**                                                                                                                                                   |
+| Settings → Deploy → Healthcheck timeout | **120** s                                                                                                                                                        |
+| Settings → Deploy → Restart policy      | **Always**                                                                                                                                                       |
+| Settings → Deploy → Replicas            | **1** (the resident holds a lock on `/data`)                                                                                                                     |
+| Settings → Deploy → Serverless / sleep  | **off** (the resident runs automations with nobody watching)                                                                                                     |
+| Attach Volume → mount path              | **`/data`** (everything persistent lives there)                                                                                                                  |
+| Variables                               | `SILOS_TOKEN = ${{secret(32)}}` (`SILOS_ID_URL` comes preset in the image; `SILOS_OWNER_EMAIL` optional — without it the first visit claims the instance, below) |
+| Networking                              | a generated domain; the server reads Railway's `PORT` (`SILOS_HOST=0.0.0.0` in the image)                                                                        |
 
 **Without a template** (a plain `railway up` or a GitHub-linked service), the
 service starts with Railway's defaults: set the same values **once** in the
@@ -55,14 +55,14 @@ against an explicit builder setting. Set the builder to Dockerfile explicitly.
 
 ### Variables
 
-| Variable            | Required                      | Meaning                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SILOS_TOKEN`       | recommended                   | The owner's access token. Template it as `${{secret(32)}}` so every deploy gets its own and it never appears in the deploy logs. Unset: Silos generates one on first boot and prints it in the logs (see below).                                                                                                                                                                                 |
-| `SILOS_ID_URL`      | preset in the image           | The Silos ID broker (`https://auth.silosplatform.com`): turns on **Continue with Google** for this instance on whatever domain Railway gives it (see _Google login_ below). The image carries it as a default — a generated template cannot carry a literal default value, only `${{…}}` expressions. Set it empty to turn the broker off.                                                       |
-| `SILOS_OWNER_EMAIL` | **yes** (with `SILOS_ID_URL`) | Who may sign in — one email or a comma list. In the composer it is a required variable with no default and the description «The email you will sign in with — a Google account, or any address (you get a sign-in link)», so whoever deploys types their own. Nobody else gets in; there is no "first login claims the instance". Unset: sign-in stays off and only the `?token=` link opens it. |
-| `SILOS_PUBLIC_URL`  | no                            | This instance's public origin. Defaults to `https://$RAILWAY_PUBLIC_DOMAIN`, which Railway injects.                                                                                                                                                                                                                                                                                              |
-| `SILOS_TELEMETRY`   | no                            | On by default: once a day the instance tells its Silos ID broker how it was used — the UTC hours it was open, how many turns you started and how many Silos started on its own, and its version. Nothing else: no names, prompts, files or agents. Signed with a key only this instance holds. `off` stops it.                                                                                   |
-| `PORT`              | no                            | Injected by Railway.                                                                                                                                                                                                                                                                                                                                                                             |
+| Variable            | Required            | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SILOS_TOKEN`       | recommended         | The owner's access token. Template it as `${{secret(32)}}` so every deploy gets its own and it never appears in the deploy logs. Unset: Silos generates one on first boot and prints it in the logs (see below).                                                                                                                                                                                                                                                                                                                              |
+| `SILOS_ID_URL`      | preset in the image | The Silos ID broker (`https://auth.silosplatform.com`): turns on **Continue with Google** for this instance on whatever domain Railway gives it (see _Google login_ below). The image carries it as a default — a generated template cannot carry a literal default value, only `${{…}}` expressions. Set it empty to turn the broker off.                                                                                                                                                                                                    |
+| `SILOS_OWNER_EMAIL` | no                  | Who may sign in — one email or a comma list; when set it always wins. Unset, the instance starts **unclaimed**: the first visit shows the claim page — paste `SILOS_TOKEN` (only the deployer sees it in Railway's Variables), sign in with Google or an email link, and that verified email becomes the owner, kept in `/data/home/.silos/owner.json` on the volume. One claim, ever: there is no "first login claims the instance" — without the token nobody can even start a sign-in, and after the claim only the claimed email gets in. |
+| `SILOS_PUBLIC_URL`  | no                  | This instance's public origin. Defaults to `https://$RAILWAY_PUBLIC_DOMAIN`, which Railway injects.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `SILOS_TELEMETRY`   | no                  | On by default: once a day the instance tells its Silos ID broker how it was used — the UTC hours it was open, how many turns you started and how many Silos started on its own, and its version. Nothing else: no names, prompts, files or agents. Signed with a key only this instance holds. `off` stops it.                                                                                                                                                                                                                                |
+| `PORT`              | no                  | Injected by Railway.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Nothing else. In particular **no `ANTHROPIC_API_KEY`**: Silos removes every
 inherited `ANTHROPIC_*` / `CLAUDE_CODE_*` variable at boot
@@ -74,21 +74,28 @@ decision, made inside the app (see _Logging into Claude_ below).
 Railway allows a single volume per service, so everything persistent lives
 under `/data`:
 
-| Path                      | Content                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `/data/home`              | `$HOME` of the process                                         |
-| `/data/home/.claude/`     | Claude Code: login, settings, JSONL transcripts (the history)  |
-| `/data/home/.claude.json` | Claude Code's account state                                    |
-| `/data/home/.silos/`      | Silos: `token`, `agents.json`, automations, `trash/`, `cache/` |
-| `/data/projects/`         | the agents' working folders (clone repos here)                 |
+| Path                      | Content                                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/data/home`              | `$HOME` of the process                                                                                                                                |
+| `/data/home/.claude/`     | Claude Code: login, settings, JSONL transcripts (the history)                                                                                         |
+| `/data/home/.claude.json` | Claude Code's account state                                                                                                                           |
+| `/data/home/.silos/`      | Silos: `token`, `agents.json`, automations, `trash/`, `cache/`                                                                                        |
+| `/data/home/Silos/`       | the Projects folder: each new project is born here, as on every install (clone repos here too, or anywhere on the volume, and register them in place) |
 
 `SILOS_DATA_DIR` stays at its default (`$HOME/.silos`): the plugin's hooks read
-`~/.silos` directly, so Silos' data must live under `HOME`.
+`~/.silos` directly, so Silos' data must live under `HOME`. The Projects folder
+is a setting, not a variable: Settings › Territory › Projects folder changes
+where the next new project is born, and moves nothing.
 
 The volume mounts as root. The entrypoint (`deploy/docker-entrypoint.sh`)
-starts as root, takes ownership of `/data/home` and `/data/projects` (a full
-`chown -R` only when something there is not already owned by `silos`) and drops
-to the unprivileged `silos` user with `HOME=/data/home`.
+starts as root, makes `/data/home/Silos`, takes ownership of `/data/home` (a
+full `chown -R` only when something there is not already owned by `silos`) and
+drops to the unprivileged `silos` user with `HOME=/data/home`.
+
+Upgrading from an image that told you to clone into `/data/projects`: nothing
+to do. Those projects stay registered where they are (Silos goes by its
+record, never by where a folder sits), and the entrypoint keeps that folder
+owned by `silos`; only new projects are born in `/data/home/Silos`.
 
 ### Backups
 
@@ -167,8 +174,9 @@ wildcards — a fresh `*.up.railway.app` domain is never one of them. Silos ID
 is the way around it: one broker on one authorized domain runs the Google
 sign-in for every instance.
 
-1. The image presets `SILOS_ID_URL` (the broker); the template asks for
-   `SILOS_OWNER_EMAIL`.
+1. The image presets `SILOS_ID_URL` (the broker). `SILOS_OWNER_EMAIL` is
+   optional: typed, it is the allowlist; left out, the first visit claims
+   the instance (the `SILOS_OWNER_EMAIL` row above).
 2. On boot the instance registers its public origin with the broker
    (`POST /register`, idempotent) and keeps the id in
    `/data/home/.silos/silos-id.json`.
@@ -177,8 +185,8 @@ sign-in for every instance.
    popup, below) → the broker
    sends the browser back to the instance's REGISTERED origin with a pass
    (RS256, 120 s, for this instance only) → the instance checks it against
-   the broker's `/jwks` and its own `SILOS_OWNER_EMAIL`, and opens the usual
-   7-day session.
+   the broker's `/jwks` and its allowed emails (`SILOS_OWNER_EMAIL`, else
+   the claimed owner), and opens the usual 7-day session.
 
 **One page, one choice.** The way in is picked on the instance's own login
 page — «Continue with Google», or «Use email instead» and an address — and

@@ -28,27 +28,36 @@ function GoogleMark() {
   )
 }
 
-export function LoginView({ initialError = null }: { initialError?: string | null }) {
+// `claim`: the server says this instance is unclaimed (config `claim` —
+// nobody may sign in yet). The deployer proves it is theirs with the access
+// token (the SILOS_TOKEN variable only they can see), then signs in as
+// usual; that email becomes the owner. The token rides on the start URL —
+// the server's long-standing ?token= credential.
+export function LoginView({ initialError = null, claim = false }: { initialError?: string | null; claim?: boolean }) {
   const [state, setState] = useState<'idle' | 'working'>('idle')
   const [error, setError] = useState<string | null>(initialError)
   // Silos ID also signs in by an email link: the address is asked here
   const [emailOpen, setEmailOpen] = useState(false)
   const [email, setEmail] = useState('')
+  const [claimToken, setClaimToken] = useState('')
+  const claimOpts = (): { claimToken?: string } => (claim ? { claimToken: claimToken.trim() } : {})
+  const needsToken = claim && claimToken.trim() === ''
 
   function sendLink(e: FormEvent): void {
     e.preventDefault()
-    if (email.trim() === '') return
+    if (email.trim() === '' || needsToken) return
     setState('working')
     setError(null)
-    startSilosIdLogin({ method: 'email', email: email.trim() })
+    startSilosIdLogin({ method: 'email', email: email.trim() }, claimOpts())
   }
 
   function signIn(): void {
+    if (needsToken) return
     // Google runs on the broker's domain — this page only leaves for it
     // (and comes back signed in, see consumeSilosIdLanding)
     setState('working')
     setError(null)
-    startSilosIdLogin({ method: 'google' })
+    startSilosIdLogin({ method: 'google' }, claimOpts())
   }
 
   return (
@@ -58,13 +67,32 @@ export function LoginView({ initialError = null }: { initialError?: string | nul
             wordmark — the sidebar's same Source Serif, at cover scale */}
         <Logo size={44} />
         <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">Silos</h1>
-        <p className="mt-2.5 text-sm text-ink-2">Your agents, behind one door.</p>
+        <p className="mt-2.5 text-sm text-ink-2">{claim ? 'A new Silos, waiting for its owner.' : 'Your agents, behind one door.'}</p>
+
+        {claim ? (
+          <>
+            <p className="mt-8 text-[13px] leading-relaxed text-ink-2">
+              Paste the deploy&rsquo;s access token (its <span className="font-mono text-ink">SILOS_TOKEN</span> variable), then sign in. That email becomes the
+              owner.
+            </p>
+            <input
+              type="password"
+              autoFocus
+              autoComplete="off"
+              aria-label="Access token"
+              placeholder="Access token"
+              value={claimToken}
+              onChange={(e) => setClaimToken(e.target.value)}
+              className="mt-3 w-full rounded-lg border border-line bg-canvas px-3 py-2 text-[13.5px] text-ink outline-none placeholder:text-ink-3 focus:border-terracotta"
+            />
+          </>
+        ) : null}
 
         <button
           type="button"
           onClick={signIn}
-          disabled={state === 'working'}
-          className="mt-10 flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-panel px-4 py-2.5 text-sm text-ink transition-colors duration-150 hover:border-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta disabled:opacity-60"
+          disabled={state === 'working' || needsToken}
+          className={`${claim ? 'mt-5' : 'mt-10'} flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-panel px-4 py-2.5 text-sm text-ink transition-colors duration-150 hover:border-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta disabled:opacity-60`}
         >
           <GoogleMark />
           {state === 'working' ? 'Waiting for Google…' : 'Continue with Google'}
@@ -85,7 +113,7 @@ export function LoginView({ initialError = null }: { initialError?: string | nul
             />
             <button
               type="submit"
-              disabled={state === 'working'}
+              disabled={state === 'working' || needsToken}
               className="shrink-0 rounded-lg bg-ink px-3.5 text-[13px] font-medium text-canvas hover:opacity-90 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
             >
               Send link

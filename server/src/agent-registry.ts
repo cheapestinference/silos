@@ -21,7 +21,18 @@ import {
 } from './control.js'
 import { endPass } from './pass.js'
 import { ControlError } from './control.js'
-import { auditProjectFolders, checkProjectFolder, realFolder, type FolderOffence, type FolderPlaces, type FolderVerdict } from './project-folder.js'
+import {
+  auditProjectFolders,
+  checkProjectFolder,
+  checkProjectsDir,
+  loadablesInProjectsFolder,
+  projectsFolderIn,
+  projectsFolderOf,
+  realFolder,
+  type FolderOffence,
+  type FolderPlaces,
+  type FolderVerdict,
+} from './project-folder.js'
 
 export const MASTER_ID = 'master'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,31}$/
@@ -243,10 +254,37 @@ export class AgentRegistry {
     return checkProjectFolder(folder, this.opts.folderCheck, this.projectFoldersBut(selfId))
   }
 
+  /** The Projects folder the check judges against, read per use — where
+   *  the next new project is born and what the fence reads
+   *  (project-folder.ts projectsFolderOf / projectsFolderIn). Without a
+   *  configured check: `<home>/Silos` when a home is given, else null. */
+  projectsFolder(home?: string): string | null {
+    if (this.opts.folderCheck) return projectsFolderIn(this.opts.folderCheck)
+    return home ? projectsFolderOf(home) : null
+  }
+
+  /** The check for a new Projects folder (checkProjectsDir): against every
+   *  in-play agent's folders. Without a configured check, every absolute
+   *  path is fine as written. */
+  checkProjectsDir(folder: string): FolderVerdict {
+    if (!this.opts.folderCheck)
+      return typeof folder === 'string' && folder.startsWith('/')
+        ? { ok: true, path: strip(folder) }
+        : { ok: false, reason: 'the Projects folder must be an absolute path', conflict: false }
+    return checkProjectsDir(folder, this.opts.folderCheck, this.projectFoldersBut(undefined))
+  }
+
   /** The boot audit: every in-play agent's folder that breaks the rule
    *  today, said, never fixed. Empty without a configured check. */
   auditFolders(): FolderOffence[] {
     return this.opts.folderCheck ? auditProjectFolders(this.agents, this.opts.folderCheck) : []
+  }
+
+  /** The files right in the Projects folder an engine could load into
+   *  every project in it (project-folder.ts loadablesInProjectsFolder):
+   *  said, never fixed. Empty without a configured check. */
+  auditProjectsFolder(): string[] {
+    return this.opts.folderCheck ? loadablesInProjectsFolder(this.opts.folderCheck) : []
   }
 
   private projectFoldersBut(selfId: string | undefined): string[] {

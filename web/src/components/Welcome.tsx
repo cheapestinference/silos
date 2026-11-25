@@ -29,6 +29,7 @@ import { classOn, startingSetPatch, type ChosenClass } from '../lib/starting-set
 import { providerLabel } from '../lib/providers'
 import type { EngineCompat, ProviderView, StartingFacts } from '../lib/types'
 import { birthPayload, birthProblems, birthReady, emptyBirth, knownProjects, projectName, type Birth } from '../lib/birth'
+import { useProjectsFolder } from '../lib/projects-folder'
 import { fieldForError } from './AgentModal'
 import { ProjectStep } from './welcome/ProjectStep'
 import { WhoStep } from './welcome/WhoStep'
@@ -51,6 +52,7 @@ export function Welcome() {
   const loadOverview = useStore((s) => s.loadOverview)
   const descriptors = useHarnessDescriptors()
   const agents = useStore((s) => s.agents)
+  const projectsFolder = useProjectsFolder()
   const [step, setStep] = useState<TourStep>('project')
   const [birth, setBirth] = useState<Birth>(emptyBirth)
   const [choice, setChoice] = useState<TourChoice>(() => ({ engine: defaultHarnessId(), provider: '', silos: {} }))
@@ -111,7 +113,7 @@ export function Welcome() {
 
   const clean = birth.name.trim()
   const known = useMemo(() => knownProjects(agents), [agents])
-  const problems = birthProblems(birth, known)
+  const problems = birthProblems(birth, known, projectsFolder.path)
   const engineRefused = engines.find((r) => r.id === choice.engine && !r.usable) ?? null
   const ready = engineRefused === null && birthReady(problems)
 

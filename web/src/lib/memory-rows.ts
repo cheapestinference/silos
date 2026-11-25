@@ -10,9 +10,12 @@ import type { Owner } from './owners'
 /** The engine's own size warning for one file (characters). */
 export const FILE_WARN_CHARS = 40_000
 
-/** Whose a row is: the origin's owner on the heads. */
-export function memoryOwner(r: Pick<MemoryRow, 'origin'>): Owner {
+/** Whose a row is: the origin's owner on the heads. An auto row whose
+ *  reach is one agent (memory per agent: the dir its launches point the
+ *  engine at) is the AGENT's; the folder's own auto rows stay the project's. */
+export function memoryOwner(r: Pick<MemoryRow, 'origin' | 'reach'>): Owner {
   if (r.origin === 'agent') return 'agent'
+  if (r.origin === 'auto' && r.reach.scope === 'agent') return 'agent'
   if (r.origin === 'project' || r.origin === 'private' || r.origin === 'auto') return 'project'
   return 'you'
 }

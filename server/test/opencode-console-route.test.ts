@@ -146,6 +146,7 @@ describe('the opencode harness object', () => {
       permissionsAsEvents: true,
       sendToConsole: true,
       outputStyles: false,
+      agentAutoMemory: false,
     })
     expect(opencode.console.idDiscovery).toBe('reported-by-plugin')
     expect(harnesses.opencode).toBe(opencode)

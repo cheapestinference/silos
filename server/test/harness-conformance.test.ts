@@ -46,7 +46,17 @@ beforeAll(() => {
 })
 afterAll(() => unregisterFake())
 
-const CAPS: (keyof HarnessCaps)[] = ['compaction', 'subagents', 'skills', 'thinking', 'costFromHarness', 'permissionsAsEvents', 'sendToConsole', 'outputStyles']
+const CAPS: (keyof HarnessCaps)[] = [
+  'compaction',
+  'subagents',
+  'skills',
+  'thinking',
+  'costFromHarness',
+  'permissionsAsEvents',
+  'sendToConsole',
+  'outputStyles',
+  'agentAutoMemory',
+]
 const UI_KEYS: (keyof HarnessUiFacts)[] = [
   'contextPercent',
   'models',
@@ -97,7 +107,7 @@ describe.each(byId)('harness %s', (id, f) => {
     expect(h.label).not.toBe('')
   })
 
-  it('declares all 8 caps as booleans', () => {
+  it('declares all 9 caps as booleans', () => {
     expect(Object.keys(h.caps).sort()).toEqual([...CAPS].sort())
     for (const c of CAPS) expect(typeof h.caps[c]).toBe('boolean')
   })

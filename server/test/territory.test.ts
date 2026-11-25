@@ -920,3 +920,101 @@ describe('the other-projects group and the credentials — R5', () => {
     expect(covered(d, 'Read', join(acme, 'x'))).toBe(false)
   })
 })
+
+// t5: no agent writes a file an engine loads from above a project — in every
+// folder above a known agent's folder, and in the Projects folder and above
+// it; reading stays open (a file already there is the owner's)
+describe('fenceFor — what an engine loads from above a project', () => {
+  const H = '/home/user',
+    D = '/home/user/.silos',
+    P = '/home/user/Silos'
+  const ag = (id: string, folder: string): Agent => ({ id, name: id, emoji: '', role: '', skills: [], folder })
+  const app = ag('builder', `${P}/app`)
+  const books = ag('finance', '/home/user/code/books')
+  const above = (dir: string): string[] => [claudeCode, opencode].flatMap((h) => h.loadedFromAbove?.(dir, H) ?? [])
+  const fence = (agent: Agent, agents: Agent[], extra: Partial<Parameters<typeof fenceFor>[0]> = {}): string[] =>
+    fenceFor({
+      agent,
+      agents,
+      privatePaths: [],
+      home: H,
+      dataDir: D,
+      agentStateDir: `${D}/agent-state/${agent.id}`,
+      loadedFromAbove: above,
+      projectsFolder: P,
+      ...extra,
+    })!.permissions.deny
+
+  const loaded = [
+    `${P}/CLAUDE.md`,
+    `${P}/CLAUDE.local.md`,
+    `${P}/AGENTS.md`,
+    `${P}/CONTEXT.md`,
+    `${P}/.claude/CLAUDE.md`,
+    `${P}/.claude/rules/style.md`,
+    `${P}/.claude/settings.json`,
+    `${P}/.claude/skills/x/SKILL.md`,
+    `${P}/.mcp.json`,
+    `${P}/opencode.json`,
+    `${P}/.opencode/agent/a.md`,
+    '/home/user/CLAUDE.md',
+    '/home/user/CLAUDE.local.md',
+    '/home/user/AGENTS.md',
+    '/home/CLAUDE.md',
+    // above another agent's folder, outside the Projects folder
+    '/home/user/code/CLAUDE.md',
+    '/home/user/code/.claude/rules/r.md',
+  ]
+  it.each([true, false])('territory on=%s: edits denied in every folder above a project and in the Projects folder; reads open', (on) => {
+    const d = fence(app, [app, books], { on })
+    for (const p of loaded) {
+      expect(covered(d, 'Edit', p), p).toBe(true)
+      expect(covered(d, 'Read', p), p).toBe(false)
+    }
+  })
+  it("the agent's own project stays its own: its CLAUDE.md, AGENTS.md and rules are not denied", () => {
+    const d = fence(app, [app, books])
+    for (const f of ['CLAUDE.md', 'AGENTS.md', 'CLAUDE.local.md', '.claude/rules/r.md']) expect(covered(d, 'Edit', `${P}/app/${f}`), f).toBe(false)
+  })
+  it('an empty Projects folder is covered: a project born there later inherits the rule', () => {
+    const d = fence(books, [books])
+    expect(covered(d, 'Edit', `${P}/CLAUDE.md`)).toBe(true)
+    expect(covered(d, 'Edit', `${P}/AGENTS.md`)).toBe(true)
+  })
+  it("a folder that is a known project (or inside one) is never an «above»: its files are that project's", () => {
+    // a registry without the folder check could hold a project inside another
+    const outer = ag('builder', '/home/user/work'),
+      inner = ag('finance', '/home/user/work/sub')
+    const d = fence(outer, [outer, inner])
+    expect(covered(d, 'Edit', '/home/user/work/CLAUDE.md')).toBe(false)
+    expect(covered(d, 'Edit', '/home/user/CLAUDE.md')).toBe(true)
+  })
+  it('never inside a place every agent must reach: the config dir and the data dir keep their own rules', () => {
+    const without = new Set(fence(app, [app], { on: false, loadedFromAbove: undefined }))
+    const added = fence(app, [app], { on: false }).filter((r) => !without.has(r))
+    expect(added.length).toBeGreaterThan(0)
+    expect(added.filter((r) => r.startsWith('Edit(//home/user/.claude/') || r.startsWith('Edit(//home/user/.silos/'))).toEqual([])
+    const extra = fence(app, [app], { on: false, mustReach: [{ path: `${P}/.opencode`, what: 'a shared place' }] })
+    expect(covered(extra, 'Edit', `${P}/.opencode/agent/a.md`)).toBe(false)
+    expect(covered(extra, 'Edit', `${P}/CLAUDE.md`)).toBe(true)
+  })
+  it('the user rules ~/.claude/rules/** are not editable (every session loads them), still readable', () => {
+    const d = fence(app, [app])
+    expect(covered(d, 'Edit', '/home/user/.claude/rules/style.md')).toBe(true)
+    expect(covered(d, 'Read', '/home/user/.claude/rules/style.md')).toBe(false)
+    for (const p of ['/home/user/CLAUDE.md', '/home/user/AGENTS.md', '/home/user/CLAUDE.local.md']) expect(covered(d, 'Read', p), p).toBe(false)
+  })
+  it('makeTerritory asks every registered engine and the Projects folder it is given', () => {
+    const t = makeTerritory({
+      registry: { get: (id) => (id === app.id ? app : null), list: () => [app] },
+      agentState: { pathFor: (id) => `${D}/agent-state/${id}` },
+      store: { privatePaths: () => [], isEnabled: () => false },
+      home: H,
+      dataDir: D,
+      projectsFolder: () => P,
+    })
+    const d = t.fenceFor(app.id)!.permissions.deny
+    expect(covered(d, 'Edit', `${P}/CLAUDE.md`)).toBe(true)
+    expect(covered(d, 'Edit', `${P}/opencode.jsonc`)).toBe(true)
+  })
+})

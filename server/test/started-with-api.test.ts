@@ -201,7 +201,7 @@ describe('GET /api/agents/:id/started-with', () => {
     const r = await app.inject({ url: '/api/agents/finance/started-with', headers: OWNER })
     expect(r.statusCode).toBe(200)
     const b = r.json()
-    expect(b.console).toMatchObject({ n: 3, total: 2000, range: [1000, 3000], latest: { folder: munged, id: 'c1' } })
+    expect(b.console).toMatchObject({ n: 3, total: 2000, range: [1000, 3000], latest: { folder: munged, id: 'c1', login: 'me@example.test' } })
     expect(b.chat).toMatchObject({ n: 1, total: 600, range: [600, 600] })
     expect(b.run).toMatchObject({ n: 1, total: 400, latest: { id: 'r1' } })
     // per-owner medians add up close to the median total

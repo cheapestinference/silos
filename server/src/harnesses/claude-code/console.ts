@@ -30,6 +30,10 @@ export type ConsoleCommandOpts = {
   carried?: unknown[]
   loginDirs?: string[]
   cwd?: string
+  /** The agent's own auto-memory directory (memory-service.ts
+   *  agentAutoMemoryDir): rides the same --settings as the fence, so the
+   *  engine reads and writes the AGENT's memory, not the folder's. */
+  autoMemoryDir?: string
   /** Writes the console's settings to an owner-only file and returns its
    *  path (TerminalService: <appendDir>/<key>.settings.json, 0600): the
    *  `--settings` flag then names the file — the fence never rides argv,
@@ -101,6 +105,7 @@ export function defaultConsoleCommand({
   carried,
   loginDirs,
   cwd,
+  autoMemoryDir,
   settingsFile,
 }: ConsoleCommandOpts): string[] {
   // ONE --settings carries every per-process override (theme, hooks, the
@@ -132,6 +137,8 @@ export function defaultConsoleCommand({
         }
       : {}),
     ...(fence ? { permissions: fence.permissions } : {}),
+    // the agent's memory, not the folder's (memory per agent, t48)
+    ...(autoMemoryDir ? { autoMemoryDirectory: autoMemoryDir } : {}),
     // the cockpit's style (conversation pin › agent default): read at
     // SessionStart, so a change reaches a live console on relaunch only
     ...outputStyleSettings(outputStyle),

@@ -80,6 +80,9 @@ function liveView(deps: Readonly<ChatDeps>): ClaudeHeadlessDeps {
     get loginDirs() {
       return live().loginDirs
     },
+    get dataDir() {
+      return live().dataDir
+    },
     agentStateEnv: (agentId) => agentStateEnv(live(), agentId),
     processEnv: (agent, cwd, key, turn) =>
       agentProcessEnv({ vault: live().vault, agentState: { envFor: (id) => agentStateEnv(live(), id) }, silosApi: live().silosApi }, agent, cwd, key, turn),
@@ -113,6 +116,25 @@ export const claudeCode: Harness = {
   // (S2); the home layer (~/.claude/{skills,commands,…}) is
   // fenced per config dir in territory.ts CLAUDE_CONFIG_DENIED, accounts included
   configFiles: (folder) => [`${folder.replace(/\/+$/, '')}/.mcp.json`],
+  // what it could load from a folder above a project (instructions.ts walks
+  // the instruction files and rules up to the first folder below `/`,
+  // measured on 2.1.331); settings, skills, commands, agents and .mcp.json
+  // in an ancestor are unmeasured — listed so no agent writes them. At the
+  // home folder `.claude/` is the user layer (territory.ts CLAUDE_CONFIG_DENIED)
+  loadedFromAbove: (dir, home) => {
+    const d = dir.replace(/\/+$/, '') || '/'
+    const files = [`${d}/CLAUDE.md`, `${d}/CLAUDE.local.md`, `${d}/AGENTS.md`, `${d}/.mcp.json`]
+    if (d === (home.replace(/\/+$/, '') || '/')) return files
+    return [
+      ...files,
+      `${d}/.claude/CLAUDE.md`,
+      `${d}/.claude/rules/**`,
+      `${d}/.claude/settings*.json`,
+      `${d}/.claude/skills/**`,
+      `${d}/.claude/commands/**`,
+      `${d}/.claude/agents/**`,
+    ]
+  },
   // its config dir (an extra account's sits under Silos' data dir)
   ownDirs: (home) => [join(home, '.claude')],
   // a folder's transcripts, scratch space and memory (stores.ts): closed to
@@ -262,6 +284,8 @@ export const claudeCode: Harness = {
     // the cockpit's outputStyle: `outputStyle` + the style plugins off, in
     // the SDK's settings and the console's one --settings (output-styles.ts)
     outputStyles: true,
+    // memory per agent: every launch points auto memory at the agent's dir
+    agentAutoMemory: true,
   },
   outputStyles: (cwd) => listClaudeOutputStyles(cwd),
   console: {

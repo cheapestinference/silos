@@ -14,21 +14,26 @@ import type { AgentView, MemoryFileInfo } from './types'
 export interface Catalog {
   global: MemoryFileInfo
   projects: { folder: string; claude: MemoryFileInfo; auto: MemoryFileInfo[] }[]
-  agentEntries: { agent: AgentView; memory: MemoryFileInfo }[]
+  /** per agent: its memory.md, and its automatic memory when its engine
+   *  reads one (memory per agent — the server says autoScope) */
+  agentEntries: { agent: AgentView; memory: MemoryFileInfo; auto: MemoryFileInfo[] }[]
 }
 
 export async function buildCatalog(agents: AgentView[]): Promise<Catalog> {
   let global: MemoryFileInfo | null = null
   const projectsByFolder = new Map<string, { folder: string; claude: MemoryFileInfo; auto: MemoryFileInfo[] }>()
-  const agentEntries: { agent: AgentView; memory: MemoryFileInfo }[] = []
+  const agentEntries: Catalog['agentEntries'] = []
 
   for (const a of agents) {
     const layers = await api.memory.list(a.folder ?? undefined, a.id)
     if (!global) global = layers.global
     if (a.folder && layers.project && !projectsByFolder.has(a.folder)) {
-      projectsByFolder.set(a.folder, { folder: a.folder, claude: layers.project, auto: layers.autoMemory })
+      // folder-scoped call: with an agentId the auto layer is the AGENT's
+      // (memory per agent) — the project row wants the folder's
+      const folderLayers = await api.memory.list(a.folder)
+      projectsByFolder.set(a.folder, { folder: a.folder, claude: folderLayers.project ?? layers.project, auto: folderLayers.autoMemory })
     }
-    if (layers.agent) agentEntries.push({ agent: a, memory: layers.agent })
+    if (layers.agent) agentEntries.push({ agent: a, memory: layers.agent, auto: layers.autoScope === 'agent' ? layers.autoMemory : [] })
   }
 
   return {

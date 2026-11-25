@@ -3,7 +3,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync, readFil
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { AgentRegistry, mungePath } from '../src/agent-registry.js'
-import { MemoryService } from '../src/memory-service.js'
+import { agentAutoMemoryDir, MemoryService } from '../src/memory-service.js'
+import { registerHarness } from '../src/harnesses/registry.js'
+import { makeFakeHarness } from './fixtures/fake-harness.js'
 
 let base: string, root: string, dataDir: string, folder: string, memDir: string
 let registry: AgentRegistry
@@ -43,6 +45,11 @@ describe('list', () => {
   })
 
   it('every entry carries the explicit scope of its layer (the MEMORY index included)', async () => {
+    // with an agentId the auto layer is the AGENT's dir (memory per agent)
+    const aDir = agentAutoMemoryDir(dataDir, 'ag')
+    mkdirSync(aDir, { recursive: true })
+    writeFileSync(join(aDir, 'MEMORY.md'), '# index\n')
+    writeFileSync(join(aDir, 'note.md'), '---\nname: N\ntype: note\n---\nx\n')
     const layers = await memory.list(folder, 'ag')
     expect(layers.global.scope).toBe('global')
     expect(layers.project?.scope).toBe('project')
@@ -521,5 +528,64 @@ describe('the write boundary — only what the server lists', () => {
     expect(await svc.read(join(proj, '.claude', 'rules', 'api.md'), proj)).toBe('rule')
     expect(await svc.read(join(proj, '.claude', 'rules', 'api.md'))).toBe('rule')
     await expect(svc.read(join(home, 'secret.md'), proj)).rejects.toThrow('not allowed')
+  })
+})
+
+// Memory per agent (t48): the agent's own auto-memory dir
+// (<dataDir>/agents/<id>/memory) is a first-class layer — listed on the
+// agent's page in place of the folder's, writable with its own index and
+// backups, and closed to anything that is not an active agent's dir.
+describe("memory per agent — the agent's own auto-memory dir", () => {
+  it("list with an agentId lists the agent dir as the auto layer and swaps the folder's auto rows", async () => {
+    const aDir = agentAutoMemoryDir(dataDir, 'ag')
+    mkdirSync(aDir, { recursive: true })
+    writeFileSync(join(aDir, 'MEMORY.md'), '- [Own note](own-note.md)\n')
+    writeFileSync(join(aDir, 'own-note.md'), '---\nname: Own note\ndescription: mine\ntype: note\n---\nx\n')
+    const layers = await memory.list(folder, 'ag')
+    expect(layers.autoDir).toBe(aDir)
+    expect(layers.autoMemory.map((f) => f.name).sort()).toEqual(['MEMORY', 'Own note'])
+    expect(layers.autoMemory.find((f) => f.type !== 'index')!.author).toBe('ag')
+    const autoRows = (layers.rows ?? []).filter((r) => r.origin === 'auto')
+    expect(autoRows.length).toBeGreaterThan(0)
+    expect(autoRows.every((r) => r.path.startsWith(aDir))).toBe(true)
+    expect(autoRows.some((r) => r.kind === 'auto-index' && r.when.at === 'start')).toBe(true)
+    // the folder page (no agent) keeps the folder's own dir
+    const folderLayers = await memory.list(folder)
+    expect(folderLayers.autoDir).toBe(memDir)
+    expect(folderLayers.autoMemory.some((f) => f.path === join(memDir, 'card-1.md'))).toBe(true)
+  })
+
+  it('writes a note in the agent dir: indexed in ITS MEMORY.md, backed up under its own segment, readable back', async () => {
+    const aDir = agentAutoMemoryDir(dataDir, 'ag')
+    mkdirSync(aDir, { recursive: true })
+    const p = join(aDir, 'fact.md')
+    await memory.write(p, '---\nname: Fact\ndescription: d\ntype: note\n---\nbody\n')
+    expect(readFileSync(join(aDir, 'MEMORY.md'), 'utf8')).toContain('](fact.md)')
+    await memory.write(p, '---\nname: Fact\n---\nbody 2\n')
+    expect(readdirSync(join(dataDir, 'memory-backups', 'agent-ag')).some((f) => f.startsWith('fact'))).toBe(true)
+    expect(await memory.read(p)).toContain('body 2')
+  })
+
+  it('an agent of an engine without auto memory keeps the folder view: no swap, no agent-dir writes', async () => {
+    const unregister = registerHarness(makeFakeHarness())
+    try {
+      registry.create({ id: 'fk', name: 'Fake', folder, framework: 'fake' })
+      const layers = await memory.list(folder, 'fk')
+      expect(layers.autoScope).toBe('folder')
+      expect(layers.autoDir).toBe(memDir)
+      expect(layers.autoMemory.some((f) => f.path === join(memDir, 'card-1.md'))).toBe(true)
+      const bad = join(dataDir, 'agents', 'fk', 'memory', 'x.md')
+      await expect(memory.write(bad, 'y')).rejects.toThrow('not allowed')
+    } finally {
+      unregister()
+    }
+  })
+
+  it('a dir of nobody is refused, read and write', async () => {
+    const bad = join(dataDir, 'agents', 'nobody', 'memory', 'x.md')
+    mkdirSync(dirname(bad), { recursive: true })
+    writeFileSync(bad, 'x')
+    await expect(memory.write(bad, 'y')).rejects.toThrow('not allowed')
+    await expect(memory.read(bad)).rejects.toThrow('not allowed')
   })
 })

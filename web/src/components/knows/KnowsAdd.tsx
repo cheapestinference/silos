@@ -46,6 +46,9 @@ export function noteSlug(title: string): string {
 // mungePath, NOT lib/home's broader mungeFolder). The server's whitelist
 // has the last word on any write.
 function autoMemoryDir(layers: MemoryLayers, folder: string): string {
+  // the server says the dir itself (the agent's own under memory per
+  // agent) — the first file's dirname and the folder default are fallbacks
+  if (layers.autoDir) return layers.autoDir
   const first = layers.autoMemory[0]
   if (first) return first.path.slice(0, first.path.lastIndexOf('/'))
   const claudeDir = layers.global.path.slice(0, layers.global.path.lastIndexOf('/'))
@@ -134,17 +137,28 @@ function AddMemory({
   if (loadError) return <p className="px-4 py-4 text-sm text-ink-2">{loadError}</p>
   if (!layers) return <p className="px-4 py-4 text-sm text-ink-2">Loading…</p>
 
+  // With memory per agent (t48) both targets are usually the AGENT's and
+  // the choice is HOW it is kept — appended whole, or an indexed card
+  // opened on demand. An engine with no per-agent auto memory (the server
+  // says autoScope) keeps the folder's notes, and the copy says so.
+  const agentAuto = layers.autoScope === 'agent'
   const options: { id: WriteScope; label: string; hint: string }[] = [
     ...(layers.agent
-      ? [{ id: 'agent' as const, label: ownerText('agent', { agentName: agent.name }), hint: `Added to ${agent.name}’s own memory — no other agent reads it` }]
+      ? [{ id: 'agent' as const, label: 'Always loaded', hint: `Appended whole to ${agent.name}’s own memory — in front of every conversation it starts` }]
       : []),
-    ...(agent.folder
+    ...((layers.autoDir ?? agent.folder)
       ? [
-          {
-            id: 'auto' as const,
-            label: ownerText('project', { folder: agent.folder }),
-            hint: 'A new note in the folder’s memory — every agent working there reads it',
-          },
+          agentAuto
+            ? {
+                id: 'auto' as const,
+                label: 'Memory card',
+                hint: `A card in ${agent.name}’s automatic memory — its index line loads at start, the card when needed. No other agent reads either.`,
+              }
+            : {
+                id: 'auto' as const,
+                label: ownerText('project', { folder: agent.folder ?? '' }),
+                hint: 'A new note in the folder’s memory — every agent working there reads it',
+              },
         ]
       : []),
   ]
@@ -156,8 +170,8 @@ function AddMemory({
     setSaving(true)
     setError(null)
     try {
-      if (scope === 'auto' && agent.folder) {
-        const dir = autoMemoryDir(layers, agent.folder)
+      if (scope === 'auto' && (layers.autoDir || agent.folder)) {
+        const dir = autoMemoryDir(layers, agent.folder ?? '')
         const path = freePath(dir, noteSlug(title), new Set(layers.autoMemory.map((f) => f.path)))
         const fm = [`name: ${title.trim()}`, ...(description.trim() ? [`description: ${description.trim()}`] : [])]
         await api.memory.write(path, `---\n${fm.join('\n')}\n---\n\n${body.trim()}\n`)

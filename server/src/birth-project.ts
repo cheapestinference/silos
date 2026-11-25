@@ -1,7 +1,9 @@
 // birth-project.ts — where an agent born through POST /api/agents works: its
 // project's folder itself, never a subfolder. The New agent form and Welcome
 // ask for the project, never a path:
-//   project: { name }   — a new project, made at ~/Silos/<slug of the name>
+//   project: { name }   — a new project, made at <Projects folder>/<slug of
+//                          the name> (project-folder.ts projectsFolderOf:
+//                          the install's projectsDir, else ~/Silos)
 //   project: { folder } — an existing project: a folder Silos manages
 //                          (managed-folder.ts — an in-play agent's folder or
 //                          territory), nothing else
@@ -26,6 +28,8 @@ export const projectNameEmpty = (): string => 'the project needs a name — use 
 export const projectExists = (name: string): string => `a project called ${name} exists — pick it from the list, or name the new one differently`
 export const projectFolderTaken = (path: string): string => `${path} already exists with files in it — pick another project name`
 export const projectUnknown = (folder: string): string => `${folder} is not a project Silos knows — pick one from the list, or start a new project`
+export const projectsFolderGone = (path: string): string =>
+  `the Projects folder ${path} is not there (is its disk mounted?) — new projects are born in it: bring it back, or change it in Settings › Territory`
 
 export type BirthProject = { name: string } | { folder: string }
 
@@ -56,9 +60,21 @@ export function birthFolder(o: {
   project: BirthProject | undefined
   folder: string
   agentId: string
-  registry: Pick<AgentRegistry, 'list'> & Partial<Pick<AgentRegistry, 'checkFolder'>>
+  registry: Pick<AgentRegistry, 'list'> & Partial<Pick<AgentRegistry, 'checkFolder' | 'projectsFolder'>>
   home: string
 }): string {
+  // where a new project is born, read now (a changed setting needs no
+  // restart). The default is made when missing; a CHOSEN folder that is not
+  // there (a disk not mounted) refuses — never a silent fall back to ~/Silos
+  const projectsFolder = (): string => {
+    const dir = o.registry.projectsFolder?.(o.home) ?? projectsFolderOf(o.home)
+    if (dir !== projectsFolderOf(o.home) && !existsSync(dir)) throw new ControlError(409, projectsFolderGone(dir))
+    return dir
+  }
+  const shown = (p: string): string => {
+    const home = o.home.replace(/(.)\/+$/, '$1')
+    return p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p
+  }
   // a new project's folder passes the project folder check (project-folder.ts)
   // BEFORE it is made — a refusal leaves nothing on disk — and is made, and
   // returned, at its real path (the Projects folder may be a symlink)
@@ -78,18 +94,18 @@ export function birthFolder(o: {
     const name = o.project.name.trim()
     const slug = slugify(name, PROJECT_SLUG_MAX)
     if (slug === '') throw new ControlError(400, projectNameEmpty())
-    const asked = join(projectsFolderOf(o.home), slug)
+    const asked = join(projectsFolder(), slug)
     if (managedFolderOf(o.registry, asked) !== null) throw new ControlError(409, projectExists(name))
     const path = judged(asked)
     if (managedFolderOf(o.registry, path) !== null) throw new ControlError(409, projectExists(name))
     // an unknown folder already there: an empty one is taken as is; one
     // with files is someone's — adopting it is another door
-    if (existsSync(path) && !isEmptyDir(path)) throw new ControlError(409, projectFolderTaken(`~/Silos/${slug}`))
+    if (existsSync(path) && !isEmptyDir(path)) throw new ControlError(409, projectFolderTaken(shown(path)))
     mkdirSync(path, { recursive: true })
     return path
   }
   if (o.folder !== '') return o.folder
-  const path = judged(join(projectsFolderOf(o.home), o.agentId))
+  const path = judged(join(projectsFolder(), o.agentId))
   mkdirSync(path, { recursive: true })
   return path
 }

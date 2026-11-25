@@ -13,8 +13,11 @@ export const PROJECT_ASK = 'Project'
 export const PROJECT_NEW = 'A new project'
 export const PROJECT_NAME_LABEL = 'The new project’s name'
 export const PROJECT_GIVEN = 'the folder you just picked'
-export const projectNewNote = (slug: string): string =>
-  `A new folder, ${derivedFolder(slug)} — the agent works in it, and so will the agents you add to this project.`
+// a new project's folder: <Projects folder>/<slug> — the folder part is a
+// quiet door to Settings › Territory, where the Projects folder is changed
+export const PROJECT_NEW_LEAD = 'A new folder, '
+export const PROJECT_NEW_TAIL = ' — the agent works in it, and so will the agents you add to this project.'
+export const PROJECTS_FOLDER_DOOR = 'The Projects folder — change where new projects are born in Settings › Territory'
 // a project is a boundary: joining one means knowing who is there
 export const projectJoinNote = (others: readonly string[]): string =>
   others.length > 0 ? `It joins ${others.join(', ')} there — they know each other.` : 'It works in that project’s folder.'
@@ -23,7 +26,6 @@ export const projectClash = (name: string): string => `A project called ${name} 
 export const ENGINE_FIELD = 'Engine'
 // the fence is a deny-list, never a confinement — never «can only open that folder»
 export const keepsOut = (name: string): string => `${name || 'It'} keeps out of your keys, your settings and other agents' desks.`
-export const derivedFolder = (id: string): string => `~/Silos/${id || '<name>'}`
 
 // the first-run tour's steps (Welcome): each one says what the thing is, in
 // one or two lines — the tour is these lines, nothing over the app

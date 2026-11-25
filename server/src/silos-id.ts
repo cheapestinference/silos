@@ -160,7 +160,9 @@ export interface SilosIdSettings {
   brokerUrl: string
   /** this instance's public origin, the one registered with the broker */
   publicOrigin: string
-  /** who may sign in (case-insensitive) */
+  /** who may sign in (case-insensitive). Empty = the instance starts
+   *  UNCLAIMED: nobody signs in until a token-gated claim stores an owner
+   *  (owner-store.ts; the claim flow lives in server.ts). */
   ownerEmails: string[]
 }
 
@@ -174,11 +176,11 @@ export function silosIdSettingsFromEnv(env: NodeJS.ProcessEnv): SilosIdSettings 
   if (!brokerUrl) return { off: `SILOS_ID_URL is not an https origin (${raw})` }
   const publicOrigin = publicOriginFromEnv(env)
   if (!publicOrigin) return { off: 'no public URL to register — set SILOS_PUBLIC_URL (or run on Railway with a public domain)' }
+  // no SILOS_OWNER_EMAIL is NOT off: the instance is claimable (empty set)
   const ownerEmails = (env.SILOS_OWNER_EMAIL ?? '')
     .split(',')
     .map((e) => e.trim())
     .filter((e) => e.includes('@'))
-  if (ownerEmails.length === 0) return { off: 'SILOS_OWNER_EMAIL is not set — nobody could sign in' }
   return { brokerUrl, publicOrigin, ownerEmails }
 }
 
@@ -191,6 +193,7 @@ export interface SilosIdIdentity {
 interface Pending {
   bind: string
   expiresAt: number
+  claim: boolean
 }
 
 const STATE_TTL_MS = 10 * 60_000
@@ -300,13 +303,15 @@ export class SilosIdClient {
   }
 
   /** A login attempt: a single-use state bound to this browser by `bind`
-   *  (its cookie), and where to send the browser. */
-  async start(pick: SignInPick = {}): Promise<{ location: string; state: string; bind: string }> {
+   *  (its cookie), and where to send the browser. A `claim` attempt (the
+   *  route only mints one behind the access token) carries the mark to its
+   *  completion — the pass's email may then claim an unclaimed instance. */
+  async start(pick: SignInPick = {}, opts: { claim?: boolean } = {}): Promise<{ location: string; state: string; bind: string }> {
     const instanceId = await this.ensureRegistered()
     this.prune()
     const state = randomBytes(24).toString('base64url')
     const bind = randomBytes(24).toString('base64url')
-    this.pending.set(state, { bind, expiresAt: this.now() + STATE_TTL_MS })
+    this.pending.set(state, { bind, expiresAt: this.now() + STATE_TTL_MS, claim: opts.claim === true })
     const q = new URLSearchParams({ instance: instanceId, state, ...signInPickParams(pick) })
     return { location: `${this.brokerUrl}/login?${q.toString()}`, state, bind }
   }
@@ -315,7 +320,7 @@ export class SilosIdClient {
    *  follows), then the browser binding, the pass's signature against the
    *  broker's keys, and its claims. Throws with the reason. The allowed set
    *  is the guard's (server.ts), not checked here. */
-  async complete(pass: string, state: string, bind: string): Promise<SilosIdIdentity> {
+  async complete(pass: string, state: string, bind: string): Promise<SilosIdIdentity & { claim: boolean }> {
     const p = this.pending.get(state)
     this.pending.delete(state)
     if (!p || p.expiresAt <= this.now()) throw new Error('this sign-in expired or was already used — start again')
@@ -334,7 +339,7 @@ export class SilosIdClient {
     if (typeof c.sub !== 'string' || c.sub === '') throw new Error('the pass has no subject')
     if (typeof c.email !== 'string' || c.email === '') throw new Error('the pass has no email')
     if (c.email_verified !== true) throw new Error("the Google account's email is not verified")
-    return { email: c.email, name: typeof c.name === 'string' ? c.name : null, picture: typeof c.picture === 'string' ? c.picture : null }
+    return { email: c.email, name: typeof c.name === 'string' ? c.name : null, picture: typeof c.picture === 'string' ? c.picture : null, claim: p.claim }
   }
 }
 

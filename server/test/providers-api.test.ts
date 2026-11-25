@@ -537,3 +537,22 @@ describe('/api/settings — the unattended provider', () => {
     expect(ok.json().keepOwnAccount).toEqual(['Claude Code'])
   })
 })
+
+describe('/api/settings — the Projects folder', () => {
+  it('says the default, stores a judged folder (other settings kept), refuses a bad one, and null takes it back', async () => {
+    const view = (await get('/api/settings')).json()
+    expect(view.projectsDir.chosen).toBe(false)
+    expect(view.projectsDir.path).toMatch(/\/Silos$/)
+    const id = providers.create({ kind: 'anthropic-compatible', label: 'Gateway', baseUrl: 'https://gw.example', apiKey: KEY }).id
+    await patch('/api/settings', { unattendedProvider: id })
+    const disk = join(base, 'disk')
+    mkdirSync(disk)
+    const r = await patch('/api/settings', { projectsDir: `${disk}/` })
+    expect(r.statusCode).toBe(200)
+    expect(r.json().projectsDir).toMatchObject({ path: disk, chosen: true })
+    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8'))).toEqual({ unattendedProvider: id, projectsDir: disk })
+    for (const bad of ['relative/path', 42, '']) expect((await patch('/api/settings', { projectsDir: bad })).statusCode).toBe(400)
+    expect((await get('/api/settings')).json().projectsDir.path).toBe(disk)
+    expect((await patch('/api/settings', { projectsDir: null })).json().projectsDir.chosen).toBe(false)
+  })
+})

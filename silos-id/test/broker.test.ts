@@ -525,7 +525,7 @@ describe('end to end: the Worker signs, the instance verifies', () => {
   it('a pass from the Worker completes the sign-in on the instance', async () => {
     const c = client()
     const s = await signIn(c, { name: 'Owner', picture: 'https://example.com/p.png' })
-    expect(await c.complete(s.pass, s.state, s.bind)).toEqual({ email: OWNER, name: 'Owner', picture: 'https://example.com/p.png' })
+    expect(await c.complete(s.pass, s.state, s.bind)).toEqual({ email: OWNER, name: 'Owner', picture: 'https://example.com/p.png', claim: false })
   })
 
   it('the instance refuses a Worker pass that is replayed, expired, or for another instance', async () => {

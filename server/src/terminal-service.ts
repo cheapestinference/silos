@@ -289,6 +289,9 @@ export interface EnsureConsoleInput {
   skin?: { paneStyle: string; palette: readonly string[] }
   prompt?: string
   rolePluginDir?: string
+  // the agent's own auto-memory directory (memory-service.ts
+  // agentAutoMemoryDir), riding the launch's flag-tier settings
+  autoMemoryDir?: string
   // the queue of files the owner gave this conversation (context-news.ts):
   // its per-prompt hook drains it (harnesses/claude-code/console.ts)
   contextQueue?: string
@@ -1231,6 +1234,7 @@ export class TerminalService extends EventEmitter {
         ...(input.fence ? { fence: input.fence } : {}),
         ...(input.prompt ? { prompt: input.prompt } : {}),
         ...(input.rolePluginDir ? { rolePluginDir: input.rolePluginDir } : {}),
+        ...(input.autoMemoryDir ? { autoMemoryDir: input.autoMemoryDir } : {}),
         ...(input.carried && input.carried.length > 0 ? { carried: input.carried, ...(input.loginDirs ? { loginDirs: input.loginDirs } : {}) } : {}),
         cwd: input.cwd,
         settingsFile: (json) => this.writeSettingsFile(input.key, json),
@@ -1363,7 +1367,23 @@ export class TerminalService extends EventEmitter {
         ...CONSOLE_BINDINGS.map((args) => ['bind-key', ...args]),
       ]),
     ) // a reattach applied the bindings in reattachConsole
-    if (input.skin) this.answerPalette(input.key, input.skin.palette)
+    if (input.skin) {
+      // The pane itself knows its palette: tmux ≥ 3.6 answers a PLAIN
+      // OSC 4 query from `pane-colours` — with the index — instantly and
+      // with no client attached, and a TUI on those tmux asks plain,
+      // trusting exactly that (verified 25-11 on tmux 3.6 built from
+      // source: with the option set it replies alone; without it and with
+      // no client the question is DROPPED and the TUI falls back to its
+      // own theme). A separate, swallowed call: a tmux without the option
+      // (< 3.4) would refuse the whole chain — and there the TUI never
+      // asks plain, so the responder below still covers it.
+      try {
+        await this.tmux(chained(input.skin.palette.map((hex, i) => ['set-option', '-p', '-t', this.consoleName(input.key), `pane-colours[${i}]`, hex])))
+      } catch {
+        /* an old tmux keeps the responder path only */
+      }
+      this.answerPalette(input.key, input.skin.palette)
+    }
     // tmux took it: alive as of the spawn (the sync readers see it at once)
     this.noteLiveness(input.key, 'alive', this.ask())
   }

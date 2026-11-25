@@ -33,7 +33,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
 import { mungePath, type AgentRegistry } from './agent-registry.js'
-import { agentMemoryPath } from './memory-service.js'
+import { agentAutoMemoryDir, agentAutoMemoryOf, agentMemoryPath } from './memory-service.js'
 import { skipName, WALK_DEPTH } from './context-service.js'
 import { territoriesOf } from './territory.js'
 
@@ -121,6 +121,12 @@ export function startKnowsWatcher(opts: KnowsWatcherOptions): { close(): Promise
       const folder = a.folder ?? ''
       const memoryPath = agentMemoryPath(dataDir, a.id)
       put({ path: memoryPath, mode: 'file', kind: 'memory', scope: 'agent', folder, agentId: a.id, root: dirname(dirname(memoryPath)) })
+      // the agent's own auto-memory dir (memory per agent): what its
+      // conversations write — watched like the folder's, when its engine
+      // reads one (caps.agentAutoMemory)
+      if (agentAutoMemoryOf(a)) {
+        put({ path: agentAutoMemoryDir(dataDir, a.id), mode: 'md-dir', kind: 'memory', scope: 'auto', folder, agentId: a.id, root: dataDir })
+      }
       // A folder that doesn't exist would anchor the watch at some far
       // ancestor (possibly /) — skipped until it exists (next resync).
       // Auto-memory lives under the munged PRIMARY cwd only.
@@ -208,7 +214,7 @@ export function startKnowsWatcher(opts: KnowsWatcherOptions): { close(): Promise
       const segs = segmentsUnder(t.path, p)
       if (t.mode === 'md-dir') {
         if (isDir || segs.length !== 1 || !name.endsWith('.md')) return null
-        return { ...base, folder: t.folder, kind: t.kind, action, name, scope: t.scope }
+        return { ...base, folder: t.folder, ...(t.agentId ? { agentId: t.agentId } : {}), kind: t.kind, action, name, scope: t.scope }
       }
       if (t.mode === 'plans') {
         if (isDir || segs.length !== 1 || !name.endsWith('.plan.json')) return null

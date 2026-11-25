@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { isPackageInstall } from '../src/project-folder.js'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { isPackageInstall, projectsFolderOf } from '../src/project-folder.js'
+import { PlatformSettingsStore } from '../src/platform-settings.js'
+import { birthFolder } from '../src/birth-project.js'
 import { SILOS_CHECKOUT } from '../src/territory.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -428,5 +430,127 @@ describe('the project folder check at create and update', () => {
     expect(found.find((o) => o.agentId === 'fine')?.reason).toMatch(/inside the project at/)
     expect(found.find((o) => o.agentId === 'desk')?.reason).toMatch(/home folder/)
     expect(readFileSync(join(data, 'agents.json'), 'utf8')).toBe(before)
+  })
+
+  it('the Projects folder audit names the files right in it an engine loads into every project, and changes nothing', () => {
+    const P = join(home, 'Silos')
+    expect(checked.projectsFolder()).toBe(P)
+    const put = (p: string): void => {
+      mkdirSync(join(p, '..'), { recursive: true })
+      writeFileSync(p, 'x\n')
+    }
+    for (const f of [
+      'CLAUDE.md',
+      'AGENTS.md',
+      '.claude/rules/style.md',
+      '.claude/settings.local.json',
+      '.opencode/agent/a.md',
+      'notes.txt',
+      'app/CLAUDE.md',
+      'app/AGENTS.md',
+    ])
+      put(join(P, f))
+    mkdirSync(join(P, '.claude', 'skills'), { recursive: true }) // an empty folder names no file
+    const found = checked.auditProjectsFolder()
+    expect(found).toEqual(
+      ['.claude/rules/style.md', '.claude/settings.local.json', '.opencode/agent/a.md', 'AGENTS.md', 'CLAUDE.md'].map((f) => join(P, f)).sort(),
+    )
+    expect(readFileSync(join(P, 'CLAUDE.md'), 'utf8')).toBe('x\n')
+    // a configured Projects folder is the one judged; no check, no audit
+    const other = new AgentRegistry(join(data, 'agents.json'), { folderCheck: { home, dataDir: data, projectsFolder: join(home, 'elsewhere') } })
+    expect(other.auditProjectsFolder()).toEqual([])
+    expect(new AgentRegistry(join(data, 'agents.json')).auditProjectsFolder()).toEqual([])
+  })
+})
+
+describe('the Projects folder (projectsDir): where the next new project is born', () => {
+  let home: string, data: string, settings: PlatformSettingsStore, checked: AgentRegistry
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'pd-home-'))
+    data = join(home, '.silos')
+    for (const d of [data, join(home, '.claude'), join(home, 'work', 'shop', 'src')]) mkdirSync(d, { recursive: true })
+    settings = new PlatformSettingsStore(data)
+    settings.load()
+    // as the server builds it: the Projects folder read per use
+    checked = new AgentRegistry(join(data, 'agents.json'), {
+      folderCheck: {
+        home,
+        dataDir: data,
+        get projectsFolder() {
+          return projectsFolderOf(home, settings)
+        },
+      },
+    })
+    checked.load()
+  })
+  const born = (agentId: string, name: string): string => birthFolder({ project: { name }, folder: '', agentId, registry: checked, home })
+  const refusal = (fn: () => unknown): { status: number; message: string } => {
+    try {
+      fn()
+    } catch (err) {
+      return { status: (err as { status?: number }).status ?? 0, message: (err as Error).message }
+    }
+    throw new Error('not refused')
+  }
+
+  it('defaults to <home>/Silos, made at the first birth', () => {
+    expect(settings.projectsDir()).toBeNull()
+    expect(checked.projectsFolder(home)).toBe(join(home, 'Silos'))
+    expect(born('builder', 'Books')).toBe(join(home, 'Silos', 'books'))
+    expect(existsSync(join(home, 'Silos', 'books'))).toBe(true)
+  })
+
+  it('a new value passes the folder check but may hold projects; refused anywhere a project may not be, inside a project, or when not on disk', () => {
+    const shop = join(home, 'work', 'shop')
+    checked.create({ id: 'builder', name: 'builder', folder: shop })
+    for (const f of [home, '/', data, join(home, '.claude'), join(home, '.claude', 'skills'), join(home, '..'), 'relative/path']) {
+      const v = checked.checkProjectsDir(f)
+      expect(v.ok, f).toBe(false)
+      if (!v.ok) expect(v.conflict, f).toBe(false)
+    }
+    const inProject = checked.checkProjectsDir(join(shop, 'src'))
+    expect(inProject.ok === false && inProject.conflict).toBe(true)
+    const isProject = checked.checkProjectsDir(shop)
+    expect(isProject.ok === false && isProject.conflict).toBe(true)
+    const missing = checked.checkProjectsDir(join(home, 'nowhere'))
+    expect(missing.ok === false && missing.conflict).toBe(false)
+    // the folder that holds a project is fine: that is what it is for
+    expect(checked.checkProjectsDir(join(home, 'work'))).toEqual({ ok: true, path: join(home, 'work') })
+    // judged — and stored — by its real path
+    const disk = mkdtempSync(join(tmpdir(), 'pd-disk-'))
+    symlinkSync(disk, join(home, 'disk'))
+    expect(checked.checkProjectsDir(`${join(home, 'disk')}/`)).toEqual({ ok: true, path: realpathSync(disk) })
+  })
+
+  it('a change takes effect at the next birth without a restart, moves nothing, and is kept in settings.json', () => {
+    const before = born('builder', 'Books')
+    checked.create({ id: 'builder', name: 'builder', folder: before })
+    const disk = realpathSync(mkdtempSync(join(tmpdir(), 'pd-disk-')))
+    settings.setProjectsDir(disk)
+    expect(born('finance', 'Ledger')).toBe(join(disk, 'ledger'))
+    // nothing moved: the record decides, the old project stays on disk
+    expect(checked.get('builder')?.folder).toBe(before)
+    expect(existsSync(before)).toBe(true)
+    // the new Projects folder is refused as a project; the old one now only for what it holds
+    expect(refusal(() => checked.create({ id: 'ops', name: 'ops', folder: disk })).status).toBe(400)
+    expect(refusal(() => checked.create({ id: 'ops', name: 'ops', folder: join(home, 'Silos') })).message).toMatch(/holds the project at/)
+    // persisted, and read back by a fresh store; a stray hand edit falls back to the default
+    const again = new PlatformSettingsStore(data)
+    again.load()
+    expect(again.projectsDir()).toBe(disk)
+    writeFileSync(join(data, 'settings.json'), JSON.stringify({ unattendedProvider: null, projectsDir: 'not/absolute' }))
+    again.load()
+    expect(projectsFolderOf(home, again)).toBe(join(home, 'Silos'))
+  })
+
+  it('a chosen folder that is gone refuses the birth — never a silent fall back to ~/Silos', () => {
+    const disk = realpathSync(mkdtempSync(join(tmpdir(), 'pd-disk-')))
+    settings.setProjectsDir(disk)
+    rmSync(disk, { recursive: true })
+    expect(refusal(() => born('builder', 'Books')).status).toBe(409)
+    expect(existsSync(disk)).toBe(false)
+    expect(existsSync(join(home, 'Silos'))).toBe(false)
+    // nor for a birth with no project asked (named like the agent)
+    expect(refusal(() => birthFolder({ project: undefined, folder: '', agentId: 'builder', registry: checked, home })).status).toBe(409)
   })
 })

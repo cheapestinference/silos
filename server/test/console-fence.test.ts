@@ -13,9 +13,9 @@ import { ChatService } from '../src/chat-service.js'
 import { ExecService } from '../src/exec-service.js'
 import { CompleteService } from '../src/complete-service.js'
 import { PrefsStore } from '../src/prefs-store.js'
-import { MemoryService } from '../src/memory-service.js'
+import { agentAutoMemoryDir, MemoryService } from '../src/memory-service.js'
 import { TerminalService } from '../src/terminal-service.js'
-import type { ConsoleCommandOpts } from '../src/harnesses/claude-code/console.js'
+import { defaultConsoleCommand, type ConsoleCommandOpts } from '../src/harnesses/claude-code/console.js'
 import { buildServer } from '../src/server.js'
 import type { FenceOverlay } from '../src/territory.js'
 import { AgentStateStore } from '../src/agent-state.js'
@@ -116,6 +116,7 @@ describe("POST /api/console — the console carries the agent's fence", () => {
       liveMs: 120_000,
       agentState,
       agentTokens: tokens,
+      dataDir: join(base, 'data'),
       births: { get: (id: string) => births.get(id) ?? null },
       ...(withTerritory ? { territory } : {}),
       ...(loadsCarried ? { loadsCarried } : {}),
@@ -131,6 +132,22 @@ describe("POST /api/console — the console carries the agent's fence", () => {
     expect(asked).toEqual(['writer'])
     expect(seen).toHaveLength(1)
     expect(seen[0]!.fence).toEqual(fence)
+  })
+
+  // memory per agent (t48): the console's claude reads and writes the
+  // AGENT's auto memory, not the folder's — the dir rides the same
+  // --settings as the fence and exists at launch.
+  it("a fresh console points auto memory at the agent's own dir and creates it", async () => {
+    const { seen, base } = await setup(true)
+    const res = await app.inject({ method: 'POST', url: '/api/console', payload: { agentId: 'writer' } })
+    expect(res.statusCode).toBe(201)
+    const dir = agentAutoMemoryDir(join(base, 'data'), 'writer')
+    expect(seen[0]!.autoMemoryDir).toBe(dir)
+    expect(existsSync(dir)).toBe(true)
+    // and the real argv says it inside the one --settings
+    const argv = defaultConsoleCommand({ autoMemoryDir: dir })
+    const json = argv[argv.indexOf('--settings') + 1]!
+    expect((JSON.parse(json) as { autoMemoryDirectory?: string }).autoMemoryDirectory).toBe(dir)
   })
 
   // the mission reaches the REAL console — the

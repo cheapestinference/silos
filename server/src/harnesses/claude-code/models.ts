@@ -42,7 +42,7 @@ export function fetchModelsWithSdk(): FetchModels {
         cwd: tmpdir(),
         persistSession: false,
         settingSources: [],
-        settings: { disableAllHooks: true },
+        settings: { disableAllHooks: true, autoMemoryEnabled: false },
         abortController: abort,
         env: envForProvider(null) as never,
       },

@@ -102,7 +102,25 @@ export function AtStart({ agent, sw }: { agent: AgentView; sw: AgentStartedWith 
         ) : null}
       </section>
       <div className="rounded-lg border border-line bg-canvas">
-        <p className="px-3 pt-2.5 text-[12px] text-ink-2">Its newest {current === 'run' ? 'automation run' : `${current} conversation`}, part by part:</p>
+        <p className="px-3 pt-2.5 text-[12px] text-ink-2">
+          Its newest {current === 'run' ? 'automation run' : `${current} conversation`}
+          {m.latest.at || m.latest.login ? (
+            <span className="text-ink-3">
+              {' — '}
+              {m.latest.at ? new Date(m.latest.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null}
+              {m.latest.at && m.latest.login ? ', ' : null}
+              {m.latest.login ? (
+                <>
+                  on <span className="font-mono text-[11px]">{m.latest.login}</span>
+                </>
+              ) : null}
+              {' — '}
+            </span>
+          ) : (
+            ', '
+          )}
+          part by part:
+        </p>
         <StartedWithBlock key={`${m.latest.folder}/${m.latest.id}`} folder={m.latest.folder} id={m.latest.id} ctx={ctx} initiallyOpen own="agent" />
       </div>
     </div>

@@ -17,6 +17,13 @@
 // loads it — `startingSet: { <engine id>: { <class id>: boolean } }`. An
 // absent class follows Silos' recommendation. Read at a birth by the one
 // seam (starting-set.ts); its house is Settings › Accounts & providers.
+//
+// And the PROJECTS FOLDER (`projectsDir`): where the next new project is
+// born, as a real path; absent = `<home>/Silos`. Read per use through
+// projectsFolderOf (project-folder.ts, the one source), judged before it is
+// stored by checkProjectsDir. Changing it moves nothing: every existing
+// project stays where its agents' records say. Its house is Settings ›
+// Territory. Never an env var.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { atomicWriteJson, backupCorruptJson } from './json-store.js'
@@ -32,6 +39,7 @@ export type StartingSetChoice = Record<string, Record<string, boolean>>
 export interface PlatformSettings {
   unattendedProvider: string | null
   startingSet: StartingSetChoice
+  projectsDir: string | null
 }
 
 export const NO_SUCH_PROVIDER = 'no such provider'
@@ -39,14 +47,14 @@ export const runsOnNoEngine = (label: string): string => `${label} runs on none 
 
 export class PlatformSettingsStore {
   private file: string
-  private value: PlatformSettings = { unattendedProvider: null, startingSet: {} }
+  private value: PlatformSettings = { unattendedProvider: null, startingSet: {}, projectsDir: null }
 
   constructor(dataDir: string) {
     this.file = join(dataDir, 'settings.json')
   }
 
   load(): void {
-    this.value = { unattendedProvider: null, startingSet: {} }
+    this.value = { unattendedProvider: null, startingSet: {}, projectsDir: null }
     if (!existsSync(this.file)) return
     const text = readFileSync(this.file, 'utf8')
     let raw: unknown
@@ -59,10 +67,26 @@ export class PlatformSettingsStore {
     const u = (raw as { unattendedProvider?: unknown } | null)?.unattendedProvider
     if (typeof u === 'string' && u.trim() !== '') this.value.unattendedProvider = u.trim()
     this.value.startingSet = readStartingSet((raw as { startingSet?: unknown } | null)?.startingSet)
+    // a hand edit's stray value (not an absolute path) is dropped: the default stands
+    const d = (raw as { projectsDir?: unknown } | null)?.projectsDir
+    if (typeof d === 'string' && d.trim().startsWith('/')) this.value.projectsDir = d.trim().replace(/(.)\/+$/, '$1')
   }
 
   get(): PlatformSettings {
-    return { unattendedProvider: this.value.unattendedProvider, startingSet: copySet(this.value.startingSet) }
+    return { unattendedProvider: this.value.unattendedProvider, startingSet: copySet(this.value.startingSet), projectsDir: this.value.projectsDir }
+  }
+
+  /** the chosen Projects folder, or null (the default, `<home>/Silos`) —
+   *  read through projectsFolderOf, never on its own */
+  projectsDir(): string | null {
+    return this.value.projectsDir
+  }
+
+  /** Stores an already-judged real path (checkProjectsDir), or null back to
+   *  the default. Moves nothing. */
+  setProjectsDir(path: string | null): void {
+    this.value = { ...this.value, projectsDir: path }
+    this.save()
   }
 
   /** the user's choices for one engine (absent classes follow Recommended) */
@@ -102,6 +126,7 @@ export class PlatformSettingsStore {
       {
         unattendedProvider: this.value.unattendedProvider,
         ...(Object.keys(this.value.startingSet).length > 0 ? { startingSet: this.value.startingSet } : {}),
+        ...(this.value.projectsDir !== null ? { projectsDir: this.value.projectsDir } : {}),
       },
       { mode: 0o600 },
     )

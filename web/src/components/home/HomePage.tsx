@@ -11,7 +11,7 @@
 // its Done today the digest's sheet).
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Gauge, Hourglass, Square } from 'lucide-react'
+import { FileWarning, Gauge, Hourglass, Square } from 'lucide-react'
 import { AutomationIcon, SiloIcon } from '../../lib/icons'
 import { useStore } from '../../store'
 import { openAgentControl, openAgentSettings } from '../agent/doors'
@@ -121,6 +121,7 @@ import { inboxDestination } from '../../lib/inbox-destination'
 import { agentInPlay } from '../../lib/beat-home'
 import { useBindingAsks } from '../../hooks/useBindingAsks'
 import { BindingAskCard } from '../VaultSigning'
+import { useGoHome } from '../knows/go-home'
 
 const BOARD_POLL_MS = 20_000
 const HEARTBEAT_POLL_MS = 30_000
@@ -385,6 +386,7 @@ function InboxRow({
   const openSession = useStore((s) => s.openSession)
   const changePage = useStore((s) => s.changePage)
   const setChatMode = useStore((s) => s.setChatMode)
+  const goHome = useGoHome()
   // rows about automations and beats land through ONE rule (inbox-destination.ts)
   const go = (row: InboxItem): void => {
     const dest = inboxDestination(row, (id) => agentInPlay(agents, id))
@@ -1087,6 +1089,28 @@ function InboxRow({
       const a = byId(item.agentId)
       const toProfile = (): void => openAgentSettings(item.agentId)
       return row(<Seal agent={a} size="sm" />, `${agentName(a)} · folder`, <>{item.reason}</>, <Act onClick={toProfile}>Change its folder ›</Act>, toProfile)
+    }
+    case 'projectsFolderFile': {
+      // a file right in the Projects folder an engine loads into every
+      // project in it (the server's audit): said, never fixed. The door is
+      // a project's Memory, where the file shows with its off switch
+      const project = item.projects[0]
+      const toMemory = project === undefined ? undefined : (): void => goHome({ kind: 'project', folder: project, tab: 'memory' })
+      return row(
+        <span
+          aria-hidden="true"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--health-amber)_45%,transparent)] bg-[color-mix(in_srgb,var(--health-amber)_12%,transparent)] text-[color-mix(in_srgb,var(--health-amber)_80%,var(--ink))]"
+        >
+          <FileWarning size={12} aria-hidden="true" />
+        </span>,
+        'Projects folder · a file every project loads',
+        <>
+          <span className="font-mono">{item.path}</span>
+          <span className="text-ink-2"> — nothing but projects belongs there; move it, or switch it off in a project's Memory</span>
+        </>,
+        toMemory ? <Act onClick={toMemory}>See it in Memory ›</Act> : null,
+        toMemory,
+      )
     }
     case 'cut': {
       // Silos cut its capability of creating work on its own

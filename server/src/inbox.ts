@@ -218,6 +218,10 @@ export type InboxRow = RowBase &
     // (project-folder.ts auditProjectFolders): said, never fixed — one due row
     // per agent folder, its door the agent's Runs on
     | { kind: 'folderRefused'; agentId: string; folder: string; reason: string }
+    // a file right in the Projects folder an engine could load into every
+    // project in it (project-folder.ts loadablesInProjectsFolder): said, never
+    // fixed — one due row per file, its door a project's Memory
+    | { kind: 'projectsFolderFile'; path: string; projectsFolder: string; projects: string[] }
     // turns of its day the $ cap could not count: no price
     | { kind: 'spend'; agentId: string; day: string; unpriced: number; models: string[] }
     | { kind: 'cut'; agentId: string; why: string }
@@ -999,6 +1003,24 @@ export function folderRefusedRow(f: { agentId: string; agentName: string; folder
     reason: f.reason,
     voice: `${f.agentName} works in a folder no project may have: ${f.reason}`,
     clears: 'the agent gets another folder (its Runs on), or it is archived',
+  }
+}
+
+// a file right in the Projects folder an engine loads into every project
+// inside it: the owner's to keep or move; it leaves when the file does.
+// `projects`: the registered projects it reaches (the door: their Memory,
+// where the file shows with its off switch)
+export function projectsFolderFileRow(f: { path: string; projectsFolder: string; projects: readonly string[]; now: number }): InboxRow {
+  return {
+    kind: 'projectsFolderFile',
+    key: `projects-folder-file:${f.path}`,
+    urgency: 'due',
+    at: f.now,
+    path: f.path,
+    projectsFolder: f.projectsFolder,
+    projects: [...f.projects],
+    voice: `${f.path} sits in the Projects folder — every project in it loads it`,
+    clears: 'the file leaves the Projects folder',
   }
 }
 

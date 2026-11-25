@@ -16,13 +16,32 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { getToken } from '../lib/api'
 import { consumeSilosIdLanding, fetchAuthConfig, fetchWho, type AuthConfig } from '../lib/auth'
 import { LoginView } from './LoginView'
+import { Logo } from './Logo'
 import { PairView } from './PairView'
+
+// The gate's face while it decides. A local roundtrip resolves within the
+// first second and keeps the bare canvas — no flash. Past 1s (a wake-up
+// network, a cold tunnel) the mark pulses: without it the wait is an
+// anonymous dark canvas that reads as a dead screen.
+function CheckingVeil() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setSlow(true), 1000)
+    return () => window.clearTimeout(t)
+  }, [])
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-canvas">
+      {slow ? <Logo size={32} className="text-terracotta motion-safe:animate-pulse" /> : null}
+    </div>
+  )
+}
 
 type State = 'checking' | 'login' | 'pair' | 'app'
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>('checking')
   const [landingError, setLandingError] = useState<string | null>(null)
+  const [claim, setClaim] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +65,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         return
       }
       if (cancelled) return
+      setClaim(cfg.claim === true)
       setState(cfg.enabled ? 'login' : 'pair')
     })()
     return () => {
@@ -53,9 +73,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // no flash: an empty cream background while it decides (a local roundtrip)
-  if (state === 'checking') return <div className="h-screen w-screen bg-canvas" />
-  if (state === 'login') return <LoginView initialError={landingError} />
+  if (state === 'checking') return <CheckingVeil />
+  if (state === 'login') return <LoginView initialError={landingError} claim={claim} />
   if (state === 'pair') return <PairView onPaired={() => setState('app')} />
   return <>{children}</>
 }

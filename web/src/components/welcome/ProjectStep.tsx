@@ -1,7 +1,7 @@
 // ProjectStep.tsx — the first run's first step: the project its first agent
 // will work in, and what a project is, in one line. A fresh install knows
-// no project, so it is a new one by name (made at ~/Silos/<slug>, the
-// folder said under it) — named like the agent until you name it yourself,
+// no project, so it is a new one by name (made at <Projects folder>/<slug>, the
+// folder said under it, its first part a door to Settings › Territory) — named like the agent until you name it yourself,
 // so skipping straight to Who and Create still works. Drawn with the
 // birth model's ProjectField (BirthFields over lib/birth.ts), the same the
 // New agent form shows.

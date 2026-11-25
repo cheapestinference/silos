@@ -17,11 +17,15 @@ import {
   PROJECT_GIVEN,
   PROJECT_NAME_LABEL,
   PROJECT_NEW,
+  PROJECT_NEW_LEAD,
+  PROJECT_NEW_TAIL,
+  PROJECTS_FOLDER_DOOR,
   missionAskFor,
   missionHelp,
   projectJoinNote,
-  projectNewNote,
 } from '../../lib/new-agent'
+import { useProjectsFolder } from '../../lib/projects-folder'
+import { useStore } from '../../store'
 import { territoriesOf } from '../../lib/territory'
 import { basename } from '../../lib/routes'
 import { WorksChoice } from './WorksChoice'
@@ -81,6 +85,14 @@ export function ProjectField({
   // who is already there: the project is a boundary, joining it means knowing them
   const others = p.kind === 'new' ? [] : agents.filter((a) => !a.archived && territoriesOf(a).includes(p.folder)).map((a) => a.name)
   const select = choose || p.kind !== 'new'
+  // where a new project is born, as the server says it; its door leaves the
+  // form for Settings › Territory (the New agent form closes; Welcome waits)
+  const projectsFolder = useProjectsFolder()
+  const toProjectsFolder = (): void => {
+    const s = useStore.getState()
+    if (s.modal === 'create') s.setModal(null)
+    s.changePage({ kind: 'settings', tab: 'territory' })
+  }
   return (
     <div>
       {select ? (
@@ -134,7 +146,21 @@ export function ProjectField({
             className={select ? `${field} text-[14px]` : `font-display text-[17px] ${field}`}
           />
           <p id={`${uid}-pnote`} className="mt-1 text-xs leading-relaxed text-ink-2">
-            {projectNewNote(slugOf(projectName(birth), PROJECT_SLUG_MAX))}
+            {PROJECT_NEW_LEAD}
+            <span className="font-mono">
+              {/* the Projects folder part: a quiet door to where it is changed */}
+              <button
+                type="button"
+                onClick={toProjectsFolder}
+                title={PROJECTS_FOLDER_DOOR}
+                aria-label={PROJECTS_FOLDER_DOOR}
+                className="underline decoration-line decoration-dotted underline-offset-2 transition-colors duration-150 hover:text-ink hover:decoration-ink-2"
+              >
+                {projectsFolder.shown}
+              </button>
+              /{slugOf(projectName(birth), PROJECT_SLUG_MAX) || '<name>'}
+            </span>
+            {PROJECT_NEW_TAIL}
           </p>
         </div>
       ) : (

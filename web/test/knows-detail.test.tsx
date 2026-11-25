@@ -21,6 +21,9 @@ const layers: MemoryLayers = {
   global: mem('CLAUDE.md', '/home/u/.claude/CLAUDE.md', 'global'),
   project: mem('CLAUDE.md', '/home/user/ana/CLAUDE.md', 'project', false),
   autoMemory: [mem('deploy-notes', `${MEMDIR}/deploy-notes.md`, 'auto')],
+  // folder-scoped auto layer: an engine without per-agent auto memory
+  autoDir: MEMDIR,
+  autoScope: 'folder',
   agent: mem('Agent memory', '/s/agents/a1/memory.md', 'agent'),
 }
 const file = (name: string, scope: ContextFile['scope']): ContextFile => ({
@@ -225,7 +228,7 @@ describe('KnowsDrawer — add in place', () => {
     const offered = within(scopes)
       .getAllByRole('radio')
       .map((r) => r.getAttribute('aria-label'))
-    expect(offered).toEqual(['Agent · Ana', 'Project · ana'])
+    expect(offered).toEqual(['Always loaded', 'Project · ana'])
     // Global/Project: a link to edit their one CLAUDE.md — the project one
     // reads from layers even though it does not exist yet
     expect(within(drawer).getByRole('button', { name: /edit global claude\.md/i })).toBeInTheDocument()

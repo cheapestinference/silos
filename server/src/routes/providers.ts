@@ -17,6 +17,7 @@ import type { AccountLoad } from '../harnesses/claude-code/account-load.js'
 import type { PlanUsage } from '../harnesses/claude-code/plan-usage.js'
 import type { TerminalService } from '../terminal-service.js'
 import { enginesKeepingOwn, startingClassesOf, startingSetError, unattendedProviderError, type PlatformSettingsStore } from '../platform-settings.js'
+import { projectsFolderOf, type FolderVerdict } from '../project-folder.js'
 
 export interface ProviderRoutesCtx {
   providers: ProvidersStore | undefined
@@ -34,6 +35,16 @@ export interface ProviderRoutesCtx {
   // the engines the roster runs on (every agent in play) — what the switch's
   // «runs on none of your agents' engines» and «keep their own account» read
   enginesInUse?: () => HarnessId[]
+  // the Projects folder (`projectsDir`): the machine's home (where it is
+  // now: projectsFolderOf) and the check a new one passes (checkProjectsDir,
+  // against every registered project)
+  projectsFolder?: { home: string; check: (path: string) => FolderVerdict }
+}
+
+/** A path as the owner reads it: `~/…` under the home. */
+const tilde = (home: string, p: string): string => {
+  const h = home.replace(/(.)\/+$/, '$1')
+  return p === h ? '~' : p.startsWith(`${h}/`) ? `~${p.slice(h.length)}` : p
 }
 
 export function providerRoutes(app: FastifyInstance, ctx: ProviderRoutesCtx): void {
@@ -70,18 +81,37 @@ export function providerRoutes(app: FastifyInstance, ctx: ProviderRoutesCtx): vo
             })),
           ]),
       )
-      return { unattendedProvider: id, keepOwnAccount: enginesKeepingOwn(id, inUse(), providers), startingSet }
+      // the Projects folder: where the next new project is born — `chosen`
+      // false is the default (<home>/Silos)
+      const pf = ctx.projectsFolder
+      const now = pf ? projectsFolderOf(pf.home, settings) : null
+      const projectsDir = pf && now !== null ? { path: now, shown: tilde(pf.home, now), chosen: settings.projectsDir() !== null } : undefined
+      return { unattendedProvider: id, keepOwnAccount: enginesKeepingOwn(id, inUse(), providers), startingSet, ...(projectsDir ? { projectsDir } : {}) }
     }
     app.get('/api/settings', async (req, reply) => {
       if (req.agentId !== undefined) return reply.code(403).send({ error: `agent ${req.agentId} may not read /api/settings` })
       return view()
     })
-    app.patch<{ Body: { unattendedProvider?: unknown; startingSet?: unknown } }>('/api/settings', async (req, reply) => {
+    app.patch<{ Body: { unattendedProvider?: unknown; startingSet?: unknown; projectsDir?: unknown } }>('/api/settings', async (req, reply) => {
       if (req.agentId !== undefined) return reply.code(403).send({ error: `agent ${req.agentId} may not change /api/settings — only the owner can` })
       const body = req.body
       const has = (k: string): boolean => body !== null && typeof body === 'object' && k in body
-      if (!has('unattendedProvider') && !has('startingSet'))
-        return reply.code(400).send({ error: "unattendedProvider (a provider id, or null for each agent's own account) or startingSet required" })
+      if (!has('unattendedProvider') && !has('startingSet') && !has('projectsDir'))
+        return reply.code(400).send({ error: "unattendedProvider (a provider id, or null for each agent's own account), startingSet or projectsDir required" })
+      // the Projects folder: null back to the default, or a folder that
+      // passes checkProjectsDir — stored by its real path; it moves nothing
+      let projectsDir: string | null | undefined
+      if (has('projectsDir')) {
+        const raw = body.projectsDir
+        if (raw !== null && typeof raw !== 'string') return reply.code(400).send({ error: "projectsDir must be a folder's absolute path, or null for ~/Silos" })
+        if (raw === null) projectsDir = null
+        else {
+          if (!ctx.projectsFolder) return reply.code(400).send({ error: 'this server cannot judge a Projects folder' })
+          const v = ctx.projectsFolder.check(raw)
+          if (!v.ok) return reply.code(v.conflict ? 409 : 400).send({ error: v.reason })
+          projectsDir = v.path
+        }
+      }
       // both checked before either is written: one PATCH, all or nothing
       const raw = body.unattendedProvider
       if (has('unattendedProvider')) {
@@ -94,6 +124,7 @@ export function providerRoutes(app: FastifyInstance, ctx: ProviderRoutesCtx): vo
       }
       if (has('unattendedProvider')) settings.setUnattendedProvider(raw === null ? null : (raw as string).trim())
       if (has('startingSet')) settings.setStartingSet(body.startingSet as Record<string, Record<string, boolean | null>>)
+      if (projectsDir !== undefined) settings.setProjectsDir(projectsDir)
       return view()
     })
   }

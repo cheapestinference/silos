@@ -79,6 +79,11 @@ describe("a skinned console answers its TUI's palette question", () => {
         .trim()
     expect(opt(['show-options', '-w', '-v', '-t', name, 'window-style'])).toBe('bg=#faf9f5,fg=#141413')
     expect(opt(['show-options', '-p', '-v', '-t', name, 'allow-passthrough'])).toBe('on')
+    // the pane's own palette: what lets tmux ≥ 3.6 answer a PLAIN OSC 4
+    // query itself (with the index), clients or none — the skin's slot 5
+    // is Silos' terracotta shade on the light background
+    expect(opt(['show-options', '-p', '-v', '-t', name, 'pane-colours[5]'])).toBe('#c56a4f')
+    expect(opt(['show-options', '-p', '-v', '-t', name, 'pane-colours[15]'])).toBe('#141413')
 
     // the asker writes its file after up to 1 s of boot + 10 s of asking
     const deadline = Date.now() + 15_000

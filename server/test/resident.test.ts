@@ -6,6 +6,7 @@ import { AgentRegistry, mungePath } from '../src/agent-registry.js'
 import { NativeStore } from '../src/native-store.js'
 import { LineageStore } from '../src/lineage.js'
 import { ChatService } from '../src/chat-service.js'
+import { agentAutoMemoryDir } from '../src/memory-service.js'
 import type { SessionIndex } from '../src/session-index.js'
 import { claudeSessionIndex } from '../src/harnesses/claude-code/reader.js'
 import { AutomationsStore } from '../src/automations-store.js'
@@ -240,15 +241,16 @@ describe('Resident — thread keep vs new', () => {
     await resident.tick(t1)
     await resident.drain()
     expect(calls[0]?.options.settingSources).toEqual(['user'])
-    expect(calls[0]?.options.settings).toEqual({ disableAllHooks: true })
+    expect(calls[0]?.options.settings).toEqual({ disableAllHooks: true, autoMemoryDirectory: agentAutoMemoryDir(dataDir, 'finance') })
 
     await resident.tick(clock)
     const t2 = new Date(store.get('iso2')!.nextRunAt as string)
     await resident.tick(t2)
     await resident.drain()
-    // iso2 (inheritHooks:true) used ChatService's default (user/project/local), no isolation
+    // iso2 (inheritHooks:true) used ChatService's default (user/project/local),
+    // no isolation: no disableAllHooks — only the agent's memory dir rides
     expect(calls[1]?.options.settingSources).toEqual(['user', 'project', 'local'])
-    expect('settings' in calls[1]!.options).toBe(false)
+    expect(calls[1]?.options.settings).toEqual({ autoMemoryDirectory: agentAutoMemoryDir(dataDir, 'finance') })
   })
 
   // An autonomy beat runs the skills installed in the agent's own folder —
@@ -262,12 +264,12 @@ describe('Resident — thread keep vs new', () => {
     await resident.tick(new Date(store.get('auto-resp-finance')!.nextRunAt as string))
     await resident.drain()
     expect(calls[0]?.options.settingSources).toEqual(['user', 'project'])
-    expect(calls[0]?.options.settings).toEqual({ disableAllHooks: true })
+    expect(calls[0]?.options.settings).toEqual({ disableAllHooks: true, autoMemoryDirectory: agentAutoMemoryDir(dataDir, 'finance') })
 
     await resident.tick(new Date(store.get('plain1')!.nextRunAt as string))
     await resident.drain()
     expect(calls[1]?.options.settingSources).toEqual(['user'])
-    expect(calls[1]?.options.settings).toEqual({ disableAllHooks: true })
+    expect(calls[1]?.options.settings).toEqual({ disableAllHooks: true, autoMemoryDirectory: agentAutoMemoryDir(dataDir, 'finance') })
   })
 })
 

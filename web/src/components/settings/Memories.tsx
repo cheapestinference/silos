@@ -218,8 +218,16 @@ export function MemoriesTab() {
                 ))}
               </ListSection>
             ) : null}
-            {catalog.projects.some((p) => p.auto.length > 0) ? (
+            {catalog.agentEntries.some((e) => e.auto.length > 0) || catalog.projects.some((p) => p.auto.length > 0) ? (
               <ListSection title="Notes the agents learned">
+                {catalog.agentEntries.flatMap(({ agent, auto }) =>
+                  auto.map((f) => (
+                    <ListRow key={f.path} active={selected(f.path)} onClick={() => pick(f, { kind: 'agent', agent })}>
+                      {agentLabel(agent)} · {f.name}
+                    </ListRow>
+                  )),
+                )}
+                {/* the folder's own notes: read only by sessions Silos did not start */}
                 {catalog.projects.flatMap((p) =>
                   p.auto.map((f) => (
                     <ListRow key={f.path} active={selected(f.path)} onClick={() => pick(f, { kind: 'project', folder: p.folder })}>

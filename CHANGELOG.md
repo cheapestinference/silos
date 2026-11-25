@@ -5,6 +5,49 @@ All notable changes to Silos are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-25
+
+### Changed for installs
+
+- **Each agent keeps its own automatic memory.** Every conversation Silos
+  starts for an agent (Claude Code) points the engine's auto memory at
+  `<data dir>/agents/<id>/memory/`, so agents sharing a folder no longer read
+  or write one another's notes. Notes already in the folder's memory stay
+  there, listed on the project page; only sessions started outside Silos
+  read or write them now.
+- **Docker: new projects are born in `/data/home/Silos`** (`$HOME/Silos`,
+  the same rule as every install), which the image now creates. Projects
+  already in `/data/projects` stay registered where they are.
+
+### Added
+
+- **The Projects folder is a setting**: Settings › Territory › Projects
+  folder says where the next new project is born (default `~/Silos`).
+  Changing it moves nothing; the path shown in Welcome and New agent leads
+  there.
+- **An instance deployed without an owner email starts unclaimed**: the
+  login page asks for the deploy's access token, and the first sign-in made
+  with it becomes the owner. `SILOS_OWNER_EMAIL` still wins when set.
+- **Settings › Memories** lists each agent's own notes, each with a door to
+  its agent.
+- **At start** names the day and the login of the conversation it breaks
+  down.
+
+### Fixed
+
+- The entry screen never hangs on a blank canvas after the computer wakes.
+- An OpenCode console on tmux 3.6 or later gets Silos' palette instead of
+  its own blue theme.
+
+### Security
+
+- No agent writes a file an engine loads from above a project (`CLAUDE.md`,
+  `AGENTS.md`, `.claude/rules` and the like) in any folder above a project,
+  in the Projects folder or in the home folder — territory on or off.
+  Reading stays open, and a file already there never stops a project from
+  being registered. A loadable file right in the Projects folder is raised
+  in Needs you.
+
 ## [0.2.0] - 2026-11-24
 
 ### Changed for installs
@@ -150,5 +193,6 @@ The first public release.
   Railway; remote sign-in through Silos ID, its settings in the environment
   or in `server.env` in the data folder.
 
+[0.3.0]: https://github.com/cheapestinference/silos/releases/tag/v0.3.0
 [0.2.0]: https://github.com/cheapestinference/silos/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cheapestinference/silos/releases/tag/v0.1.0

@@ -101,8 +101,9 @@ under «From This machine» and «From Your Claude account» and switched
 there.
 
 **Where projects live** (owner 24-11, after an adversarial review). A new
-project is born in the **Projects folder** — `~/Silos` unless changed, one
-per install, `<Projects folder>/<project>`. A folder you already work in (a
+project is born in the **Projects folder** — `~/Silos` unless changed in
+Settings › Territory (a change moves nothing; it only says where the next
+one is born), one per install, `<Projects folder>/<project>`. A folder you already work in (a
 repo with its Claude Code history) is **registered where it is**: nothing is
 moved, linked or copied, because Claude Code keys a folder's conversations,
 memory and permissions by its absolute path — moving it would start them
@@ -618,9 +619,12 @@ the pulse.
   plugins and their start hooks, `~/.claude.json` MCP), **the project**
   (the folder: its CLAUDE.md and every other instruction file it carries —
   `.claude/CLAUDE.md`, its rules, `AGENTS.md`, `CLAUDE.local.md` private to
-  you —, its auto memory — every agent working there reads and writes the
-  same notes —, its skills, its `.mcp.json`, its shared files), **the
-  agent** (its own memory file, what it wrote for you, its working files,
+  you —, its skills, its `.mcp.json`, its shared files; its auto memory
+  only for sessions Silos did not start), **the
+  agent** (its memory: its own memory file AND its automatic memory —
+  every conversation Silos starts for it points the engine's auto memory
+  at the agent's own notes, so no agent reads another's —, what it wrote
+  for you, its working files,
   its identity, defaults, territory, secrets, automations, duty, messages)
   and **the conversation** (its pins, what it touched, what it learned).
   What a Claude account sends — its plugins, its connectors (claude.ai), its
@@ -1694,7 +1698,11 @@ template (`docs/deploy/railway-template.md`; a VPS with
 Node ≥ 22.13, the `claude` CLI and a terminal (`README.md`); from there the browser opens, checks Claude and its
 sign-in («Sign in to Claude ›») and walks through the first agent — its
 engine, what it runs on and which silos come with it, each already
-picked —, with no command on screen. The operator's own Claude subscription is signed in on
+picked —, with no command on screen. Deployed from the template with no
+owner email typed, the first visit is the claim: the login page asks for
+the deploy's access token (`SILOS_TOKEN`, a variable only the deployer
+sees) beside the usual sign-in, and the signed-in email becomes the owner
+— nobody gets in before the claim, nobody else after it. The operator's own Claude subscription is signed in on
 their machine; Silos never stores or intermediates those credentials.
 
 CheapestInference is an optional per-agent provider — a way to keep

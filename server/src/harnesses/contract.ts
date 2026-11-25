@@ -48,6 +48,11 @@ export interface HarnessCaps {
    *  true only for an engine that declares `outputStyles` and honours the
    *  style on both its chat turn and its console. */
   outputStyles: boolean
+  /** The engine reads an auto-memory directory Silos points per agent
+   *  (memory per agent): its launches carry the agent's own dir. False:
+   *  the engine has no auto memory — the folder's rows stand on every
+   *  surface and the agent dir is neither listed, written nor watched. */
+  agentAutoMemory: boolean
 }
 
 /** One output style an engine offers — `id` is the exact value it takes. */
@@ -278,6 +283,18 @@ export interface Harness {
    *  all registered engines, once per territory. Absent = nothing beyond
    *  what fenceFor already denies itself. */
   configFiles?(folder: string, home: string): string[]
+  /** Absolute paths (or globs) of the files this engine could LOAD into a
+   *  conversation of a project from `dir`, a folder ABOVE that project —
+   *  instructions, rules, settings, skills, MCP or engine config. The whole
+   *  class it could load from an ancestor, measured or not: the list is a
+   *  superset, not a statement of what loads (the smoke says which do).
+   *  EVERY agent's fence denies Edit on the union of all registered engines
+   *  in every folder above a registered project and in the Projects folder
+   *  and above it, its territory switch on or off; the Projects folder's
+   *  own matches raise a Needs you row (project-folder.ts). `home` lets an
+   *  engine leave out its user layer there (fenced on its own). Absent =
+   *  the engine loads nothing from above a project. */
+  loadedFromAbove?(dir: string, home: string): string[]
   /** Where this engine keeps the conversations and memory of a conversation
    *  started in `folder` — its transcripts, its scratch space, its memory.
    *  Each store is closed (Read and Edit) to every agent whose projects do

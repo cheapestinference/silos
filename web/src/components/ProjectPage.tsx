@@ -382,6 +382,12 @@ function ProjectLibrary({
         an author facet is never read as the whole picture */}
       {kind === 'memory' && notes.length > 0 ? (
         <p className="font-mono text-[11px] text-ink-3">
+          The folder’s own notes — since memory per agent, only sessions started outside Silos read or write them; each agent’s conversations keep their own
+          memory, on the agent’s page.
+        </p>
+      ) : null}
+      {kind === 'memory' && notes.length > 0 ? (
+        <p className="font-mono text-[11px] text-ink-3">
           Silos knows who learned {known} of {notes.length} notes — the rest came from conversations it didn’t see start, or that are gone.
         </p>
       ) : null}

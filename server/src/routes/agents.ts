@@ -1123,8 +1123,16 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
         total: median(totals),
         range: [Math.min(...totals), Math.max(...totals)],
         owners: owners2,
-        // the newest measured conversation of the mode: its rows open from there
-        latest: { folder: list[0]!.meta.folder, id: list[0]!.meta.id },
+        // the newest measured conversation of the mode: its rows open from
+        // there, said with its own day and login — the measurement is
+        // history, so a just-switched account appears only once a newer
+        // start is measured
+        latest: {
+          folder: list[0]!.meta.folder,
+          id: list[0]!.meta.id,
+          at: list[0]!.summary.at,
+          login: list[0]!.summary.accounts.at(-1)?.email ?? null,
+        },
       }
     }
     return Object.keys(out).length ? out : null

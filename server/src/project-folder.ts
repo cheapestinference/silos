@@ -23,7 +23,7 @@
 // The very folder of a registered project is fine: that is joining it.
 // What a project is comes from Silos' record (the agents' folders), never
 // from what is on disk.
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { registeredHarnesses } from './harnesses/registry.js'
 import { machineMustReach, SILOS_CHECKOUT, silosMustReach, stripTrailingSlash, type MustReach } from './territory.js'
@@ -34,8 +34,16 @@ export function isPackageInstall(dir: string): boolean {
   return /(^|\/)node_modules\//.test(`${stripTrailingSlash(dir)}/`) && !existsSync(join(dir, '.git'))
 }
 
-/** Where new projects are born: `<home>/Silos/<project>`. */
-export const projectsFolderOf = (home: string): string => join(home, 'Silos')
+/** The Projects folder — where the next NEW project is born
+ *  (`<Projects folder>/<project>`): the install's `projectsDir`
+ *  (platform-settings.ts, Settings › Territory) when one is chosen, else
+ *  `<home>/Silos`. The ONE source: births, the folder check and the fence
+ *  read it here, per use (a change needs no restart). It only says where
+ *  the next project is born — changing it moves nothing; every existing
+ *  project stays where its agents' records say. */
+export function projectsFolderOf(home: string, settings?: { projectsDir(): string | null } | null): string {
+  return settings?.projectsDir() ?? join(stripTrailingSlash(home), 'Silos')
+}
 
 /** The folder's real path. A path not on disk yet resolves through its
  *  nearest existing ancestor (a new project under a symlinked Projects
@@ -58,13 +66,18 @@ export function realFolder(p: string): string {
   }
 }
 
+/** The Projects folder the check and the fence use: the configured one,
+ *  else `<home>/Silos`. */
+export const projectsFolderIn = (places: FolderPlaces): string => stripTrailingSlash(places.projectsFolder ?? projectsFolderOf(places.home))
+
 /** The places a check is made against: the machine's home (the server's,
  *  cfg.home), Silos' data dir, and the Projects folder (default
- *  `<home>/Silos`). */
+ *  `<home>/Silos`; the server passes a getter over projectsFolderOf, so a
+ *  changed setting is judged at once). */
 export interface FolderPlaces {
   home: string
   dataDir: string
-  projectsFolder?: string
+  readonly projectsFolder?: string
 }
 
 export type FolderVerdict =
@@ -73,15 +86,19 @@ export type FolderVerdict =
    *  folder can never be one (400) */
   | { ok: false; reason: string; conflict: boolean }
 
-/** Every place no project may be, hold, or (when `own`) sit inside. */
-export function refusedPlaces(places: FolderPlaces): MustReach[] {
+/** Every place no project may be, hold, or (when `own`) sit inside. The
+ *  Projects folder among them — but not when judging a Projects folder
+ *  (`withProjectsFolder: false`, checkProjectsDir). */
+export function refusedPlaces(places: FolderPlaces, o: { withProjectsFolder?: boolean } = {}): MustReach[] {
   const home = stripTrailingSlash(places.home)
   const engines: MustReach[] = registeredHarnesses().flatMap((h) =>
     (h.ownDirs?.(home) ?? []).map((path) => ({ path, what: `${h.label}'s own folder`, own: true })),
   )
   return [
     { path: home, what: 'your home folder' },
-    { path: places.projectsFolder ?? projectsFolderOf(home), what: 'the Projects folder (each project is a folder inside it)' },
+    ...(o.withProjectsFolder === false
+      ? []
+      : [{ path: places.projectsFolder ?? projectsFolderOf(home), what: 'the Projects folder (each project is a folder inside it)' }]),
     ...silosMustReach(home, places.dataDir),
     // Silos' code: refused only as an installed package (see above)
     ...machineMustReach().filter((p) => p.path !== SILOS_CHECKOUT || isPackageInstall(SILOS_CHECKOUT)),
@@ -105,13 +122,8 @@ export function checkProjectFolder(
   const real = real_(asked)
   const shown = real === asked ? asked : `${asked} (really ${real})`
   const never = (why: string): FolderVerdict => ({ ok: false, reason: `${shown} ${why} — a project needs a folder of its own`, conflict: false })
-  if (real === '/') return never("is the whole machine's root")
-  for (const place of refusedPlaces(places)) {
-    const p = real_(place.path)
-    if (real === p) return never(`is ${place.what}`)
-    if (at(real, p)) return never(`holds ${place.what}`)
-    if (place.own === true && at(p, real)) return never(`is inside ${place.what}`)
-  }
+  const placed = refusedAt(real, refusedPlaces(places), real_)
+  if (placed !== null) return never(placed)
   const known = [...new Set(projects.filter((f) => typeof f === 'string' && f.startsWith('/')).map((f) => real_(f)))]
   if (known.includes(real)) return { ok: true, path: real }
   const held = known.find((p) => at(real, p))
@@ -123,6 +135,62 @@ export function checkProjectFolder(
       reason: `${shown} is inside the project at ${holder} — an agent works in its project's folder: give it ${holder} itself`,
       conflict: true,
     }
+  return { ok: true, path: real }
+}
+
+/** Why `real` may never be a project (nor the Projects folder): the
+ *  machine's root, or being / holding / (for an own place) sitting inside
+ *  one of `refused`. Null: none of them. */
+function refusedAt(real: string, refused: readonly MustReach[], real_: (p: string) => string): string | null {
+  if (real === '/') return "is the whole machine's root"
+  for (const place of refused) {
+    const p = real_(place.path)
+    if (real === p) return `is ${place.what}`
+    if (at(real, p)) return `holds ${place.what}`
+    if (place.own === true && at(p, real)) return `is inside ${place.what}`
+  }
+  return null
+}
+
+const isDirectory = (p: string): boolean => {
+  try {
+    return statSync(p).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/** The check for a new Projects folder (PATCH /api/settings `projectsDir`):
+ *  the same refused places as a project's folder — never `/`, the home
+ *  folder, Silos' or an engine's own folders — but it MAY hold projects
+ *  (that is what it is for). It may not be a registered project nor sit
+ *  inside one (a new project would be born inside another), and it must be
+ *  a folder already on this machine: a chosen place is never made, so a
+ *  disk that is not mounted is said, never papered over. `projects`: every
+ *  registered project's folder. The verdict's path is the real one — what
+ *  is stored. */
+export function checkProjectsDir(
+  folder: string,
+  places: FolderPlaces,
+  projects: readonly string[],
+  real_: (p: string) => string = realFolder,
+  isDir: (p: string) => boolean = isDirectory,
+): FolderVerdict {
+  if (typeof folder !== 'string' || !folder.trim().startsWith('/'))
+    return { ok: false, reason: 'the Projects folder must be an absolute path', conflict: false }
+  const asked = stripTrailingSlash(folder.trim())
+  const real = real_(asked)
+  const shown = real === asked ? asked : `${asked} (really ${real})`
+  const placed = refusedAt(real, refusedPlaces(places, { withProjectsFolder: false }), real_)
+  if (placed !== null) return { ok: false, reason: `${shown} ${placed} — new projects need a folder of their own to be born in`, conflict: false }
+  const known = [...new Set(projects.filter((f) => typeof f === 'string' && f.startsWith('/')).map((f) => real_(f)))]
+  if (known.includes(real))
+    return { ok: false, reason: `${shown} is a project — new projects are never born inside one: pick the folder that holds it, or another`, conflict: true }
+  const holder = known.find((p) => at(p, real))
+  if (holder !== undefined)
+    return { ok: false, reason: `${shown} is inside the project at ${holder} — a new project is never born inside another`, conflict: true }
+  if (!isDir(real))
+    return { ok: false, reason: `${shown} is not a folder on this machine — make it first (or mount its disk), then choose it`, conflict: false }
   return { ok: true, path: real }
 }
 
@@ -164,4 +232,87 @@ export function auditProjectFolders(
     }
   }
   return out
+}
+
+/** How many files one pattern may report (a `**` folder can hold many). */
+const MATCHES_PER_PATTERN = 20
+
+/** The files on disk an engine's pattern names (Harness.loadedFromAbove):
+ *  a literal path, a `*` inside one segment, a trailing `**` (every file
+ *  below). Nothing else is a pattern there. Never throws; at most
+ *  MATCHES_PER_PATTERN files. */
+export function filesMatching(pattern: string): string[] {
+  const segs = pattern.split('/').filter((s) => s !== '')
+  const isFile = (p: string): boolean => {
+    try {
+      return statSync(p).isFile()
+    } catch {
+      return false
+    }
+  }
+  const isDir = (p: string): boolean => {
+    try {
+      return statSync(p).isDirectory()
+    } catch {
+      return false
+    }
+  }
+  const list = (p: string): string[] => {
+    try {
+      return readdirSync(p).sort()
+    } catch {
+      return []
+    }
+  }
+  const out: string[] = []
+  const below = (dir: string, depth: number): void => {
+    if (depth > 8) return
+    for (const n of list(dir)) {
+      if (out.length >= MATCHES_PER_PATTERN) return
+      const p = join(dir, n)
+      if (isFile(p)) out.push(p)
+      else if (isDir(p)) below(p, depth + 1)
+    }
+  }
+  const walk = (base: string, i: number): void => {
+    if (out.length >= MATCHES_PER_PATTERN) return
+    const seg = segs[i]!
+    const last = i === segs.length - 1
+    if (seg === '**' && last) {
+      if (isDir(base)) below(base, 0)
+      return
+    }
+    const names = seg.includes('*')
+      ? list(base).filter((n) =>
+          new RegExp(
+            `^${seg
+              .split('*')
+              .map((x) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+              .join('[^/]*')}$`,
+          ).test(n),
+        )
+      : [seg]
+    for (const n of names) {
+      const p = join(base, n)
+      if (last) {
+        if (isFile(p) && out.length < MATCHES_PER_PATTERN) out.push(p)
+      } else if (isDir(p)) walk(p, i + 1)
+    }
+  }
+  if (pattern.startsWith('/') && segs.length > 0) walk('/', 0)
+  return out
+}
+
+/** The files found right in the Projects folder that a registered engine
+ *  could load into every project inside it (Harness.loadedFromAbove) —
+ *  nothing but projects belongs there, and the folder reaches every project
+ *  born after. Said, never fixed: the owner decides (a Needs you row). */
+export function loadablesInProjectsFolder(places: FolderPlaces): string[] {
+  const dir = projectsFolderIn(places)
+  const home = stripTrailingSlash(places.home)
+  const out = new Set<string>()
+  for (const h of registeredHarnesses()) {
+    for (const p of h.loadedFromAbove?.(dir, home) ?? []) for (const f of filesMatching(p)) out.add(f)
+  }
+  return [...out].sort()
 }

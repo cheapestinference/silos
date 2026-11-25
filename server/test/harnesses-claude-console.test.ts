@@ -49,6 +49,7 @@ describe('claude-code adapter', () => {
       permissionsAsEvents: false,
       sendToConsole: false,
       outputStyles: true,
+      agentAutoMemory: true,
     })
     expect(claudeCode.console.idDiscovery).toBe('silos-chosen')
     expect(claudeCode.console.env({ agent, cwd: '/p', key: 'k1', fence: null, provider: null, env: {} })).toEqual({ CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' })

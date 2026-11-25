@@ -1429,7 +1429,7 @@ describe('AgentPage — At start: measured per mode', () => {
     total,
     range: [total - 1000, total + 1000] as [number, number],
     owners,
-    latest: { folder: 'f', id },
+    latest: { folder: 'f', id, at: null, login: null },
   })
   const measured = {
     console: mode(87_362, 3, 'c-newest', { agent: 158, project: 25_000, silos: 3_000, you: 16_000, engine: 43_204 }),

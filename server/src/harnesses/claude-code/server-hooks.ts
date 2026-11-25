@@ -8,6 +8,7 @@
 // `command` passed), with its lock/holder guard on a resume.
 
 import { randomUUID } from 'node:crypto'
+import { mkdirSync } from 'node:fs'
 import type { HarnessServerHooks, RouteResult, ServerHookContext } from '../contract.js'
 import { mungePath } from '../../agent-registry.js'
 import { ConsoleDialogError } from '../../console-dialog.js'
@@ -18,10 +19,11 @@ import { loginDirsNow } from './loads/launch-entries.js'
 import type { ResolvedProvider } from '../../providers-store.js'
 import { agentProcessEnv } from '../../agent-env.js'
 import { ensureRolePluginManifest, rolePluginFor } from '../../role-plugin.js'
+import { agentAutoMemoryDir } from '../../memory-service.js'
 import { BRIEFED_ENV, briefingText, withBriefingAfter } from '../briefing.js'
 
 export function claudeServerHooks(ctx: ServerHookContext): HarnessServerHooks {
-  const { index, registry, native, chat, vault, agentState, territory, silosApi, loadsCarried } = ctx.deps
+  const { index, registry, native, chat, vault, agentState, territory, silosApi, loadsCarried, dataDir } = ctx.deps
   // what Silos keeps for an agent's launches (loads-scopes.ts): a real
   // agent's only — and, for a console that resumes a conversation, its
   // thread's after them (a new console has none yet)
@@ -48,6 +50,20 @@ export function claudeServerHooks(ctx: ServerHookContext): HarnessServerHooks {
     if (!dir) return {}
     ensureRolePluginManifest(dir, agentId, agentName)
     return { rolePluginDir: dir }
+  }
+
+  // the agent's own auto-memory dir (memory per agent): a real agent's
+  // only — a session of nobody keeps the engine's per-folder default.
+  // Created at launch, like the launches create the state dir.
+  const autoMemoryOf = (agentId: string): { autoMemoryDir: string } | Record<string, never> => {
+    if (dataDir === undefined || !registry.get(agentId)) return {}
+    const dir = agentAutoMemoryDir(dataDir, agentId)
+    try {
+      mkdirSync(dir, { recursive: true })
+    } catch {
+      /* the engine creates it on first write */
+    }
+    return { autoMemoryDir: dir }
   }
 
   return {
@@ -101,6 +117,7 @@ export function claudeServerHooks(ctx: ServerHookContext): HarnessServerHooks {
           resumeId: key,
           ...(registry.get(cid) ? { agentId: cid } : {}),
           ...rolePlugin,
+          ...autoMemoryOf(cid),
           ...(fence ? { fence } : {}),
           ...carriedOf(cid, meta.cwd ?? undefined, id),
           ...(append ? { append } : {}),
@@ -157,6 +174,7 @@ export function claudeServerHooks(ctx: ServerHookContext): HarnessServerHooks {
           sessionId: key,
           agentId,
           ...rolePluginOf(agentId, agent.name),
+          ...autoMemoryOf(agentId),
           ...(fence ? { fence } : {}),
           ...carriedOf(agentId, agent.folder),
           ...(append ? { append } : {}),

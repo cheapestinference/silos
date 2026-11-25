@@ -196,6 +196,14 @@ export const opencode: Harness = {
       h = home.replace(/\/+$/, '')
     return [`${f}/opencode.json`, `${f}/opencode.jsonc`, `${f}/.opencode/**`, `${h}/.config/opencode/**`]
   },
+  // what it could load from a folder above a project: the instruction files
+  // it walks up to the nearest .git, else `/` (launch.ts projectInstructions,
+  // worktree.ts); its config and dir upward to the same stop are unmeasured
+  // — listed so no agent writes them
+  loadedFromAbove: (dir) => {
+    const d = dir.replace(/\/+$/, '') || '/'
+    return [`${d}/AGENTS.md`, `${d}/CLAUDE.md`, `${d}/CONTEXT.md`, `${d}/opencode.json`, `${d}/opencode.jsonc`, `${d}/.opencode/**`]
+  },
   // the machine's one database (a hand-launched OpenCode's, every folder's
   // conversations in it): not kept per folder, so it is every folder's store
   // and closed to every agent that has another project. The agents Silos
@@ -302,6 +310,8 @@ export const opencode: Harness = {
   },
   caps: {
     compaction: true,
+    // no auto memory: the launch injects the agent's memory.md instead
+    agentAutoMemory: false,
     subagents: true,
     skills: false,
     thinking: true,

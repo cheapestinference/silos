@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Entrypoint of the Silos image. Everything persistent is on the single volume
-# at /data: HOME=/data/home (~/.claude, ~/.silos) and /data/projects (the
-# agents' working folders). Railway/Docker volumes mount as root: when we
+# at /data: HOME=/data/home (~/.claude, ~/.silos, and ~/Silos — the Projects
+# folder, where new projects are born, as on every install).
+# Railway/Docker volumes mount as root: when we
 # start as root, take ownership of what we use and drop to the `silos` user.
 # When the platform already starts without root, run as-is.
 #
@@ -16,9 +17,8 @@
 set -euo pipefail
 HOME_DIR="${HOME:-/data/home}"
 VOLUME="$(dirname "$HOME_DIR")"
-PROJECTS="$VOLUME/projects"
 SILOS_DIR="$HOME_DIR/.silos"
-mkdir -p "$SILOS_DIR" "$HOME_DIR/.claude" "$HOME_DIR/.local/bin" "$PROJECTS"
+mkdir -p "$SILOS_DIR" "$HOME_DIR/.claude" "$HOME_DIR/.local/bin" "$HOME_DIR/Silos"
 
 root_hooks() {
   local log="$SILOS_DIR/boot.log" list="$SILOS_DIR/system-packages.txt" hook="$SILOS_DIR/boot.sh"
@@ -54,7 +54,10 @@ if [ "$(id -u)" = "0" ]; then
   # chown -R only when ownership is not already ours: a full walk of years of
   # transcripts on every boot would stall the healthcheck for nothing.
   chown silos:silos "$VOLUME" 2>/dev/null || true
-  for d in "$HOME_DIR" "$PROJECTS"; do
+  # /data/projects: where earlier images told you to clone — those
+  # projects stay registered where they are, so the folder keeps its owner
+  for d in "$HOME_DIR" "$VOLUME/projects"; do
+    [ -d "$d" ] || continue
     if [ "$(stat -c %U "$d")" != "silos" ] || [ -n "$(find "$d" -maxdepth 2 ! -user silos -print -quit 2>/dev/null)" ]; then
       chown -R silos:silos "$d" 2>/dev/null || true
     fi

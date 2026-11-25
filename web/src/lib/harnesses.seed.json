@@ -12,7 +12,8 @@
         "costFromHarness": false,
         "permissionsAsEvents": false,
         "sendToConsole": false,
-        "outputStyles": true
+        "outputStyles": true,
+        "agentAutoMemory": true
       },
       "providerKinds": [
         "claude-account",
@@ -51,7 +52,8 @@
         "costFromHarness": true,
         "permissionsAsEvents": true,
         "sendToConsole": true,
-        "outputStyles": false
+        "outputStyles": false,
+        "agentAutoMemory": false
       },
       "providerKinds": [
         "anthropic-compatible",
