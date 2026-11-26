@@ -1025,3 +1025,49 @@ describe('fenceFor — what an engine loads from above a project', () => {
     expect(covered(d, 'Edit', `${P}/opencode.jsonc`)).toBe(true)
   })
 })
+
+// The engine matches deny paths WITHOUT case (verified live on Claude Code
+// 2.1.332: the rule Edit(//home/u/Silos/AGENTS.md), written for the
+// capitalized Projects folder, refused the Edit of /home/u/silos/AGENTS.md
+// — a different directory on Linux). The fence reasons in the matcher's own
+// terms: a rule colliding with the agent's own territory by case alone
+// would fence its own project — not written, said in `skipped`.
+describe("case twins of the agent's own territory — the engine matches without case", () => {
+  const me = { id: 'me', folder: '/home/u/silos', skills: [], name: 'Me', emoji: '', role: '' }
+  const twin = { id: 'tw', folder: '/home/u/Silos/sub', skills: [], name: 'Tw', emoji: '', role: '' }
+  it('another project under a case twin is not closed, and says why; a real other project still closes', () => {
+    const f = fenceFor({ agents: [me, twin, builder], privatePaths: [], home, dataDir, agent: me, agentStateDir: '' })!
+    // not CLOSED (no whole-folder rule; its conduct rules — .claude
+    // settings/skills shapes — are the same the fence writes for one's own)
+    expect(f.permissions.deny).not.toContain('Read(//home/u/Silos/sub/**)')
+    expect(f.permissions.deny).not.toContain('Edit(//home/u/Silos/sub/**)')
+    expect((f.skipped ?? []).some((s) => s.path === '/home/u/Silos/sub' && /letter case/.test(s.reason))).toBe(true)
+    expect(f.permissions.deny).toContain('Read(//home/u/ci/**)')
+  })
+  it('a loaded-from-above rule that lands on an own file by case alone is skipped — the observed bite', () => {
+    const f = fenceFor({
+      agents: [me, builder],
+      privatePaths: [],
+      home,
+      dataDir,
+      agent: me,
+      agentStateDir: '',
+      projectsFolder: '/home/u/Silos',
+      loadedFromAbove: (d) => (d === '/home/u/Silos' ? ['/home/u/Silos/CLAUDE.local.md'] : []),
+    })!
+    expect(f.permissions.deny).not.toContain('Edit(//home/u/Silos/CLAUDE.local.md)')
+    expect((f.skipped ?? []).some((s) => s.path === '/home/u/Silos/CLAUDE.local.md' && /letter case/.test(s.reason))).toBe(true)
+  })
+  it('a Unicode-form twin (NFD vs NFC) is the same collision', () => {
+    const nfc = { id: 'me', folder: '/home/u/caf\u00e9', skills: [], name: 'Me', emoji: '', role: '' }
+    const nfd = { id: 'tw', folder: '/home/u/cafe\u0301', skills: [], name: 'Tw', emoji: '', role: '' }
+    const f = fenceFor({ agents: [nfc, nfd], privatePaths: [], home, dataDir, agent: nfc, agentStateDir: '' })!
+    expect(f.permissions.deny).not.toContain('Read(//home/u/cafe\u0301/**)')
+    expect((f.skipped ?? []).some((s) => s.path === '/home/u/cafe\u0301')).toBe(true)
+  })
+  it('a private path that is a case twin of a territory stays open and said', () => {
+    const f = fenceFor({ agents: [me], privatePaths: ['/home/u/SILOS'], home, dataDir, agent: me, agentStateDir: '' })!
+    expect(f.permissions.deny.some((r) => r.includes('/home/u/SILOS'))).toBe(false)
+    expect((f.skipped ?? []).some((s) => s.path === '/home/u/SILOS' && /letter case/.test(s.reason))).toBe(true)
+  })
+})

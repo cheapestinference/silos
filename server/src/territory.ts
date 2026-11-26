@@ -438,11 +438,34 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
       projectRules.push(r)
     }
   }
+  // The ENGINE matches deny paths without case (verified live on Claude
+  // Code 2.1.332: a rule written for /home/user/Silos/AGENTS.md refused the
+  // Edit of /home/user/silos/AGENTS.md — two different dirs on Linux). So
+  // the fence must reason in the matcher's own terms: a rule whose target
+  // collides with one of the agent's OWN paths case-insensitively would
+  // fence the agent out of its own project. Such a rule is not written —
+  // said in `skipped`, never silently open.
+  // Folding = the matcher's eye, wider than ours: case plus Unicode
+  // normalization (macOS writes NFD, a matcher may normalize) — two names
+  // that could read as one to the engine must never cross their rules.
+  const fold = (p: string): string => p.normalize('NFC').toLowerCase()
+  const foldAt = (x: string, y: string): boolean => {
+    const a = fold(x)
+    const b = fold(y)
+    return a === b || b.startsWith(`${a}/`)
+  }
+  const caseTwinOfMine = (p: string): boolean => mine.some((m) => foldAt(p, m) || foldAt(m, p))
+  const CASE_TWIN =
+    'differs from this agent’s own territory only by letter case or Unicode form: the engine matches deny paths without case, so closing it would fence the agent’s own project — it stays open'
   const literalFolders: string[] = []
   for (const f of candidates) {
     const reason = globSkipReason(f)
     if (reason !== null) {
       skipped.push({ path: f, reason })
+      continue
+    }
+    if (caseTwinOfMine(f)) {
+      skipped.push({ path: f, reason: CASE_TWIN })
       continue
     }
     literalFolders.push(f)
@@ -494,6 +517,12 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
       for (const raw of input.loadedFromAbove(d)) {
         const p = strip(raw)
         if (!p.startsWith(`${d}/`) || insideReach(p)) continue
+        // the bite observed live: ~/Silos/CLAUDE.local.md (the Projects
+        // folder's rule) refused the agent's own ~/silos/CLAUDE.local.md
+        if (mine.some((m) => foldAt(m, p))) {
+          skipped.push({ path: p, reason: CASE_TWIN })
+          continue
+        }
         deny.push(`Edit(${abs(p)})`)
       }
     }
@@ -599,6 +628,10 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
       const p = strip(expandHome(raw, home))
       if (!p.startsWith('/')) continue
       if (mine.some((t) => t === p || sameProject(t, p))) continue
+      if (caseTwinOfMine(p)) {
+        skipped.push({ path: p, reason: CASE_TWIN })
+        continue
+      }
       // the path itself too: a private FILE (~/.npmrc) is not matched by `/**`
       both(p)
       both(`${p}/**`)
