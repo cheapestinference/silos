@@ -849,6 +849,9 @@ export function agentRoutes(app: FastifyInstance, ctx: AgentRoutesCtx): void {
       return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
     }
     app.get<{ Params: { id: string } }>('/api/agents/:id/tools', async (req, reply) => {
+      // master never has an own plugin: an honest empty, not a 404 the
+      // column logs on every Anywhere conversation (writes stay refused)
+      if (req.params.id === MASTER_ID && registry.get(MASTER_ID)) return { rows: [] }
       const agent = toolsAgent(req, reply, false)
       return agent ? rowsOf(agent) : reply
     })

@@ -6,6 +6,7 @@
 // yet (the server knows no such conversation): the counts without «here».
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { useStore } from '../../store'
 import { topLevel } from '../../lib/loads-view'
 import type { FolderInstructionPlaces, FolderLoads, SkillCatalogEntry } from '../../lib/types'
 import { personalLineOf, usePersonal } from './PersonalSwitch'
@@ -15,16 +16,22 @@ export interface HereCounts {
   off: number
   onOnly: number
   nameOnly: number
+  plugins?: number
 }
 
 /** Tools as one conversation sees them: the top-level rows its line loads
- *  (a row with no places: the folder's state), and its own entries. */
+ *  (a row with no places: the folder's state), and its own entries.
+ *  `plugins`: how many of the loading rows are engine plugins — the
+ *  summary names them, so the word is findable from the conversation
+ *  (the tools tab groups them with their origin and switch). */
 export function toolsHere(loads: FolderLoads): HereCounts {
   const thread = loads.conversation?.thread
-  const out: HereCounts = { load: 0, off: 0, onOnly: 0, nameOnly: 0 }
+  const out: HereCounts = { load: 0, off: 0, onOnly: 0, nameOnly: 0, plugins: 0 }
   for (const r of topLevel(loads.rows)) {
     const line = r.at?.find((l) => l.place === 'conversation' && (!thread || l.conversation === thread))
-    if (line ? line.result === 'on' : r.state === 'active') out.load++
+    const loadsHere = line ? line.result === 'on' : r.state === 'active'
+    if (loadsHere) out.load++
+    if (loadsHere && r.kind === 'plugin') out.plugins = (out.plugins ?? 0) + 1
     if (line?.entry === 'off') out.off++
     if (line?.entry === 'on') out.onOnly++
   }
@@ -75,11 +82,17 @@ export function useKnowsHere(
   const [tools, setTools] = useState<HereCounts | null>(null)
   const [skills, setSkills] = useState<HereCounts | null>(null)
   const [instructions, setInstructions] = useState<{ off: number; didntTake: number } | null>(null)
+  // the folder routes serve MANAGED folders only: a conversation outside
+  // every agent's territory (an adopted one under Anywhere) must not ask
+  // them — each ask was a 404 logged on every open of such a conversation
+  const agents = useStore((s) => s.agents)
+  const managed = cwd !== null && agents.some((a) => [a.folder, ...(a.folders ?? [])].some((f) => f != null && (cwd === f || cwd.startsWith(`${f}/`))))
+  const askCwd = managed ? cwd : null
   useEffect(() => {
     setTools(null)
     setSkills(null)
     setInstructions(null)
-    if (!cwd) return
+    if (!cwd || !managed) return
     let cancelled = false
     Promise.resolve()
       .then(() => api.folders.instructions(cwd, { conversation: id }))
@@ -114,8 +127,8 @@ export function useKnowsHere(
     return () => {
       cancelled = true
     }
-  }, [agentId, cwd, id, version])
-  const personal = usePersonal(cwd, version, { conversation: id })
+  }, [agentId, cwd, id, version, managed])
+  const personal = usePersonal(askCwd, version, { conversation: id })
   const line = personalLineOf(personal.fp, 'conversation')
   return { tools, skills, personalOff: line?.entry === 'off', instructions }
 }

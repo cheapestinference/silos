@@ -2353,11 +2353,14 @@ export function KnowsBlock({ agent, here }: { agent: AgentView; here?: KnowsHere
           empty: 'none',
           open: () => openDossier('skills'),
         },
+        // plugins named apart: the owner must find WHERE the engine's plugins
+        // (a stripe hook, a style) enter a conversation — this line is the door
         {
           kind: 'Tools',
           summary: tl
             ? hereWords([
                 [tl.load + ownToolsOn, 'load'],
+                [tl.plugins ?? 0, tl.plugins === 1 ? 'plugin' : 'plugins'],
                 [tl.off, 'off here'],
                 [tl.onOnly, 'on only here'],
               ])

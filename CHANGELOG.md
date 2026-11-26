@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conversation pins follow the thread: a `/clear` no longer strands them.
 - Every conversation's prompt carried the scheduled-work rule twice (the
   briefing and the system append); it lands once now.
+- Opening an adopted conversation under Anywhere no longer logs 404s, and
+  the conversation's Tools line counts the engine plugins apart — where a
+  machine plugin (a hook, a style) enters every conversation is now
+  findable from the conversation itself.
 
 ## [0.3.0] - 2026-11-25
 
