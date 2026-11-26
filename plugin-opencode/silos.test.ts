@@ -433,7 +433,10 @@ describe('event: permission.asked (the live bridge)', () => {
     // the poller's own: the first tick (0 ms) and the next poll (500 ms) — not this test's 50 ms sleep
     const pollerTimers = spy.mock.calls.flatMap((c, i) => (c[1] === 0 || c[1] === 500 ? [spy.mock.results[i]!.value as { hasRef: () => boolean }] : []))
     spy.mockRestore()
-    expect(pollerTimers.length).toBe(2)
+    // at least the first tick and the next poll; a loaded machine may fit
+    // another poll inside the window — the fact is that EVERY one is unref'd,
+    // never how many the clock let through
+    expect(pollerTimers.length).toBeGreaterThanOrEqual(2)
     for (const h of pollerTimers) expect(h.hasRef()).toBe(false)
   })
 
