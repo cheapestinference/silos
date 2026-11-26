@@ -603,6 +603,16 @@ export class TranscriptAccumulator {
     if (this.resumedFrom === null && typeof e.session_id === 'string' && typeof e.sessionId === 'string' && e.session_id !== e.sessionId) {
       this.resumedFrom = e.session_id
     }
+    // Claude Code 2.1.33x writes the --resume twin's origin as its own record
+    // ({type:"derived-from", sessions:[{id, via:"fork"}]}) instead of the
+    // session_id mismatch above — unread, a console relaunch split the
+    // thread: chat forked the orphan again, the console refused the root.
+    // Only `fork` is a resume continuation; `clear` is the /clear rotation,
+    // recorded by its own hook (startedByClear, lineage).
+    if (this.resumedFrom === null && e.type === 'derived-from' && Array.isArray(e.sessions)) {
+      const fork = (e.sessions as { id?: unknown; via?: unknown }[]).find((s) => s?.via === 'fork' && typeof s.id === 'string' && s.id !== e.sessionId)
+      if (fork) this.resumedFrom = fork.id as string
+    }
     if (this.console === null && typeof e.entrypoint === 'string') this.console = e.entrypoint === 'cli'
     if (!this.startedByClear) {
       const a = e.attachment as { hookName?: unknown } | undefined

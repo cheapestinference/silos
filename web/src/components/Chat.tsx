@@ -539,6 +539,27 @@ function ConsoleView({
           onRefused?.(refused)
           return
         } // a run: read-only, not a broken console
+        // an older piece of the thread (the server knows where it continues:
+        // 409 + tip «folder/id») — the console IS the tip's: open it there,
+        // never an error the owner can only read (the server's lineage can
+        // see a continuation the web's list has not painted yet)
+        const tip = e instanceof ApiError && e.status === 409 && typeof e.body === 'object' && e.body !== null ? (e.body as { tip?: unknown }).tip : undefined
+        if (typeof tip === 'string' && tip.includes('/')) {
+          const cut = tip.indexOf('/')
+          const before = useStore.getState().selected
+          void Promise.resolve(useStore.getState().openSession(tip.slice(0, cut), tip.slice(cut + 1))).then(() => {
+            if (!alive) return
+            // the jump must MOVE the view: when the web's own idea of the
+            // thread's tip lands back on this same conversation, a silent
+            // return left «Opening the real console…» forever — say why instead
+            const now = useStore.getState().selected
+            if (now && before && now.folder === before.folder && now.id === before.id) {
+              setError(e instanceof Error ? e.message : String(e))
+              setState('error')
+            }
+          })
+          return
+        }
         setCanClose(e instanceof ApiError && typeof e.body === 'object' && e.body !== null && (e.body as { canClose?: unknown }).canClose === true)
         setError(e instanceof Error ? e.message : String(e))
         setState('error')

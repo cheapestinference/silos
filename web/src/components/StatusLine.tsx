@@ -110,26 +110,38 @@ export function ReceiptLine({ receipt, stillRunning = 0 }: { receipt: TurnReceip
   )
 }
 
-// steps to paint: the open step (a sequential heuristic — there's at most
-// one) plus the last 3 closed, in chronological order.
-function stepsToShow(steps: ActiveStep[] | undefined): ActiveStep[] {
-  if (!steps || steps.length === 0) return []
-  const open = steps.find((p) => p.end === null)
-  const closed = steps.filter((p) => p.end !== null).slice(-3)
-  return open ? [...closed, open] : closed
+// steps to paint: consecutive calls of the same tool fold into ONE row
+// ("Bash ×4", with the latest call's description and elapsed), then the
+// last 4 rows — the open one, if any, is always the last.
+export interface StepGroup {
+  step: ActiveStep // the latest call of the run: its desc, start, end
+  count: number
 }
 
-function StepRow({ step, now }: { step: ActiveStep; now: number }) {
+export function groupSteps(steps: ActiveStep[] | undefined, max = 4): StepGroup[] {
+  if (!steps || steps.length === 0) return []
+  const groups: StepGroup[] = []
+  for (const p of steps) {
+    const last = groups[groups.length - 1]
+    if (last && last.step.name === p.name) groups[groups.length - 1] = { step: { ...p, desc: p.desc ?? last.step.desc }, count: last.count + 1 }
+    else groups.push({ step: p, count: 1 })
+  }
+  return groups.slice(-max)
+}
+
+function StepRow({ group, now }: { group: StepGroup; now: number }) {
+  const { step, count } = group
   const open = step.end === null
   const elapsedMs = (step.end ?? now) - step.start
   const showElapsed = elapsedMs >= HIDE_ELAPSED_MS
   return (
     <div className={`flex items-center gap-2 pl-5 text-sm text-ink-2 ${open ? '' : 'opacity-50'}`}>
       <span aria-hidden="true">◯</span>
-      <span className="min-w-0 flex-1 truncate">
+      <span className="shrink-0">
         {step.name}
-        {step.desc ? `  ${step.desc}` : ''}
+        {count > 1 ? <span className="ml-1 font-mono text-[11px] opacity-70">×{count}</span> : null}
       </span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs opacity-80">{step.desc ?? ''}</span>
       {showElapsed ? <span className="shrink-0 font-mono text-xs text-ink-2">{formatElapsed(elapsedMs)}</span> : null}
     </div>
   )
@@ -213,7 +225,7 @@ export function StatusLine() {
   // already inside its conversation, we know.
   const totalElapsedMs = now - (active.startedAt ?? now)
   const showTotalElapsed = totalElapsedMs >= HIDE_ELAPSED_MS
-  const steps = stepsToShow(active.steps)
+  const steps = groupSteps(active.steps)
 
   const footerParts: ReactNode[] = []
   if (showTotalElapsed)
@@ -258,8 +270,8 @@ export function StatusLine() {
         </button>
       </div>
 
-      {steps.map((p, i) => (
-        <StepRow key={`${p.name}-${p.start}-${i}`} step={p} now={now} />
+      {steps.map((g, i) => (
+        <StepRow key={`${g.step.name}-${g.step.start}-${i}`} group={g} now={now} />
       ))}
 
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pl-5 text-[11px] text-ink-2">

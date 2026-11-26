@@ -487,6 +487,9 @@ const territoriesOfAgent = (agentId: string): string[] => {
 // provider id → that account's config dir
 const planUsage = new PlanUsageService({
   configDirOf: (id) => accounts.configDirs().find((a) => (a.name === 'default' ? 'default' : `account:${a.name}`) === id)?.configDir ?? null,
+  // the last good reading of each account survives a restart (stale until
+  // a fresh one lands): a restart into a 429 no longer blanks the bars
+  cacheFile: join(cfg.dataDir, 'plan-usage.json'),
 })
 // Task mode's wakes (task-mode/store.ts) — the kernel kind `task-wake` the
 // opt-in Task mode silo presents; its state lives in <dataDir>/task-mode/

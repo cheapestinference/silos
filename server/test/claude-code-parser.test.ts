@@ -960,6 +960,32 @@ describe('TranscriptAccumulator — resumedFrom', () => {
     expect(acc.resumedFrom).toBe('old')
     expect(acc.state.resumedFrom).toBe('old')
   })
+  // Claude Code 2.1.33x: the --resume twin names its origin in its own
+  // record — unread, a console relaunch split the thread in two
+  it('reads the origin from a derived-from record via fork; a /clear or a self-reference is no resume origin', () => {
+    const fork = new TranscriptAccumulator()
+    fork.feedLines([
+      JSON.stringify({ type: 'derived-from', v: 1, sessionId: 'new', sessions: [{ type: 'claude_code_session', id: 'old', via: 'fork' }] }),
+      line({ sessionId: 'new' }),
+    ])
+    expect(fork.resumedFrom).toBe('old')
+    const cleared = new TranscriptAccumulator()
+    cleared.feedLines([
+      JSON.stringify({
+        type: 'derived-from',
+        v: 1,
+        sessionId: 'new',
+        sessions: [
+          { id: 'old', via: 'clear' },
+          { id: 'old', via: 'compact' },
+        ],
+      }),
+    ])
+    expect(cleared.resumedFrom).toBeNull()
+    const self = new TranscriptAccumulator()
+    self.feedLines([JSON.stringify({ type: 'derived-from', sessionId: 'me', sessions: [{ id: 'me', via: 'fork' }] })])
+    expect(self.resumedFrom).toBeNull()
+  })
   it('stays null when the record names itself (or carries no ids); restored from state', () => {
     const acc = new TranscriptAccumulator()
     acc.feedLines([line({ sessionId: 'me', session_id: 'me' }), line({})])

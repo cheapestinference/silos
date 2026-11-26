@@ -1265,6 +1265,28 @@ describe('POST /api/console — only a MORE RECENTLY ACTIVE descendant makes a s
     kill.mockRestore()
   })
 
+  // the real split: a console relaunch made the engine write a --resume twin
+  // linked ONLY by its own derived-from record (no lineage entry), and chat
+  // then forked the twin (a lineage entry). The tip walk crossed only
+  // lineage entries: from the root it stopped at the root, refused the real
+  // tip with «continues in a newer conversation», and the web sent the
+  // owner straight back to it.
+  it('a twin linked only by its transcript still carries the thread down to its real tip', async () => {
+    const day = (d: string) => readFileSync(FIX, 'utf8').replaceAll('2026-08-17', d)
+    writeFileSync(
+      join(root, '-tmp-project-x', 'twin.jsonl'),
+      `${JSON.stringify({ type: 'derived-from', v: 1, sessionId: 'twin', sessions: [{ type: 'claude_code_session', id: 'aaa', via: 'fork' }] })}\n${day('2026-08-18')}`,
+    )
+    await index.refresh('-tmp-project-x', 'twin', false)
+    await childFrom('chatc', '2026-08-19')
+    lineage.record('-tmp-project-x/chatc', '-tmp-project-x/twin')
+    const tip = await app.inject({ method: 'POST', url: '/api/console', headers: { 'x-token': TOKEN }, payload: { id: 'chatc' } })
+    expect(tip.statusCode).not.toBe(409)
+    const root409 = await app.inject({ method: 'POST', url: '/api/console', headers: { 'x-token': TOKEN }, payload: { id: 'aaa' } })
+    expect(root409.statusCode).toBe(409)
+    expect(root409.json()).toMatchObject({ tip: '-tmp-project-x/chatc' })
+  })
+
   it('a NEWER child (a real rotation) still 409s naming it as the tip', async () => {
     await childFrom('new', '2026-08-18')
     lineage.record('-tmp-project-x/new', '-tmp-project-x/aaa')

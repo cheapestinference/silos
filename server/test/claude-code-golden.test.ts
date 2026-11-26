@@ -4,6 +4,7 @@
 // tasks edit ONLY the import lines; a failure here means behaviour changed.
 // Literals are compared with toEqual AND serialized (key order is part of the
 // contract: --settings JSON, env order).
+import { promptText } from '../src/harnesses/claude-code/input-channel.js'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -285,7 +286,7 @@ describe('SDK query() options', () => {
         o.sessionId = '<uuid>'
         o.env = { ...o.env, SILOS_SESSION_ID: '<uuid>' }
       }
-      return { prompt: c.prompt, options: o }
+      return { prompt: promptText(c.prompt), options: o }
     }
     const head = { cwd: folder }
     const common = {

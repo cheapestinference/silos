@@ -139,6 +139,31 @@ describe('PlanUsageService', () => {
     expect(calls).toHaveLength(2)
   })
 
+  // the bug seen live: a server restart forgot every reading, the endpoint
+  // then answered 429, and the account showed no bars at all
+  it('the last good reading survives a restart: a 429 right after it still shows the bars, stale', async () => {
+    creds(now + 3600_000 * 5)
+    const cacheFile = join(dir, 'plan-usage.json')
+    const first = new PlanUsageService({ configDirOf: (id) => (id === 'default' ? dir : null), fetch: fakeFetch, now: () => now, cacheFile })
+    expect(await first.get('default')).toMatchObject({ ok: true, stale: false })
+    // a new process: nothing in memory, the endpoint refuses
+    respond = () => new Response('slow down', { status: 429 })
+    const restarted = new PlanUsageService({ configDirOf: (id) => (id === 'default' ? dir : null), fetch: fakeFetch, now: () => now, cacheFile })
+    const u = await restarted.get('default')
+    expect(u).toMatchObject({ ok: true, stale: true })
+    expect(u && u.ok ? u.windows.map((w) => w.label) : []).toEqual(['5h', 'Week', 'Fable'])
+    // it still asked: a kept reading is never served as fresh
+    expect(calls).toHaveLength(2)
+    // without the file (or unreadable), as before: nothing to show
+    const bare = new PlanUsageService({
+      configDirOf: (id) => (id === 'default' ? dir : null),
+      fetch: fakeFetch,
+      now: () => now,
+      cacheFile: join(dir, 'missing', 'x.json'),
+    })
+    expect(await bare.get('default')).toMatchObject({ ok: false, reason: 'unavailable' })
+  })
+
   it('a network failure or an unknown body with nothing to show: unavailable', async () => {
     creds(now + 3600_000)
     respond = () => {

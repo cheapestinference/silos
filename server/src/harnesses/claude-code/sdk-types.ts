@@ -1,3 +1,4 @@
+import type { StreamedUserMessage } from './input-channel.js'
 // harnesses/claude-code/sdk-types.ts — minimal SDK surface we use, compatible with fakes.
 // Cabin: the stream's init carries the process's EFFECTIVE model and
 // permissionMode (sdk.d.ts SDKSystemMessage) — this is the system's ground
@@ -65,8 +66,9 @@ export interface SdkQueryHandle extends AsyncIterable<SdkMessage> {
 }
 export interface QueryArgs {
   /** a turn's prompt; the check hands a stream that never yields — no
-   *  prompt is ever sent (loads/check.ts) */
-  prompt: string | AsyncIterable<never>
+   *  prompt is ever sent (loads/check.ts); an interactive chat turn hands an
+   *  open stream the owner can still write into (input-channel.ts) */
+  prompt: string | AsyncIterable<never> | AsyncIterable<StreamedUserMessage>
   options: Record<string, unknown>
 }
 export type QueryFn = (args: QueryArgs) => SdkQueryHandle

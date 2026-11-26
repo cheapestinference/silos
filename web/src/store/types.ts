@@ -35,6 +35,7 @@ export interface ChatTurnState {
   error?: string
   costUsd?: number | null
   userText: string // optimistic echo: what was sent, to paint the user bubble while it streams
+  steered?: string[] // messages the owner sent INTO this running turn (POST …/chat answered steered): painted as their bubbles at once — the engine delivers them at its next step
   sessionKey?: string | null // `${folder}/${sessionId}` set on chat-init; null/undefined = a new chat, no session yet
   thinkingText?: string // accumulated chat-thinking for the turn in progress
   lastEvent?: 'init' | 'thinking' | 'delta' | 'tool' // the last chat-* event type applied, for the status UI

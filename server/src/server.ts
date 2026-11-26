@@ -671,6 +671,14 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     escalation,
   } = deps
   const muted = deps.muted ?? []
+  // «where does this conversation continue» walks the transcripts' own
+  // continuation links too (lineage.ts recentTipOf) — every caller at once:
+  // the console guard, the trash's tip, the thread's tools
+  lineage?.useDerivedParents(() => {
+    const links = new Map<string, string>()
+    for (const s of index.allSessions()) if (s.resumedFrom) links.set(`${s.folder}/${s.id}`, `${s.folder}/${s.resumedFrom}`)
+    return links
+  })
   const terminals = deps.terminals ?? new TerminalService(registry, index)
   // the registry the chat turns mint into (a hand-built test chat may have none)
   const liveTurns: LiveTurns = deps.liveTurns ?? (chat as Partial<ChatService>).liveTurns ?? new LiveTurns()

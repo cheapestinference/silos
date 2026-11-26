@@ -203,6 +203,16 @@ export class LineageStore {
     if (changed) this.write({ ...s, parents })
   }
 
+  // The continuation links the session index knows from transcripts alone
+  // (child key → parent key: a resumedFrom the engine recorded) — set once
+  // where the index and this store meet (server.ts); recentTipOf walks them
+  // beside its own records. Absent (tests that build a bare store): only
+  // the recorded links.
+  private derivedParents: (() => ReadonlyMap<string, string>) | null = null
+  useDerivedParents(fn: () => ReadonlyMap<string, string>): void {
+    this.derivedParents = fn
+  }
+
   // Full ancestor chain of key, from nearest to farthest — resolves
   // transitively (rotation after rotation, fork after fork) with an
   // anti-cycle guard: an already-seen parent cuts the chain short instead
@@ -255,11 +265,19 @@ export class LineageStore {
   recentTipOf(key: string, mtimeOf: (key: string) => number | null): string {
     const parents = this.read().parents
     const children = new Map<string, string[]>()
-    for (const [child, parent] of Object.entries(parents)) {
+    const link = (child: string, parent: string): void => {
       const list = children.get(parent)
-      if (list) list.push(child)
-      else children.set(parent, [child])
+      if (list) {
+        if (!list.includes(child)) list.push(child)
+      } else children.set(parent, [child])
     }
+    for (const [child, parent] of Object.entries(parents)) link(child, parent)
+    // the continuations only a transcript names (a --resume twin's
+    // resumedFrom, read from the engine's own record): without them the
+    // walk down from a thread's root stopped at the twin, and the console
+    // refused the thread's real tip as «continues in a newer conversation»
+    // while the web, which walks those links, sent the owner right back
+    for (const [child, parent] of this.derivedParents?.() ?? []) if (parents[child] === undefined) link(child, parent)
     let best = key
     let bestMtime = mtimeOf(key) ?? -Infinity
     const seen = new Set<string>([key])

@@ -21,3 +21,28 @@ export function summarizeTools(chips: readonly (ToolUseDetail | string)[], maxNa
   if (rest > 0) shown.push(`+${rest} more`)
   return shown.join(' · ')
 }
+
+// The readable line of a tool call's input, for the live activity tree:
+// what the agent said it does (description), else what it runs or touches.
+// An empty or missing input is NO description (null) — the engine opens a
+// tool with `{}` before its input streams in, and "Bash {}" says nothing.
+const DESC_KEYS = ['description', 'command', 'file_path', 'path', 'pattern', 'url', 'query', 'prompt', 'skill'] as const
+
+export function stepDesc(input: string | null | undefined): string | null {
+  const raw = input?.trim() ?? ''
+  if (raw === '' || raw === '{}' || raw === 'null') return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return raw // not JSON (truncated, or plain text): show it as it came
+  }
+  if (typeof parsed !== 'object' || parsed === null) return raw
+  const obj = parsed as Record<string, unknown>
+  if (Object.keys(obj).length === 0) return null
+  for (const k of DESC_KEYS) {
+    const v = obj[k]
+    if (typeof v === 'string' && v.trim() !== '') return v.trim().split('\n')[0]!
+  }
+  return null
+}

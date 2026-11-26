@@ -131,6 +131,18 @@ export const createChatSlice =
         // (chat-done). Note: this queues against whichever turn is IN
         // PROGRESS (v1 doesn't support "one active turn per agent" — there's
         // only one global `active`).
+        // the message is for the conversation whose turn is running: the server
+        // hands it to that turn at its next step (steer), as a console does with
+        // what is typed while it works. Only a plain message (no memory preamble,
+        // no one-shot overrides); refused or failed → the queue below, as before.
+        const running = get().active
+        if (running?.status === 'streaming' && session && !memory && overrides === undefined && running.sessionKey === `${session.folder}/${session.id}`) {
+          const r = await Promise.resolve(api.steer(selectedAgentId, outText, session)).catch(() => null)
+          if (r?.steered === true) {
+            set((s) => (s.active && s.active.turnId === running.turnId ? { active: { ...s.active, steered: [...(s.active.steered ?? []), text] } } : {}))
+            return
+          }
+        }
         if (get().active?.status === 'streaming') {
           // queuing a message that starts a new chat (no session) also jumps
           // to 'chat' — the user watches the queue drain, same as if the send

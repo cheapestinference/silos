@@ -584,6 +584,32 @@ it and never owns or embeds it. A conversation Silos launches gets its id
 as `SILOS_SESSION_ID` (stable across `/clear`); a `claude` the owner starts
 by hand has only Claude Code's `CLAUDE_CODE_SESSION_ID`.
 
+**Steering a chat turn** (Claude Code; `harnesses/claude-code/input-channel.ts`,
+`headless.ts`, `routes/chat.ts`). An interactive chat turn hands the SDK its
+prompt as an open stream (streaming input), not a closed text: the first
+message is the turn's text, and `POST /api/agents/:id/chat` with
+`steer: true` pushes the owner's next message into the turn running on that
+conversation with `priority: 'next'` — delivered at its next step, as a
+console delivers what is typed while it works (verified on Claude Code
+2.1.332: one `result`, the steered instruction honoured). The stream closes
+at the turn's `result`, so the process ends with it and a turn stays one
+turn. A steer finds the turn through `ChatService.liveOn` (a continuation is
+live from its start, a new conversation from its `chat-init`); with no turn
+of the owner's there — ended, or unattended (a run, a wake) — it answers 409
+and starts nothing, and the web queues the message as before. A plain send
+keeps its 409 while a turn runs. Unattended turns keep a text prompt.
+
+**A thread's links** (`lineage.ts`, `harnesses/claude-code/parser.ts`). A
+session continues another by a recorded link (`lineage.json`: a chat fork, a
+`/clear` rotation) or by its transcript alone: Claude Code 2.1.33x writes a
+`--resume` twin's origin as `{type:"derived-from", sessions:[{id, via:"fork"}]}`
+(read into `resumedFrom`; `via:"clear"` is the rotation, recorded by its
+hook). «Where does this conversation continue» (`recentTipOf`: the console
+guard, the trash, the thread tools) walks both, through the index's links
+`buildServer` hands the store (`useDerivedParents`), so the server and the
+web name the same tip. Chat appends when the THREAD was born in Silos for
+that agent (the session or a continuation ancestor), not only that id.
+
 **What a conversation loads at start — names, plugins, the account's
 batches** (Claude Code; `harnesses/claude-code/loads/`). Three rules every
 reader of «what loads» stands on:

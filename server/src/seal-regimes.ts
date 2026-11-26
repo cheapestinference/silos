@@ -120,6 +120,9 @@ export const DATA_DIR_REGIMES: Readonly<Record<string, RegimeDecl>> = {
     "the control log (fleet-events.ts): append-only record of the ladder's changes the server alone writes — it feeds the fleet chart, decides nothing",
   ),
   vitals: outside("the per-run usage cache (vitals.ts): recomputable from the runs' transcripts — a cache, never the truth"),
+  'plan-usage.json': outside(
+    'the last good subscription-usage reading per account (plan-usage.ts): shown stale only when the endpoint refuses — a display cache, never the truth',
+  ),
   // the container image's root hooks (deploy/docker-entrypoint.sh): agents
   // have full sudo there, so what they write here grants nothing they lack
   'system-packages.txt': outside(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { summarizeTools } from '../src/lib/tool-summary'
 import { groupToolRuns } from '../src/components/ToolChip'
+import { stepDesc } from '../src/lib/tool-summary'
 
 describe('summarizeTools', () => {
   it('counts by label, most frequent first, singletons without a number', () => {
@@ -45,5 +46,18 @@ describe('groupToolRuns', () => {
     const runs = groupToolRuns([m, { ...m, isError: true }])
     expect(runs).toHaveLength(1)
     expect(runs[0]!.items[1]).toMatchObject({ isError: true })
+  })
+})
+
+describe('stepDesc', () => {
+  it('an empty input is no description — the engine opens a tool with {} before its input streams', () => {
+    for (const x of ['{}', '', '  ', undefined, null, '{ }']) expect(stepDesc(x)).toBeNull()
+  })
+
+  it('takes what the call says it does, else what it runs or touches', () => {
+    expect(stepDesc('{"command":"ls -la","description":"List files"}')).toBe('List files')
+    expect(stepDesc('{"command":"npm test\\nnpm run lint"}')).toBe('npm test')
+    expect(stepDesc('{"file_path":"/home/user/a.ts"}')).toBe('/home/user/a.ts')
+    expect(stepDesc('{"command":"ls')).toBe('{"command":"ls') // truncated JSON shows as it came
   })
 })

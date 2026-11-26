@@ -1771,6 +1771,11 @@ export interface HeadlessEngine {
   cancel(turnId: string): Promise<boolean>
   isInflight(turnId: string): boolean
   isSessionActive(sessionId: string): boolean
+  /** Hand the owner's message to a turn still running, delivered at its next
+   *  step — as a console delivers what is typed while it works. false: the
+   *  turn is not running, is not one the owner drives, or this engine cannot
+   *  (optional: an engine without it keeps the caller's queue). */
+  steer?(turnId: string, text: string): boolean
 }
 
 /** deps: ChatService's own (a live object — read fields at use time);

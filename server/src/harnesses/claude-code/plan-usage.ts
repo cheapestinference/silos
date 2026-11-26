@@ -8,7 +8,7 @@
 // expired token = the last good reading, marked stale; the next claude that
 // runs on the account refreshes it. Undocumented endpoint: parsing is
 // tolerant, an unknown shape reads as "unavailable", never a guess.
-import { readFileSync } from 'node:fs'
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
@@ -113,6 +113,12 @@ export interface PlanUsageDeps {
   configDirOf: (providerId: string) => string | null
   fetch?: typeof fetch
   now?: () => number
+  // where each account's last GOOD reading is kept across restarts
+  // (<dataDir>/plan-usage.json, 0600): without it a restart forgot every
+  // reading, and an account the endpoint then answered 429 for showed no
+  // bars at all — a failure is meant to show the last good one, stale.
+  // Absent (tests): memory only, as before.
+  cacheFile?: string
 }
 
 interface Entry {
@@ -130,6 +136,34 @@ export class PlanUsageService {
   constructor(private deps: PlanUsageDeps) {
     this.fetchFn = deps.fetch ?? fetch
     this.now = deps.now ?? Date.now
+    // the last good readings a previous run kept: they stand as stale until
+    // a fresh one lands (never as fresh — `until` 0 asks the endpoint first)
+    if (deps.cacheFile) {
+      try {
+        const kept = JSON.parse(readFileSync(deps.cacheFile, 'utf8')) as Record<string, unknown>
+        for (const [id, g] of Object.entries(kept)) {
+          const r = g as { at?: unknown; windows?: unknown }
+          if (typeof r?.at === 'number' && Array.isArray(r.windows)) {
+            this.cache.set(id, { reading: null, good: { ok: true, at: r.at, stale: false, windows: r.windows as UsageWindow[] }, until: 0, inflight: null })
+          }
+        }
+      } catch {
+        /* none kept, or unreadable: start empty */
+      }
+    }
+  }
+
+  private persist(): void {
+    if (!this.deps.cacheFile) return
+    const out: Record<string, { at: number; windows: UsageWindow[] }> = {}
+    for (const [id, e] of this.cache) if (e.good) out[id] = { at: e.good.at, windows: e.good.windows }
+    try {
+      const tmp = `${this.deps.cacheFile}.tmp`
+      writeFileSync(tmp, JSON.stringify(out) + '\n', { mode: 0o600 })
+      renameSync(tmp, this.deps.cacheFile)
+    } catch {
+      /* a reading that is not kept is only lost at the next restart */
+    }
   }
 
   async get(providerId: string): Promise<PlanUsage | null> {
@@ -187,6 +221,7 @@ export class PlanUsageService {
           } else {
             e.good = { ok: true, at: now, stale: false, windows }
             out = e.good
+            this.persist()
           }
         }
       } catch {

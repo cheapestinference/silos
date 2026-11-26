@@ -189,158 +189,181 @@ export function chatRoutes(app: FastifyInstance, ctx: ChatRoutesCtx): void {
     })
   }
 
-  app.post<{ Params: { id: string }; Body: { text?: string; cwd?: string; session?: { folder?: string; id?: string }; overrides?: unknown; title?: string } }>(
-    '/api/agents/:id/chat',
-    async (req, reply) => {
-      const agent = registry.get(req.params.id)
-      if (!agent || agent.archived) return reply.code(400).send({ error: 'agent not available for chat' })
-      const text = typeof req.body?.text === 'string' ? req.body.text.trim() : ''
-      if (text === '') return reply.code(400).send({ error: 'text required' })
+  app.post<{
+    Params: { id: string }
+    Body: { text?: string; cwd?: string; session?: { folder?: string; id?: string }; overrides?: unknown; title?: string; steer?: unknown }
+  }>('/api/agents/:id/chat', async (req, reply) => {
+    const agent = registry.get(req.params.id)
+    if (!agent || agent.archived) return reply.code(400).send({ error: 'agent not available for chat' })
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : ''
+    // steer: only into the owner's running turn on that conversation, never a new turn
+    const steerOnly = req.body?.steer === true
+    if (steerOnly && (typeof req.body?.session?.id !== 'string' || typeof req.body?.session?.folder !== 'string'))
+      return reply.code(409).send({ error: 'no running turn of yours on this conversation', steered: false })
+    if (text === '') return reply.code(400).send({ error: 'text required' })
 
-      // Naming at birth: an optional title for a NEW conversation, applied
-      // as the manual rename when chat-init names the session (see
-      // runInteractiveTurn). Blank → absent; renaming an existing session
-      // has its own endpoint, so a title on a resume is an honest 400.
-      const title = typeof req.body?.title === 'string' && req.body.title.trim() !== '' ? req.body.title.trim().slice(0, 120) : undefined
+    // Naming at birth: an optional title for a NEW conversation, applied
+    // as the manual rename when chat-init names the session (see
+    // runInteractiveTurn). Blank → absent; renaming an existing session
+    // has its own endpoint, so a title on a resume is an honest 400.
+    const title = typeof req.body?.title === 'string' && req.body.title.trim() !== '' ? req.body.title.trim().slice(0, 120) : undefined
 
-      // Cabin: TURN-LEVEL overrides (one-shot) — strict validation (unknown
-      // values → 400, they never pass through to the SDK raw).
-      let overrides: CockpitOverrides | undefined
-      if (req.body?.overrides !== undefined) {
-        try {
-          overrides = validateTurnOverrides(req.body.overrides)
-        } catch (err) {
-          return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) })
-        }
-        // a turn's provider must suit the agent's harness (an unknown id
-        // stays tolerated, as it always was: the runtime falls back)
-        const turnProvider = overrides.provider !== undefined ? providers?.resolve(overrides.provider) : null
-        const harnessErr = turnProvider ? providerHarnessError(turnProvider, harnessOf(agent)) : null
-        if (harnessErr) return reply.code(400).send({ error: harnessErr })
-        // a turn's style: one the agent's engine offers for its folder
-        const styleErr =
-          overrides.outputStyle !== undefined
-            ? outputStyleError(harnessOf(agent), overrides.outputStyle, agent.folder ?? (typeof req.body?.cwd === 'string' ? req.body.cwd : null))
-            : null
-        if (styleErr) return reply.code(400).send({ error: styleErr })
+    // Cabin: TURN-LEVEL overrides (one-shot) — strict validation (unknown
+    // values → 400, they never pass through to the SDK raw).
+    let overrides: CockpitOverrides | undefined
+    if (req.body?.overrides !== undefined) {
+      try {
+        overrides = validateTurnOverrides(req.body.overrides)
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) })
       }
+      // a turn's provider must suit the agent's harness (an unknown id
+      // stays tolerated, as it always was: the runtime falls back)
+      const turnProvider = overrides.provider !== undefined ? providers?.resolve(overrides.provider) : null
+      const harnessErr = turnProvider ? providerHarnessError(turnProvider, harnessOf(agent)) : null
+      if (harnessErr) return reply.code(400).send({ error: harnessErr })
+      // a turn's style: one the agent's engine offers for its folder
+      const styleErr =
+        overrides.outputStyle !== undefined
+          ? outputStyleError(harnessOf(agent), overrides.outputStyle, agent.folder ?? (typeof req.body?.cwd === 'string' ? req.body.cwd : null))
+          : null
+      if (styleErr) return reply.code(400).send({ error: styleErr })
+    }
 
-      const isMaster = agent.folder === null
-      const hasCwd = req.body?.cwd !== undefined
-      if (!isMaster && hasCwd) return reply.code(400).send({ error: 'cwd only allowed for master' })
+    const isMaster = agent.folder === null
+    const hasCwd = req.body?.cwd !== undefined
+    if (!isMaster && hasCwd) return reply.code(400).send({ error: 'cwd only allowed for master' })
 
-      let resume: { sessionId: string; mode: 'append' | 'fork' } | undefined
-      let effectiveCwd: string | undefined
-      const s = req.body?.session
-      if (s?.folder !== undefined || s?.id !== undefined) {
-        if (
-          typeof s?.folder !== 'string' ||
-          typeof s?.id !== 'string' ||
-          !PARAM.test(s.folder) ||
-          !PARAM.test(s.id) ||
-          PURE_DOTS.test(s.folder) ||
-          PURE_DOTS.test(s.id)
-        ) {
-          return reply.code(400).send({ error: 'invalid params' })
+    let resume: { sessionId: string; mode: 'append' | 'fork' } | undefined
+    let effectiveCwd: string | undefined
+    const s = req.body?.session
+    if (s?.folder !== undefined || s?.id !== undefined) {
+      if (
+        typeof s?.folder !== 'string' ||
+        typeof s?.id !== 'string' ||
+        !PARAM.test(s.folder) ||
+        !PARAM.test(s.id) ||
+        PURE_DOTS.test(s.folder) ||
+        PURE_DOTS.test(s.id)
+      ) {
+        return reply.code(400).send({ error: 'invalid params' })
+      }
+      const meta = index.getMeta(s.folder, s.id)
+      if (!meta) return reply.code(404).send({ error: 'session not found' })
+      // the console route's rule, on the chat engine too (transcriptOnly)
+      const refused = transcriptOnly(meta)
+      if (refused) return reply.code(409).send(refused)
+      if (isMaster) {
+        // Master has no folder of its own to compare against: the resume
+        // is legitimate if the session classifies to master (same
+        // criterion as view(), native-owner override included) — not if
+        // it "belongs" to another real agent.
+        if (classifyAgentId(meta) !== agent.id) {
+          return reply.code(400).send({ error: "the session does not belong to this agent's folder" })
         }
-        const meta = index.getMeta(s.folder, s.id)
-        if (!meta) return reply.code(404).send({ error: 'session not found' })
-        // the console route's rule, on the chat engine too (transcriptOnly)
-        const refused = transcriptOnly(meta)
-        if (refused) return reply.code(409).send(refused)
-        if (isMaster) {
-          // Master has no folder of its own to compare against: the resume
-          // is legitimate if the session classifies to master (same
-          // criterion as view(), native-owner override included) — not if
-          // it "belongs" to another real agent.
-          if (classifyAgentId(meta) !== agent.id) {
-            return reply.code(400).send({ error: "the session does not belong to this agent's folder" })
-          }
-          effectiveCwd = meta.cwd ?? undefined // continuing from master uses THE SESSION's cwd, not the body's
-        } else {
-          if (meta.folder !== mungePath(agent.folder as string)) {
-            return reply.code(400).send({ error: "the session does not belong to this agent's folder" })
-          }
-        }
-        resume = { sessionId: s.id, mode: native.isNative(s.folder, s.id) ? 'append' : 'fork' }
-        // its live console is mid-turn: handing over would kill that work
-        // (meta.mtime = the transcript's last movement — see consoleBusyFor's
-        // staleness rule for a turn left open by a dead claude)
-        if (await consoleBusyFor(terminals, s.id, meta.turnOpen, meta.mtime)) {
-          return reply.code(409).send({ error: 'The console is still working on this conversation — let it finish (or stop it there), then send from chat.' })
-        }
-        // a turn of Silos' own is on it (a task wake, a message turn, another
-        // chat tab) — said courteously BEFORE the console handover and before
-        // the harness lock throws its raw error (never a silent
-        // «Send does nothing»)
-        const live = chat.liveOn(s.id)
-        if (live) {
-          return reply
-            .code(409)
-            .send({
-              error: live.unattended
-                ? 'Silos is working this conversation right now (a task turn) — it finishes on its own. Resend in a moment, or leave your note on its task.'
-                : 'A turn is already running in this conversation — wait for it to finish.',
-            })
+        effectiveCwd = meta.cwd ?? undefined // continuing from master uses THE SESSION's cwd, not the body's
+      } else {
+        if (meta.folder !== mungePath(agent.folder as string)) {
+          return reply.code(400).send({ error: "the session does not belong to this agent's folder" })
         }
       }
-
-      if (title !== undefined && resume !== undefined) {
-        return reply.code(400).send({ error: 'title only allowed for a new conversation' })
+      // append when the THREAD is Silos' own for this agent, not only this
+      // id: a console's `--resume` continuation of a Silos-born session
+      // gets a new file from the engine with no record of its own, and
+      // forking it gave every console→chat switch a new id (the thread
+      // split in three within two minutes; the console then answered
+      // «continues in a newer conversation»). Fork stays the rule for
+      // threads Silos never started.
+      const ownThread =
+        native.isNative(s.folder, s.id) || ctx.owners.ancestry.ancestorIdsOf(meta, true).some((a) => native.get(meta.folder, a)?.agentId === agent.id)
+      resume = { sessionId: s.id, mode: ownThread ? 'append' : 'fork' }
+      // its live console is mid-turn: handing over would kill that work
+      // (meta.mtime = the transcript's last movement — see consoleBusyFor's
+      // staleness rule for a turn left open by a dead claude)
+      if (await consoleBusyFor(terminals, s.id, meta.turnOpen, meta.mtime)) {
+        return reply.code(409).send({ error: 'The console is still working on this conversation — let it finish (or stop it there), then send from chat.' })
       }
-
-      if (isMaster && !resume) {
-        const bodyCwd = typeof req.body?.cwd === 'string' ? req.body.cwd : undefined
-        if (bodyCwd === undefined) return reply.code(400).send({ error: 'cwd required for master' })
-        if (!isAbsolute(bodyCwd)) return reply.code(400).send({ error: 'invalid cwd' })
-        try {
-          const st = await stat(bodyCwd)
-          if (!st.isDirectory()) return reply.code(400).send({ error: 'invalid cwd' })
-        } catch {
-          return reply.code(400).send({ error: 'invalid cwd' }) // ENOENT or another stat failure → same 400, never 500
-        }
-        effectiveCwd = bodyCwd
+      // a turn of Silos' own is on it (a task wake, a message turn, another
+      // chat tab) — said courteously BEFORE the console handover and before
+      // the harness lock throws its raw error (never a silent
+      // «Send does nothing»)
+      const live = chat.liveOn(s.id)
+      // asked to steer (the web, for the conversation whose turn it shows
+      // running) and the owner's own turn is still running: the message
+      // reaches it at its next step, as typed into a console. A plain send
+      // keeps its 409 below — no other client changes behaviour unasked
+      if (steerOnly && live && !live.unattended && overrides === undefined && chat.steer(live.turnId, text)) {
+        return reply.code(202).send({ turnId: live.turnId, steered: true })
       }
+      // a steer-only ask that found no turn to take it: said, nothing started
+      // (the caller sends it as its own turn — never twice)
+      if (steerOnly) return reply.code(409).send({ error: 'no running turn of yours on this conversation', steered: false })
+      if (live) {
+        return reply
+          .code(409)
+          .send({
+            error: live.unattended
+              ? 'Silos is working this conversation right now (a task turn) — it finishes on its own. Resend in a moment, or leave your note on its task.'
+              : 'A turn is already running in this conversation — wait for it to finish.',
+          })
+      }
+    }
 
-      const turnId = randomUUID()
-      const agentId = req.params.id
-      void (async () => {
-        const primary = await runInteractiveTurn(turnId, agentId, text, resume, effectiveCwd, overrides, title)
-        // Auto-resume: only when the turn was REJECTED for a limit, it
-        // didn't finish successfully, and we know which session to go
-        // back to (folder+id from chat-init). With no known session (a
-        // new chat rejected before init) NOTHING is promised — the banner
-        // can't assert an impossible resume.
-        if (!pendingResumes || !primary.rejected || primary.ok || primary.sessionId === undefined || primary.folder === undefined) return
-        const cwd = isMaster ? effectiveCwd : undefined
-        // Was a FALLBACK left armed by this rate limit
-        // (ChatService.noteRateLimit, a turn boundary)? Then we continue
-        // RIGHT HERE through the fallback — a new (append) turn that goes
-        // out through the fallback provider. If it succeeds, the
-        // conversation already continued there: NO resume is armed (the
-        // banner would tell the wrong truth). If the fallback ALSO gets
-        // limited, we fall back to waiting for the reset as without a fallback.
-        const fb = chat.fallbackStateOf(agentId)
-        if (fb) {
-          const second = await runInteractiveTurn(randomUUID(), agentId, text, { sessionId: primary.sessionId, mode: 'append' }, cwd, overrides)
-          if (second.ok && !second.rejected) return // continued on the fallback — no resume pending
-          armPendingResume(agentId, primary.folder, primary.sessionId, text, cwd, second.resetsAt ?? primary.resetsAt)
-          return
-        }
-        armPendingResume(agentId, primary.folder, primary.sessionId, text, cwd, primary.resetsAt)
-      })().catch((err) => {
-        // Fire-and-forget: runInteractiveTurn guards chat.send() internally,
-        // but the auto-resume arming that runs AFTER it (armPendingResume →
-        // pendingResumes.upsert → writeFileSync/renameSync) can throw on a
-        // full/read-only disk (a real container-volume scenario). Without
-        // this .catch the rejection is unhandled and Node 22 kills the whole
-        // process — every live console and in-flight turn with it. Same rule
-        // resident.ts already enforces on its tick loop.
-        console.error('[chat turn-completion]', err instanceof Error ? err.message : err)
-      })
-      return reply.code(202).send({ turnId })
-    },
-  )
+    if (title !== undefined && resume !== undefined) {
+      return reply.code(400).send({ error: 'title only allowed for a new conversation' })
+    }
+
+    if (isMaster && !resume) {
+      const bodyCwd = typeof req.body?.cwd === 'string' ? req.body.cwd : undefined
+      if (bodyCwd === undefined) return reply.code(400).send({ error: 'cwd required for master' })
+      if (!isAbsolute(bodyCwd)) return reply.code(400).send({ error: 'invalid cwd' })
+      try {
+        const st = await stat(bodyCwd)
+        if (!st.isDirectory()) return reply.code(400).send({ error: 'invalid cwd' })
+      } catch {
+        return reply.code(400).send({ error: 'invalid cwd' }) // ENOENT or another stat failure → same 400, never 500
+      }
+      effectiveCwd = bodyCwd
+    }
+
+    const turnId = randomUUID()
+    const agentId = req.params.id
+    void (async () => {
+      const primary = await runInteractiveTurn(turnId, agentId, text, resume, effectiveCwd, overrides, title)
+      // Auto-resume: only when the turn was REJECTED for a limit, it
+      // didn't finish successfully, and we know which session to go
+      // back to (folder+id from chat-init). With no known session (a
+      // new chat rejected before init) NOTHING is promised — the banner
+      // can't assert an impossible resume.
+      if (!pendingResumes || !primary.rejected || primary.ok || primary.sessionId === undefined || primary.folder === undefined) return
+      const cwd = isMaster ? effectiveCwd : undefined
+      // Was a FALLBACK left armed by this rate limit
+      // (ChatService.noteRateLimit, a turn boundary)? Then we continue
+      // RIGHT HERE through the fallback — a new (append) turn that goes
+      // out through the fallback provider. If it succeeds, the
+      // conversation already continued there: NO resume is armed (the
+      // banner would tell the wrong truth). If the fallback ALSO gets
+      // limited, we fall back to waiting for the reset as without a fallback.
+      const fb = chat.fallbackStateOf(agentId)
+      if (fb) {
+        const second = await runInteractiveTurn(randomUUID(), agentId, text, { sessionId: primary.sessionId, mode: 'append' }, cwd, overrides)
+        if (second.ok && !second.rejected) return // continued on the fallback — no resume pending
+        armPendingResume(agentId, primary.folder, primary.sessionId, text, cwd, second.resetsAt ?? primary.resetsAt)
+        return
+      }
+      armPendingResume(agentId, primary.folder, primary.sessionId, text, cwd, primary.resetsAt)
+    })().catch((err) => {
+      // Fire-and-forget: runInteractiveTurn guards chat.send() internally,
+      // but the auto-resume arming that runs AFTER it (armPendingResume →
+      // pendingResumes.upsert → writeFileSync/renameSync) can throw on a
+      // full/read-only disk (a real container-volume scenario). Without
+      // this .catch the rejection is unhandled and Node 22 kills the whole
+      // process — every live console and in-flight turn with it. Same rule
+      // resident.ts already enforces on its tick loop.
+      console.error('[chat turn-completion]', err instanceof Error ? err.message : err)
+    })
+    return reply.code(202).send({ turnId })
+  })
 
   app.post<{ Params: { turnId: string } }>('/api/chat/:turnId/cancel', async (req) => ({ ok: await chat.cancel(req.params.turnId) }))
 

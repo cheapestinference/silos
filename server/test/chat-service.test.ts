@@ -1,3 +1,4 @@
+import { promptText } from '../src/harnesses/claude-code/input-channel.js'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -609,13 +610,13 @@ describe('ChatService.send — a new session', () => {
     registry.create({ id: 'declared', name: 'Declared', folder: noSkills, skills: ['finance-skill'] }) // declares, folder empty
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
     await collect(chat.send({ turnId: 't1', agentId: 'foldered', text: 'give me the VAT' }))
-    expect(calls[0]!.prompt).toBe('give me the VAT') // the owner's words, untouched
+    expect(promptText(calls[0]!.prompt)).toBe('give me the VAT') // the owner's words, untouched
     expect((calls[0]!.options.systemPrompt as any).append).toContain(
       'Your skills for this session include /finance-skill — load them when the task calls for them.',
     )
     calls.length = 0
     await collect(chat.send({ turnId: 't2', agentId: 'declared', text: 'hi' }))
-    expect(calls[0]!.prompt).toBe('hi') // nothing active in the folder -> no preamble, whatever agents.json declares
+    expect(promptText(calls[0]!.prompt)).toBe('hi') // nothing active in the folder -> no preamble, whatever agents.json declares
     expect(calls[0]!.options.model).toBeUndefined()
     expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`${CLAUDE_ASK}`, noSkills))
   })
@@ -630,7 +631,7 @@ describe('ChatService.send — a new session', () => {
     registry.create({ id: 'maxi', name: 'Maxi', folder: many })
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
     await collect(chat.send({ turnId: 't1', agentId: 'maxi', text: 'go' }))
-    expect(calls[0]!.prompt).toBe('go')
+    expect(promptText(calls[0]!.prompt)).toBe('go')
     expect((calls[0]!.options.systemPrompt as any).append).toContain('include /s00, /s01, /s02, /s03, /s04, /s05, /s06, /s07 — load')
   })
 
@@ -740,7 +741,7 @@ describe('ChatService.send — continuation', () => {
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'go on', resume: { sessionId: 'sess-1', mode: 'append' } }))
     expect(calls[0]!.options.resume).toBe('sess-1')
     expect(calls[0]!.options.forkSession).toBeUndefined()
-    expect(calls[0]!.prompt).toBe('go on') // no preamble on continuation
+    expect(promptText(calls[0]!.prompt)).toBe('go on') // no preamble on continuation
     expect(native.get('-tmp-ci', 'sess-1')).toBeNull() // append doesn't register (it would already be registered if native)
   })
 

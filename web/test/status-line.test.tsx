@@ -4,7 +4,7 @@
 // an Esc hint, and the stop button (relocated from the Composer).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { ReceiptLine, StatusLine, phaseLabel, formatLongDuration, formatTokens } from '../src/components/StatusLine'
+import { ReceiptLine, StatusLine, phaseLabel, formatLongDuration, formatTokens, groupSteps } from '../src/components/StatusLine'
 import { PAST_VERBS, THINKING_VERBS, verbForTurn, pastVerbForTurn } from '../src/lib/thinking-verbs'
 import { useStore } from '../src/store'
 import type { ChatTurnState, ActiveStep, TurnReceipt } from '../src/store'
@@ -365,5 +365,23 @@ describe("ReceiptLine (the turn's receipt)", () => {
     expect(screen.getByText('2 still running')).toBeInTheDocument()
     rerender(<ReceiptLine receipt={makeReceipt()} stillRunning={0} />)
     expect(screen.queryByText(/still running/)).not.toBeInTheDocument()
+  })
+})
+
+describe('groupSteps', () => {
+  const step = (name: string, desc: string | null, end: number | null = 1): ActiveStep => ({ name, isSubagent: false, desc, start: 0, end })
+  it('folds consecutive calls of one tool into one row carrying the latest description', () => {
+    const g = groupSteps([step('Bash', 'a'), step('Bash', 'b'), step('Bash', null, null), step('Read', 'x'), step('Bash', 'c', null)])
+    expect(g.map((x) => [x.step.name, x.count, x.step.desc])).toEqual([
+      ['Bash', 3, 'b'],
+      ['Read', 1, 'x'],
+      ['Bash', 1, 'c'],
+    ])
+    expect(g[0]!.step.end).toBeNull() // the run is open while its latest call is
+  })
+
+  it('keeps only the last rows', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F']
+    expect(groupSteps(names.map((n) => step(n, null))).map((x) => x.step.name)).toEqual(['C', 'D', 'E', 'F'])
   })
 })

@@ -22,6 +22,7 @@ import { connectorsOnFor, turnStatusAsker } from './turn-status.js'
 import { startLogin } from './loaded-at-start.js'
 import { launchSkillNames } from './loads/skills.js'
 import type { TurnVia } from '../contract.js'
+import { inputChannel, type InputChannel } from './input-channel.js'
 
 // The skills that schedule work natively: vetoed BY
 // NAME in every heartbeat — a native cron or loop is recurring work the
@@ -91,6 +92,8 @@ export type ClaudeHeadlessDeps = Pick<
 // options, the SDK message → ChatEvent mapping, and the per-session lock.
 export class ClaudeHeadless {
   private inflight = new Map<string, SdkQueryHandle>()
+  // the open input of each interactive turn (input-channel.ts): steer() writes here
+  private channels = new Map<string, InputChannel>()
   // Sessions with a turn in progress: the SDK appends to the same JSONL by
   // sessionId, two concurrent turns on the same id would corrupt the transcript.
   private activeSessions = new Set<string>()
@@ -113,7 +116,11 @@ export class ClaudeHeadless {
 
     try {
       const isNew = !input.resume
-      const prompt = input.text
+      // an interactive turn (the owner at the keyboard) takes its prompt as
+      // an open stream so a message typed while it works reaches it at its
+      // next step (steer); an unattended turn keeps a closed text prompt
+      const channel = input.unattended ? null : inputChannel(input.text)
+      const prompt = channel ? channel.iterable : input.text
       // Defense in depth at the choke point — the route already validates,
       // but any future caller (the resident, new plumbing) goes through
       // here: an invalid override blows up BEFORE anything starts.
@@ -306,6 +313,7 @@ export class ClaudeHeadless {
           throw err
         }
         this.inflight.set(input.turnId, handle)
+        if (channel) this.channels.set(input.turnId, channel)
         // the turn's own status of its servers (turn-status.ts): asked on
         // its first assistant or tool message, never awaited — a heartbeat
         // without its tools has no server to read
@@ -343,6 +351,9 @@ export class ClaudeHeadless {
         })
         for await (const m of handle as AsyncIterable<SdkMessage>) {
           status.see(m)
+          // the turn's answer: no more input — the process ends with it, so a
+          // turn stays one turn (a push after this is refused and queued)
+          if (m.type === 'result') channel?.close()
           const ev = this.toEvent(m, input, agent, folder)
           if (ev) {
             // Providers v1: every rate limit seen is attributed to the
@@ -382,11 +393,17 @@ export class ClaudeHeadless {
         this.hooks.emit(agent.id, ev)
         yield ev
       } finally {
+        channel?.close()
+        this.channels.delete(input.turnId)
         this.inflight.delete(input.turnId)
       }
     } finally {
       if (lockId !== undefined) this.activeSessions.delete(lockId)
     }
+  }
+
+  steer(turnId: string, text: string): boolean {
+    return this.channels.get(turnId)?.push(text) ?? false
   }
 
   async cancel(turnId: string): Promise<boolean> {
@@ -624,6 +641,7 @@ export function claudeEngine(h: ClaudeHeadless): HeadlessEngine {
     cancel: (turnId) => h.cancel(turnId),
     isInflight: (turnId) => h.isInflight(turnId),
     isSessionActive: (sessionId) => h.isSessionActive(sessionId),
+    steer: (turnId, text) => h.steer(turnId, text),
   }
 }
 

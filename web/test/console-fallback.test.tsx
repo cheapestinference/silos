@@ -9,7 +9,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { act } from 'react'
 import { AgentPage } from '../src/components/AgentPage'
 import { useStore } from '../src/store'
-import { api } from '../src/lib/api'
+import { api, ApiError } from '../src/lib/api'
 import type { AgentView, SessionDetail, SessionView } from '../src/lib/types'
 
 vi.mock('../src/lib/api')
@@ -106,6 +106,43 @@ describe('console error fallback', () => {
     // the new conversation tried the console again (and failed again —
     // the error view is back, with the same local escape hatch).
     await waitFor(() => expect(mockedApi.console.mock.calls.length).toBeGreaterThan(callsBefore))
+    await waitFor(() => expect(screen.getByText(/Couldn't open the real console/)).toBeTruthy())
+  })
+
+  // an older piece of a split thread: the server answers 409 with the tip it
+  // continues in — the console opens THERE, never an error to read
+  it("a 409 naming the thread's tip opens the tip instead of an error", async () => {
+    const superseded = Object.assign(Object.create(ApiError.prototype) as Error, {
+      message: 'this thread continues in a newer conversation',
+      status: 409,
+      body: { error: 'this thread continues in a newer conversation', tip: 'f/s2' },
+    })
+    mockedApi.console.mockImplementation(async (input: { sessionId?: string }) => {
+      if (input.sessionId === 's1') throw superseded
+      // the tip's console stays «opening»: the jump is what is under test
+      return new Promise<never>(() => {})
+    })
+    render(<AgentPage />)
+    await act(async () => {
+      await useStore.getState().openSession('f', 's1')
+    })
+    await waitFor(() => expect(useStore.getState().selected).toEqual({ folder: 'f', id: 's2' }))
+    expect(screen.queryByText(/Couldn't open the real console/)).toBeNull()
+  })
+
+  // the web's idea of the tip can land back on the same conversation: the
+  // view must say why, never hang on «Opening the real console…»
+  it('a 409 tip that does not move the view ends in the error, not an endless opening', async () => {
+    const superseded = Object.assign(Object.create(ApiError.prototype) as Error, {
+      message: 'this thread continues in a newer conversation',
+      status: 409,
+      body: { tip: 'f/s1' },
+    })
+    mockedApi.console.mockRejectedValue(superseded)
+    render(<AgentPage />)
+    await act(async () => {
+      await useStore.getState().openSession('f', 's1')
+    })
     await waitFor(() => expect(screen.getByText(/Couldn't open the real console/)).toBeTruthy())
   })
 })

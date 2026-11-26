@@ -5,6 +5,31 @@ All notable changes to Silos are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-27
+
+### Added
+
+- **Steer the agent while it works, from chat.** A message sent to a
+  conversation whose turn is still running reaches that turn at its next
+  step, as typed into a console — no longer queued until the turn ends. It
+  shows at once as your message; if the turn has already finished, it is
+  sent as the next turn instead, exactly once.
+
+### Fixed
+
+- **A console relaunch no longer splits a conversation.** Claude Code
+  2.1.33x records a resumed session's origin in a new way that Silos did
+  not read: the conversation broke into pieces, chat forked them again, and
+  the real console answered «this thread continues in a newer
+  conversation» or stayed on «Opening the real console…». Silos now reads
+  that record, keeps the thread whole, and opens the conversation where it
+  really continues. Existing transcripts are re-read once on the first start.
+- The subscription usage bars no longer disappear after a restart when the
+  usage endpoint is rate-limited: the last good reading is kept, marked as
+  not current.
+- The chat's live activity shows what each tool is running (no more
+  «Bash {}»), and repeated calls of one tool fold into one row.
+
 ## [0.4.0] - 2026-11-26
 
 ### Added
@@ -235,6 +260,7 @@ The first public release.
   Railway; remote sign-in through Silos ID, its settings in the environment
   or in `server.env` in the data folder.
 
+[0.5.0]: https://github.com/cheapestinference/silos/releases/tag/v0.5.0
 [0.4.0]: https://github.com/cheapestinference/silos/releases/tag/v0.4.0
 [0.3.0]: https://github.com/cheapestinference/silos/releases/tag/v0.3.0
 [0.2.0]: https://github.com/cheapestinference/silos/releases/tag/v0.2.0

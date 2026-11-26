@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { activeTrim, NO_TRIM } from '../lib/active-trim'
 import { pastVerbForTurn } from '../lib/thinking-verbs'
 import type { ConvPrefs, Turn } from '../lib/types'
+import { stepDesc } from '../lib/tool-summary'
 import { resolveEffective } from '../lib/cockpit'
 import type { ActiveStep, ChatTurnState, TurnReceipt } from './types'
 import type { State } from './state'
@@ -229,15 +230,26 @@ export function createChatEngine(set: StoreApi<State>['setState'], get: StoreApi
   // brings turns with persisted toolUses, the most recent one matching by
   // name is used to fill in the step that still has no description. Never
   // blocks anything: with no match, the step stays as it was.
+  // Steps and toolUses line up FROM THE END per name: the last Bash step
+  // takes the last persisted Bash, the one before it the one before — so
+  // three Bash in a row show three commands, not the last one three times.
   function enrichSteps(steps: ActiveStep[] | undefined, newTurns: Turn[]): ActiveStep[] | undefined {
     if (!steps || steps.length === 0) return steps
     const toolUses = newTurns.flatMap((t) => t.toolUses ?? [])
     if (toolUses.length === 0) return steps
-    return steps.map((p) => {
-      if (p.desc !== null) return p
-      const match = [...toolUses].reverse().find((tu) => tu.name === p.name)
-      return match ? { ...p, desc: match.input } : p
-    })
+    const seen = new Map<string, number>()
+    const out = [...steps]
+    for (let i = out.length - 1; i >= 0; i--) {
+      const p = out[i]!
+      const k = seen.get(p.name) ?? 0
+      seen.set(p.name, k + 1)
+      if (p.desc !== null) continue
+      const same = toolUses.filter((tu) => tu.name === p.name)
+      const match = same[same.length - 1 - k]
+      const desc = match ? stepDesc(match.input) : null
+      if (desc !== null) out[i] = { ...p, desc }
+    }
+    return out
   }
 
   // a delta refetch of the open session: new turns since detail.total.
@@ -473,7 +485,7 @@ export function createChatEngine(set: StoreApi<State>['setState'], get: StoreApi
         // previous step that was still open — a turn doesn't model
         // parallel tool calls.
         const closedSteps = (current.steps ?? []).map((p) => (p.end === null ? { ...p, end: now } : p))
-        const newStep: ActiveStep = { name: ev.name, isSubagent, desc: ev.input ?? null, start: now, end: null }
+        const newStep: ActiveStep = { name: ev.name, isSubagent, desc: stepDesc(ev.input), start: now, end: null }
         set({
           active: { ...current, tools: [...current.tools, ev.name], lastEvent: 'tool', steps: [...closedSteps, newStep] },
         })

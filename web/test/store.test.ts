@@ -2950,3 +2950,46 @@ describe("showAutomation — an automation's full context, where you are", () =>
     expect(useStore.getState().readingSession).toBeNull()
   })
 })
+
+// Steering: a message for the conversation whose turn is RUNNING goes into
+// that turn (POST …/chat steer:true) and shows at once as the owner's bubble;
+// refused (the turn just ended, or no turn of theirs) it queues as before —
+// sent once, never twice.
+describe('send while a turn runs on the same conversation', () => {
+  function running(sessionKey: string | null): void {
+    const agent = makeAgent({ id: 'a1', sessions: [makeSession({ folder: 'f', id: 's1' })] })
+    useStore.setState({
+      selectedAgentId: 'a1',
+      agents: [agent],
+      selected: { folder: 'f', id: 's1' },
+      detail: { meta: makeSession({ folder: 'f', id: 's1' }), turns: [], total: 0 },
+      active: { turnId: 't1', agentId: 'a1', text: '', tools: [], status: 'streaming', userText: 'build it', sessionKey },
+      queue: [],
+    })
+  }
+
+  it('steers into the running turn: one steer call, no new turn, shown at once', async () => {
+    running('f/s1')
+    mockedApi.steer.mockResolvedValue({ turnId: 't1', steered: true })
+    await useStore.getState().send('make it red')
+    expect(mockedApi.steer).toHaveBeenCalledWith('a1', 'make it red', { folder: 'f', id: 's1' })
+    expect(mockedApi.chat).not.toHaveBeenCalled()
+    expect(useStore.getState().active?.steered).toEqual(['make it red'])
+    expect(useStore.getState().queue).toEqual([])
+  })
+
+  it('refused (no turn of theirs any more): queued as before, never sent twice', async () => {
+    running('f/s1')
+    mockedApi.steer.mockRejectedValue(new Error('409'))
+    await useStore.getState().send('make it red')
+    expect(mockedApi.chat).not.toHaveBeenCalled()
+    expect(useStore.getState().queue.map((q) => q.text)).toEqual(['make it red'])
+  })
+
+  it('a turn running on ANOTHER conversation is never steered: the message queues', async () => {
+    running('f/other')
+    await useStore.getState().send('for s1')
+    expect(mockedApi.steer).not.toHaveBeenCalled()
+    expect(useStore.getState().queue.map((q) => q.text)).toEqual(['for s1'])
+  })
+})

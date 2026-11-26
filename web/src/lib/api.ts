@@ -270,6 +270,15 @@ export const api = {
   // overrides (one-shot) — the same omission criterion.
   // title: naming at birth — only for a NEW conversation (no session); the
   // server applies it as the manual rename when chat-init names the id.
+  // the owner's message into the turn running on that conversation (the
+  // server's steer): {steered:true}, or a 409 when there is no turn of
+  // theirs to take it — never starts a turn of its own
+  steer(agentId: string, text: string, session: { folder: string; id: string }): Promise<{ turnId: string; steered: true }> {
+    return req<{ turnId: string; steered: true }>(`/api/agents/${agentId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ text, session, steer: true }),
+    })
+  },
   chat(
     agentId: string,
     text: string,

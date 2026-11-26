@@ -358,6 +358,14 @@ export function Transcript() {
                       </div>
                     ) : null}
                   </div>
+                  {/* what the owner sent INTO this running turn: theirs at once,
+                  delivered at its next step — said so, never a queue chip */}
+                  {(active.steered ?? []).map((t, i) => (
+                    <div key={`steer-${i}`} data-testid="steered-message" className="ml-auto max-w-[85%]">
+                      <div className="rounded-2xl bg-panel px-4 py-2 text-[15px] whitespace-pre-wrap break-words">{t}</div>
+                      <div className="mt-1 text-right text-[11px] text-ink-3">reaches it at its next step</div>
+                    </div>
+                  ))}
                 </>
               ) : null}
 

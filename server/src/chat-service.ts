@@ -384,6 +384,9 @@ export class ChatService extends EventEmitter {
       failed = false
     let doneSubtype: string | null = null,
       opened = false
+    // a NEW conversation's id is known only at chat-init: the turn is live on
+    // it from then on (liveOn — what lets the owner steer a first turn too)
+    let bornLive: string | null = null
     try {
       // an engine older than Silos needs never runs the turn:
       // refused like a missing engine, in the verdict's one line — inside
@@ -396,6 +399,10 @@ export class ChatService extends EventEmitter {
       for await (const ev of engine.send(agent, { ...input, turnToken })) {
         if (ev.ev === 'chat-init' && ev.turnId === input.turnId) {
           this.liveTurns.bindSession(turnToken, ev.sessionId)
+          if (resumeId === undefined && bornLive === null && !this.liveResumes.has(ev.sessionId)) {
+            bornLive = ev.sessionId
+            this.liveResumes.set(ev.sessionId, { turnId: input.turnId, unattended: input.unattended === true })
+          }
           if (input.unattended === true) {
             if (switched !== null) this.unattendedOn.set(ev.sessionId, switched)
             else this.unattendedOn.delete(ev.sessionId)
@@ -459,6 +466,7 @@ export class ChatService extends EventEmitter {
       }
       this.liveTurns.drop(turnToken)
       if (resumeId !== undefined && this.liveResumes.get(resumeId)?.turnId === input.turnId) this.liveResumes.delete(resumeId)
+      if (bornLive !== null && this.liveResumes.get(bornLive)?.turnId === input.turnId) this.liveResumes.delete(bornLive)
     }
   }
 
@@ -514,6 +522,15 @@ export class ChatService extends EventEmitter {
         this.cancelledTurns.add(turnId)
         return true
       }
+    }
+    return false
+  }
+  // the owner's message into a turn still running (HeadlessEngine.steer):
+  // true when an engine took it for its next step
+  steer(turnId: string, text: string): boolean {
+    for (const h of nonFallbackFirst(registeredHarnesses())) {
+      const engine = this.engines.get(h.id)
+      if (engine?.steer?.(turnId, text)) return true
     }
     return false
   }
