@@ -285,11 +285,13 @@ describe('counts', () => {
     rec('c', [{ name: conn, status: 'failed', error: 'refused', source: 'claudeai' }], { login: OTHER })
     const inv = claudeLoadsInventory(
       input({
-        readings: ledger.readings(folder).map((r) => ({
-          at: r.at,
-          login: r.login,
-          servers: r.servers.map((s) => ({ name: s.name, status: s.status, ...(s.source ? { source: s.source } : {}) })),
-        })),
+        readings: ledger
+          .readings(folder)
+          .map((r) => ({
+            at: r.at,
+            login: r.login,
+            servers: r.servers.map((s) => ({ name: s.name, status: s.status, ...(s.source ? { source: s.source } : {}) })),
+          })),
       }),
     )
     const out = healthOfRows(inv.rows, ledger.readings(folder), ledger.runs(folder), [])

@@ -9,7 +9,7 @@ import { useBottomLock } from '../hooks/useBottomLock'
 import { Turn, Markdown, type LimitBannerInfo } from './Turn'
 import { providerLabel, agentOnCheapest } from '../lib/providers'
 import { useSmoothText } from '../lib/smoothing'
-import { ToolChip } from './ToolChip'
+import { ToolChipRow } from './ToolChip'
 import { EmptyState } from './EmptyState'
 import { ProjectSelector } from './ProjectSelector'
 import { ReceiptLine, StatusLine } from './StatusLine'
@@ -345,13 +345,7 @@ export function Transcript() {
                     <span data-testid="cursor-streaming" aria-hidden="true" className="inline-block w-[0.5em] animate-pulse motion-reduce:animate-none">
                       ▌
                     </span>
-                    {liveTools.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap items-start gap-1.5">
-                        {liveTools.map((name, i) => (
-                          <ToolChip key={`${name}-${i}`} tool={name} />
-                        ))}
-                      </div>
-                    ) : null}
+                    {liveTools.length > 0 ? <ToolChipRow chips={liveTools} className="mt-2" /> : null}
                     {/* when the turn ends, the status line does NOT vanish —
                     it mutates into its receipt, in the same spot; when
                     `active` clears (100ms + refetch) the same receipt

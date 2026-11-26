@@ -18,6 +18,7 @@ import { contextColorClass, contextPct } from '../lib/context'
 import { useHarness } from '../lib/harnesses'
 import { AsteriskGlyph } from './Glyph'
 import { RECEIPT_MIN_MS } from './Turn'
+import { summarizeTools } from '../lib/tool-summary'
 
 const HIDE_ELAPSED_MS = 5000
 
@@ -232,14 +233,13 @@ export function ExternalStatus({
         {footerParts.length > 0 ? <span className="font-mono text-xs">({footerParts.join(' · ')})</span> : null}
         {pct !== null ? <span className={`font-mono text-xs ${contextColorClass(pct)}`.trim()}>{pct}% context</span> : null}
       </div>
+      {/* the footer is a pulse, not a log: totals per tool on ONE line
+          ("Bash ×44 · Edit ×22 · Read ×14 · +2 more"); the sequence lives
+          in the transcript's chips */}
       {state.tools && state.tools.length > 0 ? (
-        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-2">
-          {state.tools.map((h, i) => (
-            <span key={`${h}-${i}`} className="rounded-full border border-line px-1.5">
-              {h}
-            </span>
-          ))}
-        </div>
+        <p className="mt-1 truncate font-mono text-[11px] text-ink-2" title={summarizeTools(state.tools, Infinity)}>
+          {summarizeTools(state.tools)}
+        </p>
       ) : null}
       <ExternalQueue queue={queue} />
     </div>

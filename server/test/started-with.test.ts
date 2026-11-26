@@ -20,7 +20,9 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { claudeLoadsInventory } from '../src/harnesses/claude-code/loads/inventory.js'
 import { readStartedWith, splitSystem, startedWith, hookName, pyDumps, cpLen } from '../src/harnesses/claude-code/started-with.js'
-import { AUTOMATIONS_NOTE, ASK_DECISIONS_NOTE } from '../src/chat-service.js'
+import { ASK_DECISIONS_NOTE } from '../src/chat-service.js'
+// the automations note appends carried until 26-11 — old transcripts keep it
+const OLD_AUTOMATIONS_NOTE = 'Scheduled or recurring work goes through Silos automations, never CronCreate: a Silos automation has owner-visible state.'
 import { RUN_OUTCOME_INSTRUCTION } from '../src/run-outcome.js'
 import { readInstructionsRecord } from '../src/harnesses/claude-code/instructions-record.js'
 import type { LoadsReading, LoadsRow, StartedWith, StartedWithContext, StartedWithOwner } from '../src/harnesses/contract.js'
@@ -198,7 +200,7 @@ const part = (s: StartedWith, ref: string) => s.parts.find((p) => p.ref === ref)
 
 describe('the system prompt split', () => {
   it('engine before the cut; charter → agent; # Agent memory → agent; the rest → silos', () => {
-    const text = `ENGINE PART\nCharter line one\nmore charter\n# You are running inside Silos\nbriefing\n# Agent memory\nnotes\n${AUTOMATIONS_NOTE}\n${ASK_DECISIONS_NOTE}`
+    const text = `ENGINE PART\nCharter line one\nmore charter\n# You are running inside Silos\nbriefing\n# Agent memory\nnotes\n${OLD_AUTOMATIONS_NOTE}\n${ASK_DECISIONS_NOTE}`
     const segs = splitSystem(text, 'Charter line one\nmore charter')
     expect(segs.map((x) => [x.owner, x.sub])).toEqual([
       ['engine', 'engine'],
@@ -213,7 +215,7 @@ describe('the system prompt split', () => {
   })
   it('the platform notes alone start Silos’ append; no marker → all engine', () => {
     expect(splitSystem(`abc${ASK_DECISIONS_NOTE}`, null).map((x) => x.owner)).toEqual(['engine', 'silos'])
-    expect(splitSystem(`abc${AUTOMATIONS_NOTE}`, null).map((x) => x.owner)).toEqual(['engine', 'silos'])
+    expect(splitSystem(`abc${OLD_AUTOMATIONS_NOTE}`, null).map((x) => x.owner)).toEqual(['engine', 'silos'])
     expect(splitSystem('only Claude Code', 'not here')).toEqual([{ owner: 'engine', sub: 'engine', text: 'only Claude Code' }])
   })
 })

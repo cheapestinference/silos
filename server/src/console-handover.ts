@@ -13,7 +13,8 @@
 import type { TerminalService } from './terminal-service.js'
 import { harnessById, harnessForId } from './harnesses/registry.js'
 
-export type HandoverTerminals = Pick<TerminalService, 'keyOfNativeId' | 'hasConsole' | 'killConsoleAndWait'>
+export type HandoverTerminals = Pick<TerminalService, 'keyOfNativeId' | 'hasConsole' | 'killConsoleAndWait'> &
+  Partial<Pick<TerminalService, 'consoleCreatedMs'>>
 
 /** The live console a chat turn on this session would have to close, or null. */
 export async function handoverConsoleKey(terminals: HandoverTerminals | undefined, sessionId: string): Promise<string | null> {
@@ -23,9 +24,29 @@ export async function handoverConsoleKey(terminals: HandoverTerminals | undefine
 }
 
 /** A chat turn must wait: the session's live console is still working (its
- *  turn is open) — handing over now would kill that work. */
-export async function consoleBusyFor(terminals: HandoverTerminals | undefined, sessionId: string, turnOpen: boolean | undefined): Promise<boolean> {
-  return turnOpen === true && (await handoverConsoleKey(terminals, sessionId)) !== null
+ *  turn is open) — handing over now would kill that work.
+ *
+ *  An open turn alone is not work: a transcript whose last turn never
+ *  closed (its claude crashed or was killed — every pre-Silos conversation
+ *  adopted from disk can be one) stays open FOREVER, and the console the
+ *  conversation page opens over it is a fresh `--resume` sitting idle — a
+ *  busy answer there refused chat on that conversation for good. The
+ *  console is working only if the transcript moved SINCE that console was
+ *  created (tmux's own clock, consoleCreatedMs): a turn that this console
+ *  is running writes records after its birth. No creation time (probe
+ *  failed, console mid-spawn) stays conservative: busy. */
+export async function consoleBusyFor(
+  terminals: HandoverTerminals | undefined,
+  sessionId: string,
+  turnOpen: boolean | undefined,
+  lastActivityMs?: number,
+): Promise<boolean> {
+  if (turnOpen !== true) return false
+  const key = await handoverConsoleKey(terminals, sessionId)
+  if (key === null) return false
+  if (lastActivityMs === undefined || !terminals?.consoleCreatedMs) return true
+  const created = await terminals.consoleCreatedMs(key)
+  return created === null || lastActivityMs >= created
 }
 
 /** Returns the console key it closed, or null when nothing was live. */

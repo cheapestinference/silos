@@ -118,13 +118,15 @@ describe('«N closed plans still have open tasks»: ONE routine row, a door to e
     )
     const manifest = JSON.parse(readFileSync(REF, 'utf8')) as Json
     const closed = new ClosedPlans({ siloId: 'plans', manifest: () => manifest, conventionDirs: () => [join(proj, 'plans')] })
-    const plans = closed.records({ now: NOW }).map((r) => ({
-      key: `${r.location}/${r.record.id}`,
-      title: String(r.record.title),
-      folder: proj,
-      file: r.file,
-      open: (r.record.tasks as Json[]).filter((t) => t.state !== 'done' && t.state !== 'cancelled').length,
-    }))
+    const plans = closed
+      .records({ now: NOW })
+      .map((r) => ({
+        key: `${r.location}/${r.record.id}`,
+        title: String(r.record.title),
+        folder: proj,
+        file: r.file,
+        open: (r.record.tasks as Json[]).filter((t) => t.state !== 'done' && t.state !== 'cancelled').length,
+      }))
     expect(closedPlansOpenRow(plans, NOW)).toMatchObject({
       count: 1,
       plans: [{ key: `folder:${proj}/old`, title: 'Old', file: join(proj, 'plans', 'closed', 'old.plan.json'), open: 1 }],

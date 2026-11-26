@@ -51,6 +51,40 @@ describe('ConversationPrefsStore', () => {
     expect(raw.prefs).toEqual({})
   })
 
+  // prefs are keyed by CONVERSATION: with a thread resolver attached
+  // (resolveWith — buildServer wires threadRootKey), every session id of a
+  // thread reads and writes ONE entry. Without this, a pin made before a
+  // console's /clear sat under the old id while the unpin went to the new
+  // one: the pin was unreachable and the console kept the old account.
+  describe('thread resolution (resolveWith)', () => {
+    const roots: Record<string, string> = { child: '-proj/root', grandchild: '-proj/root' }
+    const resolver = (folder: string, id: string): string => roots[id] ?? `${folder}/${id}`
+
+    it('a pin written at the root is read, changed and UNPINNED through any session of the thread', () => {
+      const s = store()
+      s.resolveWith(resolver)
+      s.patch('-proj', 'root', { provider: 'account:sam', model: 'opus' })
+      expect(s.get('-proj', 'child')).toEqual({ provider: 'account:sam', model: 'opus' })
+      s.patch('-proj', 'grandchild', { model: 'haiku' })
+      expect(s.get('-proj', 'root')).toEqual({ provider: 'account:sam', model: 'haiku' })
+      // the unpin through the rotated id deletes the root's entry — the class of the bug
+      s.patch('-proj', 'child', { provider: null, model: null })
+      expect(s.get('-proj', 'root')).toBeNull()
+      const raw = JSON.parse(readFileSync(join(dir, 'conversation-prefs.json'), 'utf8'))
+      expect(raw.prefs).toEqual({})
+    })
+
+    it('copy() within one thread is a no-op (one entry already); across threads it still copies', () => {
+      const s = store()
+      s.resolveWith(resolver)
+      s.patch('-proj', 'root', { model: 'opus' })
+      s.copy('-proj', 'root', '-proj', 'child')
+      expect(JSON.parse(readFileSync(join(dir, 'conversation-prefs.json'), 'utf8')).prefs).toEqual({ '-proj/root': { model: 'opus' } })
+      s.copy('-proj', 'child', '-other', 'fork')
+      expect(s.get('-other', 'fork')).toEqual({ model: 'opus' })
+    })
+  })
+
   it('corrupt JSON: backs up to .corrupt-* BEFORE starting fresh, never silently overwrites the original', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const file = join(dir, 'conversation-prefs.json')

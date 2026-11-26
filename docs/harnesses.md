@@ -122,7 +122,11 @@ style must reach both your chat turn and your console (`LaunchSpec.outputStyle`)
 - `handover: boolean`. Your console and your headless turns write the
   **same** session. Then Silos closes a live console before a headless turn
   on it (`server/src/console-handover.ts`), and a started conversation may
-  switch between console and chat in the UI.
+  switch between console and chat in the UI. A console mid-turn is never
+  closed (the chat route answers 409) — mid-turn meaning the transcript
+  moved since that console's tmux session was created: a turn left open by
+  a dead process (an adopted pre-Silos conversation killed mid-turn) does
+  not refuse chat forever over an idle `--resume` console.
 - `consolePinsModel: boolean`. A model picked inside your console arrives as
   `meta.requestedModel` and becomes the conversation's pin
   (`server/src/pin-follower.ts`), through your `requestedModelPin`.

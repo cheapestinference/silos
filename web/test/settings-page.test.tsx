@@ -50,7 +50,9 @@ describe('SettingsPage — tabs', () => {
     expect(screen.getByRole('button', { name: 'Access', current: true } as never)).toBeInTheDocument()
     expect(screen.getByText('This browser')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'About' }))
-    expect(screen.getByText(/Silos — local/)).toBeInTheDocument()
+    // the About tab's section landed (its version row renders even while
+    // /api/update has not answered)
+    expect(screen.getAllByText(/^Silos/).length).toBeGreaterThan(0)
   })
 
   // the tab mounts ProvidersTab (details in providers-tab.test.tsx).

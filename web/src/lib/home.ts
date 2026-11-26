@@ -121,6 +121,9 @@ export function scopeInbox(rows: readonly InboxItem[], folder: string, agentIds:
       case 'engineUnwired':
         if (r.agentIds.some((a) => agentIds.has(a))) out.push({ ...r, agentIds: r.agentIds.filter((a) => agentIds.has(a)) })
         break
+      // a newer Silos is the install's, not a project's: the global Home says it once
+      case 'silosUpdate':
+        break
       case 'integrity':
         if (r.agentId === null || agentIds.has(r.agentId)) out.push(r)
         break
@@ -261,6 +264,8 @@ export function isWaiting(i: InboxItem): boolean {
   if (i.kind === 'engineCompat') return i.urgency !== 'routine'
   // an unwired engine stops nothing either: a quiet row with its door
   if (i.kind === 'engineUnwired') return false
+  // a newer Silos stops nothing: the date line's quiet chip, never Needs you
+  if (i.kind === 'silosUpdate') return false
   return !isTaskRow(i) || i.urgency !== 'routine'
 }
 
@@ -321,6 +326,11 @@ export function refusingEngines<E extends EngineCompat>(engines: readonly E[]): 
 }
 export function aheadEngines(inbox: readonly InboxItem[]): EngineCompat[] {
   return inbox.flatMap((i) => (i.kind === 'engineCompat' ? i.engines.filter((e) => e.refuses.length === 0 && e.state === 'ahead') : []))
+}
+// a newer published Silos (inbox.ts silosUpdateRow): the date line's second
+// quiet chip, its door Settings › About (where the update line is written out)
+export function silosUpdateOf(inbox: readonly InboxItem[]): Extract<InboxItem, { kind: 'silosUpdate' }> | null {
+  return inbox.find((i): i is Extract<InboxItem, { kind: 'silosUpdate' }> => i.kind === 'silosUpdate') ?? null
 }
 
 // A silo task row's why, read off the server's one row (voice.ts sayRow:
@@ -639,6 +649,9 @@ function headlineCore(input: {
         head = `${top.voice}${tail}`
         break
       case 'engineUnwired':
+        head = `${top.voice}${tail}`
+        break
+      case 'silosUpdate':
         head = `${top.voice}${tail}`
         break
       case 'plansBaseline':

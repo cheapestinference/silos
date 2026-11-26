@@ -251,6 +251,7 @@ export type InboxRow = RowBase &
     // Create wires them; Settings › Engines is the door) and Silos never
     // re-adds them by itself — this row is the honest state meanwhile.
     | { kind: 'engineUnwired'; engine: string; agentIds: string[] }
+    | { kind: 'silosUpdate'; installed: string; latest: string; installKind: string; how: string }
     // the seal: a control file changed outside Silos, a
     // credential rotated, a plugin path set aside or edited, an engine config
     // changed. `seal` is the row as the seal keeps it (its id is what the
@@ -1197,6 +1198,29 @@ export function engineCompatRow(
 // the reserve engine unwired (its Silos hooks missing from the operator's
 // settings): ONE routine row, only while an agent runs on that engine —
 // without one, nothing on this machine depends on the wiring.
+// a newer Silos is published: ONE routine row, never due (an update stops
+// nothing — the row that stops things is engineCompat 'ahead'). The key
+// carries the version, so a new release is a new row (the signature moves).
+// It clears by updating, which only the owner can do: no Seen.
+export function silosUpdateRow(
+  u: { installed: string; latest: string | null; newer: boolean; kind: string; how: string } | null,
+  now: number,
+): InboxRow | null {
+  if (!u || !u.newer || u.latest === null) return null
+  return {
+    kind: 'silosUpdate',
+    key: `silos-update:${u.latest}`,
+    urgency: 'routine',
+    at: now,
+    installed: u.installed,
+    latest: u.latest,
+    installKind: u.kind,
+    how: u.how,
+    voice: `Silos ${u.latest} is out (this is ${u.installed}) — ${u.how}`,
+    clears: 'this install is updated',
+  }
+}
+
 export function engineUnwiredRow(
   wired: boolean,
   f: { engine: string; harnessId: string; agents: readonly { id: string; harness: string }[]; now: number },

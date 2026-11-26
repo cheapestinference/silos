@@ -15,7 +15,7 @@ import { claudeSessionIndex } from '../src/harnesses/claude-code/reader.js'
 import { AgentRegistry } from '../src/agent-registry.js'
 import { SessionStore } from '../src/session-store.js'
 import { NativeStore } from '../src/native-store.js'
-import { AUTOMATIONS_NOTE, ChatService } from '../src/chat-service.js'
+import { ChatService } from '../src/chat-service.js'
 import { recipeText } from '../src/harnesses/briefing.js'
 import { kernelRoutes } from '../src/silos/producer-brief.js'
 import { ExecService } from '../src/exec-service.js'
@@ -649,8 +649,7 @@ describe('every recipe that writes names its turn', () => {
       for (const w of writes) expect(w, rel).toMatch(/SILOS_TURN/)
     })
   }
-  it("the server's own prompts: the automations note, a producer's kernel routes", async () => {
-    expect(AUTOMATIONS_NOTE).toContain('"turn": "$SILOS_TURN"')
+  it("the server's own prompts: a producer's kernel routes (the automations rule lives in briefing.d/base.md, covered above)", async () => {
     const writes = kernelRoutes('s', { sync: true, ownerFields: ['state'] }).filter((l) => / -X (PUT|POST) /.test(l))
     expect(writes).toHaveLength(2)
     for (const line of writes) expect(line).toContain('SILOS_TURN')

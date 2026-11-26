@@ -263,18 +263,20 @@ export function recordsOfKind(kinds: Map<string, KindInfo>, base: readonly KindR
   return recordsOfKind(kinds, base, info.parent.name).flatMap((b) => {
     const kids = (Array.isArray(b.rec[info.coll!]) ? b.rec[info.coll!] : []) as Json[]
     const unread = b.unreadableChildren?.[info.coll!]
-    return kids.filter(isObj).map((k) => ({
-      rec: k,
-      anchors: b.anchors,
-      key: `${b.key}/${info.coll}/${String(k.id)}`,
-      ...(b.location !== undefined ? { location: b.location } : {}),
-      file: b.file,
-      parent: b.rec,
-      parentKey: b.key,
-      siblings: kids,
-      ...(b.source !== undefined ? { source: b.source } : {}),
-      ...(unread ? { unreadableSiblings: unread } : {}),
-    }))
+    return kids
+      .filter(isObj)
+      .map((k) => ({
+        rec: k,
+        anchors: b.anchors,
+        key: `${b.key}/${info.coll}/${String(k.id)}`,
+        ...(b.location !== undefined ? { location: b.location } : {}),
+        file: b.file,
+        parent: b.rec,
+        parentKey: b.key,
+        siblings: kids,
+        ...(b.source !== undefined ? { source: b.source } : {}),
+        ...(unread ? { unreadableSiblings: unread } : {}),
+      }))
   })
 }
 

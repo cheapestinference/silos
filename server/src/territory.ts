@@ -76,6 +76,9 @@ export interface FenceInput {
   /** Directory names found on disk under dataDir/agent-state: the state of
    *  deleted agents is denied like the state of live ones. */
   stateDirIds?: string[]
+  /** The ids on disk under `<dataDir>/agents` (AGENTS_DIR) at launch — like
+   *  stateDirIds: a dir left by an agent no longer registered stays closed. */
+  agentDirIds?: string[]
   /** Absolute paths of files holding an ENGINE's own login secrets
    *  (Harness.secretFiles — e.g. OpenCode's auth.json): denied read and
    *  edit for every agent, whatever engine it runs on. The adapter fills it
@@ -120,15 +123,27 @@ export interface FenceInput {
 
 /** The credentials Silos keeps, relative to the data dir: the owner's
  *  token, the web sessions, the turn tokens, every agent's bearer
- *  (`agents/<id>/token`), the Vault and the providers file — and every place
- *  that holds a copy of one (the consoles' env files, the seal's copies, the
- *  quarantine), the push keys, this install's Silos ID key. No agent's work
- *  needs them; with them an agent could speak as any other agent or as the
- *  owner. Denied to every agent with a folder, its territory on or off. */
+ *  (`agents/<id>/token`, the pattern below — the dir itself also holds each
+ *  agent's own auto-memory since 24-11, so closing it whole silently broke
+ *  saving memory for every fenced agent), the Vault and the providers file
+ *  — and every place that holds a copy of one (the consoles' env files, the
+ *  seal's copies, the quarantine), the push keys, this install's Silos ID
+ *  key. No agent's work needs them; with them an agent could speak as any
+ *  other agent or as the owner. Denied to every agent with a folder, its
+ *  territory on or off. */
 export const SILOS_CREDENTIALS: { files: readonly string[]; dirs: readonly string[] } = {
   files: ['token', 'sessions.json', 'live-turns.json', 'vault.json', 'providers.json', 'silos-id.json', 'server.env'],
-  dirs: ['agents', 'console-env', 'seals', 'held', 'push'],
+  dirs: ['console-env', 'seals', 'held', 'push'],
 }
+
+/** The agents' own dir of the data dir (`agents/<id>`: bearer token, auto
+ *  memory, OpenCode store). Its TOKENS are credentials (the pattern covers
+ *  every id, present or future, the agent's own included — its env already
+ *  carries its bearer); the rest is per-agent: another agent's dir is closed
+ *  whole with the territory on (its memory and conversations are private,
+ *  same rank as its agent-state), one's own stays open — the engine reads
+ *  and writes the agent's memory there through ordinary file tools. */
+export const AGENTS_DIR = 'agents'
 
 /** Top-level FILES of the data dir, by name or pattern. Never a bare `*`:
  *  Claude Code matches deny rules gitignore-style, so `<dataDir>/*` also
@@ -144,7 +159,7 @@ export const DATA_DIR_FILES_DENIED = ['token', '.*', '*.json', '*.env', '*.json.
  *  so a dir that does not exist yet is fenced before it is created; the
  *  adapter adds whatever else is on disk at launch. */
 export const DATA_DIR_DENIED = [
-  'agents',
+  // 'agents' is NOT here: fenced per id (AGENTS_DIR — own memory open)
   'accounts',
   'trash',
   'consoles',
@@ -485,9 +500,11 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
   }
 
   // (2) The credentials Silos keeps, and every process's environment (it
-  // carries the tokens) and command line.
+  // carries the tokens) and command line. Every agent's bearer by pattern
+  // (AGENTS_DIR): present and future ids, the agent's own included.
   for (const f of SILOS_CREDENTIALS.files) both(`${silosDir}/${f}`)
   for (const d of SILOS_CREDENTIALS.dirs) both(`${silosDir}/${d}/**`)
+  both(`${silosDir}/${AGENTS_DIR}/*/token`)
   for (const p of PROC_ENVIRON_DENIED) deny.push(`Read(${abs(p)})`)
   for (const p of PROC_CMDLINE_DENIED) deny.push(`Read(${abs(p)})`)
 
@@ -501,8 +518,18 @@ export function fenceFor(input: FenceInput): FenceOverlay | null {
     }
     const fixedDirs = new Set<string>(DATA_DIR_DENIED)
     for (const d of new Set<string>([...DATA_DIR_DENIED, ...(input.dataDirEntries?.dirs ?? [])])) {
-      if (d === CLAUDE_ACCOUNTS_DIR) continue // file by file, below
+      if (d === CLAUDE_ACCOUNTS_DIR || d === AGENTS_DIR) continue // file by file / per id, below
       if (segment(d) && (fixedDirs.has(d) || literal(d, `${silosDir}/${d}`))) both(`${silosDir}/${d}/**`)
+    }
+    // (a') other agents' own dirs (AGENTS_DIR: their memory, their OpenCode
+    // store) — live, archived, and any left on disk by an agent no longer in
+    // the registry. Never one's own: the agent's auto-memory lives there
+    // (memory-service.ts) and the engine works it with ordinary file tools;
+    // the tokens are already denied for every id by the pattern above.
+    const agentDirIds = new Set<string>([...agents.map((a) => a.id), ...(input.agentDirIds ?? [])])
+    agentDirIds.delete(agent.id)
+    for (const id of agentDirIds) {
+      if (segment(id) && literal(id, `${silosDir}/${AGENTS_DIR}/${id}`)) both(`${silosDir}/${AGENTS_DIR}/${id}/**`)
     }
     // Claude Code's config dirs: ~/.claude (its state file sits beside it,
     // ~/.claude.json) and every extra account (its state file inside: an
@@ -677,6 +704,7 @@ export function makeTerritory(d: {
       agentStateDir: stateDir ?? '',
       dataDirEntries: entriesOf(d.dataDir),
       stateDirIds: entriesOf(join(d.dataDir, 'agent-state')).dirs,
+      agentDirIds: entriesOf(join(d.dataDir, AGENTS_DIR)).dirs,
       engineSecretFiles: registeredHarnesses().flatMap((h) => h.secretFiles?.(d.home) ?? []),
       engineConfigFiles: (folder) => registeredHarnesses().flatMap((h) => h.configFiles?.(folder, d.home) ?? []),
       on: !gated || d.store.isEnabled(agentId),
@@ -765,6 +793,10 @@ export function fenceScope(fence: FenceOverlay, territories: string[], o: { home
       continue
     }
     if (path.startsWith(`${data}/agent-state/`)) groups.agents.push(path.slice(data.length + '/agent-state/'.length))
+    // another agent's own dir (AGENTS_DIR) reads as that agent; the token
+    // PATTERN (agents/*/token) is a credential and stays with Silos' own
+    else if (path.startsWith(`${data}/${AGENTS_DIR}/`) && !path.slice(data.length + AGENTS_DIR.length + 2).includes('*'))
+      groups.agents.push(path.slice(data.length + AGENTS_DIR.length + 2))
     // every process's environment carries Silos' tokens (PROC_ENVIRON_DENIED)
     else if (path === data || path.startsWith(`${data}/`) || path.startsWith('/proc/')) groups.silos.push(tilde(path))
     else if (path === `${home}/.claude.json` || path.includes('/.claude/')) groups.claude.push(tilde(path))
@@ -776,9 +808,10 @@ export function fenceScope(fence: FenceOverlay, territories: string[], o: { home
     state: state === '' || territories.includes(state) ? null : tilde(state),
     readOnly: readOnly.sort(),
     noChange: noChange.sort(),
+    // an agent id can arrive twice (its agent-state AND its agents/ dir): one entry
     blocked: (['projects', 'silos', 'claude', 'agents', 'private'] as const)
       .filter((k) => groups[k].length > 0)
-      .map((kind) => ({ kind, paths: groups[kind].sort() })),
+      .map((kind) => ({ kind, paths: [...new Set(groups[kind])].sort() })),
     open: (fence.skipped ?? []).map((u) => ({ path: tilde(u.path), reason: u.reason })),
   }
 }

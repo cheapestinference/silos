@@ -9,7 +9,7 @@ import { AgentStateStore } from '../src/agent-state.js'
 import { AgentTokens } from '../src/agent-tokens.js'
 import { ProvidersStore } from '../src/providers-store.js'
 import type { HeadlessContext, HeadlessEngine } from '../src/harnesses/contract.js'
-import { ChatService, ASK_DECISIONS_NOTE, AUTOMATIONS_NOTE, askDecisionsNote } from '../src/chat-service.js'
+import { ChatService, ASK_DECISIONS_NOTE, askDecisionsNote } from '../src/chat-service.js'
 import { agentAutoMemoryDir } from '../src/memory-service.js'
 
 // a Claude Code agent's append names its question tool (E10 #31)
@@ -220,7 +220,7 @@ describe('ChatService.send — a new session', () => {
     expect(o.allowDangerouslySkipPermissions).toBe(true) // required by the SDK alongside bypassPermissions
     expect(o.includePartialMessages).toBe(true)
     expect(o.settingSources).toEqual(['user', 'project', 'local'])
-    expect(o.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`) })
+    expect(o.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: hooked(`Your mission: charter\n\n${CLAUDE_ASK}`) })
     expect((o.env as Record<string, string>).SILOS_BRIEFING).toBe('system-prompt')
     expect(o.model).toBe('claude-sonnet-5')
   })
@@ -326,11 +326,11 @@ describe('ChatService.send — a new session', () => {
     ).toBe(true)
     expect(isolated).toContain('# You are running inside Silos')
     expect(isolated).toContain('Your projects (Silos):')
-    expect(isolated.endsWith(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)).toBe(true)
+    expect(isolated.endsWith(`Your mission: charter\n\n${CLAUDE_ASK}`)).toBe(true)
     calls.length = 0
     await collect(chat.send({ turnId: 't2', agentId: 'finance', text: 'hi', isolation: { settingSources: ['user'] } }))
     const withHooks = (calls[0]!.options.systemPrompt as any).append as string
-    expect(withHooks).toBe(hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`, '/tmp/ci', ['user']))
+    expect(withHooks).toBe(hooked(`Your mission: charter\n\n${CLAUDE_ASK}`, '/tmp/ci', ['user']))
     expect(withHooks).toContain('# You are running inside Silos')
     expect(withHooks).not.toContain('Your projects (Silos):')
   })
@@ -617,7 +617,7 @@ describe('ChatService.send — a new session', () => {
     await collect(chat.send({ turnId: 't2', agentId: 'declared', text: 'hi' }))
     expect(calls[0]!.prompt).toBe('hi') // nothing active in the folder -> no preamble, whatever agents.json declares
     expect(calls[0]!.options.model).toBeUndefined()
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`, noSkills))
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`${CLAUDE_ASK}`, noSkills))
   })
 
   it('the skills note caps the list at 8 names', async () => {
@@ -652,9 +652,7 @@ describe('ChatService.send — a new session', () => {
     writeFileSync(join(base, 'agents', 'finance', 'memory.md'), 'Some memory notes\n')
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls), dataDir: base })
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi' }))
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(
-      hooked(`Your mission: charter\n\n# Agent memory\nSome memory notes\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`),
-    )
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n# Agent memory\nSome memory notes\n\n${CLAUDE_ASK}`))
   })
 
   it('with no systemAppend, the agent memory is the whole append (no prior systemAppend)', async () => {
@@ -662,13 +660,13 @@ describe('ChatService.send — a new session', () => {
     writeFileSync(join(base, 'agents', 'plain', 'memory.md'), "plain's notes")
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls), dataDir: base })
     await collect(chat.send({ turnId: 't1', agentId: 'plain', text: 'hi' }))
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`# Agent memory\nplain's notes\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`))
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`# Agent memory\nplain's notes\n\n${CLAUDE_ASK}`))
   })
 
   it('a missing memory file adds nothing', async () => {
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls), dataDir: base })
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi' }))
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)) // no memory: just the usual charter
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${CLAUDE_ASK}`)) // no memory: just the usual charter
   })
 
   it('an empty memory file (or whitespace-only) adds nothing', async () => {
@@ -676,7 +674,7 @@ describe('ChatService.send — a new session', () => {
     writeFileSync(join(base, 'agents', 'finance', 'memory.md'), '   \n\n  ')
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls), dataDir: base })
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi' }))
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`))
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${CLAUDE_ASK}`))
   })
 
   it('with no dataDir in ChatDeps (compat), agent memory is never injected', async () => {
@@ -684,7 +682,7 @@ describe('ChatService.send — a new session', () => {
     // ChatService keeps working without dataDir — a safe degradation (see ChatDeps.dataDir).
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
     await collect(chat.send({ turnId: 't1', agentId: 'finance', text: 'hi' }))
-    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`))
+    expect((calls[0]!.options.systemPrompt as any).append).toBe(hooked(`Your mission: charter\n\n${CLAUDE_ASK}`))
   })
 
   it('master/nonexistent/archived get rejected', async () => {
@@ -899,7 +897,7 @@ describe('ChatService.send — nonexistent folder (an honest error)', () => {
 describe('systemAppendFor', () => {
   it('returns the exact chat append for a known agent', () => {
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
-    expect(chat.systemAppendFor('finance', [])).toBe(`Your mission: charter\n\n${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)
+    expect(chat.systemAppendFor('finance', [])).toBe(`Your mission: charter\n\n${CLAUDE_ASK}`)
   })
 
   // E10 #31: the question tool is named per engine, in this append only;
@@ -918,7 +916,7 @@ describe('systemAppendFor', () => {
 
   it('an agent with no charter still gets the platform note', () => {
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
-    expect(chat.systemAppendFor('plain', [])).toBe(`${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)
+    expect(chat.systemAppendFor('plain', [])).toBe(`${CLAUDE_ASK}`)
   })
 
   it('null for an unknown agent', () => {
@@ -944,7 +942,10 @@ describe('the mission in the system append', () => {
       const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
       const append = chat.systemAppendFor('m', [])!
       expect(append.startsWith("Your mission: Taxes and accounts.\nNever, without the owner's word:\n- file anything\n- pay anything\n\n")).toBe(true)
-      expect(append).toContain(AUTOMATIONS_NOTE)
+      // the platform notes follow; the automations rule rides the briefing
+      // alone (briefing.d/base.md), never a second copy here
+      expect(append).toContain('When you need a decision')
+      expect(append).not.toContain('never CronCreate')
     })
 
     it(`${framework}: no Never line when the owner wrote none`, () => {
@@ -961,13 +962,13 @@ describe('the mission in the system append', () => {
     registry.update('finance', { mission: { text: 'Books only.', never: ['pay'] } })
     expect(chat.systemAppendFor('finance', [])!.startsWith("Your mission: Books only.\nNever, without the owner's word:\n- pay\n\n")).toBe(true)
     registry.update('finance', { mission: null })
-    expect(chat.systemAppendFor('finance', [])).toBe(`${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)
+    expect(chat.systemAppendFor('finance', [])).toBe(`${CLAUDE_ASK}`)
   })
 
   it('a responsibility (the old duty, alive until t3) never reaches the append', () => {
     registry.create({ id: 'old', name: 'Old', folder: '/tmp/ci', responsibility: 'keep the VPS alive' })
     const chat = new ChatService({ registry, native, queryFn: fakeQuery(SCRIPT, calls) })
-    expect(chat.systemAppendFor('old', [])).toBe(`${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`)
+    expect(chat.systemAppendFor('old', [])).toBe(`${CLAUDE_ASK}`)
   })
 
   it('the SDK turn carries it as systemPrompt.append', async () => {
@@ -1285,7 +1286,7 @@ describe('an SDK turn names only the skills it loads', () => {
   it("nothing off: the append is byte-identical — the folder's skills, Silos' own first", async () => {
     const append = await turn()
     expect(append).toBe(
-      `${withBriefingAfter(`${AUTOMATIONS_NOTE}\n\n${CLAUDE_ASK}`, briefingText(['team-plan']))}\n\n${NOTE} /team-plan, /ledger-notes — load them when the task calls for them.`,
+      `${withBriefingAfter(`${CLAUDE_ASK}`, briefingText(['team-plan']))}\n\n${NOTE} /team-plan, /ledger-notes — load them when the task calls for them.`,
     )
   })
 

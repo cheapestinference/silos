@@ -185,6 +185,7 @@ const ZONES = [
       /^web\/src\/components\/(Composer|Cockpit|Transcript|ContextColumn|FileViewer|StartedWith|StatusLine|PlanProposal)/,
       /^server\/src\/context-(service|news)\.ts$/,
       /^server\/src\/routes\/files\.ts$/,
+      /^server\/src\/(routes\/chat|console-handover)\.ts$/,
     ],
     specs: [
       'selectors',

@@ -79,6 +79,7 @@ export function chatRoutes(app: FastifyInstance, ctx: ChatRoutesCtx): void {
     transcriptOnly,
     validParams,
     classifyAgentId,
+    consoleKeyFor,
   } = ctx
   const broadcast = (m: unknown): void => ctx.broadcast(m)
   // Auto-resume: runs ONE interactive turn (new or resume), broadcasts its
@@ -263,7 +264,9 @@ export function chatRoutes(app: FastifyInstance, ctx: ChatRoutesCtx): void {
         }
         resume = { sessionId: s.id, mode: native.isNative(s.folder, s.id) ? 'append' : 'fork' }
         // its live console is mid-turn: handing over would kill that work
-        if (await consoleBusyFor(terminals, s.id, meta.turnOpen)) {
+        // (meta.mtime = the transcript's last movement — see consoleBusyFor's
+        // staleness rule for a turn left open by a dead claude)
+        if (await consoleBusyFor(terminals, s.id, meta.turnOpen, meta.mtime)) {
           return reply.code(409).send({ error: 'The console is still working on this conversation — let it finish (or stop it there), then send from chat.' })
         }
         // a turn of Silos' own is on it (a task wake, a message turn, another
@@ -272,11 +275,13 @@ export function chatRoutes(app: FastifyInstance, ctx: ChatRoutesCtx): void {
         // «Send does nothing»)
         const live = chat.liveOn(s.id)
         if (live) {
-          return reply.code(409).send({
-            error: live.unattended
-              ? 'Silos is working this conversation right now (a task turn) — it finishes on its own. Resend in a moment, or leave your note on its task.'
-              : 'A turn is already running in this conversation — wait for it to finish.',
-          })
+          return reply
+            .code(409)
+            .send({
+              error: live.unattended
+                ? 'Silos is working this conversation right now (a task turn) — it finishes on its own. Resend in a moment, or leave your note on its task.'
+                : 'A turn is already running in this conversation — wait for it to finish.',
+            })
         }
       }
 
@@ -472,7 +477,16 @@ export function chatRoutes(app: FastifyInstance, ctx: ChatRoutesCtx): void {
       let applied: 'live' | 'restart' | 'next-turn' | null = null
       if (('model' in patch || 'provider' in patch || 'outputStyle' in patch) && terminals) {
         const pushPin = hooks(harnessForId(req.params.id)).pushPin
-        const key = terminals.keyOfNativeId(req.params.id) ?? ((await terminals.hasConsole(req.params.id)) ? req.params.id : null)
+        // the live console of the THREAD, not of this one session id: after
+        // a console's /clear the web holds the rotated id, which tmux never
+        // ran under — the console lives under an ancestor's key
+        // (consoleKeyFor walks the ancestry against tmux's own listing)
+        let key: string | null = terminals.keyOfNativeId(req.params.id)
+        if (key === null) {
+          const meta = index.getMeta(req.params.folder, req.params.id)
+          const candidate = meta ? await consoleKeyFor(meta) : req.params.id
+          key = (await terminals.hasConsole(candidate)) ? candidate : null
+        }
         applied = pushPin ? await pushPin(req.params.id, key, patch, prefs) : key ? 'next-turn' : null
       }
       // `applied` only when a console was touched (its engine's pushPin, or 'next-turn' for a live console

@@ -158,6 +158,7 @@ import { LoopStalls, startLoopStallMonitor } from './loop-stalls.js'
 import { Seals, SEAL_TICK_MS, READS_EVERY_TICKS, validateAgentsJson, degradeAgentsJson } from './seals.js'
 import { registeredHarnesses } from './harnesses/registry.js'
 import { askTasksOf, bindingAsksOf, resolveBindingWaits, type AskTask, type BindingAsk } from './binding-asks.js'
+import { UpdateCheck } from './update-check.js'
 
 const cfg = defaultConfig()
 // the server's real address: SILOS_API in every agent process (agent-env.ts)
@@ -1555,7 +1556,13 @@ const resident = new Resident({
   // in the store itself (sweepOrphans).
   prefsSweep: () => {
     if (!index.isReady()) return
-    const keys = new Set(index.allSessions().map((m) => `${m.folder}/${m.id}`))
+    const all = index.allSessions()
+    const keys = new Set(all.map((m) => `${m.folder}/${m.id}`))
+    // prefs are keyed by thread root (conversation-prefs.ts resolveWith):
+    // an entry whose root session aged out of the index must survive while
+    // any session of its thread lives — one lookup map for the whole pass
+    const byId = new Map(all.map((m) => [m.id, m] as const))
+    for (const m of all) keys.add(threadRootKey(m, (id) => byId.get(id) ?? null))
     // a conversation's launch entries (loads-scopes.ts): its thread is known
     // while the index has its root or any session on it — the same warm
     // index, the store's own grace (its rows' times)
@@ -2284,6 +2291,9 @@ const app = buildServer({
   announce,
   threadsOfTasks,
   invalidateTaskThreads,
+  // whether a newer Silos is published (update-check.ts): only here, the
+  // real entry — a test server never asks the registry
+  updateCheck: new UpdateCheck(),
   // the System silo: a conversation's processes, stop-process, the trash's
   // «also stop»; and fresh numbers — a records read after a scan moved the
   // gauges reads the silo once more (no journal line: gauges are no facts;

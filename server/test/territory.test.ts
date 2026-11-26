@@ -43,9 +43,16 @@ describe('fenceFor', () => {
   })
   it('silos state and claude sensitive entries are denied for everyone', () => {
     const d = fenceFor({ ...base, agent: silos, agentStateDir: '/home/u/.silos/agent-state/silos' })!.permissions.deny
+    // every agent's bearer by pattern, and OTHER agents' own dirs whole —
+    // never one's own: its auto-memory lives there (memory-service.ts) and
+    // the blanket agents/** deny silently broke saving memory
+    expect(d).not.toContain('Read(//home/u/.silos/agents/**)')
+    expect(d.some((r) => r.includes('agents/silos/'))).toBe(false)
     for (const p of [
-      'Read(//home/u/.silos/agents/**)',
-      'Edit(//home/u/.silos/agents/**)',
+      'Read(//home/u/.silos/agents/*/token)',
+      'Edit(//home/u/.silos/agents/*/token)',
+      'Read(//home/u/.silos/agents/builder/**)',
+      'Edit(//home/u/.silos/agents/finance/**)',
       'Read(//home/u/.silos/*.json)',
       'Edit(//home/u/.silos/*.json)',
       'Read(//home/u/.silos/token)',
@@ -668,7 +675,7 @@ describe('fenceFor — what an engine loads', () => {
       .deny
     expect(conduct(a, '/home/u/old')).toEqual(otherProject)
     // besides its state dir (denied like any other agent's), only that folder's rules are new
-    expect(a.filter((r) => !d.includes(r) && !/\/agent-state\/(old|nf)\//.test(r)).every((r) => /\/home\/u\/old(\/|\))/.test(r))).toBe(true)
+    expect(a.filter((r) => !d.includes(r) && !/\/(agent-state|agents)\/(old|nf)\//.test(r)).every((r) => /\/home\/u\/old(\/|\))/.test(r))).toBe(true)
   })
   it('a folder shared by several agents is written once — the rule count stays per folder, not per agent', () => {
     const many = Array.from({ length: 20 }, (_, i) => ({ id: `a${i}`, folder: '/home/u/ci', skills: [], name: `A${i}`, emoji: '', role: '' }))
@@ -676,7 +683,7 @@ describe('fenceFor — what an engine loads', () => {
       .deny
     expect(a.filter((r) => r.includes('/home/u/ci/.claude/settings') || r.includes('/home/u/ci/.mcp.json'))).toHaveLength(3)
     // only each new agent's state dir and shared notes add rules — no conduct rule per agent
-    expect(a.filter((r) => !d.includes(r)).every((r) => /\/(agent-state|home\/u\/ci\/context)\/a\d+\/\*\*\)$/.test(r))).toBe(true)
+    expect(a.filter((r) => !d.includes(r)).every((r) => /\/(agent-state|agents|home\/u\/ci\/context)\/a\d+\/\*\*\)$/.test(r))).toBe(true)
   })
   it("declared residue: the only command rules are the tmux server's — an interpreter is not covered", () => {
     expect(d.filter((r) => !r.startsWith('Read(') && !r.startsWith('Edit('))).toEqual(['Bash(tmux)', 'Bash(tmux *)'])
@@ -872,7 +879,7 @@ describe('the other-projects group and the credentials — R5', () => {
     const off = offF.permissions.deny
     const projectRules = new Set(offF.projects!.rules)
     const credential = (r: string): boolean =>
-      /^(Read|Edit)\(\/\/home\/user\/\.silos\/(token|sessions\.json|live-turns\.json|vault\.json|providers\.json|silos-id\.json|server\.env|(agents|console-env|seals|held|push)\/\*\*)\)$/.test(
+      /^(Read|Edit)\(\/\/home\/user\/\.silos\/(token|sessions\.json|live-turns\.json|vault\.json|providers\.json|silos-id\.json|server\.env|(console-env|seals|held|push)\/\*\*|agents\/\*\/token)\)$/.test(
         r,
       ) || /^Read\(\/\/proc\/(\*|\*\*)\/(environ|cmdline)\)$/.test(r)
     expect(off.filter((r) => !projectRules.has(r) && !credential(r))).toEqual([])

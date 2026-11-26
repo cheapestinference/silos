@@ -19,12 +19,21 @@ import { join } from 'node:path'
 import { AgentRegistry } from '../src/agent-registry.js'
 import type { SessionIndex } from '../src/session-index.js'
 import { claudeSessionIndex } from '../src/harnesses/claude-code/reader.js'
-import { ConsoleUnknownError, LIVENESS_FRESH_MS, TerminalService, tmuxExec, tmuxSaysGone, type TmuxRunner, type TmuxRunOpts } from '../src/terminal-service.js'
+import {
+  ConsoleUnknownError,
+  LIVENESS_FRESH_MS,
+  TerminalService,
+  TmuxMissingError,
+  tmuxExec,
+  tmuxSaysGone,
+  type TmuxRunner,
+  type TmuxRunOpts,
+} from '../src/terminal-service.js'
 import { LiveTurns, TURN_REQUIRED_NONE_LIVE } from '../src/live-turns.js'
 
 // ---- every outcome tmux (or the spawn of it) can give --------------------
 
-type Outcome = 'exists' | 'cantFind' | 'noServer' | 'noSocket' | 'timeout' | 'spawnError' | 'unrelated' | 'connectEagain'
+type Outcome = 'exists' | 'cantFind' | 'noServer' | 'noSocket' | 'timeout' | 'spawnError' | 'noBinary' | 'unrelated' | 'connectEagain'
 
 function failure(o: Exclude<Outcome, 'exists'>, name = 'silos-k'): Error {
   const e = new Error(`Command failed: tmux (${o})`) as Error & Record<string, unknown>
@@ -47,6 +56,10 @@ function failure(o: Exclude<Outcome, 'exists'>, name = 'silos-k'): Error {
     case 'spawnError':
       Object.assign(e, { status: null, signal: null, code: 'EAGAIN' })
       break
+    // tmux is not installed at all: execFile's spawn rejection (no status)
+    case 'noBinary':
+      Object.assign(e, { status: null, signal: null, code: 'ENOENT' })
+      break
     case 'unrelated':
       Object.assign(e, { status: 1, signal: null, stderr: Buffer.from('server exited unexpectedly\n') })
       break
@@ -59,7 +72,7 @@ function failure(o: Exclude<Outcome, 'exists'>, name = 'silos-k'): Error {
 }
 
 const GONE: readonly Outcome[] = ['cantFind', 'noServer', 'noSocket']
-const UNKNOWN: readonly Outcome[] = ['timeout', 'spawnError', 'unrelated', 'connectEagain']
+const UNKNOWN: readonly Outcome[] = ['timeout', 'spawnError', 'noBinary', 'unrelated', 'connectEagain']
 const ALL: readonly Outcome[] = ['exists', ...GONE, ...UNKNOWN]
 
 // the tmux subcommand of a call (`-L <sock>` and a leading `-f <conf>` skipped)
@@ -143,6 +156,7 @@ describe('consoleState / hasConsole — every outcome', () => {
     noSocket: 'gone',
     timeout: 'unknown',
     spawnError: 'unknown',
+    noBinary: 'unknown',
     unrelated: 'unknown',
     connectEagain: 'unknown',
   }
@@ -327,6 +341,20 @@ describe('reattachConsole / ensureConsole — the relaunch race', () => {
     if (o === 'exists') expect(await s.reattachConsole('k')).toEqual({ key: 'k', theme: 'dark' })
     else if (GONE.includes(o)) expect(await s.reattachConsole('k')).toBeNull()
     else await expect(s.reattachConsole('k')).rejects.toThrow(ConsoleUnknownError)
+  })
+
+  // tmux absent (spawn ENOENT) is ITS OWN refusal: «install tmux», never
+  // «try again» (retrying can't help — a machine without tmux stays so).
+  // Any other failed probe keeps the retryable words; a probe that reaches
+  // tmux again self-heals the words.
+  it('no tmux on the machine: the reattach refusal says to install it; a mere failed probe does not', async () => {
+    const missing = service(scripted({ 'has-session': 'noBinary' }))
+    await expect(missing.reattachConsole('k')).rejects.toThrow(TmuxMissingError)
+    await expect(missing.reattachConsole('k')).rejects.toThrow(/tmux is not installed/)
+    const flaky = service(scripted({ 'has-session': 'timeout' }))
+    const err = await flaky.reattachConsole('k').catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ConsoleUnknownError)
+    expect(err).not.toBeInstanceOf(TmuxMissingError)
   })
 
   it.each(UNKNOWN)('has-session %s: ensureConsole spawns nothing and the live token is kept', async (o) => {

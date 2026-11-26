@@ -293,7 +293,10 @@ When Silos launches its `claude` it adds, by documented means only:
   open — and listed in `skipped` as partly open. Plan mode's proposals
   (`<config dir>/plans/`) are not kept per folder and stay open. (2) _the
   credentials Silos keeps_ (`SILOS_CREDENTIALS`: the owner's token,
-  `sessions.json`, `live-turns.json`, every bearer under `agents/`,
+  `sessions.json`, `live-turns.json`, every bearer under `agents/` — the
+  pattern `agents/*/token`, never that dir whole: it also holds each
+  agent's own auto memory, which must stay writable to its own agent
+  (`AGENTS_DIR`; other agents' dirs close per id with the territory on) —
   `vault.json`, `providers.json`, `silos-id.json`, `server.env`, and the
   places that hold copies — `console-env/`, `seals/`, `held/`, `push/`),
   every `/proc/*/environ` and `/proc/*/cmdline`. Territory OFF keeps exactly
@@ -2579,6 +2582,19 @@ Allow again» on `off: 'cut'`); Measured adds «Heartbeat: n rounds today»
 words> · Run now» (`POST …/heartbeat/run-now`). e2e: `proactive.spec.ts` on
 the stub claude (its round creates a task through the API; the undone one
 is refused by the duplicate rule).
+
+**Conversation prefs follow the thread** (`conversation-prefs.ts`) — the
+conversation level of the cascade (provider/model/effort/permissionMode/
+outputStyle pins) is keyed by CONVERSATION, not by session file: the store
+resolves every `(folder, sessionId)` through the thread root
+(`resolveWith`, wired in buildServer over `threadRootKey` — the same
+resolver conversation files use), so a console's `/clear` rotation, a
+resume and a same-project branch read and write ONE entry, and an unpin
+made after a `/clear` reaches the pin made before it. The live push
+(`PATCH …/prefs` → `pushPin`) finds the thread's console the same way:
+`keyOfNativeId`, else `consoleKeyFor` over the ancestry against tmux's own
+listing — before this, a provider pick on a rotated console answered
+nothing and the console silently kept the old account.
 
 **The unattended provider** (`platform-settings.ts`) —
 `~/.silos/settings.json` (0600, restore seal) holds `unattendedProvider`: a

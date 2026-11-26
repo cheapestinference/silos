@@ -177,9 +177,11 @@ export function workspaceRoutes(app: FastifyInstance, ctx: WorkspaceRoutesCtx): 
       setup === undefined &&
       uses === undefined
     ) {
-      return reply.code(400).send({
-        error: `${['projects', 'contextOpen', 'notifications', 'consoleTheme', 'terminal', 'collapsedAgents', 'collapsedAutomations', 'contextScope', 'agentOrder', 'conversationOrder', 'conversationSlots', 'detachedChains', 'setup'].join(', ')}, or uses required`,
-      })
+      return reply
+        .code(400)
+        .send({
+          error: `${['projects', 'contextOpen', 'notifications', 'consoleTheme', 'terminal', 'collapsedAgents', 'collapsedAutomations', 'contextScope', 'agentOrder', 'conversationOrder', 'conversationSlots', 'detachedChains', 'setup'].join(', ')}, or uses required`,
+        })
     }
     try {
       // Fields can arrive in the same PATCH or separately — each patch*

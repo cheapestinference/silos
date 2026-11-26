@@ -430,10 +430,30 @@ function MutedFolders() {
 }
 
 function AboutTab() {
+  // this install's version against the published one (server update-check.ts,
+  // asked at most daily; latest null = unknown: offline, or checks are off)
+  const [update, setUpdate] = useState<{ installed: string; kind: string; latest: string | null; newer: boolean; how: string } | null>(null)
+  useEffect(() => {
+    void Promise.resolve(api.update?.())
+      .then((u) => {
+        if (u) setUpdate(u)
+      })
+      .catch(() => {})
+  }, [])
   return (
     <Page>
       <Section title="About">
-        <SettingRow label="Silos — local, v1" hint={typeof window !== 'undefined' ? window.location.host : '127.0.0.1:3210'} />
+        <SettingRow label={update ? `Silos ${update.installed}` : 'Silos'} hint={typeof window !== 'undefined' ? window.location.host : '127.0.0.1:3210'} />
+        {update ? (
+          update.newer && update.latest !== null ? (
+            <SettingRow label={`Silos ${update.latest} is out`} hint={`Update this install: ${update.how}`} />
+          ) : (
+            <SettingRow
+              label={update.latest !== null ? 'Up to date' : 'Updates'}
+              hint={update.latest !== null ? `${update.latest} is the newest published version` : `When one is out: ${update.how}`}
+            />
+          )
+        ) : null}
       </Section>
     </Page>
   )

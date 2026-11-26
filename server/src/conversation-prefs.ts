@@ -41,12 +41,28 @@ export class ConversationPrefsStore {
   // restart loses the grace period, but the sweep runs on the resident's
   // heartbeat — the real window reopens with any write).
   private touched = new Map<string, number>()
+  // Prefs are keyed by CONVERSATION, not by session: a console's /clear
+  // rotation, a resume and a branch are one thread (task-threads.ts
+  // threadIdOf — THE resolver for anything keyed by conversation), so the
+  // resolver maps any session id on the thread to the thread root's key.
+  // Without it a pin made before a /clear sat under the old id while every
+  // later read and unpin went to the new one — the pin was unreachable.
+  // Unset (tests building the store bare), a key is the session's own.
+  private threadKeyOf: ((folder: string, sessionId: string) => string) | null = null
 
   constructor(
     dataDir: string,
     private now: () => number = () => Date.now(),
   ) {
     this.file = join(dataDir, 'conversation-prefs.json')
+  }
+
+  resolveWith(threadKeyOf: (folder: string, sessionId: string) => string): void {
+    this.threadKeyOf = threadKeyOf
+  }
+
+  private keyOf(folder: string, sessionId: string): string {
+    return this.threadKeyOf?.(folder, sessionId) ?? `${folder}/${sessionId}`
   }
 
   load(): void {
@@ -74,13 +90,13 @@ export class ConversationPrefsStore {
 
   // A conversation's overrides — an honest null if nothing was ever set.
   get(folder: string, sessionId: string): CockpitOverrides | null {
-    return this.prefs[`${folder}/${sessionId}`] ?? null
+    return this.prefs[this.keyOf(folder, sessionId)] ?? null
   }
 
   /** When THIS process last wrote the entry (memory-only: a restart forgets,
    *  and a pin that never ran may then follow the console's last pick). */
   writtenAt(folder: string, sessionId: string): number | null {
-    return this.touched.get(`${folder}/${sessionId}`) ?? null
+    return this.touched.get(this.keyOf(folder, sessionId)) ?? null
   }
 
   // Shallow, field-by-field merge: present = overrides, `null` = DELETES
@@ -89,7 +105,7 @@ export class ConversationPrefsStore {
   // {}). The patch arrives ALREADY validated by the route
   // (validateOverrides with allowNull) — applied here as-is.
   patch(folder: string, sessionId: string, patch: Record<string, unknown>): CockpitOverrides {
-    const key = `${folder}/${sessionId}`
+    const key = this.keyOf(folder, sessionId)
     const current: Record<string, unknown> = { ...this.prefs[key] }
     for (const [field, value] of Object.entries(patch)) {
       if (value === null) delete current[field]
@@ -117,7 +133,8 @@ export class ConversationPrefsStore {
   copy(fromFolder: string, fromId: string, toFolder: string, toId: string): void {
     const source = this.get(fromFolder, fromId)
     if (source === null) return
-    const key = `${toFolder}/${toId}`
+    const key = this.keyOf(toFolder, toId)
+    if (key === this.keyOf(fromFolder, fromId)) return // same thread: one entry already
     this.prefs[key] = { ...source }
     this.touched.set(key, this.now())
     this.save()

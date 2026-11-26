@@ -45,4 +45,27 @@ describe('handOverConsoleForChat', () => {
     expect(await consoleBusyFor(t, 'ses_none', true)).toBe(false)
     expect(await consoleBusyFor(undefined, 'ses_a', true)).toBe(false)
   })
+
+  // The staleness rule: an open turn is work only if the transcript moved
+  // since the console was created. A turn left open by a dead claude (every
+  // adopted pre-Silos conversation that was killed mid-turn) must not
+  // refuse chat forever over a fresh `--resume` console sitting idle.
+  it('an open turn older than the console is stale, not busy; one that moved since is busy; no creation time stays busy', async () => {
+    const consoleBorn = 1_000_000
+    const withCreated = (createdMs: number | null) => ({
+      ...terminals({ bound: { ses_a: 'k' } }),
+      consoleCreatedMs: async (_key: string) => createdMs,
+    })
+    // the transcript last moved BEFORE this console existed: nothing runs in it
+    expect(await consoleBusyFor(withCreated(consoleBorn), 'ses_a', true, consoleBorn - 60_000)).toBe(false)
+    // records landed after the console's birth: its claude is working
+    expect(await consoleBusyFor(withCreated(consoleBorn), 'ses_a', true, consoleBorn + 60_000)).toBe(true)
+    // tmux could not say when, or the caller has no activity stamp: conservative
+    expect(await consoleBusyFor(withCreated(null), 'ses_a', true, consoleBorn - 60_000)).toBe(true)
+    expect(await consoleBusyFor(withCreated(consoleBorn), 'ses_a', true, undefined)).toBe(true)
+    // a terminals without the probe (older embedders): conservative too
+    expect(await consoleBusyFor(terminals({ bound: { ses_a: 'k' } }), 'ses_a', true, consoleBorn - 60_000)).toBe(true)
+    // a closed turn never asks the console's age
+    expect(await consoleBusyFor(withCreated(consoleBorn), 'ses_a', false, consoleBorn + 60_000)).toBe(false)
+  })
 })

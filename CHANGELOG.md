@@ -5,6 +5,34 @@ All notable changes to Silos are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-26
+
+### Added
+
+- **Silos says when a newer version is out.** A quiet chip on Home's date
+  line and Settings › About name the new version and the exact update line
+  for this install (npm/npx, Docker, Railway, a git checkout). The check
+  asks the npm registry at most once a day, sends nothing about the
+  install, and `SILOS_NO_UPDATE_CHECK=1` turns it off.
+
+### Fixed
+
+- **Agents can save their own memory again.** Since each agent got its own
+  automatic memory (0.3.0), the territory fence silently denied every
+  fenced agent reading and writing its own notes; the agents' bearer
+  tokens stay fenced, other agents' memory stays private.
+- An adopted conversation whose last turn never closed — its claude
+  crashed or was killed before Silos existed — no longer refuses chat
+  forever with «the console is still working on this conversation».
+- A session lock whose pid the system reused no longer reads as «a claude
+  outside Silos still holds this conversation», and «Close and open here»
+  no longer signals an innocent process.
+- A machine without tmux is told plainly that the real console needs tmux
+  and how to install it — not «try again». The chat view works without it.
+- Conversation pins follow the thread: a `/clear` no longer strands them.
+- Every conversation's prompt carried the scheduled-work rule twice (the
+  briefing and the system append); it lands once now.
+
 ## [0.3.0] - 2026-11-25
 
 ### Changed for installs
@@ -193,6 +221,7 @@ The first public release.
   Railway; remote sign-in through Silos ID, its settings in the environment
   or in `server.env` in the data folder.
 
+[0.4.0]: https://github.com/cheapestinference/silos/releases/tag/v0.4.0
 [0.3.0]: https://github.com/cheapestinference/silos/releases/tag/v0.3.0
 [0.2.0]: https://github.com/cheapestinference/silos/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cheapestinference/silos/releases/tag/v0.1.0

@@ -44,6 +44,7 @@ import {
   aheadEngines,
   engineHead,
   refusingEngines,
+  silosUpdateOf,
   answerHidden,
   backgroundBySession,
   ceilingLine,
@@ -2916,6 +2917,25 @@ export function HomePage({ scope, after }: { scope?: { folder: string }; after?:
                       {engineHead(e).split(' — ')[0]} ›
                     </button>
                   ))}
+                {/* a newer published Silos: the same folded chip, its door
+                    Settings › About (the full update line on hover) —
+                    routine, never in the pulse's way */}
+                {(() => {
+                  const u = silosUpdateOf(inbox)
+                  return u ? (
+                    <button
+                      key="silos-update"
+                      type="button"
+                      data-testid="silos-update"
+                      title={u.voice}
+                      onClick={() => changePage({ kind: 'settings', tab: 'about' })}
+                      className={`${aheadEngines(inbox).length > 0 ? 'md:ml-3' : 'ml-auto md:ml-3'} flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-[11.5px] text-ink-2 hover:border-ink-3 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-terracotta`}
+                    >
+                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--health-amber)]" />
+                      Silos {u.latest} is out ›
+                    </button>
+                  ) : null
+                })()}
                 <span data-testid="home-lenses" className="ml-auto hidden items-center gap-3 md:flex">
                   {/* the Map's views, from the MAP_VIEWS registry (docs/product.md:
                       a view that exists is reachable by name) — org appears only

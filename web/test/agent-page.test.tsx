@@ -2224,16 +2224,18 @@ describe("AgentPage — Memory: every instruction file, its switch, the conversa
         id: 'claude-code',
         label: 'Claude Code',
         rows: [
-          ...rows.slice(0, 3).map((r) => ({
-            path: r.path,
-            key: `instruction:${r.path}`,
-            family: 'off-only',
-            at: [
-              { place: 'project', result: 'on', keptIn: '.claude/settings.local.json', switch: { names: [r.path] } },
-              agentLine,
-              ...(conv ? [{ place: 'conversation', conversation: 't1', agent: 'a1', result: 'on', switch: { names: [r.path] } }] : []),
-            ],
-          })),
+          ...rows
+            .slice(0, 3)
+            .map((r) => ({
+              path: r.path,
+              key: `instruction:${r.path}`,
+              family: 'off-only',
+              at: [
+                { place: 'project', result: 'on', keptIn: '.claude/settings.local.json', switch: { names: [r.path] } },
+                agentLine,
+                ...(conv ? [{ place: 'conversation', conversation: 't1', agent: 'a1', result: 'on', switch: { names: [r.path] } }] : []),
+              ],
+            })),
           { path: rows[3]!.path, key: 'instruction:agent', family: 'off-only', at: [], inert: 'Silos adds it' },
         ],
       },

@@ -289,11 +289,13 @@ export function rolePackRoutes(app: FastifyInstance, ctx: RolePackRoutesCtx): vo
       } else secrets.push({ name: s.name, state: deps.secretVisible(s.name, agent.id, target.folder) ? 'present' : 'missing' })
     }
 
-    return reply.code(201).send({
-      agent: registry.get(agent.id),
-      report: { skillFiles, automations, silos, secrets },
-      ...(fenceWarn ? { warn: fenceWarn } : {}),
-      ...(startWarn ? { startWarn } : {}),
-    })
+    return reply
+      .code(201)
+      .send({
+        agent: registry.get(agent.id),
+        report: { skillFiles, automations, silos, secrets },
+        ...(fenceWarn ? { warn: fenceWarn } : {}),
+        ...(startWarn ? { startWarn } : {}),
+      })
   })
 }

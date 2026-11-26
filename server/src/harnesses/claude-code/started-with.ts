@@ -21,7 +21,7 @@
 // points for text, `json.dumps` (ASCII-escaped, `, `/`: ` separators) for the
 // pieces it serialises, so the numbers are the reference's numbers.
 
-import { ASK_DECISIONS_NOTE, AUTOMATIONS_NOTE } from '../../chat-service.js'
+import { ASK_DECISIONS_NOTE } from '../../chat-service.js'
 import { RUN_OUTCOME_INSTRUCTION } from '../../run-outcome.js'
 import { nameResolver, pluginServerName, toolIdOf } from './loads/names.js'
 import { InstructionsReplay } from './instructions-record.js'
@@ -140,7 +140,14 @@ export function pyDumpsHead(v: unknown, n: number): string {
 const firstWords = (s: string, n: number): string => s.split(/\s+/).slice(0, n).join(' ')
 
 /** Where Silos' append starts in a system block (chat-service.ts appendFor). */
-const SILOS_MARKERS = ['# You are running inside Silos', '# Context files', firstWords(AUTOMATIONS_NOTE, 8), firstWords(ASK_DECISIONS_NOTE, 8)]
+const SILOS_MARKERS = [
+  '# You are running inside Silos',
+  '# Context files',
+  // the automations note appends carried until 26-11 (one copy rides the
+  // briefing now): transcripts born before still split on it
+  'Scheduled or recurring work goes through Silos',
+  firstWords(ASK_DECISIONS_NOTE, 8),
+]
 const AGENT_MEMORY = '# Agent memory'
 
 interface Segment {

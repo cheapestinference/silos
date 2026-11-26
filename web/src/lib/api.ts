@@ -1038,6 +1038,11 @@ export const api = {
   account(): Promise<{ email: string | null; plan: string | null; organizationName: string | null } | null> {
     return req('/api/account')
   },
+  // this install's Silos version and whether a newer one is published
+  // (server update-check.ts; Settings › About and the date line's chip)
+  update(): Promise<{ installed: string; kind: string; latest: string | null; newer: boolean; how: string }> {
+    return req('/api/update')
+  },
   // Claude Code transcript retention (cleanupPeriodDays) — read, and the
   // only managed setting Silos writes to ~/.claude/settings.json.
   claudeSettings(): Promise<{

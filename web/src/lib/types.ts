@@ -1255,6 +1255,9 @@ export type InboxRow = InboxRowBase &
     // the reserve engine runs agents but its Silos hooks are not installed
     // (inbox.ts engineUnwiredRow): one routine row, door Settings › Engines
     | { kind: 'engineUnwired'; engine: string; agentIds: string[] }
+    // a newer Silos is published (inbox.ts silosUpdateRow): one routine row,
+    // the date line's quiet chip, door Settings › About
+    | { kind: 'silosUpdate'; installed: string; latest: string; installKind: string; how: string }
     // the seal: a control file changed outside Silos,
     // its plugin, its engine's config — each leaves by its own door
     | { kind: 'integrity'; seal: SealRowView; doors: string[]; agentId: string | null }

@@ -224,9 +224,11 @@ export function providerRoutes(app: FastifyInstance, ctx: ProviderRoutesCtx): vo
       const snippet = target.snippet(p)
       // only an engine-owned provider has no form for another engine's target
       if (snippet === null)
-        return reply.code(400).send({
-          error: `this provider is for ${(p.kind === 'harness-provider' || p.kind === 'harness-native' ? [p.harness] : providerOwners(p.kind)).map((id) => harnessById(id).label).join(' or ')} agents`,
-        })
+        return reply
+          .code(400)
+          .send({
+            error: `this provider is for ${(p.kind === 'harness-provider' || p.kind === 'harness-native' ? [p.harness] : providerOwners(p.kind)).map((id) => harnessById(id).label).join(' or ')} agents`,
+          })
       return { snippet }
     })
 
@@ -311,9 +313,11 @@ export function providerRoutes(app: FastifyInstance, ctx: ProviderRoutesCtx): vo
         return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) })
       }
       if ((input.kind ?? 'anthropic-compatible') !== 'anthropic-compatible' || input.baseUrl === undefined || input.apiKey === undefined) {
-        return reply.code(400).send({
-          error: `connect takes an Anthropic-compatible endpoint and its key — ${engineProviderLabel(input.harness)} providers are imported or added, not connected`,
-        })
+        return reply
+          .code(400)
+          .send({
+            error: `connect takes an Anthropic-compatible endpoint and its key — ${engineProviderLabel(input.harness)} providers are imported or added, not connected`,
+          })
       }
       const probe = await probeGateway(input.baseUrl, input.apiKey, null)
       if (!probe.ok) return reply.code(400).send({ error: probe.error })

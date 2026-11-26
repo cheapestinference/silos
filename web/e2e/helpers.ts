@@ -2931,6 +2931,8 @@ export async function startServer(opts?: {
     // Claude Code's managed settings under the fixture home — never the
     // machine's /etc/claude-code (plugin-enablement.ts)
     SILOS_CLAUDE_MANAGED_DIR: join(home, 'managed-settings'),
+    // the harness never asks the npm registry whether a newer Silos exists
+    SILOS_NO_UPDATE_CHECK: '1',
     SILOS_PORT: String(port),
     // exists so tests don't step on the served bundle — the spawned server
     // serves web/dist-e2e (the build:e2e above), never the web/dist that

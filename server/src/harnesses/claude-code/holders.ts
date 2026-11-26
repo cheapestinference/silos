@@ -31,8 +31,21 @@ export interface SessionHolder {
 const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null)
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
-/** Parse one lock file; null unless it names `sessionId` and its pid is alive. */
-export function readHolderLock(raw: string, sessionId: string, isAlive: (pid: number) => boolean): SessionHolder | null {
+/** Parse one lock file; null unless it names `sessionId` and its pid is
+ *  alive AND still the process that wrote it. claude stamps `procStart`
+ *  (the kernel's start ticks of its own process) into the lock exactly so
+ *  a reused pid can be told from the claude that died: without the check a
+ *  crashed claude's lock + an innocent process on its recycled pid read as
+ *  «a claude outside Silos still holds this conversation», and «Close and
+ *  open here» SIGHUPed that innocent process, waited the grace out and
+ *  dead-ended on «it did not exit when asked». `startTicksOf` null (off
+ *  Linux, or unreadable) stays conservative: the lock stands. */
+export function readHolderLock(
+  raw: string,
+  sessionId: string,
+  isAlive: (pid: number) => boolean,
+  startTicksOf?: (pid: number) => string | null,
+): SessionHolder | null {
   let o: Record<string, unknown>
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -42,6 +55,11 @@ export function readHolderLock(raw: string, sessionId: string, isAlive: (pid: nu
     return null
   }
   if (typeof o.pid !== 'number' || o.sessionId !== sessionId || !isAlive(o.pid)) return null
+  const lockTicks = typeof o.procStart === 'string' ? o.procStart : typeof o.procStart === 'number' ? String(o.procStart) : null
+  if (lockTicks !== null && startTicksOf) {
+    const current = startTicksOf(o.pid)
+    if (current !== null && current !== lockTicks) return null // the pid was reused: this is not that claude
+  }
   // claude writes `session:@window.%pane`; the session is the only part a
   // person can look for (`tmux attach -t …`)
   const tmuxRaw = str(o.tmux)
@@ -115,6 +133,24 @@ export function procConfigDir(pid: number, procRoot = '/proc'): string | null {
   return null
 }
 
+/** The start of the process now at `pid`, in the kernel's own ticks —
+ *  /proc/<pid>/stat field 22, the clock claude stamps into its lock as
+ *  `procStart`. Parsed after the last ')' (comm may hold spaces and
+ *  parens). null off Linux or when unreadable. */
+export function procStartTicks(pid: number, procRoot = '/proc'): string | null {
+  try {
+    const stat = readFileSync(join(procRoot, String(pid), 'stat'), 'utf8')
+    return (
+      stat
+        .slice(stat.lastIndexOf(')') + 1)
+        .trim()
+        .split(/\s+/)[19] ?? null
+    )
+  } catch {
+    return null
+  }
+}
+
 /** Where every running claude files its lock (`<pid>.json`). */
 export const CLAUDE_SESSIONS_DIR = (): string => join(homedir(), '.claude', 'sessions')
 
@@ -126,6 +162,7 @@ export class ClaudeHolders {
   private readonly signal: (pid: number, sig: NodeJS.Signals) => void
   private readonly graceMs: number
   private readonly configDirOf: (pid: number) => string | null
+  private readonly startTicksOf: (pid: number) => string | null
 
   constructor(o: {
     sessionsDir: string
@@ -133,12 +170,14 @@ export class ClaudeHolders {
     signal: (pid: number, sig: NodeJS.Signals) => void
     graceMs: number
     configDirOf?: (pid: number) => string | null
+    startTicksOf?: (pid: number) => string | null
   }) {
     this.sessionsDir = o.sessionsDir
     this.isAlive = o.isAlive
     this.signal = o.signal
     this.graceMs = o.graceMs
     this.configDirOf = o.configDirOf ?? ((pid) => procConfigDir(pid))
+    this.startTicksOf = o.startTicksOf ?? ((pid) => procStartTicks(pid))
   }
 
   // Every live claude holding `sessionId` through its ~/.claude/sessions
@@ -160,7 +199,7 @@ export class ClaudeHolders {
       } catch {
         continue // junk file
       }
-      const h = readHolderLock(raw, sessionId, this.isAlive)
+      const h = readHolderLock(raw, sessionId, this.isAlive, this.startTicksOf)
       if (h) out.push({ ...h, configDir: this.configDirOf(h.pid) })
     }
     return out

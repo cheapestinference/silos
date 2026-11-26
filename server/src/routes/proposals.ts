@@ -88,10 +88,12 @@ export function proposalRoutes(app: FastifyInstance, ctx: ProposalRoutesCtx): vo
     const r = proposalReason(rawReason)
     if ('error' in r) return reply.code(400).send({ error: r.error })
     if (typeof input !== 'object' || input === null || Array.isArray(input))
-      return reply.code(400).send({
-        error:
-          'input required: the body you would POST to /api/automations, { name } of a skill ({ name, folder } to change one a project has), or { text, never } of your mission',
-      })
+      return reply
+        .code(400)
+        .send({
+          error:
+            'input required: the body you would POST to /api/automations, { name } of a skill ({ name, folder } to change one a project has), or { text, never } of your mission',
+        })
     if (JSON.stringify(input).length > PROPOSAL_INPUT_MAX_BYTES)
       return reply.code(400).send({ error: `input too large (over ${PROPOSAL_INPUT_MAX_BYTES} bytes)` })
     let stored: Record<string, unknown>

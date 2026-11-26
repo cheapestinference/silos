@@ -101,6 +101,7 @@ import {
   engineUnwiredRow,
   folderRefusedRow,
   projectsFolderFileRow,
+  silosUpdateRow,
   inboxSignature,
   RESIDENT_TICK_MS,
   type InboxRow,
@@ -108,6 +109,7 @@ import {
   type AccountUsage,
   type TaskFlowFact,
 } from './inbox.js'
+import { installedVersion, type UpdateCheck } from './update-check.js'
 import { agentNameOf, kernelInboxRows, limitedProviders } from './inbox-source.js'
 
 // The inbox, for whoever runs beside the server (the digest, the doorbell):
@@ -504,6 +506,9 @@ export interface ServerDeps {
   // the one resolver chat and the routes share; absent, built here
   threadIdOf?: ThreadIdOf
   transcriptOnly?: TranscriptOnly
+  // whether a newer Silos is published (update-check.ts) — only the real
+  // entry (index.ts) passes one, so no test server ever asks the registry
+  updateCheck?: UpdateCheck
   announce?: AnnounceBox
   // the task threads read once per `ttlMs` (index.ts threadsOfTasks): the
   // session → tasks routes (session-tasks.ts) read the CURRENT ids through
@@ -862,6 +867,14 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   // the nearest live console, which may not exist.
   const threadRootKey = deps.threadRootKey ?? makeThreadRootKey({ ancestry: owners.ancestry, lineage, metaById })
   const threadIdOf = deps.threadIdOf ?? makeThreadIdOf({ lineage, metaById })
+  // Conversation prefs are keyed by conversation (the thread), so a pin
+  // survives a console's /clear rotation and an unpin reaches it — see
+  // ConversationPrefsStore.resolveWith. An unindexed session (a chat not
+  // yet written) is its own thread until the watcher knows better.
+  convPrefs?.resolveWith((folder, id) => {
+    const m = metaById(id)
+    return m ? threadRootKey(m) : `${folder}/${id}`
+  })
   // ONE tmux listing for the whole ancestry (was a probe per ancestor); a
   // listing tmux did not answer finds no console, as a failed probe did
   const consoleKeyFor = async (m: SessionMeta): Promise<string> => {
@@ -1266,6 +1279,14 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (agent !== undefined) return { who: agent === null ? 'unknown' : `agent:${agent}` }
     return { who: authed(req) ? 'owner' : 'unknown' }
   })
+
+  // This install's version and whether a newer Silos is published
+  // (update-check.ts; Settings › About). Owner-only like every /api route an
+  // agent's allow-list does not name. Without a checker (tests, or the real
+  // entry opted out) it answers the version alone.
+  app.get('/api/update', async () =>
+    deps.updateCheck ? deps.updateCheck.status() : { installed: installedVersion(), kind: 'npm', latest: null, newer: false, how: '' },
+  )
 
   // ——— sign-in config (Silos ID or nothing) ———
   // Without Silos ID: config responds {enabled:false} — the local token flow
@@ -1728,7 +1749,10 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       agents: liveAgents.map((a) => ({ id: a.id, harness: harnessOf(a) })),
       now,
     })
-    const engineRows = [...(engineRow ? [engineRow] : []), ...(unwiredRow ? [unwiredRow] : [])]
+    // a newer published Silos (update-check.ts): one routine row beside the
+    // engines' — absent in tests and when the check is off or unanswered
+    const updateRow = deps.updateCheck ? silosUpdateRow(deps.updateCheck.status(now), now) : null
+    const engineRows = [...(engineRow ? [engineRow] : []), ...(unwiredRow ? [unwiredRow] : []), ...(updateRow ? [updateRow] : [])]
     // the agents' folders that break the project folder rule (the boot
     // audit's finding, read again at each compose): said, never fixed
     const folderRows = registry.auditFolders().map((o) => folderRefusedRow({ ...o, agentName: nameOf(o.agentId), now }))

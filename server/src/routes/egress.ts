@@ -295,9 +295,11 @@ export function egressRoutes(app: FastifyInstance, ctx: EgressRoutesCtx): void {
         const status = idle ? 504 : 502
         row(status, idle ? 'idle' : priv ? 'private-upstream' : 'unreachable')
         resolve(
-          reply.code(status).send({
-            error: idle ? `the service sent nothing for ${Math.round(idleMs / 1000)} s — cut` : priv ? err.message : 'the service could not be reached',
-          }),
+          reply
+            .code(status)
+            .send({
+              error: idle ? `the service sent nothing for ${Math.round(idleMs / 1000)} s — cut` : priv ? err.message : 'the service could not be reached',
+            }),
         )
       })
       // the caller went away: the upstream call goes with it

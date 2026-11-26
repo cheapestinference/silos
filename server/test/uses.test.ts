@@ -396,7 +396,7 @@ describe('GET /api/uses', () => {
     const providers = {
       get: (id: string) => (id === 'k1' ? { id: 'k1', kind: 'anthropic-compatible', label: 'gw', baseUrl: 'https://x', apiKey: 'x' } : null),
     } as unknown as ProvidersStore
-    const convPrefs = { get: () => ({ provider: 'k1' }) } as unknown as ConversationPrefsStore
+    const convPrefs = { get: () => ({ provider: 'k1' }), resolveWith: () => {} } as unknown as ConversationPrefsStore
     app = build({ accounts, providers, convPrefs })
     expect((await get('/api/uses?cols=provider&since=all')).json().cols).toEqual([expect.objectContaining({ id: 'k1' })])
   })
@@ -415,7 +415,7 @@ describe('GET /api/uses', () => {
             }
           : null,
     } as unknown as ProvidersStore
-    const convPrefs = { get: () => ({ provider: 'k1' }) } as unknown as ConversationPrefsStore
+    const convPrefs = { get: () => ({ provider: 'k1' }), resolveWith: () => {} } as unknown as ConversationPrefsStore
     app = build({ providers, convPrefs })
     const v = (await get('/api/uses?cols=provider&since=all')).json()
     expect(v.cols).toEqual([expect.objectContaining({ id: 'k1', label: 'cheapestinference', sub: 'kimi-k3, qwen3.8-max', n: 1 })])

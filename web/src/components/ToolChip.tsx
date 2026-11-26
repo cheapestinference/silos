@@ -43,6 +43,74 @@ export function toolLabel(tool: ToolUseDetail | string): string {
   return prettyToolName(tool.name)
 }
 
+// Consecutive calls that read the same (same chip label) fold into ONE run:
+// "Bash ×3" instead of "Bash Bash Bash". Only CONSECUTIVE ones — the order of
+// what the agent did stays readable (Read, Bash ×2, Read keeps both Reads).
+export interface ToolRun<T> {
+  label: string
+  items: T[]
+}
+
+export function groupToolRuns<T extends ToolUseDetail | string>(chips: readonly T[]): ToolRun<T>[] {
+  const runs: ToolRun<T>[] = []
+  for (const c of chips) {
+    const label = toolLabel(c)
+    const last = runs[runs.length - 1]
+    if (last && last.label === label) last.items.push(c)
+    else runs.push({ label, items: [c] })
+  }
+  return runs
+}
+
+// A run of several calls: one chip "Bash ×3" that unfolds into each call's
+// own chip (each still opens its input/result). A failure anywhere in the
+// run keeps the red mark on the folded chip — it must not hide behind ×3.
+function ToolRunChip({ run }: { run: ToolRun<ToolUseDetail | string> }) {
+  const [open, setOpen] = useState(false)
+  const first = run.items[0]!
+  const skill = isSkill(first)
+  const failed = run.items.some((c) => typeof c !== 'string' && c.isError === true)
+  const hasImage = run.items.some((c) => typeof c !== 'string' && (c.images?.length ?? 0) > 0)
+  return (
+    <div className="inline-flex flex-col">
+      <button
+        type="button"
+        data-skill={skill ? 'true' : undefined}
+        data-error={failed ? 'true' : undefined}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors duration-150 ${
+          failed ? 'border-[color:var(--health-red)] text-[color:var(--health-red)]' : skill ? 'border-terracotta text-terracotta' : 'border-line text-ink-2'
+        }`}
+      >
+        {failed ? <span aria-label="failed">⚠</span> : null}
+        {run.label}
+        <span className="font-mono text-[10px] opacity-70">×{run.items.length}</span>
+        {hasImage ? <ImageIcon size={11} aria-label="has image" /> : null}
+      </button>
+      {open ? (
+        <div className="mt-1 flex flex-wrap items-start gap-1.5 pl-2">
+          {run.items.map((c, i) => (
+            <ToolChip key={i} tool={c} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// A row of chips with consecutive repeats folded ("Bash ×3"). Every place
+// that paints a list of tool calls goes through here.
+export function ToolChipRow({ chips, className }: { chips: readonly (ToolUseDetail | string)[]; className?: string }) {
+  return (
+    <div className={`flex flex-wrap items-start gap-1.5 ${className ?? ''}`}>
+      {groupToolRuns(chips).map((run, i) =>
+        run.items.length === 1 ? <ToolChip key={`${run.label}-${i}`} tool={run.items[0]!} /> : <ToolRunChip key={`${run.label}-${i}`} run={run} />,
+      )}
+    </div>
+  )
+}
+
 export function ToolChip({ tool }: { tool: ToolUseDetail | string }) {
   const [open, setOpen] = useState(false)
   const skill = isSkill(tool)
@@ -117,15 +185,9 @@ export function StepsSummary({ n, suffix }: { n: number; suffix?: string }) {
 // there are many. The summary shows the first name as a hint, truncated to one line.
 export function ToolGroup({ chips }: { chips: (ToolUseDetail | string)[] }) {
   if (chips.length === 0) return null
-  if (chips.length <= STEPS_THRESHOLD) {
-    return (
-      <div className="mt-2 flex flex-wrap items-start gap-1.5">
-        {chips.map((c, i) => (
-          <ToolChip key={typeof c === 'string' ? `${c}-${i}` : `${c.name}-${i}`} tool={c} />
-        ))}
-      </div>
-    )
-  }
+  // the threshold counts what is painted (runs), not calls: four Bash in a
+  // row is ONE chip "Bash ×4", no reason to fold it behind a counter.
+  if (groupToolRuns(chips).length <= STEPS_THRESHOLD) return <ToolChipRow chips={chips} className="mt-2" />
   return (
     <details className="mt-2">
       <summary className="inline-flex max-w-full cursor-pointer items-center gap-1.5 text-ink-2 hover:text-terracotta">
@@ -133,11 +195,7 @@ export function ToolGroup({ chips }: { chips: (ToolUseDetail | string)[] }) {
             detail can unfold it (the same criterion as ToolStreak). */}
         <StepsSummary n={chips.length} />
       </summary>
-      <div className="mt-2 flex flex-wrap items-start gap-1.5 pl-4">
-        {chips.map((c, i) => (
-          <ToolChip key={typeof c === 'string' ? `${c}-${i}` : `${c.name}-${i}`} tool={c} />
-        ))}
-      </div>
+      <ToolChipRow chips={chips} className="mt-2 pl-4" />
     </details>
   )
 }

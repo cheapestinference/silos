@@ -101,6 +101,67 @@ describe('readHolderLock — the ~/.claude/sessions lock, as written by claude 2
     expect(readHolderLock('{not json', 'abc', () => true)).toBeNull()
     expect(readHolderLock(JSON.stringify({ sessionId: 'abc' }), 'abc', () => true)).toBeNull()
   })
+
+  // claude stamps procStart (its process's kernel start ticks) into the
+  // lock so a recycled pid can be told from the claude that died. A lock
+  // whose pid now belongs to ANOTHER process is no holder: without the
+  // check, «Close and open here» SIGHUPed an innocent process and
+  // dead-ended on «it did not exit when asked».
+  it('a reused pid (procStart differs from the live process) is no holder; a matching or unverifiable one stands', () => {
+    const withStart = JSON.stringify({ pid: 1787366, sessionId: 'abc', procStart: '2446021866', startedAt: 1793049686533 })
+    expect(
+      readHolderLock(
+        withStart,
+        'abc',
+        () => true,
+        () => '999',
+      ),
+    ).toBeNull()
+    expect(
+      readHolderLock(
+        withStart,
+        'abc',
+        () => true,
+        () => '2446021866',
+      ),
+    ).toMatchObject({ pid: 1787366 })
+    // off Linux / unreadable stat → conservative: the lock stands
+    expect(
+      readHolderLock(
+        withStart,
+        'abc',
+        () => true,
+        () => null,
+      ),
+    ).toMatchObject({ pid: 1787366 })
+    // an old claude's lock without procStart: nothing to verify against
+    expect(
+      readHolderLock(
+        raw,
+        'abc',
+        () => true,
+        () => '999',
+      ),
+    ).toMatchObject({ pid: 1787366 })
+    // claude may write the ticks as a number
+    const numeric = JSON.stringify({ pid: 1787366, sessionId: 'abc', procStart: 2446021866 })
+    expect(
+      readHolderLock(
+        numeric,
+        'abc',
+        () => true,
+        () => '2446021866',
+      ),
+    ).toMatchObject({ pid: 1787366 })
+    expect(
+      readHolderLock(
+        numeric,
+        'abc',
+        () => true,
+        () => '999',
+      ),
+    ).toBeNull()
+  })
 })
 
 describe('POST /api/sessions/:folder/:id/trash with a holder outside Silos', () => {

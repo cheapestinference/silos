@@ -1464,11 +1464,13 @@ describe('applyWs — counts', () => {
   const c = (conversations: number, runs: number): SessionCounts => ({ conversations, runs, runsByAutomation: runs ? { hourly: runs } : {}, byCwd: {} })
   it("a session event replaces every agent's totals with the server's", () => {
     useStore.setState({ agents: [makeAgent({ id: 'a1', sessions: [], sessionCount: 1399, counts: c(3, 1396) }), makeAgent({ id: 'a2', counts: c(1, 0) })] })
-    useStore.getState().applyWs({
-      ev: 'session',
-      meta: makeSession({ folder: 'f', id: 'new', agentId: 'a1', origin: { kind: 'automation', automationId: 'hourly', runId: 'r' } }),
-      counts: { a1: c(3, 1397) },
-    })
+    useStore
+      .getState()
+      .applyWs({
+        ev: 'session',
+        meta: makeSession({ folder: 'f', id: 'new', agentId: 'a1', origin: { kind: 'automation', automationId: 'hourly', runId: 'r' } }),
+        counts: { a1: c(3, 1397) },
+      })
     const [a1, a2] = useStore.getState().agents
     expect(a1).toMatchObject({ counts: c(3, 1397), sessionCount: 1400 })
     expect(a2).toMatchObject({ counts: c(0, 0), sessionCount: 0 }) // absent from the event = none left
@@ -2823,10 +2825,12 @@ describe('pending resumes (auto-resume)', () => {
 
   it('applyWs pending-resume upserts; pending-resume-removed removes it', () => {
     useStore.setState({ pendingResumes: {} })
-    useStore.getState().applyWs({
-      ev: 'pending-resume',
-      pending: { agentId: 'a1', folder: 'f', sessionId: 's1', text: 'x', resetsAt: 'r', resumeAt: 'r', createdAt: 'c', attempts: 0 },
-    })
+    useStore
+      .getState()
+      .applyWs({
+        ev: 'pending-resume',
+        pending: { agentId: 'a1', folder: 'f', sessionId: 's1', text: 'x', resetsAt: 'r', resumeAt: 'r', createdAt: 'c', attempts: 0 },
+      })
     expect(useStore.getState().pendingResumes['f/s1']).toBeDefined()
     useStore.getState().applyWs({ ev: 'pending-resume-removed', folder: 'f', id: 's1' })
     expect(useStore.getState().pendingResumes['f/s1']).toBeUndefined()

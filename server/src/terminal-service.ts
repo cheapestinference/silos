@@ -91,6 +91,23 @@ export class ConsoleUnknownError extends Error {
   }
 }
 
+/** The probe failed because tmux itself is not on this machine (spawn
+ *  ENOENT): retrying never helps — installing tmux does. A subclass of
+ *  ConsoleUnknownError so every existing catch treats it the same (nothing
+ *  spawned over, nothing dropped); only the words change. */
+export class TmuxMissingError extends ConsoleUnknownError {
+  constructor(key: string) {
+    super(key)
+    this.message =
+      'tmux is not installed on this machine — the real console needs it (macOS: brew install tmux · Debian/Ubuntu: apt install tmux). The chat view works without it.'
+  }
+}
+
+/** The error of a tmux call that never ran: the binary is not on PATH. */
+export function tmuxNotFound(err: unknown): boolean {
+  return (err as { code?: unknown } | null)?.code === 'ENOENT'
+}
+
 // THE rule of every probe (console turn tokens once died
 // while their console ran): a failed tmux call is «unknown», never «gone».
 // Only tmux's OWN statement ends a console — the session is not there
@@ -432,6 +449,10 @@ export class TerminalService extends EventEmitter {
   private ask(): Stamp {
     return { seq: ++this.seq, ms: Date.now() }
   }
+  // the last probe never reached tmux at all (spawn ENOENT): the binary is
+  // not on this machine — the open paths say so instead of «try again».
+  // Self-healing: any probe that reaches tmux clears it.
+  private tmuxMissing = false
   private liveness = new Map<string, { state: 'alive' | 'gone' } & Stamp>()
   private listing: ({ keys: Set<string> } & Stamp) | null = null
   private refreshing = new Set<string>()
@@ -967,8 +988,10 @@ export class TerminalService extends EventEmitter {
       // tmux's own words (stderr) are what tell gone from unknown
       await this.run(['has-session', '-t', `=${this.consoleName(key)}`])
       state = 'alive'
+      this.tmuxMissing = false
     } catch (err) {
       state = tmuxSaysGone(err) ? 'gone' : 'unknown'
+      this.tmuxMissing = tmuxNotFound(err)
     }
     // a «gone» asked before a spawn of the key began says nothing of it
     if (state === 'gone' && this.spawnedSince(key, startedAt)) return 'unknown'
@@ -983,6 +1006,14 @@ export class TerminalService extends EventEmitter {
     return (await this.consoleState(key)) === 'alive'
   }
 
+  /** When this console's tmux session was created (ms), or null when tmux
+   *  could not say. tmux's own clock, so it survives Silos restarts — the
+   *  handover's staleness rule (console-handover.ts consoleBusyFor) compares
+   *  it against the transcript's last movement. */
+  async consoleCreatedMs(key: string): Promise<number | null> {
+    return (await this.listConsoles()).find((c) => c.key === key)?.createdMs ?? null
+  }
+
   // the guard of every act ON a running console: tmux said it is gone →
   // 'console not open'; the probe failed → ConsoleUnknownError, never «gone»
   // (hasConsole first — the one probe on the happy path; the reason is
@@ -990,7 +1021,7 @@ export class TerminalService extends EventEmitter {
   private async mustBeAlive(key: string): Promise<void> {
     if (await this.hasConsole(key)) return
     if ((await this.consoleState(key)) === 'gone') throw new Error('console not open')
-    throw new ConsoleUnknownError(key)
+    throw this.tmuxMissing ? new TmuxMissingError(key) : new ConsoleUnknownError(key)
   }
 
   private shellCount(): number {
@@ -1397,7 +1428,7 @@ export class TerminalService extends EventEmitter {
   // swap its turn token for one no claude holds).
   async reattachConsole(key: string): Promise<{ key: string; theme: ConsoleTheme } | null> {
     const state = await this.consoleState(key)
-    if (state === 'unknown') throw new ConsoleUnknownError(key)
+    if (state === 'unknown') throw this.tmuxMissing ? new TmuxMissingError(key) : new ConsoleUnknownError(key)
     if (state === 'gone') return null
     await this.applyBindings()
     return { key, theme: (await this.consoleTheme(key)) ?? 'dark' }

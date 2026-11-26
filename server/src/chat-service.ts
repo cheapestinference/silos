@@ -42,12 +42,14 @@ export function askDecisionsNote(askTool?: string | null): string {
 /** The engine-neutral form (no tool named). */
 export const ASK_DECISIONS_NOTE = askDecisionsNote(null)
 
-// The one platform rule that changes agent BEHAVIOR rides in the append in
-// compact form, whatever else the launch carries (the full briefing —
-// plugin/context/briefing.d/ — joins it in every Claude append, after it):
-// scheduled work must be visible to the owner.
-export const AUTOMATIONS_NOTE =
-  'Scheduled or recurring work goes through Silos automations, never CronCreate: a Silos automation has owner-visible state (armed/paused, next run, history); a native cron is invisible. Scheduled work of your own is not yours to create: PROPOSE it and the owner creates it in one click — POST ${SILOS_API:-http://127.0.0.1:3210}/api/proposals with -H "Authorization: Bearer $SILOS_AGENT_TOKEN" (your bearer, always) and {"turn": "$SILOS_TURN","kind":"automation","reason":"<one line: why>","input":{"name":"<short name>","agentId":"$SILOS_AGENT_ID","prompt":"<what each run must do>","trigger":{"kind":"cron","expr":"0 9 * * *"}}} — "turn" is the turn it comes from. CronCreate only for a one-shot self-ping inside this session: recurring:false, never durable.'
+// The automations rule (scheduled work must be visible to the owner, with
+// the proposals recipe) lives in the briefing alone —
+// plugin/context/briefing.d/base.md, which every launch of both engines
+// carries (Claude: withBriefingAfter on every append; OpenCode: the
+// instruction file). A compact copy used to ride here too: the same rule
+// and the same curl recipe landed TWICE in every conversation's prompt.
+// The CronCreate gate (plugin/hooks/pre-cron.sh) still refuses a durable
+// cron even in a session whose briefing failed to ride.
 
 export interface ChatDeps {
   registry: AgentRegistry
@@ -597,7 +599,6 @@ export class ChatService extends EventEmitter {
     // is the only signal the platform can turn into an honest "Needs you"
     // (an open question in prose carries no marker). Scoped to real
     // decisions so agents don't turn every reply into a form.
-    parts.push(AUTOMATIONS_NOTE)
     parts.push(askDecisionsNote(this.askToolOf(agent)))
     return parts.join('\n\n')
   }

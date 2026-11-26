@@ -52,12 +52,14 @@ export function heartbeatRoutes(app: FastifyInstance, ctx: HeartbeatRoutesCtx): 
   }
   const selfOnly = (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): boolean => {
     if (req.agentId === req.params.id) return true
-    void reply.code(403).send({
-      error:
-        req.agentId === undefined
-          ? "this is an agent's own heartbeat verb — the owner wakes it on its page"
-          : `agent ${req.agentId} may not act for ${req.params.id}`,
-    })
+    void reply
+      .code(403)
+      .send({
+        error:
+          req.agentId === undefined
+            ? "this is an agent's own heartbeat verb — the owner wakes it on its page"
+            : `agent ${req.agentId} may not act for ${req.params.id}`,
+      })
     return false
   }
 

@@ -160,8 +160,10 @@ describe('provider env', () => {
   })
 })
 
+// the automations rule rides the briefing alone (briefing.d/base.md) since
+// 26-11 — the append carries the mission and the ask-decisions note
 const APPEND =
-  'Your mission: charter\n\nScheduled or recurring work goes through Silos automations, never CronCreate: a Silos automation has owner-visible state (armed/paused, next run, history); a native cron is invisible. Scheduled work of your own is not yours to create: PROPOSE it and the owner creates it in one click — POST ${SILOS_API:-http://127.0.0.1:3210}/api/proposals with -H "Authorization: Bearer $SILOS_AGENT_TOKEN" (your bearer, always) and {"turn": "$SILOS_TURN","kind":"automation","reason":"<one line: why>","input":{"name":"<short name>","agentId":"$SILOS_AGENT_ID","prompt":"<what each run must do>","trigger":{"kind":"cron","expr":"0 9 * * *"}}} — "turn" is the turn it comes from. CronCreate only for a one-shot self-ping inside this session: recurring:false, never durable.\n\nWhen you need a decision or missing input from the owner to continue, ask with the AskUserQuestion tool and offer clear options — do not bury the question in prose. Reserve it for real decisions.'
+  'Your mission: charter\n\nWhen you need a decision or missing input from the owner to continue, ask with the AskUserQuestion tool and offer clear options — do not bury the question in prose. Reserve it for real decisions.'
 // the console's settings ride an owner-only file named on argv, never the
 // JSON itself (D8: /proc/<pid>/cmdline): its bytes pinned here
 const PLAIN_SETTINGS =

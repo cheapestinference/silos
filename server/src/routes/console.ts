@@ -767,10 +767,12 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         says: o.says,
       })
       if (live.length > 0 && !takeover) {
-        return reply.code(409).send({
-          error: `${live.map((o) => o.says).join('; ')} ${live.length > 1 ? 'are' : 'is'} working ${t.ref} — don't start it here (and launch no subagent or worktree for it); send takeover:true only if that work is abandoned or yours to take over`,
-          live: live.map(view),
-        })
+        return reply
+          .code(409)
+          .send({
+            error: `${live.map((o) => o.says).join('; ')} ${live.length > 1 ? 'are' : 'is'} working ${t.ref} — don't start it here (and launch no subagent or worktree for it); send takeover:true only if that work is abandoned or yours to take over`,
+            live: live.map(view),
+          })
       }
       // an unknown conversation is not linked, but the claim's `set` still
       // lands (m6: the verb's own set, not a hard-coded status)
@@ -1021,13 +1023,15 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         if (!agent)
           return reply.code(400).send({ error: `${to} is no agent here — a task is given to you or an agent; a person's task is theirs to write in its file` })
         if (!mayOwnIn(to, t.folder))
-          return reply.code(409).send({
-            error: agent.archived
-              ? `${agent.name} is archived — give it to an agent in play`
-              : agent.folder
-                ? `${agent.name} does not work in ${t.folder ? basename(t.folder) : 'its project'} — give it that folder first (its Profile › Runs on)`
-                : `${agent.name} has no folder — it can't work a task in a project`,
-          })
+          return reply
+            .code(409)
+            .send({
+              error: agent.archived
+                ? `${agent.name} is archived — give it to an agent in play`
+                : agent.folder
+                  ? `${agent.name} does not work in ${t.folder ? basename(t.folder) : 'its project'} — give it that folder first (its Profile › Runs on)`
+                  : `${agent.name} has no folder — it can't work a task in a project`,
+            })
       }
       const initiative = initiativeNow()
       const origin = initiative ? initiative.originState(t.key) : 'known'
@@ -1179,13 +1183,15 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
         const agent = registry.get(owner)
         if (!agent) return reply.code(400).send({ error: `${owner} is no agent here — a task is born yours or an agent's` })
         if (!mayOwnIn(owner, folder))
-          return reply.code(409).send({
-            error: agent.archived
-              ? `${agent.name} is archived — give it to an agent in play`
-              : agent.folder
-                ? `${agent.name} does not work in ${basename(folder)} — give it that folder first (its Profile › Runs on)`
-                : `${agent.name} has no folder — it can't work a task in a project`,
-          })
+          return reply
+            .code(409)
+            .send({
+              error: agent.archived
+                ? `${agent.name} is archived — give it to an agent in play`
+                : agent.folder
+                  ? `${agent.name} does not work in ${basename(folder)} — give it that folder first (its Profile › Runs on)`
+                  : `${agent.name} has no folder — it can't work a task in a project`,
+            })
       }
       const pm = siloRegistry?.get(PLANS_SILO)?.manifest as Record<string, unknown> | null | undefined
       const standing = pm ? standingIdsOf(pm, 'plan') : new Set<string>()
@@ -1310,9 +1316,11 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
           return reply.code(403).send({ error: why })
         }
         if (!taskMode.isBound(req.agentId)) {
-          return reply.code(409).send({
-            error: 'You are Only when told: the owner starts your tasks — claim it to work it here with them, or leave it pending and say so in a note',
-          })
+          return reply
+            .code(409)
+            .send({
+              error: 'You are Only when told: the owner starts your tasks — claim it to work it here with them, or leave it pending and say so in a note',
+            })
         }
         // what appeared outside Silos is no order: unknown,
         // absent from the registries or still provisional ⇒ 409 — with its own
@@ -1383,12 +1391,14 @@ export function consoleRoutes(app: FastifyInstance, ctx: ConsoleRoutesCtx): void
       const { running } = instead !== null ? { running: null } : threadOf(agent.id, w.task.current)
       if (running?.readOnly) return reply.code(409).send({ readOnly: true, error: running.error, sessionId: running.sessionId, folder: running.folder })
       if (running)
-        return reply.code(409).send({
-          error: `a turn is running in ${agent.name}'s conversation on this task — open it; your words land there`,
-          running: true,
-          sessionId: running.sessionId,
-          folder: running.folder,
-        })
+        return reply
+          .code(409)
+          .send({
+            error: `a turn is running in ${agent.name}'s conversation on this task — open it; your words land there`,
+            running: true,
+            sessionId: running.sessionId,
+            folder: running.folder,
+          })
       const input: ConsoleOpenInput = { ...(theme ? { theme } : {}), pick: '', modelPick: '', pinPicks: () => {}, prompt: w.briefing }
       try {
         const { metas, threads } = threadsNow()

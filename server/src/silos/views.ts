@@ -783,18 +783,20 @@ export function recordDetail(
   const surfaces = isObj((manifest.spec as Json).surfaces) ? ((manifest.spec as Json).surfaces as Json) : {}
   const needsYou =
     nyKind === info.name && !term.has(String(r.rec.state))
-      ? (Array.isArray(surfaces['needs-you']) ? surfaces['needs-you'] : []).filter(isObj).flatMap((n, i) =>
-          holds(n.when, info, r, extras.voice) && !(isStr(n.clears) && holds(n.clears, info, r, extras.voice))
-            ? [
-                {
-                  entry: i,
-                  urgency: String(n.urgency),
-                  clears: isStr(n.clears) ? n.clears : null,
-                  actions: Array.isArray(n.actions) ? (n.actions as unknown[]).filter(isStr) : [],
-                },
-              ]
-            : [],
-        )
+      ? (Array.isArray(surfaces['needs-you']) ? surfaces['needs-you'] : [])
+          .filter(isObj)
+          .flatMap((n, i) =>
+            holds(n.when, info, r, extras.voice) && !(isStr(n.clears) && holds(n.clears, info, r, extras.voice))
+              ? [
+                  {
+                    entry: i,
+                    urgency: String(n.urgency),
+                    clears: isStr(n.clears) ? n.clears : null,
+                    actions: Array.isArray(n.actions) ? (n.actions as unknown[]).filter(isStr) : [],
+                  },
+                ]
+              : [],
+          )
       : []
   const allActions = (Array.isArray((manifest.spec as Json).actions) ? ((manifest.spec as Json).actions as unknown[]) : []).filter(isObj)
   const actions = allActions

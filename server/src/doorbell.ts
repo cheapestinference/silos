@@ -80,6 +80,7 @@ const KIND_WORDS: Record<InboxRowKind, [one: string, many: string]> = {
   spend: ['spend it could not count', 'spend it could not count'],
   engineCompat: ['an engine to update', 'engines to update'],
   engineUnwired: ['an engine to wire', 'engines to wire'],
+  silosUpdate: ['a Silos update', 'Silos updates'],
   integrity: ['a file changed outside Silos', 'files changed outside Silos'],
 }
 
