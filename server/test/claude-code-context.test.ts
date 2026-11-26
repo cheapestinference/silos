@@ -1207,3 +1207,67 @@ describe('ContextAccumulator — outbound (SendMessage waits + inter-agent messa
     expect(back.outbound![1]).not.toHaveProperty('state')
   })
 })
+
+describe('ContextAccumulator — background commands (Bash run_in_background)', () => {
+  const bgUse = (id: string, input: Record<string, unknown>) =>
+    line({
+      type: 'assistant',
+      timestamp: new Date().toISOString(),
+      message: { role: 'assistant', content: [{ type: 'tool_use', id, name: 'Bash', input: { run_in_background: true, ...input } }] },
+    })
+  const bgResult = (toolUseId: string, taskId: string) =>
+    line({
+      type: 'user',
+      timestamp: new Date().toISOString(),
+      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: `task ${taskId} running` }] },
+      toolUseResult: { backgroundTaskId: taskId },
+    })
+
+  it('a backgrounded Bash becomes a row at its result (label = description, else the command), and its task-notification ends it', () => {
+    const acc = new ContextAccumulator()
+    acc.feedLines([bgUse('tu_a', { command: 'until done; do sleep 9; done\necho x', description: 'Watch the deploy' }), bgResult('tu_a', 'task_1')])
+    acc.feedLines([bgUse('tu_b', { command: 'npm run watch -- --long' }), bgResult('tu_b', 'task_2')])
+    expect(acc.state.background).toEqual([
+      expect.objectContaining({ id: 'task_1', label: 'Watch the deploy' }),
+      expect.objectContaining({ id: 'task_2', label: 'npm run watch -- --long' }),
+    ])
+    acc.feedLines([line({ type: 'user', message: { role: 'user', content: '<task-notification>\n<task-id>task_1</task-id>\n<status>completed</status>' } })])
+    expect(acc.state.background).toEqual([expect.objectContaining({ id: 'task_2' })])
+  })
+
+  it('a foreground Bash, an errored result, or one without a task id adds no row; rows survive the cache roundtrip; a stale row is not served', () => {
+    const acc = new ContextAccumulator()
+    acc.feedLines([
+      line({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_fg', name: 'Bash', input: { command: 'ls' } }] } }),
+      line({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_fg', content: 'ok' }] } }),
+      bgUse('tu_err', { command: 'x' }),
+      line({
+        type: 'user',
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_err', is_error: true, content: 'refused' }] },
+        toolUseResult: { backgroundTaskId: 'task_e' },
+      }),
+      bgUse('tu_noid', { command: 'y' }),
+      line({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_noid', content: 'ok' }] } }),
+    ])
+    expect(acc.state.background).toBeUndefined()
+    acc.feedLines([bgUse('tu_live', { description: 'alive' }), bgResult('tu_live', 'task_l')])
+    const reloaded = new ContextAccumulator(acc.state)
+    expect(reloaded.state.background).toEqual([expect.objectContaining({ id: 'task_l', label: 'alive' })])
+    // a row whose notification never came (the engine died) leaves the serving after SHELL_MAX_MS
+    const stale = new ContextAccumulator()
+    stale.feedLines([
+      line({
+        type: 'assistant',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_old', name: 'Bash', input: { run_in_background: true, command: 'z' } }] },
+      }),
+      line({
+        type: 'user',
+        timestamp: '2026-01-01T00:00:01.000Z',
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_old', content: 'ok' }] },
+        toolUseResult: { backgroundTaskId: 'task_old' },
+      }),
+    ])
+    expect(stale.state.background).toBeUndefined()
+  })
+})

@@ -487,7 +487,7 @@ export interface AccumulatorState {
 export const PARKING_KIND: Readonly<Record<string, 'monitor' | 'wakeup' | 'workflow'>> = { Monitor: 'monitor', ScheduleWakeup: 'wakeup', Workflow: 'workflow' }
 export const PARKING_TOOLS: ReadonlySet<string> = new Set(Object.keys(PARKING_KIND))
 const MAX_SHELLS = 50
-const TASK_NOTIFICATION_ID_RE = /<task-notification>\s*<task-id>([^<\s]+)<\/task-id>/g
+export const TASK_NOTIFICATION_ID_RE = /<task-notification>\s*<task-id>([^<\s]+)<\/task-id>/g
 
 // Defensive cap on the external queue — a corrupt/adversarial JSONL with
 // thousands of queue-operation entries must not grow the state unbounded.

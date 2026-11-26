@@ -500,6 +500,9 @@ export interface SessionContext {
   tools: { name: string; server: string | null; count: number }[]
   flags: { remote: boolean; permissionMode: string | null; gitBranch: string | null; effort: string | null; model: string | null; accountEmail?: string | null }
   waiting: { kind: 'monitor' | 'wakeup' | 'workflow'; since: string; label: string } | null
+  // background commands it still awaits (server SessionContext.background):
+  // the «In the background» rows beside the OS processes
+  background?: { id: string; since: string; label: string }[]
   // what this conversation sent to OTHERS and may still be waiting on (proof
   // of life): 'session' = an outbound SendMessage nothing
   // answered yet; 'message' = a message POSTed to an agent's inbox, whose

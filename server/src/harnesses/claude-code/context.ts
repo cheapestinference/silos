@@ -11,7 +11,8 @@
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { homedir } from 'node:os'
-import { textOf, toolResultsOf, isNoise, conversationalMessage, planProposalOf, planApproved, PARKING_KIND } from './parser.js'
+import { textOf, toolResultsOf, isNoise, conversationalMessage, planProposalOf, planApproved, PARKING_KIND, TASK_NOTIFICATION_ID_RE } from './parser.js'
+import { SHELL_MAX_MS } from '../../work-live.js'
 import { modelsWithoutPrice, priceUsage } from './model-prices.js'
 import { scrubReason } from '../../tool-health.js'
 import { FENCE_REFUSAL_WHOLE_RE, normalizeToolError, refusedPathOf, REFUSED_CAP } from '../../territory.js'
@@ -67,6 +68,7 @@ function messagePostOf(cmd: string): { to: string; summary: string } | null {
 const FILES_CAP = 200
 const EVENTS_CAP = 50
 const DOCS_CAP = 20
+const BACKGROUND_CAP = 20
 // File PATHS as they appear inside a tool call's input — relative,
 // absolute, or ~-prefixed. The transcript naming the file IS the
 // attribution signal: no clocks, no mtime correlation. A WHITELIST of the
@@ -202,6 +204,10 @@ export class ContextAccumulator {
   private pendingPaths = new Map<string, string | null>()
   private flagsObj: SessionContext['flags'] = { remote: false, permissionMode: null, gitBranch: null, effort: null, model: null }
   private waitingObj: SessionContext['waiting'] = null
+  // awaited background commands (SessionContext.background): label learned
+  // at the tool_use, the id at its result, the end at the <task-notification>
+  private pendingShells = new Map<string, string>()
+  private backgroundArr: { id: string; since: string; label: string }[] = []
   // outbound sends still shown (proof of life) — see types.ts
   private outboundArr: NonNullable<SessionContext['outbound']> = []
   // cost, computed from each assistant message's real usage × API list
@@ -333,6 +339,8 @@ export class ContextAccumulator {
     this.refusedArr = (state.refused ?? []).map((r) => ({ at: r.at, path: r.path }))
     this.flagsObj = { ...state.flags }
     this.waitingObj = state.waiting ? { ...state.waiting } : null
+    // caches < v50 carry no background
+    this.backgroundArr = (state.background ?? []).map((b) => ({ ...b }))
     // caches < v40 carry no outbound; live-joined fields (state/answer) are
     // never the accumulator's — kept out even if a caller cached them
     this.outboundArr = (state.outbound ?? []).map(({ kind, to, summary, since, messageId }) => ({
@@ -393,6 +401,15 @@ export class ContextAccumulator {
       tools: [...this.toolsMap.values()],
       flags: { ...this.flagsObj },
       waiting: this.waitingObj,
+      ...((): Partial<Pick<SessionContext, 'background'>> => {
+        // an entry whose notification never came (the engine died) leaves
+        // the serving after SHELL_MAX_MS — and the next flush drops it
+        const fresh = this.backgroundArr.filter((b) => {
+          const t = Date.parse(b.since)
+          return !Number.isFinite(t) || Date.now() - t < SHELL_MAX_MS
+        })
+        return fresh.length > 0 ? { background: fresh.map((b) => ({ ...b })) } : {}
+      })(),
       cost:
         this.costMap.size > 0
           ? {
@@ -689,6 +706,18 @@ export class ContextAccumulator {
         this.pendingToolUseId = id
       }
 
+      // a Bash sent to the background: the result answers at once with a
+      // task id while the command keeps running — an «In the background» row
+      if (name === 'Bash' && id && input.run_in_background === true) {
+        const label =
+          typeof input.description === 'string' && input.description !== ''
+            ? input.description
+            : typeof input.command === 'string'
+              ? (input.command.split('\n')[0] ?? '').slice(0, 120)
+              : ''
+        this.pendingShells.set(id, label)
+      }
+
       if ((name === 'Monitor' || name === 'ScheduleWakeup' || name === 'Workflow') && id) {
         const label =
           typeof input.description === 'string'
@@ -893,6 +922,9 @@ export class ContextAccumulator {
         // a subagent messaged by its id answered — its wait is over
         this.outboundArr = this.outboundArr.filter((o) => !(o.kind === 'session' && o.to === m[1]))
       }
+      // a notification naming a background command's id ends its row (the
+      // parser's same marker; ids are not hex — a task id is the engine's)
+      for (const bm of content.matchAll(TASK_NOTIFICATION_ID_RE)) this.backgroundArr = this.backgroundArr.filter((b) => b.id !== bm[1])
       return
     }
 
@@ -941,6 +973,15 @@ export class ContextAccumulator {
       if (send) {
         this.pendingSends.delete(r.toolUseId)
         if (!r.isError) this.resolveSend(send, r.text)
+      }
+      const shellLabel = this.pendingShells.get(r.toolUseId)
+      if (shellLabel !== undefined) {
+        this.pendingShells.delete(r.toolUseId)
+        const bg = (e.toolUseResult as { backgroundTaskId?: unknown } | undefined)?.backgroundTaskId
+        if (typeof bg === 'string' && bg !== '' && !r.isError) {
+          this.backgroundArr.push({ id: bg, since: ts ?? '', label: shellLabel })
+          if (this.backgroundArr.length > BACKGROUND_CAP) this.backgroundArr.shift()
+        }
       }
       if (this.waitingToolUseId === r.toolUseId) {
         this.waitingObj = null

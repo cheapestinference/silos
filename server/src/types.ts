@@ -299,6 +299,13 @@ export interface SessionContext {
   // one it was set to (they can differ). Absent on other engines.
   flags: { remote: boolean; permissionMode: string | null; gitBranch: string | null; effort: string | null; model: string | null; accountEmail?: string | null }
   waiting: { kind: 'monitor' | 'wakeup' | 'workflow'; since: string; label: string } | null
+  // background commands this conversation still awaits (Bash run_in_background):
+  // the engine reopens it with a <task-notification> naming the id — until
+  // then the command runs with the turn closed. The label is the call's own
+  // description (or its command's first line). Bounded; serving drops an
+  // entry older than SHELL_MAX_MS (a notification that never came: the
+  // engine died), and the parser's shellSince stays the "working" signal.
+  background?: { id: string; since: string; label: string }[]
   // what this conversation sent to OTHERS and may still be waiting on
   // (proof of life: if it is doing something, it must show in the
   // column). Real transcript signals only, two kinds:

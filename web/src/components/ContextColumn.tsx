@@ -1254,7 +1254,20 @@ function NestedRunsBlock({ runs, now, onOpen }: { runs: SessionView[]; now: numb
 // one the System page follows, moved by each scan that changes something):
 // no poll of its own.
 const STOPPED_LINGER_MS = 5000
-function ProcessesBlock({ folder, id, awaited = false }: { folder: string; id: string; awaited?: boolean }) {
+// `engine`: the commands the ENGINE still awaits in background (context.background)
+// — rows of the same block, before the OS processes; their end is the
+// engine's own <task-notification>, so no Stop door (nothing of Silos' to kill).
+function ProcessesBlock({
+  folder,
+  id,
+  awaited = false,
+  engine = [],
+}: {
+  folder: string
+  id: string
+  awaited?: boolean
+  engine?: { id: string; since: string; label: string }[]
+}) {
   const siloTick = useStore((s) => s.siloTick)
   const nowTick = useStore((s) => s.nowTick)
   const changePage = useStore((s) => s.changePage)
@@ -1299,12 +1312,30 @@ function ProcessesBlock({ folder, id, awaited = false }: { folder: string; id: s
       .filter((v) => !rows.some((r) => r.id === v.row.id))
       .map((v) => v.row),
   ]
-  if (listed.length === 0) return null
+  if (listed.length === 0 && engine.length === 0) return null
   const ports = [...new Set(rows.flatMap((p) => portsWords(p.ports).split(' ').filter(Boolean)))]
   const note = ports.length === 0 ? undefined : ports.length > 3 ? `${ports.slice(0, 3).join(' ')} …` : ports.join(' ')
   return (
-    <Block title="Processes" count={rows.length > 0 ? rows.length : undefined} note={note} defaultOpen={awaited}>
+    <Block title="In the background" count={engine.length + rows.length > 0 ? engine.length + rows.length : undefined} note={note} defaultOpen={awaited}>
       <ul className="-mx-1 space-y-0.5" data-testid="processes-block">
+        {/* the engine's own awaited commands first: it reopens the
+            conversation when one ends, so the row says what runs and since
+            when — never a Stop (their end is the engine's notification) */}
+        {engine.map((b) => {
+          const started = Date.parse(b.since)
+          return (
+            <li key={`bg:${b.id}`} className="rounded-md px-1 py-1" data-testid="background-shell">
+              <div className="flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 truncate text-left text-[11.5px] leading-snug text-ink" title={b.label}>
+                  {b.label || 'a background command'}
+                </span>
+                <span role="status" className="shrink-0 text-[11px] text-ink-3">
+                  running{Number.isFinite(started) ? ` · ${relTime(started, nowTick)}` : ''}
+                </span>
+              </div>
+            </li>
+          )
+        })}
         {listed.map((p) => {
           const words = said[p.id]
           const { head, tail } = splitTail(p.command, 18, 28)
@@ -3122,7 +3153,9 @@ export function ContextColumn({ agent: viewAgent }: { agent?: AgentView } = {}) 
         {nestedRuns.length > 0 ? <NestedRunsBlock runs={nestedRuns} now={nowTick} onOpen={(s) => void openSession(s.folder, s.id)} /> : null}
         {/* what it left running on the machine — folded, absent when none;
                 keyed so every conversation opens it closed */}
-        {meta ? <ProcessesBlock key={`${meta.folder}/${meta.id}`} folder={meta.folder} id={meta.id} awaited={shellLive} /> : null}
+        {meta ? (
+          <ProcessesBlock key={`${meta.folder}/${meta.id}`} folder={meta.folder} id={meta.id} awaited={shellLive} engine={context?.background ?? []} />
+        ) : null}
         {context && context.links.artifacts.length > 0 ? <PublishedBlock artifacts={context.links.artifacts} /> : null}
         {context && (context.documents?.length ?? 0) > 0 && meta ? <DocumentsBlock documents={context.documents!} folder={meta.folder} id={meta.id} /> : null}
         {/* what the owner gave THIS conversation alone (its thread's own

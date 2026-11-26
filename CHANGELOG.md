@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asks the npm registry at most once a day, sends nothing about the
   install, and `SILOS_NO_UPDATE_CHECK=1` turns it off.
 
+- **The column says what a conversation keeps running in the background.**
+  The Processes block becomes «In the background»: the engine's own awaited
+  commands (a watcher, a long build sent to the background) appear as rows
+  with their description and age beside the machine's processes — until the
+  engine's own notification ends them.
+
 ### Fixed
 
 - **Agents can save their own memory again.** Since each agent got its own

@@ -62,13 +62,13 @@ describe('the Processes block', () => {
     mockedApi.processes.mockResolvedValue([])
     render(<ContextColumn />)
     await waitFor(() => expect(mockedApi.processes).toHaveBeenCalledWith('f', 's1'))
-    expect(screen.queryByText('Processes')).toBeNull()
+    expect(screen.queryByText('In the background')).toBeNull()
   })
 
   it('one folded line: its count and its ports, closed', async () => {
     mockedApi.processes.mockResolvedValue([proc(), proc({ id: '33-330', key: 'platform/33-330', command: 'npm test', ports: undefined })])
     render(<ContextColumn />)
-    const title = await screen.findByText('Processes')
+    const title = await screen.findByText('In the background')
     const details = title.closest('details')!
     expect(details.open).toBe(false)
     expect(details.querySelector('summary')!.textContent).toContain(':5193')
@@ -98,7 +98,7 @@ describe('the Processes block', () => {
   it('no Stop on what Silos may not stop', async () => {
     mockedApi.processes.mockResolvedValue([proc({ stoppable: false, origin: 'other-user' })])
     render(<ContextColumn />)
-    await screen.findByText('Processes')
+    await screen.findByText('In the background')
     expect(screen.queryByRole('button', { name: /^Stop / })).toBeNull()
   })
 })
